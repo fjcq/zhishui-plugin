@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" type="text/css" href="{{dz}}\plugins\example\sj\dsp.css" />
+</head>
+<body> 
+<div class="box">
+	<div class="bt" >搜 剧 结 果</div>
+</div>
+	
+{{each nr2 na idx}}
+	<div class="box">	
+		<div class="tu" >
+			<img src= "{{na.vod_pic}}"/>
+		</div>
+		<!-- <a class="pic-text">{{nr2[idx].vod_remarks}}</a><br/> -->
+		<div class="bt" >{{nr2[idx].vod_name}}</div>
+		
+		<div class="tip" >
+			<p><font class="text-muted">你可以发送<font class="text-data"> #看剧{{idx + 1}} </font>来选择观看本剧。</font></p>
+		</div>
+	</div>
+{{/each}}
+
+
+<p class="jw" >Created By Yunzai-Bot & earth-k-plugin | 止水修改版</p>
+
+</body>
+</html>

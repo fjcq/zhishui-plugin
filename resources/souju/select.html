@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\souju\select.css" />
+</head>
+<body>
+
+    <div class="box">
+        <div class="tu">
+            <img src="{{js[0].vod_pic}}" />
+        </div>
+
+        <div class="bt">{{js[0].vod_name}}</div>
+
+        <div class="nr">
+            <p class="text-muted">分类：</p>{{js[0].type_name}}&emsp;
+            <p class="text-muted">地区：</p>{{js[0].vod_area}}&emsp;
+            <p class="text-muted">年份：</p>{{js[0].vod_year}}<br />
+            <p class="text-muted">更新：</p>{{js[0].vod_remarks}}/{{js[0].vod_time}}<br />
+            <p class="text-muted">主演：</p>{{js[0].vod_actor}}<br />
+            <p class="text-muted">导演：</p>{{js[0].vod_director}}<br />
+            <p class="text-muted">简介：</p>{{js[0].vod_content}}
+        </div>
+    </div>
+
+    <div class="box">
+
+        <div class="nr">
+            <p class="text-muted">你可以发送#线路+数字来切换线路</p><br />
+        </div>
+
+        <div class="jj">
+            <br />
+            {{each jdm value i}}
+            <div class="js"><li class="text-data">#线路{{i+1}}</li> {{value}}</div>
+            {{/each}}
+        </div>
+        <div class="nr">
+            <p class="text-muted">当前线路为：</p>#线路{{bfxl}} {{jdm[bfxl-1]}}
+        </div>
+    </div>
+
+    <div class="box">
+        <div class="jj">
+            <br />
+            {{each mingzi j idx}}
+            <div class="js"><li class="text-data">{{idx+1}}.</li>{{j}}</div>
+            {{/each}}
+            <br />
+        </div>
+        <div class="nr">
+            <p><font class="text-muted">你可以发送#选剧+数字来选择集数，例如：</font><font class="text-data">#选剧1</font></p>
+        </div>
+    </div>
+
+
+
+    <p class="jw">Created By Yunzai-Bot & earth-k-plugin | 止水修改版</p>
+
+
+</body>
+</html>
