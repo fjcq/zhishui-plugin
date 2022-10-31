@@ -4,7 +4,7 @@
 zhishui-plugin是一个Yunzai-BotV3的扩展插件
 本插件开发纯属学习与爱好
 
-### 安装教程
+## 安装教程
 **Tip：zhishui-plugin仅适配Yunzai-BotV3!!!**
 
 请将zhishui-plugin放置在Yunzai-Bot的plugins目录下，重启Yunzai-Bot后即可使用。
@@ -16,7 +16,7 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
 ```
 
 
-### 功能介绍
+## 功能介绍
 
 <details>
   <summary>七星搜剧</summary>
