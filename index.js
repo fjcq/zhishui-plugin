@@ -31,5 +31,5 @@ for (let i in files) {
 
 export { apps }
 
-logger.info(chalk.yellow(`止水插件 加载完成！`))
+logger.info(chalk.yellow(`止水插件${Version.version} 加载完成！`))
 logger.info(chalk.yellow('-------------------------'))
