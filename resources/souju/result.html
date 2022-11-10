@@ -1,30 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\souju\result.css" />
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\souju\result.css" />
 </head>
-<body> 
-<div class="box">
-	<div class="bt" >搜 剧 结 果</div>
-</div>
-	
-{{each nr2 na idx}}
-	<div class="box">	
-		<div class="tu" >
-			<img src= "{{na.vod_pic}}"/>
-		</div>
-		<!-- <a class="pic-text">{{nr2[idx].vod_remarks}}</a><br/> -->
-		<div class="bt" >{{nr2[idx].vod_name}}</div>
-		
-		<div class="tip" >
-			<p><font class="text-muted">你可以发送<font class="text-data"> #看剧{{idx + 1}} </font>来选择观看本剧。</font></p>
-		</div>
-	</div>
-{{/each}}
+<body>
+    <div> </div>
+    <div class="box">
+        <h1>搜 剧 结 果</h1>
+    </div>
 
+    <div class="tip">
+        <p><font class="text-muted">你可以发送<font class="text-data"> #看剧+数字 </font>来选择观看本剧。</font></p>
+    </div>
 
-<p class="jw" >Created By Yunzai-Bot & earth-k-plugin | 止水修改版</p>
+    <div class="box">
+        <div class="item_data">
+            {{each nr2 na idx}}
 
+            <div class="item">
+                <div class="tu">
+                    <img src="{{na.vod_pic}}" />
+                    <div class="num">#看剧{{idx+1}}</div>
+                    <div class="pic-text  text-up text-right">{{nr2[idx].type_name}}</div>
+                    <div class="pic-text text-down text-left pic-background">{{nr2[idx].vod_remarks}}</div>
+                </div>
+                <div class="item_title">{{nr2[idx].vod_name}}</div>
+            </div>
+
+            {{/each}}
+        </div>
+    </div>
+
+    <div class="tip">
+        <p><font class="text-muted">你可以发送<font class="text-data"> #看剧+数字 </font>来选择观看本剧。</font></p>
+    </div>
+
+    <div class="box">
+        <h4>Created By Yunzai-Bot & 止水</h4>
+    </div>
 </body>
 </html>
