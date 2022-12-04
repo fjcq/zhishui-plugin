@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta http-equiv="content-type" content="text/html;charset=utf-8" />
-    <link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\souju\result.css" />
+    <link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\html\souju\result.css" />
 </head>
 <body>
     <div> </div>
@@ -19,12 +19,18 @@
             {{each nr2 na idx}}
 
             <div class="item">
+                
                 <div class="tu">
+                    {{if showpic == true}}
                     <img src="{{na.vod_pic}}" />
+                    {{else}}
+                    <img src="{{dz}}\plugins\zhishui-plugin\resources\html\souju\load.png" />
+                    {{/if}}
                     <div class="num">#看剧{{idx+1}}</div>
                     <div class="pic-text  text-up text-right">{{nr2[idx].type_name}}</div>
                     <div class="pic-text text-down text-left pic-background">{{nr2[idx].vod_remarks}}</div>
                 </div>
+                
                 <div class="item_title">{{nr2[idx].vod_name}}</div>
             </div>
 
