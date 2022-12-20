@@ -27,13 +27,6 @@ body {
     padding: 10px;
     flex-grow: 2;
     width: 740px;
-    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-    border-top: 1px solid #ffcc80;
-    border-left: 1px solid #ffcc80;
-    border-right: 1px solid #bb8020;
-    border-bottom: 1px solid #bb8020;
-    box-shadow: 1px 2px 6px rgba(170, 31, 0, 0.2), 3px 8px 12px rgba(71, 35, 22, 0.3);
-    border-radius: 5px;
     text-align: center;
 }
 
@@ -52,9 +45,9 @@ body {
 }
 
 h1 {
-    font-family: "NZBZ";
-    text-shadow: 5px 5px 3px rgb(0 0 0 / 30%);
+    font-family: "zk";
     color: #141513d4;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
 }
 
 .item_data {
@@ -69,10 +62,12 @@ h1 {
     margin: 13px;
     padding: 10px;
     width: 198px;
+    background: rgb(255, 255, 255, 0.10);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 5px;
-    background: rgb(255, 255, 255, 0.85);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-    border: 1px solid rgba(255, 255, 255, 0.18);
     position: relative;
 }
 
@@ -111,20 +106,20 @@ img {
 }
 
 .text-data {
-    color: #000;
+    color: #3366ff;
     font-weight: 600;
 }
 
 .num {
     position: absolute;
     font-family: "jty";
-    font-size: 18px;
+    font-size: 14px;
     text-align: left;
     top: -10px;
     left: -10px;
     color: #3366ff;
-    text-shadow: 0 8px 10px #6699ff;
-    font-weight: 600;
+    font-weight: 400;
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
 }
 
 .pic-tag-top {
@@ -161,6 +156,7 @@ img {
     white-space: nowrap;
     left: 5px;
     font-family: "jty";
+    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
 }
 
 .text-right {
