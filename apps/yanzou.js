@@ -6,7 +6,7 @@ const { exec } = require("child_process");
 
 let ResPath = './plugins/zhishui-plugin/resources/yanzou/';
 let YueqiPath = './plugins/zhishui-plugin/resources/yanzou/gangqin/';
-let OutputFile = `output.amr`;
+let OutputFile = `output.mp3`;
 let kg = 0;
 
 export class yanzou extends plugin {
@@ -29,6 +29,7 @@ export class yanzou extends plugin {
     }
 
     async played(e) {
+        let FfmpegMsg = "";
         if (kg == 1) {
             e.reply(`正在准备演奏呢，你先别急~~`);
             return;
@@ -61,14 +62,20 @@ export class yanzou extends plugin {
             kg = 0
             return;
         });
-        ffmpeg.stdout.on('data', () => true);
+        ffmpeg.stdout.on('data', (data) => {
+            FfmpegMsg=data
+            //console.log(`stdout ${data}`);
+        });
 
-        ffmpeg.stderr.on('data', () => true);
+        ffmpeg.stderr.on('data', (data) => {
+            FfmpegMsg = data
+            //console.log(`stderr ${data}`);
+        });
 
         ffmpeg.on('close', (code) => {
 
             if (code != 0) {
-                console.log(`子进程已退出，退出码 ${code}`);
+                console.log(`子进程已关闭，代码 ${code}`);
                 e.reply('合成音效失败！')
                 kg = 0
                 return
@@ -84,12 +91,13 @@ export class yanzou extends plugin {
         });
 
         ffmpeg.on('exit', async (code) => {
-            if (code != 0 || kg == 0) {
+            if (code != 0 || kg != 1) {
                 console.log(`子进程已退出，退出码 ${code}`);
                 e.reply('合成音效失败！')
                 kg = 0
                 return
             } else {
+                console.log(`合成音频： ${FfmpegMsg}`);
                 await sleep(1000)
                 let msg2 = await uploadRecord(YueqiPath + OutputFile, 0, false)
                 e.reply(msg2)
