@@ -1,13 +1,13 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
-import fs from "fs";
 import uploadRecord from '../../zhishui-plugin/model/uploadRecord.js'
 const require = createRequire(import.meta.url)
-const { exec, execSync } = require("child_process");
+const { exec } = require("child_process");
 
 let ResPath = './plugins/zhishui-plugin/resources/yanzou/';
 let YueqiPath = './plugins/zhishui-plugin/resources/yanzou/gangqin/';
-let OutputFile = `output.mp3`;
+let OutputFile = `output.amr`;
+let kg = 0;
 
 export class yanzou extends plugin {
     constructor() {
@@ -20,19 +20,28 @@ export class yanzou extends plugin {
                 {
                     reg: "^#演奏(.*)",
                     fnc: 'played'
-                }
+                }, {
+                    reg: "^#取消演奏$",
+                    fnc: 'StopPlaye'
+                },
             ]
         })
     }
 
     async played(e) {
+        if (kg == 1) {
+            e.reply(`正在准备演奏呢，你先别急~~`);
+            return;
+        }
 
+        kg = 1
         let msg = await GetFfmpegCommand(e.msg);
         console.log(msg);
         if (msg != undefined && msg.length > 3) {
             e.reply(`我要准备演奏了，请稍等一哈！`);
         } else {
             e.reply(`弹琴代码错误！`);
+            kg = 0
             return;
         }
 
@@ -49,6 +58,7 @@ export class yanzou extends plugin {
         ffmpeg.on('error', (err) => {
             console.error(`Failed to start ffmpeg: ${err}`);
             e.reply('你还没有配置ffmpeg的环境变量，请到这里下载https://tukuai.one/download.html，并配置环境变量')
+            kg = 0
             return;
         });
         ffmpeg.stdout.on('data', () => true);
@@ -60,6 +70,7 @@ export class yanzou extends plugin {
             if (code != 0) {
                 console.log(`子进程已退出，退出码 ${code}`);
                 e.reply('合成音效失败！')
+                kg = 0
                 return
             }
         });
@@ -67,19 +78,22 @@ export class yanzou extends plugin {
         ffmpeg.on('error', (code) => {
             console.log(`合成音效错误，错误代码 ${code}`);
             e.reply('合成音效失败！')
+            kg = 0
             return
 
         });
 
         ffmpeg.on('exit', async (code) => {
-            if (code != 0) {
+            if (code != 0 || kg == 0) {
                 console.log(`子进程已退出，退出码 ${code}`);
                 e.reply('合成音效失败！')
+                kg = 0
                 return
             } else {
                 await sleep(1000)
                 let msg2 = await uploadRecord(YueqiPath + OutputFile, 0, false)
                 e.reply(msg2)
+                kg = 0
                 return true;
             }
 
@@ -88,6 +102,13 @@ export class yanzou extends plugin {
 
     }
 
+    async StopPlaye(e) {
+        if (kg == 1) {
+            e.reply('已经取消演奏！')
+            kg = 0
+            return true;
+        }
+    }
 
     /**
  * 异步执行命令
@@ -230,7 +251,7 @@ export async function GetFfmpegCommand(msg) {
     if (quantity > 0) {
 
         result.push(`-filter_complex`)
-        result.push(`${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0,dynaudnorm[a]`)
+        result.push(`${settime}${setorder}amix=inputs=${quantity}:normalize=0,dynaudnorm[a]`)
         result.push(`-map`)
         result.push(`[a]`)
         result.push(OutputFile)

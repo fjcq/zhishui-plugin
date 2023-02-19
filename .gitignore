@@ -10,6 +10,7 @@
 *.userosscache
 *.sln.docstates
 resources/yanzou/*/output.mp3
+resources/yanzou/*/output.amr
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
