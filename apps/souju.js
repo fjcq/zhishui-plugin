@@ -227,11 +227,14 @@ export class souju extends plugin {
 
         if (e.msg.includes("#选剧")) {
             k = e.msg.replace(/#选剧/g, "").trim()
-            msg = bt + mingzi[Number(k) - 1] + '\n' + bfq + wangzhi[Number(k) - 1]
-            e.reply(msg)
+            if (wangzhi[Number(k) - 1]!=undefined){
+                msg = bt + mingzi[Number(k) - 1] + '\n' + bfq + wangzhi[Number(k) - 1]
+                e.reply(msg)
+                return true;//返回true 阻挡消息不再往下
+            }
         }
 
-        return true;//返回true 阻挡消息不再往下
+
     }
 }
 

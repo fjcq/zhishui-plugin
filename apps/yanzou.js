@@ -6,7 +6,8 @@ const { exec } = require("child_process");
 
 let ResPath = './plugins/zhishui-plugin/resources/yanzou/';
 let YueqiPath = './plugins/zhishui-plugin/resources/yanzou/gangqin/';
-let OutputFile = `output.mp3`;
+let OutputFile = `output.wav`;
+let Format = ".mp3"//文件格式
 let kg = 0;
 
 export class yanzou extends plugin {
@@ -48,7 +49,7 @@ export class yanzou extends plugin {
 
         const { spawn } = require('child_process');
         const ffmpeg = spawn(
-            'ffmpeg',
+            Bot.config.ffmpeg_path,
             msg,
             {
                 cwd: YueqiPath
@@ -63,7 +64,7 @@ export class yanzou extends plugin {
             return;
         });
         ffmpeg.stdout.on('data', (data) => {
-            FfmpegMsg=data
+            FfmpegMsg = data
             //console.log(`stdout ${data}`);
         });
 
@@ -92,7 +93,7 @@ export class yanzou extends plugin {
 
         ffmpeg.on('exit', async (code) => {
             if (code != 0 || kg != 1) {
-                console.log(`子进程已退出，退出码 ${code}`);
+                console.log(`子进程已退出：${FfmpegMsg}`);
                 e.reply('合成音效失败！')
                 kg = 0
                 return
@@ -156,14 +157,17 @@ export async function GetFfmpegCommand(msg) {
     let MusicTime = 0;
     let i = 0
     let reg = /[-|+]*\d_*/g;
-    let xiaoxi = msg.replace(/#演奏\S*/g, "").trim()
+    let xiaoxi = msg.replace(/#演奏[^\s\d+-]*/g, "").trim()
     let notation = xiaoxi.split('|')
     let currenttime = 0
     let quantity = 0
     let beattime = 0//每拍时间（毫秒）
 
+
     //音频资源目录处理
-    let Yueqi = msg.match(/#演奏(\S*)/g);
+    let Yueqi = msg.match(/#演奏[^\s\d+-]*/g);
+    Yueqi = Yueqi.toString().replace(`#演奏`, "")
+
     if (isNotNull(Yueqi)) {
         Yueqi = Yueqi.toString()
     } else {
@@ -174,6 +178,7 @@ export async function GetFfmpegCommand(msg) {
         YueqiPath = ResPath + 'ba/';
     } else if (Yueqi == "钢琴") {
         YueqiPath = ResPath + 'gangqin/';
+        Format = ".wav"
     } else if (Yueqi == "古筝") {
         YueqiPath = ResPath + 'gu/';
     } else if (Yueqi == "吉他") {
@@ -188,6 +193,7 @@ export async function GetFfmpegCommand(msg) {
         YueqiPath = ResPath + 'xiyu/';
     } else {
         YueqiPath = ResPath + 'gangqin/';
+        Format = ".wav"
     }
 
     //算出每分钟节拍数
@@ -196,7 +202,8 @@ export async function GetFfmpegCommand(msg) {
     } else { beattime = 60000 / 90 }
 
     let MusicScore = notation[0].match(reg);
-    if (MusicScore.length > 1) { } else {
+    if (!isNotNull(MusicScore)) { return }
+    else if (MusicScore.length > 1) { } else {
         return;
     }
 
@@ -217,7 +224,7 @@ export async function GetFfmpegCommand(msg) {
         //拼接ffmpeg参数
         if (Number(File) != 0 && Music != undefined) {
             result.push(`-i`)
-            result.push(`${File}.mp3`)
+            result.push(`${File}${Format}`)
             settime += `[${quantity}]adelay=${Math.round(currenttime)}:all=1[${quantity}a];`;
             quantity += 1
         }
