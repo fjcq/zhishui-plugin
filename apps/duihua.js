@@ -7,13 +7,13 @@ let zs
 export class duihua extends plugin {
     constructor() {
         super({
-            name: '智能对话',
-            dsc: '止水对话',
+            name: '[止水插件]对话',
+            dsc: '智能对话',
             event: 'message',
             priority: 2000,
             rule: [
                 {
-                    reg: "^小七.*",
+                    reg: "^#小七.*",
                     fnc: 'duihua'
                 }
             ]
@@ -21,7 +21,7 @@ export class duihua extends plugin {
     }
 
     async duihua(e) {
-        let msg = e.msg.replace(/小七/, "").trim()
+        let msg = e.msg.replace(/#小七/, "").trim()
         tempMsg = tempMsg + "\nHuman: " + msg
         var data2 = {
             prompt: tempMsg,
@@ -62,5 +62,6 @@ export class duihua extends plugin {
         e.reply(jieguo, true)
         tempMsg = ""
         zs = tempMsg.length
+        return;
     }
 }
