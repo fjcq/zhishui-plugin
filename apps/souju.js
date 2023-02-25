@@ -33,8 +33,8 @@ jiekou = await Get_Interface()
 export class souju extends plugin {
     constructor() {
         super({
-            name: '搜剧',
-            dsc: '止水搜剧',
+            name: '[止水插件]搜剧',
+            dsc: '七星搜剧',
             event: 'message',
             priority: 2000,
             rule: [

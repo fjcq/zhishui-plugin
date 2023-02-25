@@ -4,6 +4,7 @@ import uploadRecord from '../../zhishui-plugin/model/uploadRecord.js'
 const require = createRequire(import.meta.url)
 const { exec } = require("child_process");
 
+const _path = process.cwd();
 let ResPath = './plugins/zhishui-plugin/resources/yanzou/';
 let YueqiPath = './plugins/zhishui-plugin/resources/yanzou/gangqin/';
 let OutputFile = `output.wav`;
@@ -13,8 +14,8 @@ let kg = 0;
 export class yanzou extends plugin {
     constructor() {
         super({
-            name: '演奏',
-            dsc: '止水演奏',
+            name: '[止水插件]演奏',
+            dsc: '乐器演奏',
             event: 'message',
             priority: 2000,
             rule: [
@@ -280,7 +281,7 @@ export async function GetFfmpegCommand(msg) {
         result.push(`${settime}${setorder}amix=inputs=${quantity}:normalize=0,dynaudnorm[a]`)
         result.push(`-map`)
         result.push(`[a]`)
-        result.push(OutputFile)
+        result.push(`${_path}/resources/${OutputFile}`)
         //result = `${setfile}-filter_complex ${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0,dynaudnorm[a] -map [a] ${output}`
 
     } else {
