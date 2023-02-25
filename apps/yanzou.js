@@ -14,7 +14,7 @@ export class yanzou extends plugin {
     constructor() {
         super({
             name: '演奏',
-            dsc: '乐器演奏',
+            dsc: '止水演奏',
             event: 'message',
             priority: 2000,
             rule: [
@@ -23,13 +23,22 @@ export class yanzou extends plugin {
                     fnc: 'played'
                 }, {
                     reg: "^#取消演奏$",
-                    fnc: 'StopPlaye'
-                },
+                    fnc: 'PlayeStop'
+                }
             ]
         })
     }
 
     async played(e) {
+        let zhiling = e.msg.replace(/#演奏/g, "").trim()
+        if (zhiling == "帮助") {
+            let msg = GetPlayHelp()
+            e.reply(msg)
+            return;
+        }
+
+
+
         let FfmpegMsg = "";
         if (kg == 1) {
             e.reply(`正在准备演奏呢，你先别急~~`);
@@ -42,7 +51,8 @@ export class yanzou extends plugin {
         if (msg != undefined && msg.length > 3) {
             e.reply(`我要准备演奏了，请稍等一哈！`);
         } else {
-            e.reply(`弹琴代码错误！`);
+            let msg = GetPlayHelp()
+            e.reply(msg)
             kg = 0
             return;
         }
@@ -85,7 +95,7 @@ export class yanzou extends plugin {
 
         ffmpeg.on('error', (code) => {
             console.log(`合成音效错误，错误代码 ${code}`);
-            e.reply('合成音效失败！')
+            e.reply('合成音效错误！')
             kg = 0
             return
 
@@ -111,13 +121,14 @@ export class yanzou extends plugin {
 
     }
 
-    async StopPlaye(e) {
+    async PlayeStop(e) {
         if (kg == 1) {
             e.reply('已经取消演奏！')
             kg = 0
             return true;
         }
     }
+
 
     /**
  * 异步执行命令
@@ -280,6 +291,30 @@ export async function GetFfmpegCommand(msg) {
 
 }
 
+/**
+ * 演奏帮助
+ */
+export function GetPlayHelp() {
+    let msg = ""
+    msg += "演奏指令分为3部分，1、乐器；2、简谱；3、节拍。\n\n"
+
+    msg += "举例说明：\n"
+    msg += "#演奏钢琴+6__+4+3+2_|82\n\n"
+
+    msg += "“#演奏钢琴” \n"
+    msg += "指定乐器为钢琴，可选乐器有\n"
+    msg += "1.钢琴2.八音盒3.古筝4.吉他5.萨克斯6.小提琴7.吹箫8.西域琴\n\n"
+
+    msg += "“+6__+4+3+2”\n"
+    msg += "这部分为简谱，其中的数字为音符\n"
+    msg += "音符前面的+表示高音，低音则是-\n"
+    msg += "音符后的_是半拍，__是四分之一拍，___是八分之一拍\n"
+    msg += "需要注意的是，正常简谱中的延音符-和休止符0，我们这里都用0来表示\n\n"
+
+    msg += "“|82”\n"
+    msg += "这里则是指定整首歌曲的节奏速度，82就是每分钟有82个节拍\n"
+    return msg
+}
 
 /**
  * 判断对象是否不为undefined且不为null、NaN
