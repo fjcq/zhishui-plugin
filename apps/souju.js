@@ -34,7 +34,7 @@ export class souju extends plugin {
     constructor() {
         super({
             name: '搜剧',
-            dsc: '七星搜剧',
+            dsc: '止水搜剧',
             event: 'message',
             priority: 2000,
             rule: [
