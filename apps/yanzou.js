@@ -5,9 +5,9 @@ const require = createRequire(import.meta.url)
 const { exec } = require("child_process");
 
 const _path = process.cwd();
-let ResPath = './plugins/zhishui-plugin/resources/yanzou/';
-let YueqiPath = './plugins/zhishui-plugin/resources/yanzou/gangqin/';
-let OutputFile = `output.wav`;
+let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
+let YueqiPath = `${ResPath}/gangqin/`;
+let OutputFile = `${_path}/resources/output`;
 let Format = ".mp3"//文件格式
 let kg = 0;
 
@@ -75,12 +75,12 @@ export class yanzou extends plugin {
             return;
         });
         ffmpeg.stdout.on('data', (data) => {
-            FfmpegMsg = data
+            FfmpegMsg += data
             //console.log(`stdout ${data}`);
         });
 
         ffmpeg.stderr.on('data', (data) => {
-            FfmpegMsg = data
+            FfmpegMsg += data
             //console.log(`stderr ${data}`);
         });
 
@@ -103,15 +103,15 @@ export class yanzou extends plugin {
         });
 
         ffmpeg.on('exit', async (code) => {
+            console.log(`合成音频：\n ${FfmpegMsg}`);
             if (code != 0 || kg != 1) {
-                console.log(`子进程已退出：${FfmpegMsg}`);
+                console.log(`子进程已退出：${code}`);
                 e.reply('合成音效失败！')
                 kg = 0
                 return
             } else {
-                console.log(`合成音频： ${FfmpegMsg}`);
                 await sleep(1000)
-                let msg2 = await uploadRecord(YueqiPath + OutputFile, 0, false)
+                let msg2 = await uploadRecord(`${OutputFile}${Format}`, 0, false)
                 e.reply(msg2)
                 kg = 0
                 return true;
@@ -190,19 +190,25 @@ export async function GetFfmpegCommand(msg) {
         YueqiPath = ResPath + 'ba/';
     } else if (Yueqi == "钢琴") {
         YueqiPath = ResPath + 'gangqin/';
-        Format = ".wav"
+        Format = ".wav";
     } else if (Yueqi == "古筝") {
         YueqiPath = ResPath + 'gu/';
+        Format = ".mp3";
     } else if (Yueqi == "吉他") {
         YueqiPath = ResPath + 'jita/';
+        Format = ".mp3";
     } else if (Yueqi == "萨克斯") {
         YueqiPath = ResPath + 'sa/';
+        Format = ".mp3";
     } else if (Yueqi == "小提琴") {
         YueqiPath = ResPath + 'ti/';
+        Format = ".mp3";
     } else if (Yueqi == "箫") {
         YueqiPath = ResPath + 'xiao/';
+        Format = ".mp3";
     } else if (Yueqi == "西域琴") {
         YueqiPath = ResPath + 'xiyu/';
+        Format = ".mp3";
     } else {
         YueqiPath = ResPath + 'gangqin/';
         Format = ".wav"
@@ -278,10 +284,10 @@ export async function GetFfmpegCommand(msg) {
     if (quantity > 0) {
 
         result.push(`-filter_complex`)
-        result.push(`${settime}${setorder}amix=inputs=${quantity}:normalize=0,dynaudnorm[a]`)
+        result.push(`${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a]`)
         result.push(`-map`)
         result.push(`[a]`)
-        result.push(`${_path}/resources/${OutputFile}`)
+        result.push(`${OutputFile}${Format}`)
         //result = `${setfile}-filter_complex ${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0,dynaudnorm[a] -map [a] ${output}`
 
     } else {
