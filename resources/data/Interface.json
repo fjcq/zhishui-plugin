@@ -1,17 +1,17 @@
 {
-	"analysis": "http://jx.qxyys.com/jx.php?url=",
-	"idx": 0,
-	"resources": [
-		{
-			"title": "七星资源",
-			"url": "http://zj.qxyys.com/api.php/provide/vod/",
-			"showpic": true
-		},
-		{
-			"title": "皇冠资源",
-			"url": "https://www.partnersky-horoskop.com/api.php/provide/vod/",
-			"showpic": false
-		}
-	],
-	"player": "http://bfq.qxyys.com/?url="
+  "analysis": "http://jx.qxyys.com/jx.php?url=",
+  "idx": 0,
+  "player": "http://bfq.qxyys.com/?url=",
+  "resources": [
+    {
+      "showpic": true,
+      "title": "七星资源",
+      "url": "http://zj.qxyys.com/api.php/provide/vod/"
+    },
+    {
+      "title": "皇冠资源",
+      "url": "https://www.partnersky-horoskop.com/api.php/provide/vod/",
+      "showpic": false
+    }
+  ]
 }

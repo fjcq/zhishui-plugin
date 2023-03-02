@@ -50,7 +50,7 @@ export class yanzou extends plugin {
         let msg = await GetFfmpegCommand(e.msg);
         console.log(msg);
         if (msg != undefined && msg.length > 3) {
-            e.reply(`我要准备演奏了，请稍等一哈！`);
+            e.reply(`我要准备演奏了，请稍等一哈！`, true);
         } else {
             let msg = GetPlayHelp()
             e.reply(msg)
@@ -75,12 +75,14 @@ export class yanzou extends plugin {
             return;
         });
         ffmpeg.stdout.on('data', (data) => {
-            FfmpegMsg += data
+            let temp= data.toString()
+            FfmpegMsg += temp
             //console.log(`stdout ${data}`);
         });
 
         ffmpeg.stderr.on('data', (data) => {
-            FfmpegMsg += data
+            let temp= data.toString()
+            FfmpegMsg += temp
             //console.log(`stderr ${data}`);
         });
 
@@ -106,7 +108,8 @@ export class yanzou extends plugin {
             console.log(`合成音频：\n ${FfmpegMsg}`);
             if (code != 0 || kg != 1) {
                 console.log(`子进程已退出：${code}`);
-                e.reply('合成音效失败！')
+                console.log(`子进程已退出：${code}`);
+                e.reply('合成音效失败！', true)
                 kg = 0
                 return
             } else {
