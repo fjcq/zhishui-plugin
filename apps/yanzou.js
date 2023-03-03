@@ -88,14 +88,16 @@ export class yanzou extends plugin {
             if (code != 0 || kg != 1) {
                 console.log(`合成音频：\n ${FfmpegMsg}`);
                 e.reply('合成音效失败！', true);
+                kg = 0
                 return
             } else {
                 await sleep(1000)
                 let msg2 = await uploadRecord(`${OutputFile}${Format}`, 0, false)
-                e.reply(msg2, true);
+                e.reply(msg2);
+                kg = 0
                 return true;
             }
-            kg = 0
+
         });
 
 
