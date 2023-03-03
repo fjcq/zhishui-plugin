@@ -57,10 +57,13 @@ export class yanzou extends plugin {
             kg = 0
             return;
         }
+        let ffmpeg_path = Bot.config.ffmpeg_path
+        if (ffmpeg_path == null || ffmpeg_path == "") { ffmpeg_path = "ffmpeg"}
+        console.log(ffmpeg_path);
 
         const { spawn } = require('child_process');
         const ffmpeg = spawn(
-            Bot.config.ffmpeg_path,
+            ffmpeg_path,
             msg,
             {
                 cwd: YueqiPath
@@ -108,8 +111,7 @@ export class yanzou extends plugin {
             console.log(`合成音频：\n ${FfmpegMsg}`);
             if (code != 0 || kg != 1) {
                 console.log(`子进程已退出：${code}`);
-                console.log(`子进程已退出：${code}`);
-                e.reply('合成音效失败！', true)
+                e.reply('合成音效结束！', true)
                 kg = 0
                 return
             } else {
@@ -133,29 +135,28 @@ export class yanzou extends plugin {
         }
     }
 
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
 
     /**
  * 异步执行命令
  * @param {string} cmd命令
  * @returns
  */
-    async execSync(cmd) {
-        return new Promise((resolve, reject) => {
-            exec(cmd,
-                {
-                    cwd: resources,
-                    maxBuffer: 1024 * 1024
-                },
-                (error, stdout, stderr) => {
-                    resolve({ error, stdout, stderr });
-                });
-        });
-    }
-
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms))
+async function execSync(cmd) {
+    return new Promise((resolve, reject) => {
+        exec(cmd,
+            {
+                cwd: YueqiPath,
+                maxBuffer: 1024 * 1024
+            },
+            (error, stdout, stderr) => {
+                resolve({ error, stdout, stderr });
+            });
+    });
 }
 
 
