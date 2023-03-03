@@ -397,7 +397,7 @@ async function GetFFmpegCode(msg) {
     if (quantity > 0) {
 
         result += `-filter_complex `
-        result += `${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a] `
+        result += `"${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a]" `
         result += `-map `
         result += `[a] `
         result += `${OutputFile}${Format}`
