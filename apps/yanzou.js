@@ -1,10 +1,11 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
 import uploadRecord from '../../zhishui-plugin/model/uploadRecord.js'
-const require = createRequire(import.meta.url)
-const { exec } = require("child_process");
 
+const require = createRequire(import.meta.url)
+const { exec, spawn } = require("child_process");
 const _path = process.cwd();
+
 let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
 let YueqiPath = `${ResPath}/gangqin/`;
 let OutputFile = `${_path}/resources/output`;
@@ -42,7 +43,7 @@ export class yanzou extends plugin {
 
         let FfmpegMsg = "";
         if (kg == 1) {
-            e.reply(`正在准备演奏呢，你先别急~~`);
+            e.reply(`正在准备演奏呢，你先别急~~`, true);
             return;
         }
 
@@ -59,7 +60,6 @@ export class yanzou extends plugin {
         }
 
         let ffmpeg_path = "ffmpeg"
-        const { spawn } = require('child_process');
         const ffmpeg = spawn(
             ffmpeg_path,
             msg,
@@ -83,24 +83,16 @@ export class yanzou extends plugin {
             FfmpegMsg += temp
             //console.log(`stderr ${data}`);
         });
-        ffmpeg.on('close', (code) => {
-            if (code != 0) {
-                console.log(`子进程已关闭，代码 ${code}`);
-                e.reply('合成音效失败！')
-                kg = 0
-                return
-            }
-        });
 
         ffmpeg.on('exit', async (code) => {
             if (code != 0 || kg != 1) {
                 console.log(`合成音频：\n ${FfmpegMsg}`);
-                e.reply('合成音效结束！', true)
+                e.reply('合成音效失败！', true);
                 return
             } else {
                 await sleep(1000)
                 let msg2 = await uploadRecord(`${OutputFile}${Format}`, 0, false)
-                e.reply(msg2)
+                e.reply(msg2, true);
                 return true;
             }
             kg = 0
@@ -214,7 +206,7 @@ export async function GetFfmpegCommand(msg) {
     let result = []
     result.push(`-y`);
     result.push(`-threads`);
-    result.push(`2`);
+    result.push(`4`);
 
     for (i in MusicScore) {
 
