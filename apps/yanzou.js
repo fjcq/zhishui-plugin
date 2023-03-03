@@ -72,7 +72,7 @@ export class yanzou extends plugin {
 
         if (ret.error) {
             console.log(ret);
-            await e.reply('演奏音乐失败！');
+            await e.reply(ret.error.toString());
             kg = 0;
             return;
         }
@@ -355,7 +355,7 @@ async function GetFFmpegCode(msg) {
         //拼接ffmpeg参数
         if (Number(File) != 0 && Music != undefined) {
             result += `-i `
-            result += `${File}${Format} `
+            result += `"${File}${Format}" `
             settime += `[${quantity}]adelay=${Math.round(currenttime)}:all=1[${quantity}a];`;
             quantity += 1
         }
@@ -400,7 +400,7 @@ async function GetFFmpegCode(msg) {
         result += `"${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a]" `
         result += `-map `
         result += `[a] `
-        result += `${OutputFile}${Format}`
+        result += `"${OutputFile}${Format}"`
         //result = `${setfile}-filter_complex ${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0,dynaudnorm[a] -map [a] ${output}`
 
     } else {
