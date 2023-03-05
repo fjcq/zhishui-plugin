@@ -6,7 +6,6 @@ import { segment } from "oicq"
 const require = createRequire(import.meta.url)
 const { exec, spawn } = require("child_process");
 const _path = process.cwd();
-const ffmpeg = require('fluent-ffmpeg');
 
 let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
 let YueqiPath = `${ResPath}/gangqin/`;
@@ -147,6 +146,7 @@ export class yanzou extends plugin {
 * 使用 fluent-ffmpeg 演奏
 */
 export async function FluentFFmpeg(e) {
+    const ffmpeg = require('fluent-ffmpeg');
     let Music = "";  // 音符（含时间 +4__）
     let Beats = 0;  // 下划线数量
     let File = ""; // 文件名
