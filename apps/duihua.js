@@ -2,7 +2,8 @@ import plugin from '../../../lib/plugins/plugin.js'
 import lodash from 'lodash'
 import fetch from "node-fetch";
 import { segment } from 'oicq';
-import { BingAIClient } from '@waylaidwanderer/chatgpt-api'//这个就是依赖 去装吧  pnpm add @waylaidwanderer/chatgpt-api -w
+import { BingAIClient } from '@waylaidwanderer/chatgpt-api'//这个就是依赖 去装吧
+//pnpm add @waylaidwanderer/chatgpt-api -w
 import { isNotNull } from './yanzou.js';
 var tempMsg = ""
 let jieguo
@@ -26,7 +27,7 @@ let bingAIClient = new BingAIClient({
     // (Optional) Set to true to enable `console.debug()` logging
     debug: false,
 });
-let xx = ""
+let xx = []
 
 export class duihua extends plugin {
     constructor() {
@@ -41,7 +42,7 @@ export class duihua extends plugin {
                     fnc: 'duihua'
                 }, {
                     /** 命令正则匹配 */
-                    reg: '^#结束对话', //匹配消息正则,命令正则
+                    reg: '^[#][结束|取消|关闭]对话$', //匹配消息正则,命令正则
                     /** 执行方法 */
                     fnc: 'jsdh'
                 }, {
@@ -55,64 +56,57 @@ export class duihua extends plugin {
     }
 
     async Bing(e) {
-   
-        let msg = lodash.trimStart(e.msg, '必应')  
-        if(cs ==6){
-            cs=0
-            e.reply('已重置对话')
-    
+
+        // 处理消息 
+        let msg = e.msg.replace('必应', '').trim(); // 删首尾空
+
+        if (cs == 6) {
+            cs = 0;
+            e.reply('已重置对话');
         }
-        
-        if(cs == 0){
-            xx = ""
-           
-            
-             response = await bingAIClient.sendMessage(msg, {
+
+        if (cs == 0) {
+            xx = []; // 发送第一条消息 
+            response = await bingAIClient.sendMessage(
+                msg, {
                 onProgress: (token) => {
                     process.stdout.write(token);
-                    xx = xx + token
+                    xx.push(token);;
                 },
             });
-            cs = cs+1
-          
-            console.log(response.details.text);
-            await sleep(1000)
-            if(response.details.text == undefined){
-                e.reply(xx,true)
-                return
-            }
-            e.reply(response.details.text,true)
-            return
+            cs++;
+        } else if (cs < 6) {
+            // 发送后续消息 
+            response = await bingAIClient.sendMessage(
+                msg,
+                {
+                    toneStyle: 'balanced',
+                    conversationSignature: response.conversationSignature,
+                    conversationId: response.conversationId,
+                    clientId: response.clientId,
+                    invocationId: response.invocationId,
+                    onProgress: (token) => {
+                        process.stdout.write(token);
+                        xx.push(token);;
+                    },
+                });
+            cs++;
         }
-      
-        
-        if(cs !=0 & cs<6){
-            response = await bingAIClient.sendMessage(msg, {
-                toneStyle: 'balanced', //or creative, precise
-                conversationSignature: response.conversationSignature,
-                conversationId: response.conversationId,
-                clientId: response.clientId,
-                invocationId: response.invocationId,
-                onProgress: (token) => {
-                    process.stdout.write(token);
-                    xx = xx + token
-                },
-            });
-            console.log(response.details.text);
-            await sleep(1000)
-            if(response.details.text == undefined){
-                e.reply(xx,true)
-                return
-            }
-            e.reply(response.details.text,true)
-            cs = cs+1
+
+        console.log(response.details.text);
+        await sleep(1000);
+
+        if (response.details.text == undefined) {
+            // 如果返回的消息为空，则输出之前所有消息
+            e.reply(xx, true);
+        } else {
+            // 输出返回的消息 
+            e.reply(response.details.text, true);
         }
-        console.log(cs)
-       
-    
-       
-    
-      }
+
+        console.log(cs);
+
+    }
 
     async jsdh(e) {
         tempMsg = ""
@@ -122,19 +116,15 @@ export class duihua extends plugin {
     }
 
     async duihua(e) {
-        let msg = lodash.trimStart(e.msg, `${bot}`)
+        let strToDelete = `[#]${bot}`;
+        let reg = new RegExp(strToDelete, 'g');
+        let msg = e.msg.replace(reg, '').trim();
 
-
-        jieguo = await AiChatGPT(msg)
+        jieguo = await AiChatGPT(msg);
         console.log(`ChatGPT结果：${jieguo}`);
 
-        /*         jieguo = await AiBing(msg)
-                console.log(`必应结果：${jieguo}`);
-        
-                if (!isNotNull(jieguo)) {
-                    jieguo = await AiChatGPT(msg)
-                    console.log(`ChatGPT结果：${jieguo}`);
-                } */
+        // jieguo = await AiBing(msg)
+        // console.log(`必应结果：${jieguo}`);
 
         if (!isNotNull(jieguo)) {
             jieguo = await AiForChange(msg)
@@ -180,14 +170,8 @@ async function AiForChange(msg) {
     let res2 = await res3.json();
     let text = res2.choices[0].text
     if (isNotNull(text)) {
-        text = text.replace(/\n/, "").trim()
-        text = text.replace(/答：/, "").trim()
-        text = text.replace(/Bot:/, "").trim()
-        text = text.replace(/robot:/, "").trim()
-        text = text.replace(/Robot:/, "").trim()
-        text = text.replace(/Computer:/, "").trim()
-        text = text.replace(/computer:/, "").trim()
-        text = text.replace(/AI:/, "").trim()
+        const regex = /(\n|答：|Bot:|robot:|Robot:|Computer:|computer:|AI:)/gi;
+        text = text.replace(regex, '').trim();
     }
     return text
 
@@ -213,60 +197,60 @@ async function AiChatGPT(msg) {
     });
 
     let res = await response4.json()
-    res = res.choices[0]
-    let text = res.message.content
-    if (text.startsWith('\n\n')) {
-        text = text.substring(2);
-    }
-    return text
-}
-
-async function AiBing(msg) {
-    let text = ""
-    if (cs == 6) {
-        cs = 0
-        return null
-    }
-
-    if (cs == 0) {
-        response = await bingAIClient.sendMessage(msg, {
-            onProgress: (token) => {
-                process.stdout.write(token);
-                text += token
-            },
-        });
-        cs = cs + 1
-
-        console.log(response.details.text);
-        await sleep(1000)
-        if (isNotNull(response.details.text)) {
-            text = response.details.text
+    if (isNotNull(res)) {
+        res = res.choices[0]
+        let text = res.message.content
+        if (text.startsWith('\n\n')) {
+            text = text.substring(2);
         }
         return text
     }
+    return undefined
+}
 
-    if (cs != 0 & cs < 6) {
-        response = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'balanced', //or creative, precise
-            conversationSignature: response.conversationSignature,
-            conversationId: response.conversationId,
-            clientId: response.clientId,
-            invocationId: response.invocationId,
-            onProgress: (token) => {
-                process.stdout.write(token);
-                text += token
-            },
-        });
-        console.log(response.details.text);
-        await sleep(1000)
-        if (isNotNull(response.details.text)) {
-            text = response.details.text
+async function AiBing(msg) {
+    let text = ""; if (cs === 6) { cs = 0; return null; }
+
+    try {
+        const options = { onProgress: (token) => { process.stdout.write(token); text += token; }, };
+
+        if (cs === 0) {
+            const response = await bingAIClient.sendMessage(msg, options);
+            cs = cs + 1;
+
+            console.log(response.details.text);
+            await sleep(1000);
+
+            if (isNotNull(response.details.text)) {
+                text = response.details.text;
+            }
+
+            return text;
         }
-        cs = cs + 1
-    }
-    console.log(cs)
-    return text
 
+        if (cs !== 0 && cs < 6) {
+            const response = await bingAIClient.sendMessage(msg, {
+                toneStyle: "balanced",
+                conversationSignature: response.conversationSignature,
+                conversationId: response.conversationId,
+                clientId: response.clientId,
+                invocationId: response.invocationId,
+                ...options,
+            });
+
+            console.log(response.details.text);
+            await sleep(1000);
+
+            if (isNotNull(response.details.text)) {
+                text = response.details.text;
+            }
+
+            cs = cs + 1;
+        }
+
+        console.log(cs);
+        return text;
+    } catch (error) { console.error(error); return null; }
 }
 
 function sleep(ms) {

@@ -6,6 +6,7 @@ import { segment } from "oicq"
 const require = createRequire(import.meta.url)
 const { exec, spawn } = require("child_process");
 const _path = process.cwd();
+const FFMPEG_PATH = "ffmpeg"
 
 let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
 let YueqiPath = `${ResPath}/gangqin/`;
@@ -37,14 +38,17 @@ export class yanzou extends plugin {
 
     async played(e) {
         let zhiling = e.msg.replace(/#演奏/g, "").trim()
+        let msg = []
+        msg.push(segment.at(e.user_id))
         if (zhiling == "帮助") {
-            e.reply([segment.at(e.user_id), GetPlayHelp()])
+            msg.push(GetPlayHelp())
+            e.reply(msg)
             return;
         }
 
-        let FfmpegMsg = "";
         if (kg == 1) {
-            e.reply(`正在准备演奏呢，你先别急~~`, true);
+            msg.push(`正在准备演奏呢，你先别急~~`);
+            e.reply(msg);
             return;
         }
 
@@ -55,57 +59,100 @@ export class yanzou extends plugin {
         // };
 
         kg = 1
-        let msg = await GetFfmpegCommand(e.msg);
-        console.log(msg);
-        if (msg != undefined && msg.length > 3) {
-            e.reply(`我要准备演奏了，请稍等一哈！`, true);
+        let FFmpegCommand = await GetFFmpegCommand(e.msg);
+
+        console.log(FFmpegCommand);
+        if (FFmpegCommand != undefined && FFmpegCommand.length > 3) {
+            msg.push(`我要准备演奏了，请稍等一哈！`)
+            e.reply(msg);
         } else {
-            let msg = GetPlayHelp()
-            e.reply(msg)
-            kg = 0
+            msg.push(GetPlayHelp());
+            e.reply(msg);
+            kg = 0;
             return;
         }
 
-        let ffmpeg_path = "ffmpeg"
+
         const ffmpeg = spawn(
-            ffmpeg_path,
-            msg,
+            FFMPEG_PATH,
+            FFmpegCommand,
             { cwd: YueqiPath }
         );
         //console.log(ffmpeg);
-
+        let stdoutData = "";
+        let stderrData = "";
         ffmpeg.on('error', (err) => {
             console.error(`Failed to start ffmpeg: ${err}`);
-            e.reply('你还没有配置ffmpeg的环境变量，请到这里下载https://ffmpeg.org/download.html，并配置环境变量')
-            kg = 0
+            msg.push('你还没有配置ffmpeg的环境变量，请到这里下载https://ffmpeg.org/download.html，并配置环境变量');
+            e.reply(msg);
+            kg = 0;
             return;
         });
         ffmpeg.stdout.on('data', (data) => {
-            let temp = data.toString()
-            FfmpegMsg += temp
+            stdoutData += data.toString();
             //console.log(`stdout ${data}`);
         });
         ffmpeg.stderr.on('data', (data) => {
-            let temp = data.toString()
-            FfmpegMsg += temp
+            stderrData += data.toString();
             //console.log(`stderr ${data}`);
         });
 
         ffmpeg.on('exit', async (code) => {
-            if (code != 0 || kg != 1) {
-                console.log(`合成音频：\n ${FfmpegMsg}`);
-                console.log(`code：\n ${code}`);
-                e.reply('合成音频失败！', true);
-                kg = 0
-                return
-            } else {
+            if (code === 0) {
                 await sleep(1000)
                 let msg2 = await uploadRecord(`${OutputFile}${Format}`, 0, false)
                 e.reply(msg2);
                 kg = 0
                 return true;
-            }
+            } else {
+                let msg2
+                switch (code) {
+                    case 1:
+                        msg2 = '输入文件不存在';
+                        break;
+                    case 2:
+                        msg2 = '输出文件已存在';
+                        break;
+                    case 3:
+                        msg2 = '无法打开输入文件';
+                        break;
+                    case 4:
+                        msg2 = '无法打开输出文件';
+                        break;
+                    case 5:
+                        msg2 = '无法读取输入文件';
+                        break;
+                    case 6:
+                        msg2 = '无法写入输出文件';
+                        break;
+                    case 7:
+                        msg2 = '编码失败';
+                        break;
+                    case 8:
+                        msg2 = '解码失败';
+                        break;
+                    case 9:
+                        msg2 = '格式不支持';
+                        break;
+                    case 10:
+                        msg2 = '无效的参数';
+                        break;
+                    case 11:
+                        msg2 = '内部错误';
+                        break;
+                    default:
+                        msg2 = '未知错误';
+                        break;
+                }
 
+                console.log("FFmpeg 退出代码：", code);
+                console.log("FFmpeg 标准输出流：", stdoutData);
+                console.log("FFmpeg 标准错误流：", stderrData);
+                msg.push(`合成音频失败，${msg2}！`);
+                e.reply(msg);
+                kg = 0
+                return
+            }
         });
 
 
@@ -157,55 +204,55 @@ export async function FluentFFmpeg(e) {
     let reg = /[-|+]*\d_*/g;
     let xiaoxi = e.msg.replace(/#演奏[^\s\d+-]*/g, "").trim()
     let notation = xiaoxi.split('|')
+    let beattime = notation.length > 1 ? 60000 / parseInt(notation[1]) : 60000 / 90; //算出每分钟节拍数
     let currenttime = 0;  // 音符全局时间
     let quantity = 0 // 音符数量
-    let beattime = 0 // 每拍时间（毫秒）
+
     let usr_qq = e.user_id;
     let msg = [segment.at(Number(usr_qq))]
 
-    //音频资源目录处理
-    let Yueqi = e.msg.match(/#调试演奏[^\s\d+-]*/g);
-    Yueqi = Yueqi.toString().replace(`#调试演奏`, "")
+    // 音频资源目录处理
+    let Yueqi = e.msg.match(/#调试演奏[^\s\d+-]*/g)?.toString()?.replace(`#调试演奏`, "") || "钢琴";
+    let YueqiPath = "";
+    let Format = "";
 
-    if (isNotNull(Yueqi)) {
-        Yueqi = Yueqi.toString()
-    } else {
-        Yueqi = "钢琴"
+    switch (Yueqi) {
+        case "八音盒":
+            YueqiPath = ResPath + 'ba/';
+            break;
+        case "钢琴":
+            YueqiPath = ResPath + 'gangqin/';
+            Format = ".wav";
+            break;
+        case "古筝":
+            YueqiPath = ResPath + 'gu/';
+            Format = ".mp3";
+            break;
+        case "吉他":
+            YueqiPath = ResPath + 'jita/';
+            Format = ".mp3";
+            break;
+        case "萨克斯":
+            YueqiPath = ResPath + 'sa/';
+            Format = ".mp3";
+            break;
+        case "小提琴":
+            YueqiPath = ResPath + 'ti/';
+            Format = ".mp3";
+            break;
+        case "箫":
+            YueqiPath = ResPath + 'xiao/';
+            Format = ".mp3";
+            break;
+        case "西域琴":
+            YueqiPath = ResPath + 'xiyu/';
+            Format = ".mp3";
+            break;
+        default:
+            YueqiPath = ResPath + 'gangqin/';
+            Format = ".wav";
+            break;
     }
-
-    if (Yueqi == "八音盒") {
-        YueqiPath = ResPath + 'ba/';
-    } else if (Yueqi == "钢琴") {
-        YueqiPath = ResPath + 'gangqin/';
-        Format = ".wav";
-    } else if (Yueqi == "古筝") {
-        YueqiPath = ResPath + 'gu/';
-        Format = ".mp3";
-    } else if (Yueqi == "吉他") {
-        YueqiPath = ResPath + 'jita/';
-        Format = ".mp3";
-    } else if (Yueqi == "萨克斯") {
-        YueqiPath = ResPath + 'sa/';
-        Format = ".mp3";
-    } else if (Yueqi == "小提琴") {
-        YueqiPath = ResPath + 'ti/';
-        Format = ".mp3";
-    } else if (Yueqi == "箫") {
-        YueqiPath = ResPath + 'xiao/';
-        Format = ".mp3";
-    } else if (Yueqi == "西域琴") {
-        YueqiPath = ResPath + 'xiyu/';
-        Format = ".mp3";
-    } else {
-        YueqiPath = ResPath + 'gangqin/';
-        Format = ".wav"
-    }
-
-    //算出每分钟节拍数
-    if (notation.length > 1) {
-        beattime = 60000 / parseInt(notation[1])
-    } else { beattime = 60000 / 90 }
-
 
     let MusicScore = notation[0].match(reg);
     if (!isNotNull(MusicScore)) {
@@ -295,6 +342,7 @@ export async function FluentFFmpeg(e) {
 
 }
 
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
@@ -322,7 +370,7 @@ async function SyncExec(cmd) {
 * 获取Ffmpeg的执行代码，返回参数数组
 * @param msg 土块编码消息
 */
-export async function GetFfmpegCommand(msg) {
+export async function GetFFmpegCommand(msg) {
     let Music = ""
     let Beats = 0;
     let File = ""; //文件名
@@ -446,6 +494,14 @@ export async function GetFfmpegCommand(msg) {
         result.push(`${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a]`)
         result.push(`-map`)
         result.push(`[a]`)
+
+        // result.push(`-ar`)
+        // result.push(`8000`)
+        // result.push(`-ab`)
+        // result.push(`12.2k`)
+        // result.push(`-ac`)
+        // result.push(`1`)
+
         result.push(`${OutputFile}${Format}`)
         //result = `${ setfile } -filter_complex ${ settime }${ setorder } amix = inputs = ${ quantity }: dropout_transition = 0: normalize = 0, dynaudnorm[a] - map[a] ${ output } `
 
