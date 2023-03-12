@@ -274,16 +274,11 @@ export async function Get_ShowPic(idx = 0) {
 export async function Get_Interface() {
     let Interface = await Read_Interface();
     let idx = Interface.idx;
-
-    if (idx < Interface.resources.length) {
-
+    if (Interface.resources) {
         return Interface.resources[idx];
-
     } else {
-
         Interface.idx = 0
         await Write_Interface(Interface);
-
         return Interface.resources[0];
     }
 
@@ -291,12 +286,19 @@ export async function Get_Interface() {
 
 //读取接口配置
 export async function Read_Interface() {
-    return Data.readJSON("Interface.json", "./plugins/zhishui-plugin/resources/data")
+    let temp = Data.readJSON("souju.json", "./plugins/zhishui-plugin/config/config");
+
+    if (temp == undefined) {
+        temp = Data.readJSON("souju.json", "./plugins/zhishui-plugin/config/default_config");
+        Write_Interface(temp);
+    }
+
+    return temp;
 }
 
 //写出接口配置
 export async function Write_Interface(data) {
-    return Data.writeJSON("Interface.json", data, '\t', "./plugins/zhishui-plugin/resources/data")
+    return Data.writeJSON("souju.json", data, '\t', "./plugins/zhishui-plugin/config/config")
 }
 
 function sleep(ms) {
