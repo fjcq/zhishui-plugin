@@ -196,7 +196,7 @@ async function AiForChange(msg) {
 
     let res2 = await res3.json();
     let text = res2.choices[0].text
-    const regex = /(?:\n|答[:：]|Bot[:：]|robot[:：]|Robot[:：]|Computer[:：]|computer[:：]|AI[:：])/g;
+    const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Robot[:：]|Computer[:：]|computer[:：]|AI[:：])/g;
     text = text.replace(regex, NickName + "：").trim();
     return text
 }
