@@ -102,8 +102,8 @@ export class duihua extends plugin {
             let ck = ""
             ck = e.msg.replace(/#设置必应ck/g, "").trim();
 
-            if (CheckCookie(ck)) {
-                e.reply("必应ck必须包含 _U！");
+            if (!CheckCookie(ck)) {
+                e.reply("必应ck必须包含 _U 字段！");
                 return;
             };
 
@@ -114,13 +114,11 @@ export class duihua extends plugin {
             }
 
             Settings.BingCookie = ck
-            if (await WriteSettings(Settings)) {
-                BingCookie = ck
-                console.log("设置必应ck：" + jiekou.url);
-                e.reply("设置必应ck成功！");
-            } else {
-                e.reply("设置必应ck失败！");
-            };
+            await WriteSettings(Settings)
+            BingCookie = ck
+            console.log("设置必应ck：" + ck);
+            e.reply("设置必应ck成功！");
+
             return true;
         }
 
@@ -332,5 +330,10 @@ async function GetSettings() {
  * 检查必应cookie是否正确
  */
 async function CheckCookie(Cookie) {
-    return Cookie.indexOf("_U") != -1
+    let n = Cookie.indexOf("_U")
+    if (n == -1) {
+        return false
+    } else {
+        return true
+    }
 }
