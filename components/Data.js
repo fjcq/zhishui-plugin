@@ -124,7 +124,6 @@ let Data = {
   * toKeyPrefix：返回数据的字段前缀，默认为空。defaultData中的键值无需包含toKeyPrefix
   *
   * */
-
   getData (target, keyList = '', cfg = {}) {
     target = target || {}
     let defaultData = cfg.defaultData || {}

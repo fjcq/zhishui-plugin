@@ -1,6 +1,4 @@
-logger.info(chalk.yellow('正在加载 止水插件……'))
-
-import { Data, Version } from './components/index.js'
+import Ver from './components/Version.js'
 import fs from "node:fs"
 import chalk from 'chalk'
 
@@ -9,6 +7,8 @@ const files = fs
     .filter((file) => file.endsWith(".js"))
 
 let ret = []
+
+logger.info(chalk.yellow(`正在加载 止水插件${Ver.ver}`))
 
 files.forEach((file) => {
     ret.push(import(`./apps/${file}`))
@@ -26,10 +26,7 @@ for (let i in files) {
         continue
     }
 
-    apps[name] = ret[i].value[name]
+    apps[name] = ret[i].value[Object.keys(ret[i].value)[0]]
 }
 
 export { apps }
-
-logger.info(chalk.yellow(`止水插件${Version.version} 加载完成！`))
-logger.info(chalk.yellow('-------------------------'))

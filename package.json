@@ -1,0 +1,16 @@
+{
+  "name": "zhishui-plugin",
+  "version": "1.2.1",
+  "author": "fjcq",
+  "description": "zhishui-plugin",
+  "type": "module",
+  "scripts": {
+  },
+  "dependencies": {
+    "@waylaidwanderer/chatgpt-api": "^1.28.0"
+  },
+  "imports": {
+    "#zhishui": "./components/index.js",
+    "#zhishui.models": "./models/index.js"
+  }
+}
