@@ -1,19 +1,21 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import fetch from "node-fetch";
+import fs from 'fs'
 import { isNotNull } from './yanzou.js';
 import Data from '../components/Data.js'
-
+import BingAIClient from '../model/BingAIClient.js'
+// pnpm add @waylaidwanderer/chatgpt-api -w
 var tempMsg = ""
+var EnableBing = false
 var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63");
 
 let jieguo
 let zs
-const bot = "小七" //你要触发的前缀
+let NickName = "小七" //你要触发的前缀
 let msgData = []
 
-import { BingAIClient } from '@waylaidwanderer/chatgpt-api'//这个就是依赖 去装吧  pnpm add @waylaidwanderer/chatgpt-api -w
 let cs = 0
 let response
 let BingCookie
@@ -30,10 +32,9 @@ export class duihua extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: bot,
+                    reg: NickName,
                     fnc: 'duihua'
                 }, {
-                    /** 命令正则匹配 */
                     reg: '^[#](结束|取消|关闭)(对话|聊天)$', //匹配消息正则,命令正则
                     /** 执行方法 */
                     fnc: 'jsdh'
@@ -43,6 +44,12 @@ export class duihua extends plugin {
                 }, {
                     reg: '^#查看必应ck$',
                     fnc: 'GetBingCK'
+                }, {
+                    reg: '^#必应开关$',
+                    fnc: 'BingEnable'
+                }, {
+                    reg: '^#修改对话昵称(.*)$',
+                    fnc: 'ModifyNickname'
                 }
             ]
         })
@@ -56,30 +63,19 @@ export class duihua extends plugin {
     }
 
     async duihua(e) {
-        let msg = e.msg.replace(bot, '').trim();
+        let msg = e.msg.replace(NickName, '').trim();
         console.log("msg:" + msg);
 
         //存在必应cookie的时候优先必应
-        if (CheckCookie(BingCookie)) {
-            if (OnlyMaster && !e.isMaster) {
-                jieguo = undefined;
-            } else {
-                jieguo = await AiBing(msg);
-                console.log(`Bing结果：${jieguo}`);
-            }
-        } else {
-            jieguo = undefined;
-        }
+        jieguo = (await CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+        console.log(`Bing结果：${jieguo}`);
 
-        if (!isNotNull(jieguo)) {
+ /*        if (!isNotNull(jieguo)) {
             jieguo = await AiChatGPT(msg);
             console.log(`ChatGPT结果：${jieguo}`);
-        }
+        }*/
 
-        //jieguo = await AiChatGPT(msg);
-        //console.log(`ChatGPT结果：${jieguo}`);
-
-        if (!isNotNull(jieguo)) {
+       if (!isNotNull(jieguo)) {
             jieguo = await AiForChange(msg)
             console.log(`ForChange结果：${jieguo}`);
         }
@@ -131,14 +127,49 @@ export class duihua extends plugin {
 
         //私聊才能查看
         if (!e.isGroup) {
-            ShowCookie(e);
+            let wardMsg = await ShowCookie();
+            await ForwardMsg(e, wardMsg)
             return true;
         }
     }
 
+    async BingEnable(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        EnableBing = !EnableBing
+        if (EnableBing) {
+            e.reply("[必应对话]已开启！");
+        } else {
+            e.reply("[必应对话]已关闭！");
+        }
+        return true;
+    }
+    
+    async ModifyNickname(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        let nickname = e.msg.replace(`#修改对话昵称`, '').trim();
+        if (nickname.length > 0) {
+            let settings = await ReadSettings()
+            settings.NnickName = nickname
+            await WriteSettings(settings)
+            NickName = nickname
+        }
+        e.reply("[对话昵称]：" + NickName);
+        return true;
+    }
 }
 
-//https://api.forchange.cn/
+/**
+ * AI对话  https://api.forchange.cn/
+ *
+ * @param {*} msg 发送消息
+ * @return {*} 对话结果
+ */
 async function AiForChange(msg) {
     tempMsg = tempMsg + "\nHuman: " + msg
     var data2 = {
@@ -166,12 +197,16 @@ async function AiForChange(msg) {
     let res2 = await res3.json();
     let text = res2.choices[0].text
     const regex = /(?:\n|答[:：]|Bot[:：]|robot[:：]|Robot[:：]|Computer[:：]|computer[:：]|AI[:：])/g;
-    text = text.replace(regex, bot + "：").trim();
+    text = text.replace(regex, NickName + "：").trim();
     return text
-
 }
 
-//https://chatgpt-api.shn.hk/v1/
+/**
+ * AI对话  https://chatgpt-api.shn.hk/v1/
+ *
+ * @param {*} msg 发送消息
+ * @return {*} 对话结果
+ */
 async function AiChatGPT(msg) {
 
     msgData.push({ "role": "user", "content": msg })
@@ -206,6 +241,12 @@ async function AiChatGPT(msg) {
     return text.startsWith('\n\n') ? text.substring(2) : text;
 }
 
+/**
+ * 必应AI对话  https://www.bing.com
+ *
+ * @param {*} msg 发送消息
+ * @return {*} 对话结果
+ */
 async function AiBing(msg) {
 
     if (cs == 6) {
@@ -241,7 +282,7 @@ async function AiBing(msg) {
             xx = response.details.text;
         }
 
-        xx = xx.replace(`必应`, bot).trim();
+        xx = xx.replace(`必应`, NickName).trim();
         return xx;
     }
 
@@ -265,7 +306,7 @@ async function AiBing(msg) {
         }
 
         cs++
-        xx = xx.replace(`必应`, bot).trim();
+        xx = xx.replace(`必应`, NickName).trim();
         return xx;
     }
     console.log(cs)
@@ -282,9 +323,10 @@ function sleep(ms) {
 * 读取对话配置文件
 */
 async function ReadSettings() {
-    let temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/config")
-
-    if (temp == undefined) {
+    let temp
+    if (fs.existsSync("./plugins/zhishui-plugin/config/config/duihua.json")) {
+        temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/config");
+    } else {
         temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/default_config");
         Write_Interface(temp);
     }
@@ -301,10 +343,12 @@ async function WriteSettings(data) {
 /**
  * 回复当前必应Cookie
  */
-async function ShowCookie(e) {
+async function ShowCookie() {
     let Settings = await ReadSettings()
-    let msg = "*** 必应CK ***\n\n" + Settings.BingCookie;
-    e.reply(msg)
+    let msg = []
+    msg.push(`*** 必应CK ***`);
+    msg.push(Settings.BingCookie);
+    return msg
 }
 
 /**
@@ -318,11 +362,12 @@ async function GetSettings() {
             BingCookie: "",
             OnlyMaster: false
         };
-        WriteSettings(Settings)
+        await WriteSettings(Settings)
     }
 
     BingCookie = Settings.BingCookie
     OnlyMaster = Settings.OnlyMaster
+    NickName = Settings.NickName
     return Settings.BingCookie
 }
 
@@ -337,3 +382,18 @@ async function CheckCookie(Cookie) {
         return true
     }
 }
+
+/**
+ * 发送转发消息
+ * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
+*/
+async function ForwardMsg(e, data) {
+    // use map method to create msgList
+    const msgList = data.map(i => ({
+        message: i,
+        NickName: Bot.NickName,
+        user_id: Bot.uin
+    }));
+    // use ternary operator to simplify if...else statement
+    await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
+};
