@@ -328,7 +328,7 @@ async function ReadSettings() {
         temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/config");
     } else {
         temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/default_config");
-        Write_Interface(temp);
+        WriteSettings(temp);
     }
     return temp
 }
