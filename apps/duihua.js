@@ -70,12 +70,12 @@ export class duihua extends plugin {
         jieguo = (await CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
         console.log(`Bing结果：${jieguo}`);
 
- /*        if (!isNotNull(jieguo)) {
-            jieguo = await AiChatGPT(msg);
-            console.log(`ChatGPT结果：${jieguo}`);
-        }*/
+        /*        if (!isNotNull(jieguo)) {
+                   jieguo = await AiChatGPT(msg);
+                   console.log(`ChatGPT结果：${jieguo}`);
+               }*/
 
-       if (!isNotNull(jieguo)) {
+        if (!isNotNull(jieguo)) {
             jieguo = await AiForChange(msg)
             console.log(`ForChange结果：${jieguo}`);
         }
@@ -146,7 +146,7 @@ export class duihua extends plugin {
         }
         return true;
     }
-    
+
     async ModifyNickname(e) {
         if (e.isMaster == false) {
             return false; //不是主人
@@ -356,12 +356,21 @@ async function ShowCookie() {
  */
 async function GetSettings() {
     let Settings = await ReadSettings();
+    let change = false
 
-    if (Settings == undefined) {
-        Settings = {
-            BingCookie: "",
-            OnlyMaster: false
-        };
+    if (Settings.NickName == undefined) {
+        Settings.NickName = "小七"
+        change = true
+    }
+    if (Settings.OnlyMaster == undefined) {
+        Settings.OnlyMaster = false
+        change = true
+    }
+    if (Settings.BingCookie == undefined) {
+        Settings.BingCookie = ""
+        change = true
+    }
+    if (change) {
         await WriteSettings(Settings)
     }
 
