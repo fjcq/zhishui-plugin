@@ -1,5 +1,6 @@
 import fetch from 'node-fetch'
 import plugin from '../../../lib/plugins/plugin.js'
+import fs from 'fs'
 import puppeteer from "../../../lib/puppeteer/puppeteer.js";
 import Data from '../components/Data.js'
 
@@ -24,10 +25,10 @@ let zdy = ""
 let zdyn = 0
 let bfxl = 1
 let kid = 1
+/**播放器 */ 
 let bfq = ""
+/**搜剧接口 */  
 let jiekou = {}
-
-bfq = await Get_Player()
 jiekou = await Get_Interface()
 
 export class souju extends plugin {
@@ -36,11 +37,11 @@ export class souju extends plugin {
             name: '[止水插件]搜剧',
             dsc: '七星搜剧',
             event: 'message',
-            priority: 2000,
+            priority: 1000,
             rule: [
                 {
-                    reg: "^#搜剧(.*)$|#看剧(.*)|#选剧(.*)|#取消搜剧$|#下一页|#线路(.*)",
-                    fnc: 'souju'
+                    reg: "^#(?:搜剧|看剧|选剧|取消搜剧|下一页|线路)(.*)$",
+                    fnc: 'gosouju'
                 }, {
                     reg: '^#设置搜剧接口(.*)$',
                     fnc: 'setsouju'
@@ -87,7 +88,7 @@ export class souju extends plugin {
         return true;
     }
 
-    async souju(e) {
+    async gosouju(e) {
         if (e.msg == "#下一页") {
             yema = yema + 1
         }
@@ -95,7 +96,8 @@ export class souju extends plugin {
 
         if (e.msg.includes("#取消搜剧") & zzss == 1) {
             zzss = 0
-            e.reply('已取消当前 [' + name + '] 搜索')
+            e.reply('已取消 [' + name + '] 的搜索')
+            return
         }
 
         if (zzss == 1) {
@@ -104,19 +106,24 @@ export class souju extends plugin {
         }
 
         if (e.msg.includes("#搜剧") & zzss == 0 | e.msg.includes("#下一页")) {
+            if (jiekou == undefined){
+                e.reply('接口错误！')
+                zzss = 0
+                return
+            }
+
             zzss = 1
             vid = []
             mingzi = []
             wangzhi = []
 
             k = e.msg.replace(/#搜剧/g, "").trim()
-            console.log("开始搜索：" + k)
             if (k != "#下一页") {
                 hc = k
             }
 
             name = hc
-            e.reply('正在搜索中...请稍后')
+            e.reply(`开始搜索 [${name}] ，请稍候片刻...`)
 
             url = jiekou.url + '?ac=detail&wd=' + encodeURI(name) + "&pg=" + yema
             if (name == "") {
@@ -227,7 +234,7 @@ export class souju extends plugin {
 
         if (e.msg.includes("#选剧")) {
             k = e.msg.replace(/#选剧/g, "").trim()
-            if (wangzhi[Number(k) - 1]!=undefined){
+            if (wangzhi[Number(k) - 1] != undefined) {
                 msg = bt + mingzi[Number(k) - 1] + '\n' + bfq + wangzhi[Number(k) - 1]
                 e.reply(msg)
                 return true;//返回true 阻挡消息不再往下
@@ -239,7 +246,7 @@ export class souju extends plugin {
 }
 
 //显示搜剧接口
-export async function Show_Interface(e) {
+async function Show_Interface(e) {
     let Interface = await Read_Interface()
 
     let msg = "***搜剧接口***\n";
@@ -258,37 +265,38 @@ export async function Show_Interface(e) {
 }
 
 
-//取播放器
-export async function Get_Player() {
+/**取播放器*/
+async function Get_Player() {
     let Interface = await Read_Interface();
     return Interface.player;
 }
 
-//取图片设置
-export async function Get_ShowPic(idx = 0) {
+/**取图片设置*/
+ async function Get_ShowPic(idx = 0) {
     let Interface = await Read_Interface();
     return Interface.resources[idx].showpic;
 }
 
-//取当前接口
-export async function Get_Interface() {
+/**取当前接口和播放器*/
+async function Get_Interface() {
     let Interface = await Read_Interface();
-    let idx = Interface.idx;
-    if (Interface.resources) {
-        return Interface.resources[idx];
-    } else {
-        Interface.idx = 0
-        await Write_Interface(Interface);
-        return Interface.resources[0];
-    }
+    bfq = Interface.player
+    //console.log(Interface.player);
 
+    let _jk = {}
+    let idx = Interface.idx || 0
+    _jk = Interface.resources[idx];
+
+    //console.log(JSON.stringify(_jk));
+    return _jk
 }
 
-//读取接口配置
-export async function Read_Interface() {
-    let temp = Data.readJSON("souju.json", "./plugins/zhishui-plugin/config/config");
-
-    if (temp == undefined) {
+/**读取接口配置*/
+async function Read_Interface() {
+    let temp
+    if (fs.existsSync("./plugins/zhishui-plugin/config/config/souju.json")) {
+        temp = Data.readJSON("souju.json", "./plugins/zhishui-plugin/config/config");
+    } else {
         temp = Data.readJSON("souju.json", "./plugins/zhishui-plugin/config/default_config");
         Write_Interface(temp);
     }
@@ -297,7 +305,7 @@ export async function Read_Interface() {
 }
 
 //写出接口配置
-export async function Write_Interface(data) {
+async function Write_Interface(data) {
     return Data.writeJSON("souju.json", data, '\t', "./plugins/zhishui-plugin/config/config")
 }
 
@@ -306,9 +314,11 @@ function sleep(ms) {
 }
 
 
-// 发送转发消息
-// 输入data一个数组,元素是字符串,每一个元素都是一条消息.
-export async function ForwardMsg(e, data) {
+/**
+ * 发送转发消息
+ * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
+*/
+async function ForwardMsg(e, data) {
     let msgList = []
     for (let i of data) {
         msgList.push({

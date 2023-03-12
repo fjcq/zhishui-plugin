@@ -19,7 +19,7 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
 ## 功能介绍  
 
 <details>
-  <summary>七星搜剧</summary>
+  <summary>搜剧</summary>
 
 - #搜剧+剧名  
   根据剧名进行搜索  
@@ -48,4 +48,17 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
 - #添加搜剧接口
   未完成，敬请期待  
   
+  <summary>对话</summary>  
+  使用Bing或者chatGPT进行AI对话  
+
+- #必应开关  
+  切换[开启/关闭]必应对话，如果要启用必应，同时还需要设置好必应cookie。  
+
+- #设置必应ck  
+  必应cookie需自行提供，否则无法使用必应对话。  
+  cookie必须包含 `_U`字段，例如： `#设置必应ck _U=*********`  
+
+- #查看必应ck  
+  可查看当前的必应cookie  
+
 </details>
