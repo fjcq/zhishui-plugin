@@ -22,7 +22,6 @@ let BingCookie
 let OnlyMaster
 await GetSettings()
 
-let xx = ""
 export class duihua extends plugin {
     constructor() {
         super({
@@ -248,7 +247,7 @@ async function AiChatGPT(msg) {
  * @return {*} 对话结果
  */
 async function AiBing(msg) {
-
+    let text = ""
     if (cs == 6) {
         cs = 0
         return undefined;
@@ -268,26 +267,26 @@ async function AiBing(msg) {
     });
 
     if (cs == 0) {
-        xx = ""
+        text = ""
         response = await bingAIClient.sendMessage(msg, {
             onProgress: (token) => {
                 process.stdout.write(token);
-                xx += token;
+                text += token;
             },
         });
         cs++;
-        console.log(response.details.text);
+        console.log("首次回复：" + response.details.text);
         await sleep(1000);
         if (response.details.text != undefined) {
-            xx = response.details.text;
+            text = response.details.text;
         }
 
-        xx = xx.replace(`必应`, NickName).trim();
-        return xx;
+        text = text.replace(`必应`, NickName).trim();
+        return text;
     }
 
 
-    if (cs != 0 & cs < 6) {
+    if (cs != 0 & cs < 10) {
         response = await bingAIClient.sendMessage(msg, {
             toneStyle: 'balanced', //or creative, precise
             conversationSignature: response.conversationSignature,
@@ -296,18 +295,18 @@ async function AiBing(msg) {
             invocationId: response.invocationId,
             onProgress: (token) => {
                 process.stdout.write(token);
-                xx += token;
+                text += token;
             },
         });
-        console.log(response.details.text);
+        console.log(`${cs}回复：` + response.details.text);
         await sleep(1000)
-        if (response.details.text != undefined) {
-            xx = response.details.text;
+        if (text == undefined ) {
+            text = response.details.text;
         }
 
         cs++
-        xx = xx.replace(`必应`, NickName).trim();
-        return xx;
+        text = text.replace(`必应`, NickName).trim();
+        return text;
     }
     console.log(cs)
     return undefined;
@@ -384,12 +383,15 @@ async function GetSettings() {
  * 检查必应cookie是否正确
  */
 async function CheckCookie(Cookie) {
-    let n = Cookie.indexOf("_U")
-    if (n == -1) {
-        return false
-    } else {
+
+    if (Cookie.indexOf("_U") != -1) {
+        return true
+    } else if (Cookie.indexOf("_U=")) {
+        return true
+    } else if (Cookie.indexOf("KievRPSSecAuth=")) {
         return true
     }
+    return false
 }
 
 /**
