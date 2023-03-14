@@ -6,7 +6,7 @@ import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
 // pnpm add @waylaidwanderer/chatgpt-api -w
 var tempMsg = ""
-var EnableBing = false
+var EnableBing = true
 var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63");
@@ -34,9 +34,9 @@ export class duihua extends plugin {
                     reg: NickName,
                     fnc: 'duihua'
                 }, {
-                    reg: '^[#](结束|取消|关闭)(对话|聊天)$', //匹配消息正则,命令正则
+                    reg: '^[#](结束|取消|关闭|重置)(对话|聊天)$', //匹配消息正则,命令正则
                     /** 执行方法 */
-                    fnc: 'jsdh'
+                    fnc: 'ResetChat'
                 }, {
                     reg: '^#设置必应ck(.*)$',
                     fnc: 'SetBingCK'
@@ -55,7 +55,7 @@ export class duihua extends plugin {
     }
 
 
-    async jsdh(e) {
+    async ResetChat(e) {
         tempMsg = ""
         msgData = []
         e.reply('已经重置对话了！')
@@ -247,9 +247,9 @@ async function AiChatGPT(msg) {
  * @return {*} 对话结果
  */
 async function AiBing(msg) {
-    let text = ""
+    let text = "";
     if (cs == 6) {
-        cs = 0
+        cs = 0;
         return undefined;
     }
 
@@ -286,7 +286,7 @@ async function AiBing(msg) {
     }
 
 
-    if (cs != 0 & cs < 10) {
+    if (cs != 0 && cs < 10) {
         response = await bingAIClient.sendMessage(msg, {
             toneStyle: 'balanced', //or creative, precise
             conversationSignature: response.conversationSignature,
@@ -300,7 +300,7 @@ async function AiBing(msg) {
         });
         //console.log(`${cs}回复：` + response.details.text);
         await sleep(1000)
-        if (text == undefined ) {
+        if (response.details.text != undefined) {
             text = response.details.text;
         }
 
