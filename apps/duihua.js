@@ -275,7 +275,7 @@ async function AiBing(msg) {
             },
         });
         cs++;
-        console.log("首次回复：" + response.details.text);
+        //console.log("首次回复：" + response.details.text);
         await sleep(1000);
         if (response.details.text != undefined) {
             text = response.details.text;
@@ -298,7 +298,7 @@ async function AiBing(msg) {
                 text += token;
             },
         });
-        console.log(`${cs}回复：` + response.details.text);
+        //console.log(`${cs}回复：` + response.details.text);
         await sleep(1000)
         if (text == undefined ) {
             text = response.details.text;
@@ -308,7 +308,7 @@ async function AiBing(msg) {
         text = text.replace(`必应`, NickName).trim();
         return text;
     }
-    console.log(cs)
+    //console.log(cs)
     return undefined;
 }
 
