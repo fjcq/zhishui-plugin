@@ -4,18 +4,19 @@ import fs from 'fs'
 import { isNotNull } from './yanzou.js';
 import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
-// pnpm add @waylaidwanderer/chatgpt-api -w
+import crypto from 'crypto';
+
+
 var tempMsg = ""
 var EnableBing = true
 var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63");
 
-let jieguo
 let zs
 let NickName = "小七" //你要触发的前缀
 let msgData = []
-
+let works = 0
 let cs = 0
 let response
 let BingCookie
@@ -54,16 +55,24 @@ export class duihua extends plugin {
         })
     }
 
-
     async ResetChat(e) {
         tempMsg = ""
         msgData = []
+        cs = 0
+        works = 0
         e.reply('已经重置对话了！')
     }
 
     async duihua(e) {
+        if (works == 1) {
+            e.reply('你先别急，我有点忙不过来辣！', true);
+            return;
+        };
+
+        works = 1
+        let jieguo;
         let msg = e.msg.replace(NickName, '').trim();
-        console.log("msg:" + msg);
+        console.log("提问：" + msg);
 
         //存在必应cookie的时候优先必应
         jieguo = (await CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
@@ -75,20 +84,20 @@ export class duihua extends plugin {
                }*/
 
         if (!isNotNull(jieguo)) {
-            jieguo = await AiForChange(msg)
+            jieguo = await AiForChange(msg);
             console.log(`ForChange结果：${jieguo}`);
         }
 
         if (!isNotNull(jieguo)) {
-            e.reply('重置聊天对话啦')
-            tempMsg = ""
-            msgData = []
+            this.ResetChat(e)
+            works = 0
             return
         }
 
         e.reply(jieguo, true)
         tempMsg = ""
         zs = tempMsg.length
+        works = 0
         return;
     }
 
@@ -253,16 +262,12 @@ async function AiBing(msg) {
         return undefined;
     }
 
+    //初始化 必应客户端
     const bingAIClient = new BingAIClient({
-        // Necessary for some people in different countries, e.g. China (https://cn.bing.com)
         host: 'https://www.bing.com',
-        // "_U" cookie from bing.com
         userToken: ``,
-        // If the above doesn't work, provide all your cookies as a string instead
         cookies: BingCookie,
-        // A proxy string like "http://<ip>:<port>"
         proxy: '',
-        // (Optional) Set to true to enable `console.debug()` logging
         debug: false,
     });
 
@@ -305,7 +310,7 @@ async function AiBing(msg) {
         }
 
         cs++
-        text = text.replace(`必应`, NickName).trim();
+        text = text.replace(`必应|Bing`, NickName).trim();
         return text;
     }
     //console.log(cs)
@@ -322,14 +327,18 @@ function sleep(ms) {
 * 读取对话配置文件
 */
 async function ReadSettings() {
-    let temp
-    if (fs.existsSync("./plugins/zhishui-plugin/config/config/duihua.json")) {
-        temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/config");
+    let temp;
+    const configPath = "./plugins/zhishui-plugin/config/config/duihua.json";
+    const defaultPath = "./plugins/zhishui-plugin/config/default_config/duihua.json";
+
+    if (fs.existsSync(configPath)) {
+        temp = Data.readJSON("duihua.json", configPath);
     } else {
-        temp = Data.readJSON("duihua.json", "./plugins/zhishui-plugin/config/default_config");
-        WriteSettings(temp);
+        temp = Data.readJSON("duihua.json", defaultPath);
+        await WriteSettings(temp);
     }
-    return temp
+
+    return temp;
 }
 
 /**
@@ -355,43 +364,33 @@ async function ShowCookie() {
  */
 async function GetSettings() {
     let Settings = await ReadSettings();
-    let change = false
+    let change = false;
 
-    if (Settings.NickName == undefined) {
-        Settings.NickName = "小七"
-        change = true
-    }
-    if (Settings.OnlyMaster == undefined) {
-        Settings.OnlyMaster = false
-        change = true
-    }
-    if (Settings.BingCookie == undefined) {
-        Settings.BingCookie = ""
-        change = true
-    }
+    // 使用对象解构赋值来简化属性赋值
+    ({ NickName, OnlyMaster, BingCookie } = Settings);
+
+    // 使用默认值来避免undefined检查
+    NickName = NickName ?? "小七";
+    OnlyMaster = OnlyMaster ?? false;
+    BingCookie = BingCookie ?? "";
+
+    // 使用Object.assign来更新设置对象
+    change = Object.assign(Settings, { NickName, OnlyMaster, BingCookie }) !== Settings;
+
+    // 如果设置有变化，则写入文件中
     if (change) {
-        await WriteSettings(Settings)
+        await WriteSettings(Settings);
     }
 
-    BingCookie = Settings.BingCookie
-    OnlyMaster = Settings.OnlyMaster
-    NickName = Settings.NickName
-    return Settings.BingCookie
+    return BingCookie;
 }
 
 /**
  * 检查必应cookie是否正确
  */
 async function CheckCookie(Cookie) {
-
-    if (Cookie.indexOf("_U") != -1) {
-        return true
-    } else if (Cookie.indexOf("_U=")) {
-        return true
-    } else if (Cookie.indexOf("KievRPSSecAuth=")) {
-        return true
-    }
-    return false
+    var regex = /(_U[=]|KievRPSSecAuth[=])/;
+    return regex.test(Cookie);
 }
 
 /**
@@ -408,3 +407,35 @@ async function ForwardMsg(e, data) {
     // use ternary operator to simplify if...else statement
     await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
 };
+
+async function createNewConversation() {
+    const fetchOptions = {
+        headers: {
+            accept: 'application/json',
+            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'content-type': 'application/json',
+            'accept-encoding': 'gzip, deflate, br',
+            'sec-ch-ua': '"Microsoft Edge";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
+            'sec-ch-ua-arch': '"x86"',
+            'sec-ch-ua-bitness': '"64"',
+            'sec-ch-ua-full-version': '"111.0.1661.41"',
+            'sec-ch-ua-full-version-list': '"Microsoft Edge";v="111.0.1661.41", "Not(A:Brand";v="8.0.0.0", "Chromium";v="111.0.5563.64"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-model': '',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-ch-ua-platform-version': '"10.0.0"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.41',
+            'x-ms-client-request-id': crypto.randomUUID(),
+            'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
+            cookie: BingCookie,
+            Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
+        },
+    };
+
+    const response = await fetch(`https://www.bing.com/turing/conversation/create`, fetchOptions);
+
+    return response.json();
+}
