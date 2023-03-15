@@ -107,7 +107,7 @@ export class duihua extends plugin {
             ck = e.msg.replace(/#设置必应ck/g, "").trim();
 
             if (!CheckCookie(ck)) {
-                e.reply("必应ck必须包含 _U 字段！");
+                e.reply("必应ck必须包含 KievRPSSecAuth 字段！");
                 return;
             };
 
@@ -389,7 +389,7 @@ async function GetSettings() {
  * 检查必应cookie是否正确
  */
 async function CheckCookie(Cookie) {
-    var regex = /(_U[=]|KievRPSSecAuth[=])/;
+    var regex = /(_U=|KievRPSSecAuth=)/;
     return regex.test(Cookie);
 }
 
