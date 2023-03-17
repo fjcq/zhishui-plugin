@@ -1,7 +1,6 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import fetch from "node-fetch";
 import fs from 'fs'
-import { isNotNull } from './yanzou.js';
 import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
 import crypto from 'crypto';
@@ -438,4 +437,14 @@ async function createNewConversation() {
     const response = await fetch(`https://www.bing.com/turing/conversation/create`, fetchOptions);
 
     return response.json();
+}
+
+/**
+ * 判断对象是否不为undefined且不为null、NaN
+ * @param obj 对象
+ * @returns obj==null/undefined,return false,other return true
+ */
+export function isNotNull(obj) {
+    if (obj == undefined || obj == null || obj != obj) { return false }
+    return true
 }
