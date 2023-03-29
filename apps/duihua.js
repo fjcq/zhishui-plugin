@@ -91,13 +91,8 @@ export class duihua extends plugin {
         console.log("提问：" + msg);
 
         //存在必应cookie的时候优先必应
-        jieguo = (CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
-        console.log(`Bing结果：${jieguo}`);
-
-        /*        if (!isNotNull(jieguo)) {
-                   jieguo = await AiChatGPT(msg);
-                   console.log(`ChatGPT结果：${jieguo}`);
-               }*/
+        //jieguo = (CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+        //console.log(`Bing结果：${jieguo}`);
 
         if (!isNotNull(jieguo)) {
             jieguo = await AiForChange(msg);
