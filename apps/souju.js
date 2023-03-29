@@ -25,9 +25,9 @@ let zdy = ""
 let zdyn = 0
 let bfxl = 1
 let kid = 1
-/**播放器 */ 
+/**播放器 */
 let bfq = ""
-/**搜剧接口 */  
+/**搜剧接口 */
 let jiekou = {}
 jiekou = await Get_Interface()
 
@@ -106,7 +106,7 @@ export class souju extends plugin {
         }
 
         if (e.msg.includes("#搜剧") & zzss == 0 | e.msg.includes("#下一页")) {
-            if (jiekou == undefined){
+            if (jiekou == undefined) {
                 e.reply('接口错误！')
                 zzss = 0
                 return
@@ -272,7 +272,7 @@ async function Get_Player() {
 }
 
 /**取图片设置*/
- async function Get_ShowPic(idx = 0) {
+async function Get_ShowPic(idx = 0) {
     let Interface = await Read_Interface();
     return Interface.resources[idx].showpic;
 }

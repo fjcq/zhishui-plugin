@@ -114,16 +114,15 @@ let Data = {
     }
   },
 
-  /*
-  * 返回一个从 target 中选中的属性的对象
+  /** 返回一个从 target 中选中的属性的对象
   *
   * keyList : 获取字段列表，逗号分割字符串
-  *   key1, key2, toKey1:fromKey1, toKey2:fromObj.key
+  * key1, key2, toKey1:fromKey1, toKey2:fromObj.key
   *
   * defaultData: 当某个字段为空时会选取defaultData的对应内容
   * toKeyPrefix：返回数据的字段前缀，默认为空。defaultData中的键值无需包含toKeyPrefix
   *
-  * */
+  **/
   getData(target, keyList = '', cfg = {}) {
     target = target || {}
     let defaultData = cfg.defaultData || {}
