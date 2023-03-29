@@ -2,8 +2,8 @@ import plugin from '../../../lib/plugins/plugin.js'
 import fetch from "node-fetch";
 import fs from 'fs'
 import Data from '../components/Data.js'
-//import BingAIClient from '../model/BingAIClient.js'
-import BingAIClient from '@waylaidwanderer/chatgpt-api'
+import BingAIClient from '../model/BingAIClient.js'
+//import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 
 var tempMsg = ""
