@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta http-equiv="content-type" content="text/html;charset=utf-8" />
     <link rel="stylesheet" type="text/css" href="{{dz}}\plugins\zhishui-plugin\resources\html\souju\select.css" />
 </head>
+
 <body>
     <div></div>
     <div class="box">
@@ -17,13 +19,20 @@
         </div>
 
         <div class="top_right">
-            <div class="text-muted">分类：<font class="text-data"> {{js[0].type_name}}</font></div>
-            <div class="text-muted">地区：<font class="text-data">{{js[0].vod_area}}</font></div>
-            <div class="text-muted">年份：<font class="text-data">{{js[0].vod_year}} </font></div>
-            <div class="text-muted">更新：<font class="text-data">{{js[0].vod_remarks}}/{{js[0].vod_time}}</font></div>
-            <div class="text-muted">主演：<font class="text-data">{{js[0].vod_actor}}</font></div>
-            <div class="text-muted">导演：<font class="text-data">{{js[0].vod_director}}</font></div>
-            <div class="text-muted">简介：<font class="text-data">{{js[0].vod_content}}</font></div>
+            <div class="text-muted">分类：<font class="text-data"> {{js[0].type_name}}</font>
+            </div>
+            <div class="text-muted">地区：<font class="text-data">{{js[0].vod_area}}</font>
+            </div>
+            <div class="text-muted">年份：<font class="text-data">{{js[0].vod_year}} </font>
+            </div>
+            <div class="text-muted">更新：<font class="text-data">{{js[0].vod_remarks}}/{{js[0].vod_time}}</font>
+            </div>
+            <div class="text-muted">主演：<font class="text-data">{{js[0].vod_actor}}</font>
+            </div>
+            <div class="text-muted">导演：<font class="text-data">{{js[0].vod_director}}</font>
+            </div>
+            <div class="text-muted">简介：<font class="text-data">{{js[0].vod_content}}</font>
+            </div>
         </div>
     </div>
 
@@ -40,7 +49,9 @@
             {{/each}}
         </div>
 
-        <div class="header text-left text-muted">当前线路为：<font class="item-data">#线路{{bfxl}}</font><font class="text-data">{{jdm[bfxl-1]}}</font></div>
+        <div class="header text-left text-muted">当前线路为：<font class="item-data">#线路{{bfxl}}</font>
+            <font class="text-data">{{jdm[bfxl-1]}}</font>
+        </div>
     </div>
 
     <div class="box text-center">
@@ -55,7 +66,9 @@
             <br />
         </div>
 
-        <div class="header text-left text-muted">你可以发送<font class="item-data">#选剧+数字</font>来选择集数，例如<font class="item-data">#选剧1</font></div>
+        <div class="header text-left text-muted">你可以发送<font class="item-data">#选剧+数字</font>来选择集数，例如<font
+                class="item-data">#选剧1</font>
+        </div>
     </div>
 
     <div class="box">
@@ -64,4 +77,5 @@
 
 
 </body>
+
 </html>

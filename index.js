@@ -4,7 +4,7 @@ import chalk from 'chalk'
 
 const files = fs
     .readdirSync("./plugins/zhishui-plugin/apps")
-    .filter((file) => file.endsWith(".js"))
+    .filter((file) => file.endsWith(".js"));
 
 let ret = []
 

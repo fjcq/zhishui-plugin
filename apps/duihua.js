@@ -2,25 +2,40 @@ import plugin from '../../../lib/plugins/plugin.js'
 import fetch from "node-fetch";
 import fs from 'fs'
 import Data from '../components/Data.js'
-import BingAIClient from '../model/BingAIClient.js'
+//import BingAIClient from '../model/BingAIClient.js'
+import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
-
 
 var tempMsg = ""
 var EnableBing = true
+/** 默认协议头 */
 var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63");
 
 let zs
-let NickName = "小七" //你要触发的前缀
+/** 你要触发的前缀 */
+let NickName = "小七"
 let msgData = []
+/** 工作状态 */
 let works = 0
 let cs = 0
-let response
-let BingCookie
-let OnlyMaster
-await GetSettings()
+/** 必应Cookie */
+let BingCookie = ''
+let OnlyMaster = false
+BingCookie = await GetSettings();
+
+/** 必应选项 */
+const options = {
+    host: 'https://www.bing.com',
+    userToken: '',
+    cookies: BingCookie,
+    proxy: '',
+    debug: false,
+};
+
+/** 必应客户端 */
+const bingAIClient = new BingAIClient(options);
 
 export class duihua extends plugin {
     constructor() {
@@ -54,18 +69,20 @@ export class duihua extends plugin {
         })
     }
 
+    /** 重置对话 */
     async ResetChat(e) {
-        tempMsg = ""
-        msgData = []
-        cs = 0
-        works = 0
-        e.reply('已经重置对话了！')
+        tempMsg = "";
+        msgData = [];
+        cs = 0;
+        works = 0;
+        e.reply('已经重置对话了！');
+        return true;
     }
 
     async duihua(e) {
-        if (works == 1) {
+        if (works > 1) {
             e.reply('你先别急，我有点忙不过来辣！', true);
-            return;
+            return false;
         };
 
         works = 1
@@ -74,7 +91,7 @@ export class duihua extends plugin {
         console.log("提问：" + msg);
 
         //存在必应cookie的时候优先必应
-        jieguo = (await CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+        jieguo = (CheckCookie(BingCookie) && EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
         console.log(`Bing结果：${jieguo}`);
 
         /*        if (!isNotNull(jieguo)) {
@@ -86,39 +103,44 @@ export class duihua extends plugin {
             jieguo = await AiForChange(msg);
             console.log(`ForChange结果：${jieguo}`);
         }
-
+        
         if (!isNotNull(jieguo)) {
-            this.ResetChat(e)
-            works = 0
-            return
+            jieguo = await AiWwang(msg);
+            console.log(`AiWwang结果：${jieguo}`);
+        }
+        
+        if (!isNotNull(jieguo)) {
+            this.ResetChat(e);
+            works = 0;
+            return true;
         }
 
         e.reply(jieguo, true)
-        tempMsg = ""
-        zs = tempMsg.length
-        works = 0
-        return;
+        tempMsg = "";
+        zs = tempMsg.length;
+        works = 0;
+        return true;
     }
 
     async SetBingCK(e) {
         if (e.isMaster) {
-            let ck = ""
+            let ck = "";
             ck = e.msg.replace(/#设置必应ck/g, "").trim();
 
             if (!CheckCookie(ck)) {
                 e.reply("必应ck必须包含 KievRPSSecAuth 字段！");
-                return;
+                return false;
             };
 
             let Settings = await ReadSettings();
             if (!isNotNull(Settings)) {
                 e.reply("读取配置错误！");
-                return;
+                return false;
             }
 
-            Settings.BingCookie = ck
-            await WriteSettings(Settings)
-            BingCookie = ck
+            Settings.BingCookie = ck;
+            await WriteSettings(Settings);
+            BingCookie = ck;
             console.log("设置必应ck：" + ck);
             e.reply("设置必应ck成功！");
 
@@ -178,7 +200,7 @@ export class duihua extends plugin {
  * @return {*} 对话结果
  */
 async function AiForChange(msg) {
-    tempMsg = tempMsg + "\nHuman: " + msg
+    tempMsg += "\nHuman: " + msg
     var data2 = {
         prompt: tempMsg,
         tokensLength: zs
@@ -203,10 +225,73 @@ async function AiForChange(msg) {
 
     let res2 = await res3.json();
     let text = res2.choices[0].text
+
+    if (text == null) {
+        tempMsg = ""
+        return undefined
+    }
+
+    tempMsg += text
     const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Robot[:：]|Computer[:：]|computer[:：]|AI[:：])/g;
     text = text.replace(regex, NickName + "：").trim();
     return text
 }
+
+/** AiWwang 提交数据 */
+var WwangDate = {
+    "messages": [],
+    "temperature": 0.6,
+    "password": "",
+    "model": "gpt-3.5-turbo"
+};
+
+/**
+ * AI对话  https://ai.wwang.eu.org/api
+ *
+ * @param {*} msg 发送消息
+ * @return {*} 对话结果
+ */
+async function AiWwang(msg) {
+    //记录提问数据
+    let WwangTempMsg = {
+        "role": "user",
+        "content": msg,
+        "id": Date.now()
+    };
+    WwangDate.messages.push(WwangTempMsg);
+
+    let url = "https://ai.wwang.eu.org/api"
+    let WwangRes = await fetch(url, {
+        method: "post",
+        body: JSON.stringify(WwangDate),
+        headers: myHeaders
+    })
+
+    //错误处理 网页响应
+    if (WwangRes.status != 200) {
+        WwangDate.messages = []
+        console.log(WwangRes.status);
+        console.log(WwangRes.statusText);
+        return undefined
+    }
+
+    let text = await res3.text();
+    if (!isNotNull(text)) {
+        WwangDate.messages = []
+        return undefined
+    }
+
+    //记录回答数据
+    WwangTempMsg = {
+        "role": "assistant",
+        "content": text,
+        "id": Date.now()
+    };
+    WwangDate.messages.push(WwangTempMsg);
+
+    return text
+}
+
 
 /**
  * AI对话  https://chatgpt-api.shn.hk/v1/
@@ -255,31 +340,24 @@ async function AiChatGPT(msg) {
  * @return {*} 对话结果
  */
 async function AiBing(msg) {
+    let response
     let text = "";
-    if (cs == 6) {
+    if (cs == 15) {
         cs = 0;
         return undefined;
     }
 
-    //初始化 必应客户端
-    const bingAIClient = new BingAIClient({
-        host: 'https://www.bing.com',
-        userToken: ``,
-        cookies: BingCookie,
-        proxy: '',
-        debug: false,
-    });
-
     if (cs == 0) {
-        text = ""
         response = await bingAIClient.sendMessage(msg, {
+            toneStyle: 'balanced', // or creative, precise, fast
             onProgress: (token) => {
                 process.stdout.write(token);
                 text += token;
             },
         });
+        console.log(JSON.stringify(response, null, 2));
         cs++;
-        //console.log("首次回复：" + response.details.text);
+
         await sleep(1000);
         if (response.details.text != undefined) {
             text = response.details.text;
@@ -290,7 +368,7 @@ async function AiBing(msg) {
     }
 
 
-    if (cs != 0 && cs < 10) {
+    if (cs != 0 && cs < 15) {
         response = await bingAIClient.sendMessage(msg, {
             toneStyle: 'balanced', //or creative, precise
             conversationSignature: response.conversationSignature,
@@ -326,14 +404,14 @@ function sleep(ms) {
 * 读取对话配置文件
 */
 async function ReadSettings() {
-    let temp;
-    const configPath = "./plugins/zhishui-plugin/config/config/duihua.json";
-    const defaultPath = "./plugins/zhishui-plugin/config/default_config/duihua.json";
+    let temp = {};
+    const ConfigPath = "./plugins/zhishui-plugin/config/config/";
+    const DefaultPath = "./plugins/zhishui-plugin/config/default_config/";
 
-    if (fs.existsSync(configPath)) {
-        temp = Data.readJSON("duihua.json", configPath);
+    if (fs.existsSync(ConfigPath)) {
+        temp = Data.readJSON("duihua.json", ConfigPath);
     } else {
-        temp = Data.readJSON("duihua.json", defaultPath);
+        temp = Data.readJSON("duihua.json", DefaultPath);
         await WriteSettings(temp);
     }
 
@@ -386,9 +464,11 @@ async function GetSettings() {
 
 /**
  * 检查必应cookie是否正确
+ * @param {string} Cookie 必应Cookie，必须包含KievRPSSecAuth字段
+ * @returns {boolean} 返回逻辑结果
  */
 async function CheckCookie(Cookie) {
-    var regex = /(_U=|KievRPSSecAuth=)/;
+    var regex = /(_U|KievRPSSecAuth)=/;
     return regex.test(Cookie);
 }
 
