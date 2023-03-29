@@ -6,8 +6,10 @@ import BingAIClient from '../model/BingAIClient.js'
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 
-var tempMsg = ""
-var EnableBing = true
+/**消息缓存 */
+var ForChangeMsg = ""
+/**必应开关 */
+var EnableBing = false
 /** 默认协议头 */
 var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
@@ -16,6 +18,7 @@ myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleW
 let zs
 /** 你要触发的前缀 */
 let NickName = "小七"
+
 let msgData = []
 /** 工作状态 */
 let works = 0
@@ -36,6 +39,15 @@ const options = {
 
 /** 必应客户端 */
 const bingAIClient = new BingAIClient(options);
+
+/** 提交数据 AiWwang */
+var WwangDate = {
+    "messages": [],
+    "temperature": 0.6,
+    "password": "",
+    "model": "gpt-3.5-turbo"
+};
+
 
 export class duihua extends plugin {
     constructor() {
@@ -71,8 +83,9 @@ export class duihua extends plugin {
 
     /** 重置对话 */
     async ResetChat(e) {
-        tempMsg = "";
+        ForChangeMsg = "";
         msgData = [];
+        WwangDate.messages= [];
         cs = 0;
         works = 0;
         e.reply('已经重置对话了！');
@@ -98,12 +111,12 @@ export class duihua extends plugin {
             jieguo = await AiForChange(msg);
             console.log(`ForChange结果：${jieguo}`);
         }
-        
+
         if (!isNotNull(jieguo)) {
             jieguo = await AiWwang(msg);
             console.log(`AiWwang结果：${jieguo}`);
         }
-        
+
         if (!isNotNull(jieguo)) {
             this.ResetChat(e);
             works = 0;
@@ -111,8 +124,6 @@ export class duihua extends plugin {
         }
 
         e.reply(jieguo, true)
-        tempMsg = "";
-        zs = tempMsg.length;
         works = 0;
         return true;
     }
@@ -195,19 +206,20 @@ export class duihua extends plugin {
  * @return {*} 对话结果
  */
 async function AiForChange(msg) {
-    tempMsg += "\nHuman: " + msg
-    var data2 = {
-        prompt: tempMsg,
+    ForChangeMsg += `\nHuman: ${msg}`
+    zs = ForChangeMsg.length;
+    var ChangeData = {
+        prompt: ForChangeMsg,
         tokensLength: zs
     }
-
+    console.log(ChangeData);
     let url = "https://api.forchange.cn/"
 
 
     let res3 = await fetch(url, {
         method: "post",
 
-        body: JSON.stringify(data2),
+        body: JSON.stringify(ChangeData),
         headers: myHeaders
 
     })
@@ -215,30 +227,23 @@ async function AiForChange(msg) {
     if (res3.status != 200) {
         console.log(res3.status);
         console.log(res3.statusText);
-        return undefined
+        return undefined;
     }
 
     let res2 = await res3.json();
-    let text = res2.choices[0].text
+    let text = res2.choices[0].text;
 
-    if (text == null) {
-        tempMsg = ""
-        return undefined
+    if (!isNotNull(text)) {
+        ForChangeMsg = "";
+        return undefined;
     }
 
-    tempMsg += text
+    ForChangeMsg += text;
+
     const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Computer[:：]|AI[:：])/gi;
     text = text.replace(regex, "").trim();
-    return text
+    return text;
 }
-
-/** AiWwang 提交数据 */
-var WwangDate = {
-    "messages": [],
-    "temperature": 0.6,
-    "password": "",
-    "model": "gpt-3.5-turbo"
-};
 
 /**
  * AI对话  https://ai.wwang.eu.org/api
