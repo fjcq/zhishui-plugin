@@ -232,8 +232,8 @@ async function AiForChange(msg) {
     }
 
     tempMsg += text
-    const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Robot[:：]|Computer[:：]|computer[:：]|AI[:：])/g;
-    text = text.replace(regex, NickName + "：").trim();
+    const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Computer[:：]|AI[:：])/gi;
+    text = text.replace(regex, "").trim();
     return text
 }
 
