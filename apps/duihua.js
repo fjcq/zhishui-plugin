@@ -369,8 +369,8 @@ async function AiChatGPT(msg) {
 /**
  * AI对话  https://chatgptmirror.com/chat
  *
- * @param {*} msg 发送消息
- * @return {*} 对话结果
+ * @param {string} msg 发送消息
+ * @return {string} 对话结果
  */
 async function AiMirror(msg) {
     let text = '';
