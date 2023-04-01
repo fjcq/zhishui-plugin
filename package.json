@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {},
   "dependencies": {
-    "@waylaidwanderer/chatgpt-api": "^1.33.0",
+    "@waylaidwanderer/chatgpt-api": "^1.33.1",
     "fetch-undici": "^3.0.1",
     "keyv": "^4.5.2",
     "undici": "^5.21.0",
