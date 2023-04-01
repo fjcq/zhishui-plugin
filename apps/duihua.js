@@ -108,6 +108,7 @@ export class duihua extends plugin {
         works = 1
         let jieguo;
         let msg = e.msg.replace(NickName, '').trim();
+        msg = msg.replace(/^[#\s]+/, '');
         console.log("提问：" + msg);
 
         //存在必应cookie的时候优先必应
@@ -734,8 +735,9 @@ async function GetSettings() {
         await WriteSettings(Settings);
     }
 
-    BingSettings = JSON.parse(BingSettings);
-
+    if (typeof BingSettings != 'object') {
+        BingSettings = JSON.parse(BingSettings);
+    }
     return BingSettings;
 }
 
