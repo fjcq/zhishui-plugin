@@ -15,9 +15,8 @@ try {
 }
 
 const require = createRequire(import.meta.url)
-/** 聊天参数 */ let ChatSettings = await GetSettings();
-console.log(ChatSettings)
 
+/** 聊天参数 */ let ChatSettings = await GetSettings();
 /** 发音人列表 */ const VoiceList = await ReadVoiceList()
 /**消息缓存 Chang */ var ForChangeMsg = ""
 /** 默认协议头 */ var myHeaders = new Headers();
@@ -30,17 +29,6 @@ let msgData = [];
 let cs = 0;
 let i = 0;
 let conversation_id;
-
-
-
-/** 必应选项 */
-const options = {
-    host: 'https://www.bing.com',
-    userToken: '',
-    cookies: '',
-    proxy: '',
-    debug: false,
-};
 
 /** 必应客户端 */
 //const bingAIClient = new BingAIClient(options);
@@ -404,45 +392,6 @@ async function AiWwang(msg) {
 }
 
 
-/**
- * AI对话  https://chatgpt-api.shn.hk/v1/
- *
- * @param {*} msg 发送消息
- * @return {*} 对话结果
- */
-async function AiChatGPT(msg) {
-
-    msgData.push({ "role": "user", "content": msg })
-    //console.log(msgData)
-    let response4 = await fetch('https://chatgpt-api.shn.hk/v1/', {
-        method: 'POST',
-        headers: myHeaders,
-        body: JSON.stringify(
-            {
-                "model": "gpt-3.5-turbo",
-                "messages": msgData
-            }
-        )
-    });
-
-    if (response4.status != 200) {
-        console.log(response4.status);
-        console.log(response4.statusText);
-        return undefined
-    }
-
-    let res = await response4.json();
-    if (!res) {
-        return undefined;
-    }
-    if (res.error) {
-        console.log(res.error.message);
-        return undefined;
-    }
-
-    let text = res.choices[0].message.content;
-    return text.startsWith('\n\n') ? text.substring(2) : text;
-}
 
 /**
  * AI对话  https://chatgptmirror.com/chat
@@ -809,7 +758,7 @@ async function GetSettings() {
         change = true;
     };
     if (typeof Settings.BingSettings != 'object') {
-        Settings.BingSettings = JSON.parse(Settings.BingSettings);
+        Settings.BingSettings = JSON.parse(Settings.BingSettings) ;
         change = true;
     }
 
@@ -847,37 +796,6 @@ async function ForwardMsg(e, data) {
     await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
 };
 
-async function createNewConversation() {
-    const fetchOptions = {
-        headers: {
-            accept: 'application/json',
-            'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
-            'content-type': 'application/json',
-            'accept-encoding': 'gzip, deflate, br',
-            'sec-ch-ua': '"Microsoft Edge";v="111", "Not(A:Brand";v="8", "Chromium";v="111"',
-            'sec-ch-ua-arch': '"x86"',
-            'sec-ch-ua-bitness': '"64"',
-            'sec-ch-ua-full-version': '"111.0.1661.41"',
-            'sec-ch-ua-full-version-list': '"Microsoft Edge";v="111.0.1661.41", "Not(A:Brand";v="8.0.0.0", "Chromium";v="111.0.5563.64"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-model': '',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-ch-ua-platform-version': '"10.0.0"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.41',
-            'x-ms-client-request-id': crypto.randomUUID(),
-            'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-            cookie: ChatSettings,
-            Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
-        },
-    };
-
-    const response = await fetch(`https://www.bing.com/turing/conversation/create`, fetchOptions);
-
-    return response.json();
-}
 
 /**
  * 判断对象是否不为undefined且不为null、NaN
