@@ -237,7 +237,7 @@ export class duihua extends plugin {
         if (e.isMaster == false) {
             return false; //不是主人
         };
-        let VoiceEnable = e.msg.replace('#对话语音', '').trim();
+        let VoiceEnable = e.msg.replace('#止水对话语音', '').trim();
         if (VoiceEnable == '开启') {
             ChatSettings.VoiceEnable = true;
             e.reply("[对话语音]已开启！");
@@ -255,7 +255,7 @@ export class duihua extends plugin {
 
     /** 设置对话发音人 */
     async SetVoiceId(e) {
-        let VoiceIndex = parseInt(e.msg.replace('#设置对话发音人', '').trim());
+        let VoiceIndex = parseInt(e.msg.replace('#止水对话设置发音人', '').trim());
         console.log(VoiceIndex)
         if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
             ChatSettings.VoiceIndex = VoiceIndex - 1;
@@ -275,15 +275,20 @@ export class duihua extends plugin {
     async ShowVoiceId(e) {
         let msg = []
 
-        msg.push(`当前发音人：${(ChatSettings.VoiceIndex)} 、${VoiceList[ChatSettings.VoiceIndex - 1].name}`);
-
+        msg.push(`当前发音人：${(ChatSettings.VoiceIndex + 1)} 、${VoiceList[ChatSettings.VoiceIndex].name}`);
+        msg.push(`#止水对话设置发音人${(ChatSettings.VoiceIndex + 1)}`);
         let list = `*** 发音人列表 ***\n`;
         for (let i = 0; i < VoiceList.length; i++) {
             let obj = VoiceList[i];
             let name = obj.name;
             let type = obj.type;
             let sexy = obj.sexy;
-            list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`
+            if (ChatSettings.VoiceIndex == i) {
+                list += `>>>${(i + 1)} 、${name}，分类：${type}，性别：${sexy}<<<\n`
+            } else {
+                list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`
+            }
+
         }
         msg.push(list);
         await ForwardMsg(e, msg);
