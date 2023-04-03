@@ -7,7 +7,7 @@ export default class base {
   }
 
   get prefix() {
-    return `Yz:k-plugin:${this.model}:`;
+    return `Yz:zhishui-plugin:${this.model}:`;
   }
 
   /**

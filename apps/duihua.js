@@ -7,31 +7,31 @@ import Data from '../components/Data.js'
 import crypto from 'crypto';
 import _ from 'lodash'
 import { createRequire } from 'module'
-const require = createRequire(import.meta.url)
+let segment = ""
+try {
+    segment = (await import("oicq")).segment
+} catch (err) {
+    segment = (await import("icqq")).segment
+}
 
-/**消息缓存 */
-var ForChangeMsg = ""
-/**必应开关 */
-var EnableBing = false;
-/** 默认协议头 */
-var myHeaders = new Headers();
+const require = createRequire(import.meta.url)
+/** 聊天参数 */ let ChatSettings = await GetSettings();
+console.log(ChatSettings)
+
+/** 发音人列表 */ const VoiceList = await ReadVoiceList()
+/**消息缓存 Chang */ var ForChangeMsg = ""
+/** 默认协议头 */ var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 myHeaders.append("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63");
 
 let zs
-/** 你要触发的前缀 */
-let NickName = "小七";
-
 let msgData = [];
-/** 工作状态 */
-let works = 0;
+/** 工作状态 */ let works = 0;
 let cs = 0;
 let i = 0;
-/** 必应参数 */
-let BingSettings = {};
-/** 仅主人可用 */
-let OnlyMaster = false;
-BingSettings = await GetSettings();
+let conversation_id;
+
+
 
 /** 必应选项 */
 const options = {
@@ -53,8 +53,7 @@ const WwangDate = {
     "model": "gpt-3.5-turbo"
 };
 
-/** 必应KEY */
-let Bearer = ''
+/** 必应KEY */ let Bearer = ''
 
 export class duihua extends plugin {
     constructor() {
@@ -65,24 +64,33 @@ export class duihua extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: NickName,
+                    reg: ChatSettings.NickName,
                     fnc: 'duihua'
                 }, {
-                    reg: '^[#](结束|取消|关闭|重置)(对话|聊天)$', //匹配消息正则,命令正则
+                    reg: '^[#]止水对话(结束|取消|关闭|重置)(对话|聊天)$', //匹配消息正则,命令正则
                     /** 执行方法 */
                     fnc: 'ResetChat'
                 }, {
-                    reg: '^#设置必应参数(.*)$',
-                    fnc: 'SetBingCK'
+                    reg: '^#止水对话设置必应参数(.*)$',
+                    fnc: 'SetBingSettings'
                 }, {
-                    reg: '^#查看必应参数$',
-                    fnc: 'GetBingCK'
+                    reg: '^#止水对话查看必应参数$',
+                    fnc: 'GetBingSettings'
                 }, {
-                    reg: '^#必应开关$',
+                    reg: '^#止水对话必应开关$',
                     fnc: 'BingEnable'
                 }, {
-                    reg: '^#修改对话昵称(.*)$',
+                    reg: '^#止水对话修改昵称(.*)$',
                     fnc: 'ModifyNickname'
+                }, {
+                    reg: '^#止水对话语音(开启|关闭)$',
+                    fnc: 'SetVoiceEnable'
+                }, {
+                    reg: '^#止水对话设置发音人(.*)$',
+                    fnc: 'SetVoiceId'
+                }, {
+                    reg: '^#止水对话查看发音人$',
+                    fnc: 'ShowVoiceId'
                 }
             ]
         })
@@ -99,6 +107,7 @@ export class duihua extends plugin {
         return true;
     }
 
+    /** 对话 */
     async duihua(e) {
         if (works > 1) {
             e.reply('你先别急，我有点忙不过来辣！', true);
@@ -107,19 +116,14 @@ export class duihua extends plugin {
 
         works = 1
         let jieguo;
-        let msg = e.msg.replace(NickName, '').trim();
+        let msg = e.msg.replace(ChatSettings.NickName, '').trim();
         msg = msg.replace(/^[#\s]+/, '');
         console.log("提问：" + msg);
 
         //存在必应cookie的时候优先必应
-        jieguo = (EnableBing && (!OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+        jieguo = (ChatSettings.EnableBing && (!ChatSettings.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
         console.log(`Bing结果：${jieguo}`);
 
-        //接口1
-        if (!isNotNull(jieguo)) {
-            jieguo = await AiForChange(msg);
-            console.log(`ForChange结果：${jieguo}`);
-        }
 
         //接口2
         if (!isNotNull(jieguo)) {
@@ -132,6 +136,13 @@ export class duihua extends plugin {
             jieguo = await AiMirror(msg);
             console.log(`AiMirror结果：${jieguo}`);
         }
+
+        //接口1
+        if (!isNotNull(jieguo)) {
+            jieguo = await AiForChange(msg);
+            console.log(`ForChange结果：${jieguo}`);
+        }
+
         if (!isNotNull(jieguo)) {
             this.ResetChat(e);
             works = 0;
@@ -139,66 +150,77 @@ export class duihua extends plugin {
         }
 
         e.reply(jieguo, true)
+
+        //语音合成
+        if (ChatSettings.VoiceEnable) {
+            let voiceId = VoiceList[ChatSettings.VoiceIndex - 1].voiceId
+            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
+            e.reply([segment.record(url)])
+
+        }
+
+
         works = 0;
         return true;
     }
 
-    async SetBingCK(e) {
+    /** 设置必应参数 */
+    async SetBingSettings(e) {
         if (e.isMaster) {
-            let TempSettings = "";
-            TempSettings = e.msg.replace(/#设置必应参数/g, "").trim();
+            let jsonString = e.msg.replace(/#设置必应参数/g, "").trim();
+            let jsonObject;
 
-            if (!CheckSettings(TempSettings)) {
+            try {
+                jsonObject = JSON.parse(jsonString);
+                // 检查对象是否有"conversationId", "clientId", "conversationSignature"属性
+                if (jsonObject.hasOwnProperty("conversationId") && jsonObject.hasOwnProperty("clientId") && jsonObject.hasOwnProperty("conversationSignature")) {
+
+                    ChatSettings.BingSettings = jsonObject
+                    await WriteSettings(ChatSettings);
+
+                    console.log("设置必应ck：" + jsonObject);
+                    e.reply("设置必应ck成功！");
+                    return true;
+
+                } else {
+                    e.reply(`必应参数不完整！`);
+                    return false;
+                }
+            } catch (error) {
                 e.reply(`必应参数错误，请在浏览器的开发人员工具中搜索"create"！`);
-                return false;
-            };
-
-            let Settings = await ReadSettings();
-            if (!isNotNull(Settings)) {
-                e.reply("读取配置错误！");
                 return false;
             }
 
-            Settings.BingSettings = TempSettings;
-            await WriteSettings(Settings);
-            BingSettings = TempSettings;
-            console.log("设置必应ck：" + TempSettings);
-            e.reply("设置必应ck成功！");
-
-            return true;
         }
 
     }
 
-    async GetBingCK(e) {
+    /** 查看必应参数 */
+    async GetBingSettings(e) {
         if (e.isMaster == false) {
             return; //不是主人
         };
 
         //私聊才能查看
         if (!e.isGroup) {
-            let wardMsg = await ShowSettings();
-            await ForwardMsg(e, wardMsg);
+            let msg = []
+            msg.push(`*** 必应参数 ***`);
+            msg.push(JSON.stringify(ChatSettings.BingSettings));
+            await ForwardMsg(e, msg);
             return true;
         }
     }
 
+    /** 必应开关 */
     async BingEnable(e) {
         if (e.isMaster == false) {
             return false; //不是主人
         };
 
-        EnableBing = !EnableBing;
-        let Settings = await ReadSettings();
-        if (!isNotNull(Settings)) {
-            e.reply("读取配置错误！");
-            return false;
-        };
+        ChatSettings.EnableBing = !ChatSettings.EnableBing;
+        await WriteSettings(ChatSettings);
 
-        Settings.EnableBing = EnableBing;
-        await WriteSettings(Settings);
-
-        if (EnableBing) {
+        if (ChatSettings.EnableBing) {
             e.reply("[必应对话]已开启！");
         } else {
             e.reply("[必应对话]已关闭！");
@@ -206,26 +228,81 @@ export class duihua extends plugin {
         return true;
     }
 
+    /** 修改对话昵称 */
     async ModifyNickname(e) {
         if (e.isMaster == false) {
             return false; //不是主人
         };
 
         let nickname = e.msg.replace(`#修改对话昵称`, '').trim();
-        if (nickname.length > 0) {
-            let Settings = await ReadSettings()
-            if (!isNotNull(Settings)) {
-                e.reply("读取配置错误！");
-                return false;
-            };
-
-            Settings.NnickName = nickname
-            await WriteSettings(Settings)
-            NickName = nickname
+        if (nickname.length > 0 && nickname != ChatSettings.NickName) {
+            ChatSettings.NickName = nickname
+            await WriteSettings(ChatSettings)
+            e.reply("对话昵称修改为:" + nickname);
+            return true;
         }
-        e.reply("[对话昵称]：" + NickName);
+        return false;
+    }
+
+    /** 对话语音开关 */
+    async SetVoiceEnable(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+        let VoiceEnable = e.msg.replace('#对话语音', '').trim();
+        if (VoiceEnable == '开启') {
+            ChatSettings.VoiceEnable = true;
+            e.reply("[对话语音]已开启！");
+        } else if (VoiceEnable == '关闭') {
+            ChatSettings.VoiceEnable = false;
+            e.reply("[对话语音]已关闭！");
+        } else {
+            ChatSettings.VoiceEnable = !ChatSettings.VoiceEnable;
+            e.reply("[对话语音]已" + ChatSettings.VoiceEnable ? "开启" : "关闭" + "！");
+        }
+
+        await WriteSettings(ChatSettings);
         return true;
     }
+
+    /** 设置对话发音人 */
+    async SetVoiceId(e) {
+        let VoiceIndex = parseInt(e.msg.replace('#设置对话发音人', '').trim());
+        console.log(VoiceIndex)
+        if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
+            ChatSettings.VoiceIndex = VoiceIndex - 1;
+            await WriteSettings(ChatSettings);
+
+            let name = VoiceList[VoiceIndex - 1].name
+            e.reply("[对话发音人]:" + name);
+
+        } else {
+            e.reply("[对话发音人]错误！");
+        }
+
+        return true;
+    }
+
+    /** 查看对话发音人 */
+    async ShowVoiceId(e) {
+        let msg = []
+
+        msg.push(`当前发音人：${(ChatSettings.VoiceIndex)} 、${VoiceList[ChatSettings.VoiceIndex - 1].name}`);
+
+        let list = `*** 发音人列表 ***\n`;
+        for (let i = 0; i < VoiceList.length; i++) {
+            let obj = VoiceList[i];
+            let name = obj.name;
+            let type = obj.type;
+            let sexy = obj.sexy;
+            list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`
+        }
+        msg.push(list);
+        await ForwardMsg(e, msg);
+        return true;
+
+    }
+
 }
 
 /**
@@ -383,7 +460,6 @@ async function AiMirror(msg) {
     let base_request = { "platform_type": "Web", "client_version": "2.1", "trace_id": "", "signature": "", "share": "" };
     /** 返回数据 */
     let MirrorRes;
-    let conversation_id;
 
     //初始化
     if (Bearer == '') {
@@ -398,9 +474,11 @@ async function AiMirror(msg) {
             return undefined
         };
         Bearer = MirrorRes.data.token;
+    }
 
-        AiHeaders.set("Authorization", "Bearer " + Bearer);
+    AiHeaders.set("Authorization", "Bearer " + Bearer);
 
+    if (conversation_id === '' || conversation_id === undefined) {
         //创建会话
         MirrorData = { "name": msg, "base_request": base_request };
         MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/CreateConversation', {
@@ -412,11 +490,9 @@ async function AiMirror(msg) {
             return undefined;
         };
         conversation_id = MirrorRes.data.conversation.id;
-
     }
 
     //发送消息
-    AiHeaders.set("Authorization", "Bearer " + Bearer);
     MirrorData = { "conversation_id": conversation_id, "content": msg, "base_request": base_request };
     MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/Chat', {
         method: "post",
@@ -471,14 +547,14 @@ async function AiMirror(msg) {
  * @return {*} 对话结果
  */
 async function AiBing(msg) {
-    if (!CheckSettings(BingSettings)) {
+    if (!CheckSettings(ChatSettings)) {
         return undefined;
     }
-    return undefined;
+    return undefined; //禁用必应
 
-    console.log(BingSettings)
+    console.log(ChatSettings)
 
-    let { conversationId, clientId, conversationSignature } = BingSettings;
+    let { conversationId, clientId, conversationSignature } = ChatSettings;
 
     console.log(conversationId, clientId, conversationSignature)
 
@@ -683,7 +759,7 @@ async function ReadSettings() {
     const ConfigPath = "./plugins/zhishui-plugin/config/config/";
     const DefaultPath = "./plugins/zhishui-plugin/config/default_config/";
 
-    if (fs.existsSync(ConfigPath)) {
+    if (fs.existsSync(ConfigPath + "duihua.json")) {
         temp = Data.readJSON("duihua.json", ConfigPath);
     } else {
         temp = Data.readJSON("duihua.json", DefaultPath);
@@ -700,45 +776,49 @@ async function WriteSettings(data) {
     return Data.writeJSON("duihua.json", data, '\t', "./plugins/zhishui-plugin/config/config")
 }
 
-/**
- * 回复当前必应参数
- */
-async function ShowSettings() {
-    let Settings = await ReadSettings()
-    let msg = []
-    msg.push(`*** 必应参数 ***`);
-    msg.push(Settings.BingSettings);
-    return msg
-}
 
 /**
- * 读取必应参数
+ * 读取对话参数
  */
 async function GetSettings() {
     let Settings = await ReadSettings();
     let change = false;
 
-    // 使用对象解构赋值来简化属性赋值
-    ({ NickName, OnlyMaster, EnableBing, BingSettings } = Settings);
-
-    // 使用默认值来避免undefined检查
-    NickName = NickName ?? "小七";
-    OnlyMaster = OnlyMaster ?? false;
-    EnableBing = EnableBing ?? false;
-    BingSettings = BingSettings ?? {};
-
-    // 使用Object.assign来更新设置对象
-    change = Object.assign(Settings, { NickName, OnlyMaster, EnableBing, BingSettings }) !== Settings;
+    if (!isNotNull(Settings.NickName)) {
+        Settings.NickName = "小七"
+        change = true;
+    };
+    if (!isNotNull(Settings.OnlyMaster)) {
+        Settings.OnlyMaster = false
+        change = true;
+    };
+    if (!isNotNull(Settings.EnableBing)) {
+        Settings.EnableBing = false
+        change = true;
+    };
+    if (!isNotNull(Settings.EnableVoice)) {
+        Settings.EnableVoice = false
+        change = true;
+    };
+    if (!isNotNull(Settings.VoiceIndex)) {
+        Settings.VoiceIndex = 23
+        change = true;
+    };
+    if (!isNotNull(Settings.BingSettings)) {
+        Settings.BingSettings = {}
+        change = true;
+    };
+    if (typeof Settings.BingSettings != 'object') {
+        Settings.BingSettings = JSON.parse(Settings.BingSettings);
+        change = true;
+    }
 
     // 如果设置有变化，则写入文件中
     if (change) {
         await WriteSettings(Settings);
-    }
+    };
 
-    if (typeof BingSettings != 'object') {
-        BingSettings = JSON.parse(BingSettings);
-    }
-    return BingSettings;
+    return Settings;
 }
 
 /**
@@ -789,7 +869,7 @@ async function createNewConversation() {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36 Edg/111.0.1661.41',
             'x-ms-client-request-id': crypto.randomUUID(),
             'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-            cookie: BingSettings,
+            cookie: ChatSettings,
             Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
         },
     };
@@ -828,3 +908,17 @@ async function FetchPost(Url = '', Options = {}) {
     //return await Response.text()
 
 };
+
+/**
+ * 读发音人数据
+ */
+async function ReadVoiceList() {
+    let temp = {};
+    const DataPath = "./plugins/zhishui-plugin/resources/data/";
+
+    if (fs.existsSync(DataPath + "VoiceList.json")) {
+        temp = Data.readJSON("VoiceList.json", DataPath);
+    }
+
+    return temp;
+}
