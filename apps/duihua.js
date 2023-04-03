@@ -141,7 +141,7 @@ export class duihua extends plugin {
 
         //语音合成
         if (ChatSettings.VoiceEnable) {
-            let voiceId = VoiceList[ChatSettings.VoiceIndex - 1].voiceId
+            let voiceId = VoiceList[ChatSettings.VoiceIndex].voiceId
             let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
             e.reply([segment.record(url)])
 
@@ -255,7 +255,7 @@ export class duihua extends plugin {
 
     /** 设置对话发音人 */
     async SetVoiceId(e) {
-        let VoiceIndex = parseInt(e.msg.replace('#止水对话设置发音人', '').trim());
+        let VoiceIndex = parseInt(e.msg.replace(/\D+/, '').trim());
         console.log(VoiceIndex)
         if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
             ChatSettings.VoiceIndex = VoiceIndex - 1;
