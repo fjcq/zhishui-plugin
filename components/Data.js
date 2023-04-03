@@ -101,11 +101,11 @@ let Data = {
   },
 
   async importCfg(key) {
-    let sysCfg = await Data.importModule(`config/system/${key}_system.js`)
-    let diyCfg = await Data.importModule(`config/${key}.js`)
+    let sysCfg = await Data.importModule(`config/default_config/${key}.js`)
+    let diyCfg = await Data.importModule(`config/config/${key}.js`)
     if (diyCfg.isSys) {
       console.error(`zhishui-plugin: config/${key}.js无效，已忽略`)
-      console.error(`如需配置请复制config/${key}_default.js为config/${key}.js，请勿复制config/system下的系统文件`)
+      console.error(`如需配置请复制 config/default_config/${key}.js 到 config/config/${key}.js`)
       diyCfg = {}
     }
     return {

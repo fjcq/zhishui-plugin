@@ -1,0 +1,688 @@
+[
+    {
+        "SSML": "支持",
+        "voiceId": "hqqiaf",
+        "type": "臻品",
+        "name": "臻品女声芊芊",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif",
+        "type": "臻品",
+        "name": "臻品女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_tha",
+        "type": "臻品",
+        "name": "臻品泰语女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf",
+        "type": "臻品",
+        "name": "臻品女声悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_fre",
+        "type": "臻品",
+        "name": "臻品法语女声悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanfv4",
+        "type": "臻品",
+        "name": "臻品女声小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanfv4",
+        "type": "臻品",
+        "name": "臻品女声芳芳",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunmv4",
+        "type": "臻品",
+        "name": "臻品男声小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_fre",
+        "type": "臻品",
+        "name": "臻品法语女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "不支持",
+        "voiceId": "tasnef_fre",
+        "type": "臻品",
+        "name": "臻品法语女声tasne",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qiumum_0gushi",
+        "type": "精品",
+        "name": "精品男声秋木",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "kaolam_diantai",
+        "type": "精品",
+        "name": "精品电台男声考拉",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunma",
+        "type": "精品",
+        "name": "精品男声小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "wjianm_xsheng",
+        "type": "精品",
+        "name": "精品男声小江",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "jlshimp",
+        "type": "精品",
+        "name": "精品男声季老师",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "tzruimp",
+        "type": "精品",
+        "name": "精品男声小睿",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yukaimp",
+        "type": "精品",
+        "name": "精品男声俞老师",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zxcmp",
+        "type": "精品",
+        "name": "精品风趣幽默星哥",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "geyoump",
+        "type": "精品",
+        "name": "精品淡定风趣葛爷",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdgmfp",
+        "type": "精品",
+        "name": "精品沉稳幽默纲叔",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "brettmp",
+        "type": "精品",
+        "name": "精品英文男声brett",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xjingfp",
+        "type": "精品",
+        "name": "精品甜美女声小静",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanfp",
+        "type": "精品",
+        "name": "精品温柔女声小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xmamif",
+        "type": "精品",
+        "name": "精品甜美女声小咪",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "madoufp_yubo",
+        "type": "精品",
+        "name": "精品娱播女声麻豆",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xmguof",
+        "type": "精品",
+        "name": "精品甜美女声婷婷",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanfp",
+        "type": "精品",
+        "name": "精品客服女声芳芳",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "madoufp_wenrou",
+        "type": "精品",
+        "name": "精品温柔女声麻豆",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lanyuf",
+        "type": "精品",
+        "name": "精品女声蓝雨",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lucyfa",
+        "type": "精品",
+        "name": "精品女声小浩",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhilingfp",
+        "type": "精品",
+        "name": "精品甜美女神小玲",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "aningfp",
+        "type": "精品",
+        "name": "精品女声安宁",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "cyangfp",
+        "type": "精品",
+        "name": "精品女学生初阳",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "juan1f",
+        "type": "精品",
+        "name": "精品客服女声小美",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhilingfp_huankuai",
+        "type": "精品",
+        "name": "精品欢快女神小玲",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "jjingfp",
+        "type": "精品",
+        "name": "精品知性女声晶晶",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lili1f_yubo",
+        "type": "精品",
+        "name": "精品娱报女声璃璃",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "feyinfp",
+        "type": "精品",
+        "name": "精品女老师风吟",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xizhefp",
+        "type": "精品",
+        "name": "精品女老师行者",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijiufp",
+        "type": "精品",
+        "name": "精品客服女声小九",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "linbafp_qingxin",
+        "type": "精品",
+        "name": "精品清新女声零八",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yezi1f_csh",
+        "type": "精品",
+        "name": "精品上海话女声叶子",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ppangf_csn",
+        "type": "精品",
+        "name": "精品四川话女声胖胖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "wqingf_csn",
+        "type": "精品",
+        "name": "精品四川话女声文卿",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "dayaof_csd",
+        "type": "精品",
+        "name": "精品山东话女声大瑶",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lunaif_ctn",
+        "type": "精品",
+        "name": "精品粤语女声晓健",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hchunf_ctn",
+        "type": "精品",
+        "name": "精品粤语女声何春",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xizhuf_cyu",
+        "type": "精品",
+        "name": "精品河南话女声木兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qfyanf_cmn",
+        "type": "精品",
+        "name": "精品闽南语女声清风颜",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xjingf_cdb",
+        "type": "精品",
+        "name": "精品东北话女声翠花",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lzliafp",
+        "type": "精品",
+        "name": "精品可爱男童连连",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "tangtang_boyfp",
+        "type": "精品",
+        "name": "精品男童堂堂",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanf_natong",
+        "type": "精品",
+        "name": "精品男童方方",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xbekef",
+        "type": "精品",
+        "name": "精品女童贝壳",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lzliaf",
+        "type": "传统",
+        "name": "传统可爱男童连连",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhilingf",
+        "type": "传统",
+        "name": "传统甜美女神小玲",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zxcm",
+        "type": "传统",
+        "name": "传统风趣幽默星哥",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hyanif",
+        "type": "传统",
+        "name": "传统邻家女声小妮",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "anonyf",
+        "type": "传统",
+        "name": "传统平和女声小佚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdgm",
+        "type": "传统",
+        "name": "传统沉稳幽默纲叔",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunm",
+        "type": "传统",
+        "name": "传统男声小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qianranf",
+        "type": "传统",
+        "name": "传统可爱女童然然",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "不支持",
+        "voiceId": "anonyg",
+        "type": "传统",
+        "name": "传统女童佚佚",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "geyou",
+        "type": "传统",
+        "name": "传统淡定风趣葛爷",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhilingfa",
+        "type": "标准",
+        "name": "标准甜美女神小玲",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lili1f_diantai",
+        "type": "标准",
+        "name": "标准电台女声璃璃",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lili1f_shangwu",
+        "type": "标准",
+        "name": "标准商务女声璃璃",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xiyaof_laoshi",
+        "type": "标准",
+        "name": "标准女老师小妖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "aningf",
+        "type": "标准",
+        "name": "标准女声安宁",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yaayif",
+        "type": "标准",
+        "name": "标准女声杨阿姨",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "linbaf_gaoleng",
+        "type": "标准",
+        "name": "标准高冷女声零八",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xizhef",
+        "type": "标准",
+        "name": "标准女老师行者",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "kaolam",
+        "type": "标准",
+        "name": "标准男声考拉",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xjingf_gushi",
+        "type": "标准",
+        "name": "标准故事女声小静",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "linbaf_qingxin",
+        "type": "标准",
+        "name": "标准清新女声零八",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "boy",
+        "type": "标准",
+        "name": "标准男童堂堂",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "feyinf",
+        "type": "标准",
+        "name": "标准女老师风吟",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xiyaof",
+        "type": "标准",
+        "name": "标准女声小妖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lzliafa",
+        "type": "标准",
+        "name": "标准可爱男童连连",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "luyaof",
+        "type": "标准",
+        "name": "标准女声瑶瑶",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "juyinf_guigushi",
+        "type": "标准",
+        "name": "标准鬼故事绝音",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "cyangf",
+        "type": "标准",
+        "name": "标准女学生初阳",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qianranfa",
+        "type": "标准",
+        "name": "标准可爱女童然然",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qiumum",
+        "type": "标准",
+        "name": "标准男声秋木",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "tzruim",
+        "type": "标准",
+        "name": "标准男声小睿",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "wjianm",
+        "type": "标准",
+        "name": "标准男声小江",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "jjingf",
+        "type": "标准",
+        "name": "标准知性女声晶晶",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xiyaof_qingxin",
+        "type": "标准",
+        "name": "标准清新女声小妖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yukaim_all",
+        "type": "标准",
+        "name": "标准磁性男声俞老师",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zzherf",
+        "type": "标准",
+        "name": "标准女声朱株儿",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zzhuaf",
+        "type": "标准",
+        "name": "标准故事女声砖砖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanf",
+        "type": "标准",
+        "name": "标准温柔女声小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "jlshim",
+        "type": "标准",
+        "name": "标准男声季老师",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "smjief",
+        "type": "标准",
+        "name": "标准清亮女声小洁",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hyanifa",
+        "type": "标准",
+        "name": "标准邻家女声小妮",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanf_boy",
+        "type": "标准",
+        "name": "标准男童方方",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "kaolaf",
+        "type": "标准",
+        "name": "标准清纯女声考拉",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xjingf",
+        "type": "标准",
+        "name": "标准飘逸女声小静",
+        "sexy": "女声"
+    }
+]
