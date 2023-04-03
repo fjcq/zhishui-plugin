@@ -759,8 +759,8 @@ async function GetSettings() {
     };
 
     let type = typeof Settings.BingSettings
-    if (type == 'string') {
-        Settings.BingSettings = JSON.parse(Settings.BingSettings) ;
+    if (type != 'object') {
+        Settings.BingSettings = {};
         change = true;
     }
 
