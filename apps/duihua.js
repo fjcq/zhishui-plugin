@@ -28,7 +28,10 @@ let msgData = [];
 /** 工作状态 */ let works = 0;
 let cs = 0;
 let i = 0;
-let conversation_id;
+
+//https://chatgptmirror.com/chat
+/** 会话ID */let conversation_id = '';
+/** 必应KEY */ let Bearer = ''
 
 /** 必应客户端 */
 //const bingAIClient = new BingAIClient(options);
@@ -41,7 +44,7 @@ const WwangDate = {
     "model": "gpt-3.5-turbo"
 };
 
-/** 必应KEY */ let Bearer = ''
+
 
 export class duihua extends plugin {
     constructor() {
@@ -55,29 +58,29 @@ export class duihua extends plugin {
                     reg: ChatSettings.NickName,
                     fnc: 'duihua'
                 }, {
-                    reg: '^[#]止水对话(结束|取消|关闭|重置)(对话|聊天)$', //匹配消息正则,命令正则
+                    reg: '^(#?止水对话)?(取消|结束|重置|关闭)(对话|聊天)$', //匹配消息正则,命令正则
                     /** 执行方法 */
                     fnc: 'ResetChat'
                 }, {
-                    reg: '^#止水对话设置必应参数(.*)$',
+                    reg: '^(#?止水对话)?设置必应参数(.*)$',
                     fnc: 'SetBingSettings'
                 }, {
-                    reg: '^#止水对话查看必应参数$',
+                    reg: '^(#?止水对话)?查看必应参数$',
                     fnc: 'GetBingSettings'
                 }, {
-                    reg: '^#止水对话必应开关$',
+                    reg: '^(#?止水对话)?必应开关$',
                     fnc: 'BingEnable'
                 }, {
-                    reg: '^#止水对话修改昵称(.*)$',
+                    reg: '^(#?止水对话)?修改昵称(.*)$',
                     fnc: 'ModifyNickname'
                 }, {
-                    reg: '^#止水对话语音(开启|关闭)$',
+                    reg: '^(#?止水对话)?语音(开启|关闭)$',
                     fnc: 'SetVoiceEnable'
                 }, {
-                    reg: '^#止水对话设置发音人(.*)$',
+                    reg: '^(#?止水对话)?设置发音人(.*)$',
                     fnc: 'SetVoiceId'
                 }, {
-                    reg: '^#止水对话查看发音人$',
+                    reg: '^(#?止水对话)?查看发音人$',
                     fnc: 'ShowVoiceId'
                 }
             ]
@@ -89,6 +92,8 @@ export class duihua extends plugin {
         ForChangeMsg = "";
         msgData = [];
         WwangDate.messages = [];
+        Bearer == ''
+        conversation_id = ''
         cs = 0;
         works = 0;
         e.reply('已经重置对话了！');
@@ -112,13 +117,6 @@ export class duihua extends plugin {
         jieguo = (ChatSettings.EnableBing && (!ChatSettings.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
         console.log(`Bing结果：${jieguo}`);
 
-
-        //接口2
-        if (!isNotNull(jieguo)) {
-            jieguo = await AiWwang(msg);
-            console.log(`AiWwang结果：${jieguo}`);
-        }
-
         //接口3
         if (!isNotNull(jieguo)) {
             jieguo = await AiMirror(msg);
@@ -129,6 +127,12 @@ export class duihua extends plugin {
         if (!isNotNull(jieguo)) {
             jieguo = await AiForChange(msg);
             console.log(`ForChange结果：${jieguo}`);
+        }
+
+        //接口2
+        if (!isNotNull(jieguo)) {
+            jieguo = await AiWwang(msg);
+            console.log(`AiWwang结果：${jieguo}`);
         }
 
         if (!isNotNull(jieguo)) {
@@ -144,7 +148,6 @@ export class duihua extends plugin {
             let voiceId = VoiceList[ChatSettings.VoiceIndex].voiceId
             let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
             e.reply([segment.record(url)])
-
         }
 
 
@@ -155,7 +158,7 @@ export class duihua extends plugin {
     /** 设置必应参数 */
     async SetBingSettings(e) {
         if (e.isMaster) {
-            let jsonString = e.msg.replace(/#设置必应参数/g, "").trim();
+            let jsonString = e.msg.replace(/(#?止水对话)?设置必应参数/g, "").trim();
             let jsonObject;
 
             try {
@@ -222,7 +225,7 @@ export class duihua extends plugin {
             return false; //不是主人
         };
 
-        let nickname = e.msg.replace(`#修改对话昵称`, '').trim();
+        let nickname = e.msg.replace(`(#?止水对话)?修改对话昵称`, '').trim();
         if (nickname.length > 0 && nickname != ChatSettings.NickName) {
             ChatSettings.NickName = nickname
             await WriteSettings(ChatSettings)
@@ -237,7 +240,7 @@ export class duihua extends plugin {
         if (e.isMaster == false) {
             return false; //不是主人
         };
-        let VoiceEnable = e.msg.replace('#止水对话语音', '').trim();
+        let VoiceEnable = e.msg.replace('(#?止水对话)?语音', '').trim();
         if (VoiceEnable == '开启') {
             ChatSettings.VoiceEnable = true;
             e.reply("[对话语音]已开启！");
