@@ -239,12 +239,12 @@ export class duihua extends plugin {
 
         Config.modify('duihua', 'EnableVoice', Enable);
 
-        if(Enable){
+        if (Enable) {
             e.reply("[对话语音]已开启！");
-        }else{
+        } else {
             e.reply("[对话语音]已关闭！");
         }
-        
+
         return true;
     }
 
@@ -446,8 +446,16 @@ async function AiMirror(msg) {
         return undefined;
     };
     let length = MirrorRes.data.result_list.length
-    let MsgId = MirrorRes.data.result_list[length - 1].id
-    console.log('MsgId：' + MsgId);
+    let MsgId = ''
+    if (length >= 0) {
+        MsgId = MirrorRes.data.result_list[length - 1].id
+        console.log('MsgId：' + MsgId);
+    } else {
+        Bearer = ''
+        conversation_id = ''
+        return undefined;
+    }
+
 
     //取返回消息
     let state = ''
