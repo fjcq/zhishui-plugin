@@ -102,7 +102,7 @@ export class souju extends plugin {
                 WriteCacheJson('SearchResults.json', SearchResults)
                 //发送图片
                 await puppeteer.render("souju/result", {
-                    nr2: SearchResults.list,
+                    list: SearchResults.list,
                     showpic: jiekou.showpic
                 }, {
                     e,
@@ -194,22 +194,13 @@ export class souju extends plugin {
         console.log(`选择的ID：${idx}，选择的线路：${CurrentrRoute}`);
 
 
-        let VideoDetails = await GetVideoDetails(idx);
-        //写到缓存
-        WriteCacheJson('VideoDetails.json', VideoDetails)
 
-        console.log(`视频详情数量：${VideoDetails.list.length}`);
 
-        if (VideoDetails.list.length == 0 || !isNotNull(VideoDetails.list)) {
-            e.reply('没有找到资源！')
-            return false
-        }
-
-        let Detail = VideoDetails.list.find(item => item.vod_id == idx);
+        let Detail = SearchResults.list.find(item => item.vod_id == idx);
         console.log(Detail.vod_name);
 
         //分割出 线路组
-        let jdm = Detail.vod_play_from.split('$$$')
+        let Route = Detail.vod_play_from.split('$$$')
 
         //分割出 资源线路组
         let jiedian = Detail.vod_play_url.split('$$$')
@@ -234,9 +225,9 @@ export class souju extends plugin {
         WriteCacheJson('PlayData.json', PlayData)
 
         await puppeteer.render("souju/select", {
-            js: VideoDetails.list,
+            list: SearchResults.list,
             mingzi: mingzi,
-            jdm: jdm,
+            Route: Route,
             CurrentrRoute: CurrentrRoute
         }, {
             e,
@@ -364,7 +355,7 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
         domain = Config.SearchVideos.resources[Config.SearchVideos.idx].site.url
     }
 
-    let url = domain + '?ac=list&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
+    let url = domain + '?ac=detail&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
     let res = await request.get(url)
         .then(res => res.json())
         .catch(err => {
