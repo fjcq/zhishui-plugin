@@ -16,7 +16,7 @@
 
     <div class="box">
         <div class="item_data">
-            {{each nr2 na idx}}
+            {{each list na idx}}
 
             <div class="item">
                 
@@ -27,11 +27,11 @@
                     <img src="{{_res_path}}/souju/load.png" />
                     {{/if}}
                     <div class="num">#选剧{{idx+1}}</div>
-                    <div class="pic-text  text-up text-right">{{nr2[idx].type_name}}</div>
-                    <div class="pic-text text-down text-left pic-background">{{nr2[idx].vod_remarks}}</div>
+                    <div class="pic-text  text-up text-right">{{list[idx].type_name}}</div>
+                    <div class="pic-text text-down text-left pic-background">{{list[idx].vod_remarks}}</div>
                 </div>
                 
-                <div class="item_title">{{nr2[idx].vod_name}}</div>
+                <div class="item_title">{{list[idx].vod_name}}</div>
             </div>
 
             {{/each}}
