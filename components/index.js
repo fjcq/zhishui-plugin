@@ -1,5 +1,8 @@
-import Cfg from './Cfg.js'
-import Common from './Common.js'
-import Data from './Data.js'
 import Version from './Version.js'
-export { Cfg, Common, Data, Version }
+import Data from './Data.js'
+import Config from './Config.js'
+import YamlReader from './YamlReader.js'
+const Path = process.cwd()
+const Plugin_Name = 'zhishui-plugin'
+const Plugin_Path = `${Path}/plugins/${Plugin_Name}`
+export { Config, Data, Version, Path, Plugin_Name, Plugin_Path, YamlReader }

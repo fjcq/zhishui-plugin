@@ -21,8 +21,8 @@
 
 body {
     width: 100%;
-    background: url("https://api.gmit.vip/Api/DmImg?format=image") white center;
-    background-size: 100% auto;
+    background: url("../img/bg/M/4.jpg") white center top no-repeat;
+    background-size: cover;
 }
 
 .header {
