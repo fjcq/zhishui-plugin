@@ -7,6 +7,9 @@ player: http://bfq.qxyys.com/?url=
 # 当前使用的资源站点索引
 idx: 0
 
+#绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
+cfTLSVersion: TLSv1.1
+
 # 资源站点数组
 resources:
     - site:

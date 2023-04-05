@@ -1,29 +1,29 @@
 import fetch from 'node-fetch'
 import plugin from '../../../lib/plugins/plugin.js'
-import fs from 'fs'
 import { puppeteer } from '../model/index.js'
 import Data from '../components/Data.js'
-import { Config } from '../components/index.js'
+import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 
+/** 缓存目录 */
+const CachePath = `${Plugin_Path}/resources/Cache/SearchVideos`
+
 let k = ""
-let name = ""
-let msg = ""
-let nr2 = {}
-let js = {}
-let data = ""
-let ml = process.cwd()
-let bt = ""
-let zzss = 0
-let url = ""
-var vid = []
-var mingzi = []
-var wangzhi = []
-let yema = 1
-let hc = ""
-var bfxl = 1
-let kid = 1
-/**搜剧接口 */
+
+/** 搜剧视频名称 */
+let SearchName = ""
+/** 视频ID数组 */
+var IDs = []
+/** 当前播放线路 */
+var CurrentrRoute = 1
+/** 当前视频ID */
+var CurrentID = 1
+
+var zzss = 0
+var yema = 1
+var hc = ""
+
+
 
 export class souju extends plugin {
     constructor() {
@@ -68,7 +68,6 @@ export class souju extends plugin {
     /** 搜剧 */
     async SearchVideos(e) {
         yema = 1
-
         k = ""
         let jiekou = Config.SearchVideos.resources[Config.SearchVideos.idx].site
 
@@ -90,27 +89,20 @@ export class souju extends plugin {
             if (k != "#下一页") {
                 hc = k
             }
-            name = hc
-            e.reply(`开始搜索 [${name || '最新视频'}] ，请稍候片刻...`)
+            SearchName = hc
+            e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`)
 
-            jiekou = Config.SearchVideos.resources[Config.SearchVideos.idx].site
-            url = jiekou.url + '?ac=detail&wd=' + encodeURI(name) + "&pg=" + yema
-            if (name == "") {
-                url = jiekou.url + '?ac=detail' + "&pg=" + yema
-            }
+            /** 搜剧结果 */
+            let SearchResults = await SearchVideo(SearchName, yema)
+            IDs = SearchResults.list.map(item => item.vod_id);
+            console.log(`获取数组：${IDs}`)
 
-            let response = await fetch(url);
-            data = await response.json()
-            nr2 = data.list
-            vid = nr2.map(item => item.vod_id);
-            console.log('vid')
-            console.log(vid)
-
-            if (isNotNull(nr2)) {
-
-                let img = await puppeteer.render("souju/result", {
-                    dz: ml,
-                    nr2: nr2,
+            if (isNotNull(SearchResults.list)) {
+                //写到缓存
+                WriteCacheJson('SearchResults.json', SearchResults)
+                //发送图片
+                await puppeteer.render("souju/result", {
+                    nr2: SearchResults.list,
                     showpic: jiekou.showpic
                 }, {
                     e,
@@ -118,95 +110,14 @@ export class souju extends plugin {
                 });
 
                 zzss = 0
+                return true
             } else {
                 zzss = 0
-                e.reply('未能搜索到  [' + name || '最新视频' + ']，抱歉')
+                e.reply('未能搜索到  [' + SearchName || '最新视频' + ']，抱歉')
                 return false
             }
 
         }
-
-        if (e.msg.includes("#看剧") | e.msg.includes("#线路")) {
-            console.log(nr2)
-            console.log(vid)
-            if (!isNotNull(vid)) {
-                e.reply('你还没有 [ #搜剧 ] 哦。')
-                return false
-            }
-            if (e.msg.includes("#看剧")) {
-                kid = e.msg.replace(/#看剧/g, "").trim()
-            }
-
-            if (kid < 1) {
-                kid = 1
-            }
-
-            //线路
-            if (e.msg.includes("#线路")) {
-                bfxl = e.msg.replace(/#线路/g, "").trim()
-                if (bfxl < 1) {
-                    bfxl = 1
-                }
-            } else {
-                bfxl = 1
-            }
-
-            let k1 = Number(kid - 1)
-            let url2 = jiekou.url + "?ac=detail&ids=" + String(vid[k1])
-            let response = await fetch(url2);
-            let data2 = await response.json()
-            if (data2.list.length = 0 || !isNotNull(data2.list)) {
-                e.reply('没有找到资源！')
-                return false
-            }
-
-            console.log(`data2${JSON.stringify(data2)}`);
-            js = data2.list
-
-            bt = js[0].vod_name || ''
-
-            let vod_play_from = js[0].vod_play_from
-            let jdm = vod_play_from.split('$$$')
-
-            let jishu = js[0].vod_play_url
-            let jiedian = jishu.split('$$$')
-
-            if (jiedian.length < bfxl) {
-                bfxl = jiedian.length
-            }
-
-            let jishu2 = jiedian[bfxl - 1].split('#')
-            [mingzi, wangzhi] = jishu2.map((str) => {
-                const [name, url] = str.split('$')
-                return [name, url]
-            })
-            console.log(`mingzi${mingzi}`);
-            console.log(`wangzhi${wangzhi}`);
-
-            await puppeteer.render("souju/select", {
-                js: js,
-                dz: ml,
-                mingzi: mingzi,
-                jdm: jdm,
-                bfxl: bfxl
-            }, {
-                e,
-                scale: 1.6
-            });
-
-        }
-
-        if (e.msg.includes("#选剧")) {
-            let n = e.msg.replace(/#选剧/g, "").trim()
-            console.log(`JS：${JSON.stringify(js)}`);
-            console.log(`wangzhi：${wangzhi}`);
-            if (isNotNull(wangzhi[Number(n) - 1])) {
-                msg = bt + mingzi[Number(n) - 1] + '\n' + Config.SearchVideos.player + wangzhi[Number(k) - 1]
-                e.reply(msg)
-                return true;//返回true 阻挡消息不再往下
-            }
-        }
-
 
     }
 
@@ -240,18 +151,114 @@ export class souju extends plugin {
     /** 取消搜剧 */
     async CancelSearch(e) {
         zzss = 0
-        e.reply('已取消 [' + name || '最新视频' + '] 的搜索')
+        e.reply(`已取消 [ ${SearchName || '最新视频'} ] 的搜索`)
         return true;
     }
 
     /** 选剧 */
     async SelectVideo(e) {
-        return true
+        console.log(`当前数组：${IDs}`)
+        /** 搜剧结果 */
+        let SearchResults = ReadCacheJson('SearchResults.json')
+
+        if (!isNotNull(SearchResults.list)) {
+            e.reply('你还没有 [ #搜剧 ] 哦。')
+            return false
+        }
+
+        //选剧
+        if (e.msg.includes("#选剧")) {
+            CurrentID = parseInt(e.msg.replace(/\D+/, '').trim()) || 0;
+            CurrentID = CurrentID - 1
+        }
+        if (CurrentID < 0) {
+            CurrentID = 0
+        }
+        if (CurrentID >= SearchResults.list.length) {
+            e.reply('[选剧]错误，不存在这部剧！')
+            return false
+        }
+
+
+        //线路
+        if (e.msg.includes("#线路")) {
+            CurrentrRoute = (parseInt(e.msg.replace(/\D+/, '').trim()) || 0) - 1;
+            if (CurrentrRoute < 0) {
+                CurrentrRoute = 0
+            }
+        } else {
+            CurrentrRoute = 0
+        }
+
+        let idx = SearchResults.list[CurrentID].vod_id
+        console.log(`选择的ID：${idx}，选择的线路：${CurrentrRoute}`);
+
+
+        let VideoDetails = await GetVideoDetails(idx);
+        //写到缓存
+        WriteCacheJson('VideoDetails.json', VideoDetails)
+
+        console.log(`视频详情数量：${VideoDetails.list.length}`);
+
+        if (VideoDetails.list.length == 0 || !isNotNull(VideoDetails.list)) {
+            e.reply('没有找到资源！')
+            return false
+        }
+
+        let Detail = VideoDetails.list.find(item => item.vod_id == idx);
+        console.log(Detail.vod_name);
+
+        //分割出 线路组
+        let jdm = Detail.vod_play_from.split('$$$')
+
+        //分割出 资源线路组
+        let jiedian = Detail.vod_play_url.split('$$$')
+
+        if (jiedian.length < CurrentrRoute) {
+            CurrentrRoute = jiedian.length
+        }
+
+        //有分集时
+        let jishu2 = jiedian[CurrentrRoute].split('#')
+
+        let mingzi = []
+        let wangzhi = []
+        for (var i = 0; i < jishu2.length; i++) {
+            let arr = jishu2[i].split('$')
+            mingzi[i] = arr[0]
+            wangzhi[i] = arr[1]
+        }
+
+        const PlayData = {VodName:Detail.vod_name ,mingzi: mingzi, wangzhi: wangzhi }
+        //写到缓存
+        WriteCacheJson('PlayData.json', PlayData)
+
+        await puppeteer.render("souju/select", {
+            js: VideoDetails.list,
+            mingzi: mingzi,
+            jdm: jdm,
+            CurrentrRoute: CurrentrRoute
+        }, {
+            e,
+            scale: 1.6
+        });
+
+
     }
 
     /** 看剧 */
     async WatchVideo(e) {
-        return true
+        let n = (parseInt(e.msg.replace(/\D+/, '').trim()) || 0) - 1;
+        n = (n < 0) ? 0 : n;
+        console.log(`看剧：${n }`);
+        let PlayData = await ReadCacheJson('PlayData.json')
+
+        console.log(`网址：${PlayData.wangzhi}`);
+        if (isNotNull(PlayData.wangzhi[n])) {
+            let msg = PlayData.VodName + '\n' + PlayData.mingzi[n] + '\n' + await Config.SearchVideos.player + PlayData.wangzhi[n]
+            e.reply(msg)
+            return true;//返回true 阻挡消息不再往下
+        }
     }
 
     /** 上一页|下一页 */
@@ -311,40 +318,6 @@ async function Show_Interface(e) {
 }
 
 
-/**取播放器*/
-async function Get_Player() {
-    return await Config.SearchVideos.player;
-}
-
-/**取解析接口*/
-async function Get_analysis() {
-    return await Config.SearchVideos.analysis;
-}
-
-/**取图片设置*/
-async function Get_ShowPic(idx = 0) {
-    return await Config.SearchVideos.resources[idx].site.showpic;
-}
-
-/**取当前接口*/
-async function Get_Interface() {
-    return await Config.SearchVideos.resources[idx].site
-}
-
-/**读取接口配置*/
-async function Read_Interface() {
-    return await Config.SearchVideos;
-}
-
-//写出接口配置
-async function Write_Interface(data) {
-    return Data.writeJSON("souju.json", data, "./plugins/zhishui-plugin/config/config", '\t')
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms))
-}
-
 
 /**
  * 发送转发消息
@@ -377,7 +350,7 @@ function isNotNull(obj) {
 };
 
 /**
- * 关键词搜索作品
+ * 关键词搜索视频
  * @param {string} keyword - 搜索关键词
  * @param {number} [page=1] - 页码，默认为1
  * @param {number} [type=0] - 搜索类型
@@ -386,17 +359,42 @@ function isNotNull(obj) {
  * @throws {Error} 当未找到作品时，会抛出异常
  * @returns {Array<string>} 返回搜索结果信息数组
  */
-async function SearchVideo(keyword, page = 1, type = 0, hour = 0, domain = '') {
+async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
     if (domain == '') {
         domain = Config.SearchVideos.resources[Config.SearchVideos.idx].site.url
     }
 
-    let url = domain + '?ac=detail&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
+    let url = domain + '?ac=list&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
     let res = await request.get(url)
         .then(res => res.json())
         .catch(err => {
             logger.error(err)
-            throw Error(`搜剧出错啦~！：${err.message.match(/reason:(.*)/)[1]}`)
+            throw Error(`搜剧出错啦~！：${err.message}`)
+        })
+    return res
+}
+/**
+ * 获取视频详情内容
+ * @param {number} ids - 视频id
+ * @param {number} [page=1] - 页码，默认为1
+ * @param {number} [type=0] - 搜索类型
+ * @param {number} [hour=0] - 搜索几小时内的数据
+ * @param {string} [domain=''] - 资源站网址
+ * @throws {Error} 当未找到作品时，会抛出异常
+ * @returns {Array<string>} 返回搜索结果信息数组
+ */
+async function GetVideoDetails(ids = 0, page = 1, type = 0, hour = 0, domain = '') {
+    if (domain == '') {
+        domain = Config.SearchVideos.resources[Config.SearchVideos.idx].site.url
+    }
+
+    let url = domain + '?ac=detail&ids=' + ids + "&t=" + type + "&h=" + hour + "&pg=" + page
+    console.log(`开始请求：${url}`);
+    let res = await request.get(url)
+        .then(res => res.json())
+        .catch(err => {
+            logger.error(err)
+            throw Error(`搜剧出错啦~！：${err.message}`)
         })
     return res
 }
@@ -460,4 +458,24 @@ function transformChar(str = '') {
     console.log(`temp`, temp);
     temp = parseInt(sum) + parseInt(temp)
     return temp;
+}
+
+/**
+ * 读取缓存JSON
+ * @param {string} file - 文件名
+ * @returns {JSON<object>} 返回JSON对象
+ */
+function ReadCacheJson(file = '') {
+    let object = Data.readJSON(file, CachePath)
+    return object
+}
+
+/**
+ * 写入缓存JSON
+ * @param {string} file - 文件名
+ * @param {object} [data={}] - 要写入的内容
+ * @returns {boolean} 返回JSON对象
+ */
+function WriteCacheJson(file = '', data = {}) {
+    return Data.writeJSON(file, data, CachePath)
 }

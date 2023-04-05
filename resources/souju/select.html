@@ -49,8 +49,8 @@
             {{/each}}
         </div>
 
-        <div class="header text-left text-muted">当前线路为：<font class="item-data">#线路{{bfxl}}</font>
-            <font class="text-data">{{jdm[bfxl-1]}}</font>
+        <div class="header text-left text-muted">当前线路为：<font class="item-data">#线路{{CurrentrRoute}}</font>
+            <font class="text-data">{{jdm[CurrentrRoute-1]}}</font>
         </div>
     </div>
 
@@ -60,14 +60,14 @@
             {{each mingzi j idx}}
             <div class="item">
                 <div class="item_title">{{j}}</div>
-                <div class="item-data">#选剧{{idx+1}}</div>
+                <div class="item-data">#看剧{{idx+1}}</div>
             </div>
             {{/each}}
             <br />
         </div>
 
-        <div class="header text-left text-muted">你可以发送<font class="item-data">#选剧+数字</font>来选择集数，例如<font
-                class="item-data">#选剧1</font>
+        <div class="header text-left text-muted">你可以发送<font class="item-data">#看剧+数字</font>来选择集数，例如<font
+                class="item-data">#看剧1</font>
         </div>
     </div>
 
