@@ -60,7 +60,7 @@ export class Update extends plugin {
   }
 
   /**
-   * 椰奶插件更新函数
+   * 止水插件更新函数
    * @param {boolean} isForce 是否为强制更新
    * @returns
    */

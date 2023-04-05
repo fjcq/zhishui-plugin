@@ -19,7 +19,7 @@
 }
 
 body {
-    background: url("https://api.gmit.vip/Api/DmImg?format=image") white center;
+    background: url("../img/bg/M/1.jpg") white center;
 }
 
 .box {
@@ -42,12 +42,6 @@ body {
     background: #eee7e7;
     box-shadow: 13px 13px 17px #e0d9d9, -13px -13px 17px #fcf5f5;
     text-align: center;
-}
-
-h1 {
-    font-family: "zk";
-    color: #141513d4;
-    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
 }
 
 .item_data {
