@@ -16,22 +16,22 @@
 
     <div class="box">
         <div class="item_data">
-            {{each list na idx}}
+            {{each list item idx}}
 
             <div class="item">
                 
                 <div class="tu">
                     {{if showpic == true}}
-                    <img src="{{na.vod_pic}}" />
+                    <img src="{{item.vod_pic}}" />
                     {{else}}
                     <img src="{{_res_path}}/souju/load.png" />
                     {{/if}}
                     <div class="num">#选剧{{idx+1}}</div>
-                    <div class="pic-text  text-up text-right">{{list[idx].type_name}}</div>
-                    <div class="pic-text text-down text-left pic-background">{{list[idx].vod_remarks}}</div>
+                    <div class="pic-text  text-up text-right">{{item.type_name}}</div>
+                    <div class="pic-text text-down text-left pic-background">{{item.vod_remarks}}</div>
                 </div>
                 
-                <div class="item_title">{{list[idx].vod_name}}</div>
+                <div class="item_title">{{item.vod_name}}</div>
             </div>
 
             {{/each}}
