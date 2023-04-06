@@ -18,3 +18,8 @@ EnableVoice: false
 
 #发音人
 VoiceIndex: 23
+
+#AI数据 Mirror
+Mirror:
+  Bearer: 
+  ConversationId: 

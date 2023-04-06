@@ -2,14 +2,16 @@ import plugin from '../../../lib/plugins/plugin.js'
 import fetch from "node-fetch";
 import { common } from '../model/index.js'
 import fs from 'fs'
-import { Config } from '../components/index.js'
+import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 import Data from '../components/Data.js'
 //import BingAIClient from '../model/BingAIClient.js'
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
-import _ from 'lodash'
 
+
+/** 缓存目录 */
+const CachePath = `${Plugin_Path}/resources/Cache/Chat`
 let segment = ""
 try {
     segment = (await import("oicq")).segment
@@ -26,8 +28,6 @@ let zs
 /** 工作状态 */ let works = 0;
 
 //https://chatgptmirror.com/chat
-/** 会话ID */ let conversation_id = '';
-/** 必应KEY */ let Bearer = ''
 
 /** 必应客户端 */
 //const bingAIClient = new BingAIClient(options);
@@ -85,12 +85,12 @@ export class duihua extends plugin {
     async ResetChat(e) {
         ForChangeMsg = "";
         WwangDate.messages = [];
-        Bearer == ''
-        conversation_id = ''
+        await Config.modify('duihua', 'Mirror.Bearer', );
+        await Config.modify('duihua', 'Mirror.ConversationId', );
         works = 0;
         e.reply('已经重置对话了！');
         return true;
-    }
+    };
 
     /** 对话 */
     async duihua(e) {
@@ -219,7 +219,7 @@ export class duihua extends plugin {
             return false; //不是主人
         };
 
-        let nickname = e.msg.replace(`#?(止水对话)?修改对话昵称`, '').trim();
+        let nickname = e.msg.replace(/#?(止水对话)?修改昵称/g, '').trim();
         if (nickname.length > 0 && nickname != await Config.Chat.NickName) {
             NickName = nickname
             Config.modify('duihua', 'NickName', nickname);
@@ -308,21 +308,7 @@ async function AiForChange(msg) {
     let url = "https://api.forchange.cn/"
 
 
-    let res3 = await fetch(url, {
-        method: "post",
-
-        body: JSON.stringify(ChangeData),
-        headers: myHeaders
-
-    })
-
-    if (res3.status != 200) {
-        console.log(res3.status);
-        console.log(res3.statusText);
-        return undefined;
-    }
-
-    let res2 = await res3.json();
+    let res2 = await FetchPost(url, ChangeData)
     let text = res2.choices[0].text;
 
     if (!isNotNull(text)) {
@@ -358,22 +344,9 @@ async function AiWwang(msg) {
     WwangDate.messages.push(WwangTempMsg);
 
     let url = "https://ai.wwang.eu.org/api"
-    let WwangRes = await fetch(url, {
-        method: "post",
-        body: JSON.stringify(WwangDate),
-        headers: myHeaders
-    })
+    let WwangRes = await FetchPost(url, WwangTempMsg, {}, 'text')
 
-    //错误处理 网页响应
-    if (WwangRes.status != 200) {
-        WwangDate.messages = []
-        console.log(WwangRes.status);
-        console.log(WwangRes.statusText);
-        return undefined
-    }
-
-    let text = await res3.text();
-    if (!isNotNull(text)) {
+    if (!isNotNull(WwangRes)) {
         WwangDate.messages = []
         return undefined
     }
@@ -381,12 +354,11 @@ async function AiWwang(msg) {
     //记录回答数据
     WwangTempMsg = {
         "role": "assistant",
-        "content": text,
+        "content": WwangRes,
         "id": Date.now()
     };
     WwangDate.messages.push(WwangTempMsg);
-
-    return text
+    return WwangRes
 }
 
 
@@ -405,31 +377,39 @@ async function AiMirror(msg) {
     let base_request = { "platform_type": "Web", "client_version": "2.1", "trace_id": "", "signature": "", "share": "" };
     /** 返回数据 */
     let MirrorRes = {};
+    /** 会话ID */ let conversation_id = await Config.Chat.Mirror.ConversationId || '';
+    /** 必应KEY */ let Bearer = await Config.Chat.Mirror.Bearer || '';
 
     //初始化
     if (Bearer == '') {
-        conversation_id = ''
+        Config.modify('duihua', 'Mirror.ConversationId', )
         MirrorData = { "device_id": crypto.randomUUID(), "share": "", "base_request": base_request };
         //获取 Bearer
         MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/user/DefaultAccount', MirrorData, AiHeaders);
         if (!isNotNull(MirrorRes.data.token)) {
+            Config.modify('duihua', 'Mirror.Bearer', )
             return undefined
+        } else{
+            Config.modify('duihua', 'Mirror.Bearer', MirrorRes.data.token)
+            console.log('Bearer：' + await Config.Chat.Mirror.Bearer);
         };
-        Bearer = MirrorRes.data.token;
-        console.log('Bearer：' + Bearer);
+
     }
 
-    AiHeaders.Authorization = "Bearer " + Bearer;
+    AiHeaders.Authorization = "Bearer " + await Config.Chat.Mirror.Bearer;
 
-    if (conversation_id == '' || conversation_id == undefined) {
+    if (conversation_id == '') {
         //创建会话
         MirrorData = { "name": msg, "base_request": base_request };
         MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/CreateConversation', MirrorData, AiHeaders);
         if (!isNotNull(MirrorRes.data.conversation.id)) {
             return undefined;
+        }else{
+            conversation_id = MirrorRes.data.conversation.id
+            Config.modify('duihua', 'Mirror.ConversationId', conversation_id)
+            console.log('ConversationId' +  await Config.Chat.Mirror.ConversationId);
         };
-        conversation_id = MirrorRes.data.conversation?.id;
-        console.log('conversation_id：' + conversation_id);
+
     }
 
     //发送消息
@@ -451,8 +431,8 @@ async function AiMirror(msg) {
         MsgId = MirrorRes.data.result_list[length - 1].id
         console.log('MsgId：' + MsgId);
     } else {
-        Bearer = ''
-        conversation_id = ''
+        Config.modify('duihua', 'Mirror.Bearer', )
+        Config.modify('duihua', 'Mirror.ConversationId', )
         return undefined;
     }
 
@@ -465,6 +445,8 @@ async function AiMirror(msg) {
 
         if (!isNotNull(MirrorRes.data.result.state)) {
             return undefined;
+        } else if (MirrorRes.data.result.state != '' && MirrorRes.data.result.state != 'complete') {
+            console.log('state' + MirrorRes.data.result.state);
         };
 
         state = MirrorRes.data.result.state
@@ -475,8 +457,15 @@ async function AiMirror(msg) {
     return await MirrorRes.data.result.content ?? undefined
 }
 
+/**
+ * AI对话  https://zjrwtx.top/api/chat
+ *
+ * @param {string} msg 发送消息
+ * @return {string} 对话结果
+ */
+async function AiZjrwtx(msg) {
 
-
+}
 
 
 /**
@@ -510,14 +499,15 @@ export function isNotNull(obj) {
  * @param url API地址
  * @param {Object} data 提交的json参数
  * @param {Object} headers 附加协议头
+ * @param {'buffer'|'json'|'text'|'arrayBuffer'|'formData'|'blob'} statusCode 输出数据类型
  * @returns API返回数据
  */
-async function FetchPost(Url = '', data = {}, headers = {}) {
+async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json') {
     /** 请求参数 */
     let Options = {
         data,
         headers: headers,
-        statusCode: 'json'
+        statusCode: statusCode
     }
     //console.log('请求：' + Url, '参数' + JSON.stringify(data))
     let Response = await request.post(Url, Options)
@@ -537,4 +527,24 @@ async function ReadVoiceList() {
     }
 
     return temp;
+}
+
+/**
+ * 读取缓存JSON
+ * @param {string} file - 文件名
+ * @returns {JSON<object>} 返回JSON对象
+ */
+function ReadCacheJson(file = '') {
+    let object = Data.readJSON(file, CachePath)
+    return object
+}
+
+/**
+ * 写入缓存JSON
+ * @param {string} file - 文件名
+ * @param {object} [data={}] - 要写入的内容
+ * @returns {boolean} 返回JSON对象
+ */
+function WriteCacheJson(file = '', data = {}) {
+    return Data.writeJSON(file, data, CachePath)
 }
