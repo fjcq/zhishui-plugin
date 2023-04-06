@@ -85,8 +85,8 @@ export class duihua extends plugin {
     async ResetChat(e) {
         ForChangeMsg = "";
         WwangDate.messages = [];
-        await Config.modify('duihua', 'Mirror.Bearer', );
-        await Config.modify('duihua', 'Mirror.ConversationId', );
+        Config.modify('duihua', 'MirrorBearer', "");
+        Config.modify('duihua', 'MirrorConversationId', "");
         works = 0;
         e.reply('已经重置对话了！');
         return true;
@@ -158,9 +158,9 @@ export class duihua extends plugin {
                 // 检查对象是否有"conversationId", "clientId", "conversationSignature"属性
                 if (jsonObject.hasOwnProperty("conversationId") && jsonObject.hasOwnProperty("clientId") && jsonObject.hasOwnProperty("conversationSignature")) {
 
-                    Config.modify('duihua', 'BingSettings.conversationId', jsonObject.conversationId)
-                    Config.modify('duihua', 'BingSettings.clientId', jsonObject.clientId)
-                    Config.modify('duihua', 'BingSettings.conversationSignature', jsonObject.conversationSignature)
+                    Config.modify('duihua', 'BingConversationId', jsonObject.conversationId)
+                    Config.modify('duihua', 'BingClientId', jsonObject.clientId)
+                    Config.modify('duihua', 'BingConversationSignature', jsonObject.conversationSignature)
 
                     console.log("设置必应ck：" + jsonString);
                     e.reply("设置必应ck成功！");
@@ -188,9 +188,9 @@ export class duihua extends plugin {
         //私聊才能查看
         if (!e.isGroup) {
             let msg = `*** 必应参数 ***/n/n`;
-            msg += `conversationId:${await Config.Chat.BingSettings.conversationId}/n`;
-            msg += `conversationId:${await Config.Chat.BingSettings.conversationId}/n`;
-            msg += `conversationId:${await Config.Chat.BingSettings.conversationId}/n`;
+            msg += `ConversationId:${await Config.Chat.BingConversationId}/n`;
+            msg += `ClientId:${await Config.Chat.BingClientId}/n`;
+            msg += `ConversationSignature:${await Config.Chat.BingConversationSignature}/n`;
             e.reply(msg);
             return true;
         }
@@ -377,37 +377,39 @@ async function AiMirror(msg) {
     let base_request = { "platform_type": "Web", "client_version": "2.1", "trace_id": "", "signature": "", "share": "" };
     /** 返回数据 */
     let MirrorRes = {};
-    /** 会话ID */ let conversation_id = await Config.Chat.Mirror.ConversationId || '';
-    /** 必应KEY */ let Bearer = await Config.Chat.Mirror.Bearer || '';
+    /** 必应KEY */ let Bearer = await Config.Chat.MirrorBearer || "";
 
     //初始化
-    if (Bearer == '') {
-        Config.modify('duihua', 'Mirror.ConversationId', )
+    if (Bearer == "") {
+        Config.modify('duihua', 'MirrorConversationId', "")
         MirrorData = { "device_id": crypto.randomUUID(), "share": "", "base_request": base_request };
         //获取 Bearer
         MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/user/DefaultAccount', MirrorData, AiHeaders);
         if (!isNotNull(MirrorRes.data.token)) {
-            Config.modify('duihua', 'Mirror.Bearer', )
+            Config.modify('duihua', 'MirrorBearer', "")
             return undefined
-        } else{
-            Config.modify('duihua', 'Mirror.Bearer', MirrorRes.data.token)
-            console.log('Bearer：' + await Config.Chat.Mirror.Bearer);
+        } else {
+            Config.modify('duihua', 'MirrorBearer', MirrorRes.data.token)
+            console.log('Bearer：' + await Config.Chat.MirrorBearer);
         };
 
     }
 
-    AiHeaders.Authorization = "Bearer " + await Config.Chat.Mirror.Bearer;
+    AiHeaders.Authorization = "Bearer " + await Config.Chat.MirrorBearer;
 
-    if (conversation_id == '') {
+    /** 会话ID */
+    let conversation_id = await Config.Chat.MirrorConversationId || "";
+
+    if (conversation_id == "") {
         //创建会话
         MirrorData = { "name": msg, "base_request": base_request };
         MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/CreateConversation', MirrorData, AiHeaders);
         if (!isNotNull(MirrorRes.data.conversation.id)) {
             return undefined;
-        }else{
+        } else {
             conversation_id = MirrorRes.data.conversation.id
-            Config.modify('duihua', 'Mirror.ConversationId', conversation_id)
-            console.log('ConversationId' +  await Config.Chat.Mirror.ConversationId);
+            Config.modify('duihua', 'MirrorConversationId', conversation_id)
+            console.log('ConversationId' + await Config.Chat.MirrorConversationId);
         };
 
     }
@@ -431,8 +433,8 @@ async function AiMirror(msg) {
         MsgId = MirrorRes.data.result_list[length - 1].id
         console.log('MsgId：' + MsgId);
     } else {
-        Config.modify('duihua', 'Mirror.Bearer', )
-        Config.modify('duihua', 'Mirror.ConversationId', )
+        Config.modify('duihua', 'MirrorBearer', "")
+        Config.modify('duihua', 'MirrorConversationId', "")
         return undefined;
     }
 
