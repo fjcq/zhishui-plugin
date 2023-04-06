@@ -1,12 +1,16 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
-import uploadRecord from '../../zhishui-plugin/model/uploadRecord.js'
 
 const require = createRequire(import.meta.url)
 const { exec, spawn } = require("child_process");
 const _path = process.cwd();
 const FFMPEG_PATH = "ffmpeg"
-
+let segment = ""
+try {
+    segment = (await import("oicq")).segment
+} catch (err) {
+    segment = (await import("icqq")).segment
+}
 let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
 let YueqiPath = `${ResPath}/gangqin/`;
 let OutputFile = `${_path}/resources/output`;
@@ -98,8 +102,7 @@ export class yanzou extends plugin {
         ffmpeg.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
-                msg = await uploadRecord(`${OutputFile}${Format}`, 0, false)
-                e.reply(msg);
+                e.reply([segment.record(`${OutputFile}${Format}`)]);
                 kg = 0
                 return true;
             } else {
