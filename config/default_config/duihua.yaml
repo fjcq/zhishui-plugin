@@ -8,10 +8,9 @@ OnlyMaster: false
 EnableBing: false
 
 # 必应参数
-BingSettings:
-  conversationId:
-  clientId:
-  conversationSignature:
+BingConversationId: ""
+BingClientId: ""
+BingConversationSignature: "" 
 
 #语音开关
 EnableVoice: false
@@ -20,6 +19,5 @@ EnableVoice: false
 VoiceIndex: 23
 
 #AI数据 Mirror
-Mirror:
-  Bearer: 
-  ConversationId: 
+MirrorBearer: ""
+MirrorConversationId: ""
