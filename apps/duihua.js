@@ -378,19 +378,23 @@ async function AiMirror(msg) {
     /** 返回数据 */
     let MirrorRes = {};
     /** 必应KEY */ let Bearer = await Config.Chat.MirrorBearer || "";
+    let url = ''
 
     //初始化
     if (Bearer == "") {
         Config.modify('duihua', 'MirrorConversationId', "")
         MirrorData = { "device_id": crypto.randomUUID(), "share": "", "base_request": base_request };
         //获取 Bearer
-        MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/user/DefaultAccount', MirrorData, AiHeaders);
+        url = 'https://chatgptmirror.com/api/v1/user/DefaultAccount'
+        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
+        //console.log('Post：' + url);
+        //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
         if (!isNotNull(MirrorRes.data.token)) {
             Config.modify('duihua', 'MirrorBearer', "")
             return undefined
         } else {
             Config.modify('duihua', 'MirrorBearer', MirrorRes.data.token)
-            console.log('Bearer：' + await Config.Chat.MirrorBearer);
+            //console.log('Bearer：' + await Config.Chat.MirrorBearer);
         };
 
     }
@@ -403,35 +407,48 @@ async function AiMirror(msg) {
     if (conversation_id == "") {
         //创建会话
         MirrorData = { "name": msg, "base_request": base_request };
-        MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/CreateConversation', MirrorData, AiHeaders);
+        url = 'https://chatgptmirror.com/api/v1/conversation/CreateConversation'
+        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
+        //console.log('Post：' + url);
+        //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
         if (!isNotNull(MirrorRes.data.conversation.id)) {
             return undefined;
         } else {
             conversation_id = MirrorRes.data.conversation.id
             Config.modify('duihua', 'MirrorConversationId', conversation_id)
-            console.log('ConversationId' + await Config.Chat.MirrorConversationId);
+            //console.log('ConversationId' + await Config.Chat.MirrorConversationId);
         };
 
     }
 
     //发送消息
     MirrorData = { "conversation_id": conversation_id, "content": msg, "base_request": base_request };
-    MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/Chat', MirrorData, AiHeaders);
+    url = 'https://chatgptmirror.com/api/v1/conversation/Chat'
+    MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
+    //console.log('Post：' + url);
+    //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
     if (!isNotNull(MirrorRes)) {
         return undefined;
+    } else if (MirrorRes.code != 0) {
+        Config.modify('duihua', 'MirrorBearer', "")
+        return '对话已重置'
     };
 
     //取全部消息
     MirrorData = { "conversation_id": conversation_id, "base_request": base_request };
-    MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/GetConvertionAllChatResult', MirrorData, AiHeaders);
+    url = 'https://chatgptmirror.com/api/v1/conversation/GetConvertionAllChatResult'
+    MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
+    //console.log('Post：' + url);
+    //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
     if (!isNotNull(MirrorRes.data.result_list)) {
         return undefined;
     };
+
     let length = MirrorRes.data.result_list.length
     let MsgId = ''
     if (length >= 0) {
         MsgId = MirrorRes.data.result_list[length - 1].id
-        console.log('MsgId：' + MsgId);
+        //console.log('MsgId：' + MsgId);
     } else {
         Config.modify('duihua', 'MirrorBearer', "")
         Config.modify('duihua', 'MirrorConversationId', "")
@@ -442,20 +459,22 @@ async function AiMirror(msg) {
     //取返回消息
     let state = ''
     MirrorData = { "chat_result_id": MsgId, "base_request": base_request };
+    url = 'https://chatgptmirror.com/api/v1/conversation/RefreshChat'
+    //console.log('Post：' + url);
     while (state != 'complete') {
-        MirrorRes = await FetchPost('https://chatgptmirror.com/api/v1/conversation/RefreshChat', MirrorData, AiHeaders);
+        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
 
         if (!isNotNull(MirrorRes.data.result.state)) {
             return undefined;
         } else if (MirrorRes.data.result.state != '' && MirrorRes.data.result.state != 'complete') {
-            console.log('state' + MirrorRes.data.result.state);
+            //console.log('state' + MirrorRes.data.result.state);
         };
-
+        //console.log('return：' + MirrorRes.data.result.content);
         state = MirrorRes.data.result.state
 
         await common.sleep(500)
     }
-    console.log('return：' + MirrorRes);
+
     return await MirrorRes.data.result.content ?? undefined
 }
 
