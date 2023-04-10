@@ -1,14 +1,12 @@
 import plugin from '../../../lib/plugins/plugin.js'
-import fetch from "node-fetch";
 import { common } from '../model/index.js'
 import fs from 'fs'
 import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 import Data from '../components/Data.js'
-//import BingAIClient from '../model/BingAIClient.js'
+import BingAIClient from '../model/BingAIClient.js'
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
-
 
 /** 缓存目录 */
 const CachePath = `${Plugin_Path}/resources/Cache/Chat`
@@ -26,11 +24,9 @@ try {
 
 let zs
 /** 工作状态 */ let works = 0;
+let cs = 0
 
 //https://chatgptmirror.com/chat
-
-/** 必应客户端 */
-//const bingAIClient = new BingAIClient(options);
 
 /** 提交数据 AiWwang */
 const WwangDate = {
@@ -88,6 +84,7 @@ export class duihua extends plugin {
         Config.modify('duihua', 'MirrorBearer', "");
         Config.modify('duihua', 'MirrorConversationId', "");
         works = 0;
+        cs = 0
         e.reply('已经重置对话了！');
         return true;
     };
@@ -101,13 +98,18 @@ export class duihua extends plugin {
 
         works = 1
         let jieguo;
-        let msg = e.msg.replace(await Config.Chat.NickName, '').trim();
+        let name = await Config.Chat.NickName
+        let msg = e.msg.replace(name, '').trim();
         msg = msg.replace(/^[#\s]+/, '');
         console.log("提问：" + msg);
 
-        //存在必应cookie的时候优先必应
-        //jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
-        //console.log(`Bing结果：${jieguo}`);
+        //启用必应时，优先必应
+        if (!isNotNull(jieguo)) {
+            jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+            console.log(`Bing结果：${jieguo}`);
+            jieguo = jieguo.replace(/(Bing|微软必应|必应)/, name).trim();
+            
+        }
 
         //接口3
         if (!isNotNull(jieguo)) {
@@ -150,31 +152,14 @@ export class duihua extends plugin {
     /** 设置必应参数 */
     async SetBingSettings(e) {
         if (e.isMaster) {
-            let jsonString = e.msg.replace(/(#?止水对话)?设置必应参数/g, "").trim();
-            let jsonObject;
-
-            try {
-                jsonObject = JSON.parse(jsonString);
-                // 检查对象是否有"conversationId", "clientId", "conversationSignature"属性
-                if (jsonObject.hasOwnProperty("conversationId") && jsonObject.hasOwnProperty("clientId") && jsonObject.hasOwnProperty("conversationSignature")) {
-
-                    Config.modify('duihua', 'BingConversationId', jsonObject.conversationId)
-                    Config.modify('duihua', 'BingClientId', jsonObject.clientId)
-                    Config.modify('duihua', 'BingConversationSignature', jsonObject.conversationSignature)
-
-                    console.log("设置必应ck：" + jsonString);
-                    e.reply("设置必应ck成功！");
-                    return true;
-
-                } else {
-                    e.reply(`必应参数不完整！`);
-                    return false;
-                }
-            } catch (error) {
-                e.reply(`必应参数错误，请在浏览器的开发人员工具中搜索"create"！`);
+            let BingCookie = e.msg.replace('KievRPSSecAuth=','')
+            if(BingCookie.length < 1400){
+                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 KievRPSSecAuth 字段，发送给我`);
                 return false;
             }
-
+            Config.modify('duihua', 'BingCookie', BingCookie)
+            e.reply("设置必应ck成功！");
+            return true;
         }
 
     }
@@ -187,10 +172,7 @@ export class duihua extends plugin {
 
         //私聊才能查看
         if (!e.isGroup) {
-            let msg = `*** 必应参数 ***/n/n`;
-            msg += `ConversationId:${await Config.Chat.BingConversationId}/n`;
-            msg += `ClientId:${await Config.Chat.BingClientId}/n`;
-            msg += `ConversationSignature:${await Config.Chat.BingConversationSignature}/n`;
+            let msg = `*** 必应参数 ***/n/n${await Config.Chat.BingCookie}/n`;
             e.reply(msg);
             return true;
         }
@@ -479,12 +461,78 @@ async function AiMirror(msg) {
 }
 
 /**
- * AI对话  https://zjrwtx.top/api/chat
+ * AI对话  新必应 NewBing
  *
  * @param {string} msg 发送消息
  * @return {string} 对话结果
  */
-async function AiZjrwtx(msg) {
+async function AiBing(msg) {
+    let BingCookie = await Config.Chat.BingCookie;
+    let conversationId = ''
+    let clientId = ''
+    let conversationSignature = ''
+    let Bingres = ''
+    let text = ''
+    if (BingCookie == "") {
+        return undefined;
+    }
+
+    /** 必应选项 */
+    const options = {
+        host: 'https://www.bing.com',
+        userToken: '',
+        cookies: BingCookie,
+        proxy: '',
+        debug: false,
+    }
+    /** 必应客户端 */
+    const bingAIClient = new BingAIClient(options);
+
+
+    if (cs == 20) {
+        cs = 0
+    }
+
+    if (cs == 0) {
+        text = ""
+        Bingres = await bingAIClient.sendMessage(msg, {
+            onProgress: (token) => {
+                process.stdout.write(token);
+                text += token
+            },
+        });
+        cs += 1
+
+        console.log(Bingres.details.text);
+        await common.sleep(1000)
+        if (Bingres.details.text == undefined) {
+            return text
+        }
+        return Bingres.details.text
+    }
+
+
+    if (cs != 0 & cs < 20) {
+        Bingres = await bingAIClient.sendMessage(msg, {
+            toneStyle: 'balanced', //or creative, precise
+            conversationSignature: Bingres.conversationSignature,
+            conversationId: Bingres.conversationId,
+            clientId: Bingres.clientId,
+            invocationId: Bingres.invocationId,
+            onProgress: (token) => {
+                process.stdout.write(token);
+                text += token
+            },
+        });
+        console.log(Bingres.details.text);
+        await common.sleep(1000)
+        cs += 1
+        if (Bingres.details.text == undefined) {
+            return text
+        }
+        return Bingres.details.text
+
+    }
 
 }
 
