@@ -8,9 +8,7 @@ OnlyMaster: false
 EnableBing: false
 
 # 必应参数
-BingConversationId: ""
-BingClientId: ""
-BingConversationSignature: "" 
+BingCookie: ""
 
 #语音开关
 EnableVoice: false

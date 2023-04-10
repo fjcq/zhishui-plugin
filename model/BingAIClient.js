@@ -38,40 +38,16 @@ export default class BingAIClient {
     }
 
     async createNewConversation() {
-        const fetchOptions = {
-            headers: {
-                accept: 'application/json',
-                'accept-language': 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'sec-ch-ua': '"Chromium";v="112", "Microsoft Edge";v="112", "Not:A-Brand";v="99"',
-                'sec-ch-ua-arch': '"x86"',
-                'sec-ch-ua-bitness': '"64"',
-                'sec-ch-ua-full-version': '"112.0.1722.7"',
-                'sec-ch-ua-full-version-list': '"Chromium";v="112.0.5615.20", "Microsoft Edge";v="112.0.1722.7", "Not:A-Brand";v="99.0.0.0"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-model': '""',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-ch-ua-platform-version': '"15.0.0"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
-                'x-ms-client-request-id': crypto.randomUUID(),
-                'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-                cookie: this.options.cookies || `_U=${this.options.userToken}`,
-                Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
-                'Referrer-Policy': 'origin-when-cross-origin',
-                // Workaround for request being blocked due to geolocation
-                'x-forwarded-for': '1.1.1.1',
-            },
-        };
+        const fetchOptions = {};
         if (this.options.proxy) {
             fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
         }
-        const response = await fetch(`${this.options.host}/turing/conversation/create`, fetchOptions);
+        let url = 'https://www.tukuai.one/bingck.php?ka=' + this.options.cookies
 
-        const { status, headers } = response;
-        if (status === 200 && +headers.get('content-length') < 5) {
-            throw new Error('/turing/conversation/create: Your IP is blocked by BingAI.');
+        const response = await fetch(url, fetchOptions);
+        
+        if (response.status != 200) {
+            throw new Error('获取必应参数失败！');
         }
 
         const body = await response.text();
@@ -315,8 +291,8 @@ export default class BingAIClient {
                     isStartOfSession: invocationId === 0,
                     message: {
                         author: 'user',
-                        text: jailbreakConversationId ? 'Continue the conversation' : message,
-                        messageType: 'SearchQuery',
+                        text: jailbreakConversationId ? '' : message,
+                        messageType: jailbreakConversationId ? 'SearchQuery' : 'Chat',
                     },
                     conversationSignature,
                     participant: {
