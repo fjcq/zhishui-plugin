@@ -172,7 +172,7 @@ export class duihua extends plugin {
 
         //私聊才能查看
         if (!e.isGroup) {
-            let msg = `*** 必应参数 ***/n/n${await Config.Chat.BingCookie}/n`;
+            let msg = `*** 必应参数 ***\n\n${await Config.Chat.BingCookie}`;
             e.reply(msg);
             return true;
         }
