@@ -152,7 +152,9 @@ export class duihua extends plugin {
     /** 设置必应参数 */
     async SetBingSettings(e) {
         if (e.isMaster) {
-            let BingCookie = e.msg.replace('KievRPSSecAuth=','')
+            let BingCookie = e.msg.replace(/#?(止水对话)?设置必应参数/,'').trim()
+            BingCookie = e.msg.replace('KievRPSSecAuth=','')
+            
             if(BingCookie.length < 1400){
                 e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 KievRPSSecAuth 字段，发送给我`);
                 return false;
