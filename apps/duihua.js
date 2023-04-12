@@ -107,8 +107,10 @@ export class duihua extends plugin {
         if (!isNotNull(jieguo)) {
             jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
             console.log(`Bing结果：${jieguo}`);
-            jieguo = jieguo.replace(/(Bing|微软必应|必应)/, name).trim();
-            jieguo = jieguo.replace(/\[\^\d*\^\]/g, '');
+            if (!isNotNull(jieguo)) {
+                jieguo = jieguo.replace(/(Bing|微软必应|必应)/, name).trim();
+                jieguo = jieguo.replace(/\[\^\d*\^\]/g, '');
+            }
         }
 
         //接口3
@@ -152,15 +154,16 @@ export class duihua extends plugin {
     /** 设置必应参数 */
     async SetBingSettings(e) {
         if (e.isMaster) {
-            let BingCookie = e.msg.replace(/#?(止水对话)?设置必应参数/g,'').trim()
-            BingCookie = BingCookie.replace('KievRPSSecAuth=','')
-            
-            if(BingCookie.length < 1400){
-                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 KievRPSSecAuth 字段，发送给我`);
+            let BingCookie = e.msg.replace(/#?(止水对话)?设置必应参数/g, '').trim()
+            BingCookie = BingCookie.replace('KievRPSSecAuth=', '')
+
+
+            if (await CheckBingSettings(BingCookie) == false) {
+                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 “KievRPSSecAuth” 字段，或者 “_U” 字段，发送给我`);
                 return false;
             }
             Config.modify('duihua', 'BingCookie', BingCookie)
-            e.reply("设置必应ck成功！");
+            e.reply("设置必应参数成功！");
             return true;
         }
 
@@ -538,6 +541,59 @@ async function AiBing(msg) {
 
 }
 
+/** 检查必应参数 */
+async function CheckBingSettings(BingCookie) {
+    let ret = {}
+    let opt = {
+        headers: {
+            accept: 'application/json',
+            'accept-language': 'en-US,en;q=0.9',
+            'content-type': 'application/json',
+            'sec-ch-ua': '"Chromium";v="112", "Microsoft Edge";v="112", "Not:A-Brand";v="99"',
+            'sec-ch-ua-arch': '"x86"',
+            'sec-ch-ua-bitness': '"64"',
+            'sec-ch-ua-full-version': '"112.0.1722.7"',
+            'sec-ch-ua-full-version-list': '"Chromium";v="112.0.5615.20", "Microsoft Edge";v="112.0.1722.7", "Not:A-Brand";v="99.0.0.0"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-model': '""',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-ch-ua-platform-version': '"15.0.0"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'x-ms-client-request-id': crypto.randomUUID(),
+            'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
+            cookie: `KievRPSSecAuth=${BingCookie}`,
+            Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
+            'Referrer-Policy': 'origin-when-cross-origin',
+            // Workaround for request being blocked due to geolocation
+            'x-forwarded-for': '1.1.1.1',
+        },
+        statusCode: 'json'
+    };
+    /*
+    ret = await request.get('https://www.bing.com/turing/conversation/create', opt)
+    console.log(JSON.stringify(ret, null, 2));
+    if (ret.clientId == undefined) {
+        return false
+    }
+    */
+
+    opt = { statusCode: 'json' }
+    let url = ''
+    if (BingCookie.length <1400){
+        url = 'https://www.tukuai.one/bingck.php?u=' + BingCookie
+    } else{
+        url = 'https://www.tukuai.one/bingck.php?ka=' + BingCookie
+    }
+    ret = await request.get(url, opt)
+    console.log('ret:'+JSON.stringify(ret));
+    if (ret.clientId == undefined) {
+        return false
+    } else {
+        return true
+    }
+}
 
 /**
  * 发送转发消息
