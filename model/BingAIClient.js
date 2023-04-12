@@ -42,8 +42,14 @@ export default class BingAIClient {
         if (this.options.proxy) {
             fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
         }
-        let url = 'https://www.tukuai.one/bingck.php?ka=' + this.options.cookies
 
+        let url = ''
+        if (this.options.cookies.length <1400){
+            url = 'https://www.tukuai.one/bingck.php?u=' + this.options.cookies
+        } else{
+            url = 'https://www.tukuai.one/bingck.php?ka=' + this.options.cookies
+        }
+        
         const response = await fetch(url, fetchOptions);
         
         if (response.status != 200) {
