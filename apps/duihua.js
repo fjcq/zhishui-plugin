@@ -107,10 +107,9 @@ export class duihua extends plugin {
         if (!isNotNull(jieguo)) {
             jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
             console.log(`Bing结果：${jieguo}`);
-            if (!isNotNull(jieguo)) {
-                jieguo = jieguo.replace(/(Bing|微软必应|必应)/, name).trim();
-                jieguo = jieguo.replace(/\[\^\d*\^\]/g, '');
-            }
+            jieguo = jieguo?.replace(/(Bing|微软必应|必应)/, name).trim();
+            jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
+
         }
 
         //接口3
@@ -581,13 +580,13 @@ async function CheckBingSettings(BingCookie) {
 
     opt = { statusCode: 'json' }
     let url = ''
-    if (BingCookie.length <1400){
+    if (BingCookie.length < 1400) {
         url = 'https://www.tukuai.one/bingck.php?u=' + BingCookie
-    } else{
+    } else {
         url = 'https://www.tukuai.one/bingck.php?ka=' + BingCookie
     }
     ret = await request.get(url, opt)
-    console.log('ret:'+JSON.stringify(ret));
+    console.log('ret:' + JSON.stringify(ret));
     if (ret.clientId == undefined) {
         return false
     } else {
