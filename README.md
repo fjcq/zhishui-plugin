@@ -72,8 +72,8 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
 - `#止水对话必应开关`  
   切换[开启/关闭]必应对话，如果要启用必应，同时还需要设置好必应参数。  
   
-- `设置必应参数`    
-  必应参数需自行提供，否则无法使用必应对话。  
+- 设置必应参数    
+  *必应参数需自行提供，否则无法使用必应对话。*  
   请在浏览器中打开必应对话，然后将Cookie发送给BOT，Cookie中必须包含`KievRPSSecAuth`和`_U`字段  
 
 - `#止水对话查看必应参数`  
