@@ -189,7 +189,7 @@ export class duihua extends plugin {
 
         let EnableBing = !await Config.Chat.EnableBing;
         if (EnableBing) {
-            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
+            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(await Config.Chat.BingCookie);
             if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
                 e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中必须包含 “KievRPSSecAuth” 和 “_U” 字段`);
                 return false;
