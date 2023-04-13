@@ -188,13 +188,19 @@ export class duihua extends plugin {
         };
 
         let EnableBing = !await Config.Chat.EnableBing;
-        Config.modify('duihua', 'EnableBing', EnableBing);
-
         if (EnableBing) {
-            e.reply("[必应对话]已开启！");
+            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
+            if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
+                e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中必须包含 “KievRPSSecAuth” 和 “_U” 字段`);
+                return false;
+            } else{
+                e.reply("[必应对话]已开启！");
+            };
         } else {
             e.reply("[必应对话]已关闭！");
         }
+
+        Config.modify('duihua', 'EnableBing', EnableBing);
         return true;
     }
 
