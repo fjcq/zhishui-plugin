@@ -36,6 +36,19 @@ export default class BingAIClient {
         }
         this.debug = this.options.debug;
     }
+    /** 解析必应参数 */
+    async AnalysisBingCookie(Cookie) {
+        let regexp
+        let match
+        regexp = /\bKievRPSSecAuth=(\S+)\b/g;
+        match = regexp.exec(Cookie); 
+        let KievRPSSecAuth = match[1]
+    
+        regexp = /\b_U=(\S+)\b/g;
+        match = regexp.exec(Cookie); 
+        let _U = match[1]
+        return { KievRPSSecAuth, _U }
+    }
 
     async createNewConversation() {
         const fetchOptions = {};
@@ -43,15 +56,11 @@ export default class BingAIClient {
             fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
         }
 
-        let url = ''
-        if (this.options.cookies.length <1400){
-            url = 'https://www.tukuai.one/bingck.php?u=' + this.options.cookies
-        } else{
-            url = 'https://www.tukuai.one/bingck.php?ka=' + this.options.cookies
-        }
-        
+        let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies)
+        let url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+
         const response = await fetch(url, fetchOptions);
-        
+
         if (response.status != 200) {
             throw new Error('获取必应参数失败！');
         }

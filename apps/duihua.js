@@ -52,7 +52,7 @@ export class duihua extends plugin {
                     /** 执行方法 */
                     fnc: 'ResetChat'
                 }, {
-                    reg: '^#?(止水对话)?设置必应参数(.*)$',
+                    reg: '^(.*)KievRPSSecAuth=(.*)$',
                     fnc: 'SetBingSettings'
                 }, {
                     reg: '^#?(止水对话)?查看必应参数$',
@@ -153,14 +153,13 @@ export class duihua extends plugin {
     /** 设置必应参数 */
     async SetBingSettings(e) {
         if (e.isMaster) {
-            let BingCookie = e.msg.replace(/#?(止水对话)?设置必应参数/g, '').trim()
-            BingCookie = BingCookie.replace('KievRPSSecAuth=', '')
-
-
-            if (await CheckBingSettings(BingCookie) == false) {
-                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 “KievRPSSecAuth” 字段，或者 “_U” 字段，发送给我`);
+            let BingCookie = e.msg;
+            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
+            if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
+                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 “KievRPSSecAuth” 字段和 “_U” 字段，发送给我`);
                 return false;
-            }
+            };
+            BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`
             Config.modify('duihua', 'BingCookie', BingCookie)
             e.reply("设置必应参数成功！");
             return true;
@@ -540,9 +539,25 @@ async function AiBing(msg) {
 
 }
 
+/** 解析必应参数 */
+async function AnalysisBingCookie(Cookie = '') {
+    let regexp
+    let match
+    regexp = /\bKievRPSSecAuth=(\S+)\b/g;
+    match = regexp.exec(Cookie); 
+    let KievRPSSecAuth = match[1]
+
+    regexp = /\b_U=(\S+)\b/g;
+    match = regexp.exec(Cookie); 
+    let _U = match[1]
+    return { KievRPSSecAuth, _U }
+}
+
+
 /** 检查必应参数 */
-async function CheckBingSettings(BingCookie) {
+async function InspectBingCookie(KievRPSSecAuth, _U) {
     let ret = {}
+    /*
     let opt = {
         headers: {
             accept: 'application/json',
@@ -570,7 +585,6 @@ async function CheckBingSettings(BingCookie) {
         },
         statusCode: 'json'
     };
-    /*
     ret = await request.get('https://www.bing.com/turing/conversation/create', opt)
     console.log(JSON.stringify(ret, null, 2));
     if (ret.clientId == undefined) {
@@ -578,13 +592,8 @@ async function CheckBingSettings(BingCookie) {
     }
     */
 
-    opt = { statusCode: 'json' }
-    let url = ''
-    if (BingCookie.length < 1400) {
-        url = 'https://www.tukuai.one/bingck.php?u=' + BingCookie
-    } else {
-        url = 'https://www.tukuai.one/bingck.php?ka=' + BingCookie
-    }
+    let opt = { statusCode: 'json' }
+    let url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
     ret = await request.get(url, opt)
     console.log('ret:' + JSON.stringify(ret));
     if (ret.clientId == undefined) {
