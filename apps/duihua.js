@@ -25,6 +25,7 @@ try {
 let zs
 /** 工作状态 */ let works = 0;
 let cs = 0
+let ChatosID = ''
 
 //https://chatgptmirror.com/chat
 
@@ -112,6 +113,12 @@ export class duihua extends plugin {
 
         }
 
+        //接口4
+        if (!isNotNull(jieguo)) {
+            jieguo = await Aichatos(msg);
+            console.log(`AiMirror结果：${jieguo}`);
+        }
+        
         //接口3
         if (!isNotNull(jieguo)) {
             jieguo = await AiMirror(msg);
@@ -193,7 +200,7 @@ export class duihua extends plugin {
             if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
                 e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中必须包含 “KievRPSSecAuth” 和 “_U” 字段`);
                 return false;
-            } else{
+            } else {
                 e.reply("[必应对话]已开启！");
             };
         } else {
@@ -470,6 +477,42 @@ async function AiMirror(msg) {
 }
 
 /**
+ * AI对话 https://fwg08.aichatos.com
+ *
+ * @param {string} msg 发送消息
+ * @return {string} 对话结果
+ */
+async function Aichatos(msg) {
+    //记录提问数据
+
+    if (ChatosID = '') {
+        ChatosID = Date.now()
+    }
+
+    const MsgData = {
+        "prompt": msg,
+        "userId": "#/chat/" + ChatosID,
+        "network": true,
+        "apikey": "",
+        "system": "",
+        "withoutContext": false
+    };
+
+    let opt = {
+        'accept': 'application/json, text/plain, */*',
+        'content-type': 'application/json',
+        'origin': 'https://fwg08.aichatos.com',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+    }
+
+    let url = "https://api.aichatos.cloud/api/generateStream"
+    let PGTRes = await FetchPost(url, MsgData, opt, 'text')
+
+    return PGTRes
+}
+
+
+/**
  * AI对话  新必应 NewBing
  *
  * @param {string} msg 发送消息
@@ -550,11 +593,11 @@ async function AnalysisBingCookie(Cookie = '') {
     let regexp
     let match
     regexp = /\bKievRPSSecAuth=(\S+)\b/g;
-    match = regexp.exec(Cookie); 
+    match = regexp.exec(Cookie);
     let KievRPSSecAuth = match[1]
 
     regexp = /\b_U=(\S+)\b/g;
-    match = regexp.exec(Cookie); 
+    match = regexp.exec(Cookie);
     let _U = match[1]
     return { KievRPSSecAuth, _U }
 }
