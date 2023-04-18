@@ -11,7 +11,7 @@ let SearchName = ""
 /** 视频ID数组 */
 var IDs = []
 /** 当前播放线路 */
-var CurrentrRoute = 1
+var CurrentrRoute = 0
 /** 当前视频ID */
 var CurrentID = 1
 var zzss = 0
@@ -46,7 +46,7 @@ export class souju extends plugin {
                     reg: '^#(上一页|下一页|到.*页)$',
                     fnc: 'GoPage'
                 }, {
-                    reg: '^#切换线路(.*)$',
+                    reg: '^#线路(.*)$',
                     fnc: 'ChangingRoute'
                 }
             ]
@@ -166,14 +166,7 @@ export class souju extends plugin {
 
 
         //线路
-        if (e.msg.includes("#线路")) {
-            CurrentrRoute = (parseInt(e.msg.replace(/\D+/, '').trim()) || 0) - 1;
-            if (CurrentrRoute < 0) {
-                CurrentrRoute = 0
-            }
-        } else {
-            CurrentrRoute = 0
-        }
+        CurrentrRoute = await Config.SearchVideos.Route
 
         let idx = SearchResults.list[CurrentID].vod_id
         console.log(`选择的ID：${idx}，选择的线路：${CurrentrRoute}`);
@@ -210,7 +203,7 @@ export class souju extends plugin {
         WriteCacheJson('PlayData.json', PlayData)
 
         await puppeteer.render("souju/select", {
-            list: SearchResults.list,
+            list: Detail,
             mingzi: mingzi,
             Route: Route,
             CurrentrRoute: CurrentrRoute
@@ -328,7 +321,9 @@ export class souju extends plugin {
     /** 切换线路 */
     async ChangingRoute(e) {
         let index = parseInt(e.msg.replace(/\D+/, '').trim());
-        e.reply("当前路：" + index);
+        e.reply("当前线路：" + index);
+        Config.modify('souju', 'Route', index - 1)
+
         return true
     }
 }

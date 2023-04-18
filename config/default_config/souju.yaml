@@ -19,6 +19,9 @@ Video:
 # 当前集
 Episode:
 
+# 当前线路
+Route: 0
+
 #绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
 cfTLSVersion: TLSv1.1
 
