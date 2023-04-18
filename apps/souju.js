@@ -88,6 +88,7 @@ export class souju extends plugin {
                 //发送图片
                 await puppeteer.render("souju/result", {
                     list: SearchResults.list,
+                    keyword: SearchName || '最新视频',
                     showpic: await jiekou.showpic
                 }, {
                     e,

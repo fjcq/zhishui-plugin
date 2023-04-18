@@ -1,25 +1,30 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta http-equiv="content-type" content="text/html;charset=utf-8" />
     <link rel="stylesheet" type="text/css" href="{{_res_path}}/souju/result.css" />
 </head>
+
 <body>
     <div> </div>
     <div class="box">
-        <div class="header text-center text-title">搜 剧 结 果</div>
-    </div>
-
-    <div class="tip">
-        <p><font class="text-muted">你可以发送<font class="text-data"> #选剧+数字 </font>来选择观看本剧。</font></p>
+        <div class="header text-center text-title">{{keyword}}</div>
     </div>
 
     <div class="box">
-        <div class="item_data">
+
+        <div class="tip">
+            <p>
+                <font class="text-muted">你可以发送<font class="text-now"> #选剧+数字 </font>来查看详情。</font>
+            </p>
+        </div>
+
+        <div class="item_data text-center">
             {{each list item idx}}
 
             <div class="item">
-                
+
                 <div class="tu">
                     {{if showpic == true}}
                     <img src="{{item.vod_pic}}" />
@@ -30,20 +35,26 @@
                     <div class="pic-text  text-up text-right">{{item.type_name}}</div>
                     <div class="pic-text text-down text-left pic-background">{{item.vod_remarks}}</div>
                 </div>
-                
+
                 <div class="item_title">{{item.vod_name}}</div>
             </div>
 
             {{/each}}
         </div>
+
+        <div class="tip">
+            <p>
+                <font class="text-muted">你可以发送<font class="text-now"> #选剧+数字 </font>来查看详情。</font>
+            </p>
+        </div>
+
     </div>
 
-    <div class="tip">
-        <p><font class="text-muted">你可以发送<font class="text-data"> #选剧+数字 </font>来选择观看本剧。</font></p>
-    </div>
 
-    <div class="box">
-        <p>Created By <font class="text-data">Yunzai-Bot</font> & <font class="text-data">止水</font></p>
+    <div class="box text-center">
+        <p>Created By <font class="text-data">Yunzai-Bot</font> & <font class="text-data">止水</font>
+        </p>
     </div>
 </body>
+
 </html>

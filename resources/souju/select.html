@@ -11,7 +11,7 @@
     <div class="box">
         <div class="header text-center text-title">{{list.vod_name}} </div>
     </div>
-    <div class="box nowrap">
+    <div class="top_main">
         <div class="top_left">
             <div class="top_img_bottom">
                 <img class="top_img" src="{{list.vod_pic}}" />
@@ -19,25 +19,29 @@
         </div>
 
         <div class="top_right">
-            <div class="text-muted">分类：<font class="text-data"> {{list.type_name}}</font>
+            <div class="top_text">分类：<font class="text-data"> {{list.type_name}}</font>
             </div>
-            <div class="text-muted">地区：<font class="text-data">{{list.vod_area}}</font>
+            <div class="top_text">地区：<font class="text-data">{{list.vod_area}}</font>
             </div>
-            <div class="text-muted">年份：<font class="text-data">{{list.vod_year}} </font>
+            <div class="top_text">年份：<font class="text-data">{{list.vod_year}} </font>
             </div>
-            <div class="text-muted">更新：<font class="text-data">{{list.vod_remarks}}/{{list.vod_time}}</font>
+            <div class="top_text">更新：<font class="text-data">{{list.vod_remarks}}/{{list.vod_time}}</font>
             </div>
-            <div class="text-muted">主演：<font class="text-data">{{list.vod_actor}}</font>
+            <div class="top_text">主演：<font class="text-data">{{list.vod_actor}}</font>
             </div>
-            <div class="text-muted">导演：<font class="text-data">{{list.vod_director}}</font>
+            <div class="top_text">导演：<font class="text-data">{{list.vod_director}}</font>
             </div>
-            <div class="text-muted">简介：<font class="text-data">{{list.vod_content}}</font>
+
+        </div>
+
+        <div class="top_center">
+            <div class="top_text">简介：<font class="text-data">{{list.vod_content}}</font>
             </div>
         </div>
     </div>
 
     <div class="box text-center">
-        <div class="header text-left text-data">你可以发送<font class="item-data">#线路+数字</font>来切换线路</div>
+        <div class="header text-left text-data">你可以发送<font class="text-now">#线路+数字</font>来切换线路</div>
 
         <div class="item_data text-center ">
             <br />
@@ -66,8 +70,8 @@
             <br />
         </div>
 
-        <div class="header text-left text-muted">你可以发送<font class="item-data">#看剧+数字</font>来选择集数，例如<font
-                class="item-data">#看剧1</font>
+        <div class="header text-left text-muted">你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如<font
+                class="text-now">#看剧1</font>
         </div>
     </div>
 
