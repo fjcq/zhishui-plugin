@@ -170,13 +170,13 @@ export class souju extends plugin {
         CurrentrRoute = await Config.SearchVideos.Route
 
         let idx = SearchResults.list[CurrentID].vod_id
+        let showpic = SearchResults.list[CurrentID].showpic
         console.log(`选择的ID：${idx}，选择的线路：${CurrentrRoute}`);
 
 
 
 
         let Detail = SearchResults.list.find(item => item.vod_id == idx);
-        console.log(Detail.vod_name);
 
         //分割出 线路组
         let Route = Detail.vod_play_from.split('$$$')
@@ -184,13 +184,13 @@ export class souju extends plugin {
         //分割出 资源线路组
         let jiedian = Detail.vod_play_url.split('$$$')
 
-        if (jiedian.length < CurrentrRoute) {
-            CurrentrRoute = jiedian.length
+        if (jiedian.length < (CurrentrRoute -1)) {
+            CurrentrRoute = 0
         }
 
         //有分集时
-        let jishu2 = jiedian[CurrentrRoute].split('#')
-
+        let jishu2 = jiedian[CurrentrRoute]?.split('#') || [jiedian[0]];
+        console.log(jishu2);
         let mingzi = []
         let wangzhi = []
         for (var i = 0; i < jishu2.length; i++) {
@@ -207,6 +207,7 @@ export class souju extends plugin {
             list: Detail,
             mingzi: mingzi,
             Route: Route,
+            showpic: showpic,
             CurrentrRoute: CurrentrRoute
         }, {
             e,

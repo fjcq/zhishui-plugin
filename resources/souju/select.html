@@ -14,7 +14,12 @@
     <div class="top_main">
         <div class="top_left">
             <div class="top_img_bottom">
+                {{if showpic == true}}
                 <img class="top_img" src="{{list.vod_pic}}" />
+                {{else}}
+                <img class="top_img" src="{{_res_path}}/souju/load.png" />
+                {{/if}}
+
             </div>
         </div>
 
