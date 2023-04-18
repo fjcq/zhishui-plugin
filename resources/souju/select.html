@@ -9,29 +9,29 @@
 <body>
     <div></div>
     <div class="box">
-        <div class="header text-center text-title">{{list[0].vod_name}} </div>
+        <div class="header text-center text-title">{{list.vod_name}} </div>
     </div>
     <div class="box nowrap">
         <div class="top_left">
             <div class="top_img_bottom">
-                <img class="top_img" src="{{list[0].vod_pic}}" />
+                <img class="top_img" src="{{list.vod_pic}}" />
             </div>
         </div>
 
         <div class="top_right">
-            <div class="text-muted">分类：<font class="text-data"> {{list[0].type_name}}</font>
+            <div class="text-muted">分类：<font class="text-data"> {{list.type_name}}</font>
             </div>
-            <div class="text-muted">地区：<font class="text-data">{{list[0].vod_area}}</font>
+            <div class="text-muted">地区：<font class="text-data">{{list.vod_area}}</font>
             </div>
-            <div class="text-muted">年份：<font class="text-data">{{list[0].vod_year}} </font>
+            <div class="text-muted">年份：<font class="text-data">{{list.vod_year}} </font>
             </div>
-            <div class="text-muted">更新：<font class="text-data">{{list[0].vod_remarks}}/{{list[0].vod_time}}</font>
+            <div class="text-muted">更新：<font class="text-data">{{list.vod_remarks}}/{{list.vod_time}}</font>
             </div>
-            <div class="text-muted">主演：<font class="text-data">{{list[0].vod_actor}}</font>
+            <div class="text-muted">主演：<font class="text-data">{{list.vod_actor}}</font>
             </div>
-            <div class="text-muted">导演：<font class="text-data">{{list[0].vod_director}}</font>
+            <div class="text-muted">导演：<font class="text-data">{{list.vod_director}}</font>
             </div>
-            <div class="text-muted">简介：<font class="text-data">{{list[0].vod_content}}</font>
+            <div class="text-muted">简介：<font class="text-data">{{list.vod_content}}</font>
             </div>
         </div>
     </div>
@@ -43,7 +43,7 @@
             <br />
             {{each Route value i}}
             <div class="item">
-                <div class="item_title">{{value}}</div>
+                <div class="item_title{{if CurrentrRoute == i}} now{{/if}}">{{value}}</div>
                 <div class="item-data">#线路{{i+1}}</div>
             </div>
             {{/each}}

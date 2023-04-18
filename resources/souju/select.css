@@ -135,9 +135,15 @@ body {
 .item_title {
     font-family: "jty";
     font-size: 20px;
-    font-weight: 600;
+    font-weight: 400;
     color: #000000;
     position: relative;
+}
+
+.now {
+    font-family: "NZBZ";
+    color: #38216d;
+    font-weight: 600;
 }
 
 .item-data {
