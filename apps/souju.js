@@ -184,7 +184,7 @@ export class souju extends plugin {
         //分割出 资源线路组
         let jiedian = Detail.vod_play_url.split('$$$')
 
-        if (jiedian.length < (CurrentrRoute -1)) {
+        if (jiedian.length < (CurrentrRoute - 1)) {
             CurrentrRoute = 0
         }
 
@@ -253,7 +253,10 @@ export class souju extends plugin {
 
         console.log(`网址：${PlayData.wangzhi}`);
         if (isNotNull(PlayData.wangzhi[Episode - 1])) {
-            let msg = PlayData.VodName + '\n' + PlayData.mingzi[Episode - 1] + '\n' + await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1]
+            let msg = '片名：' + PlayData.VodName + '\n'
+            msg += PlayData.mingzi[Episode - 1] + ' 观看地址：\n'
+            msg += await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1] + '\n\n'
+            msg += '*** 请复制到浏览器中观看 ***'
             e.reply(msg)
             return true;//返回true 阻挡消息不再往下
         } else {
