@@ -11,6 +11,7 @@
     font-weight: normal;
     font-style: normal;
 }
+
 @font-face {
     font-family: 'zk';
     src: url('zk.TTF');
@@ -19,15 +20,26 @@
 }
 
 body {
-    background: url("../img/bg/M/1.jpg") white center;
+    width: 100%;
+    background: url("../img/bg/M/4.jpg") white center top no-repeat;
+    background-size: cover;
 }
 
 .box {
+    margin: 30px 30px 30px 30px;
+    width: 740px;
+    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.header {
     margin: 10px;
     padding: 10px;
-    flex-grow: 2;
     width: 740px;
-    text-align: center;
 }
 
 .drop-shadow {
@@ -56,7 +68,7 @@ body {
     margin: 13px;
     padding: 10px;
     width: 198px;
-    background: rgb(255, 255, 255, 0.10);
+    background: rgb(255, 255, 255, 0.85);
     box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
@@ -78,7 +90,7 @@ body {
     padding: 5px;
     text-align: center;
     display: block;
-    position: relative ;
+    position: relative;
     text-align: left;
 }
 
@@ -106,14 +118,13 @@ img {
 
 .num {
     position: absolute;
-    font-family: "jty";
+    font-family: "NZBZ";
     font-size: 14px;
     text-align: left;
     top: -10px;
     left: -10px;
     color: #3366ff;
     font-weight: 400;
-    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
 }
 
 .pic-tag-top {
@@ -131,7 +142,7 @@ img {
 
 .pic-background {
     background-repeat: no-repeat;
-    background-image: linear-gradient(transparent,rgba(0,0,0,.5));
+    background-image: linear-gradient(transparent, rgba(0, 0, 0, .5));
     color: #fff;
 }
 
@@ -150,7 +161,7 @@ img {
     white-space: nowrap;
     left: 5px;
     font-family: "jty";
-    text-shadow: 1px 1px 0 rgba(255,255,255,0.4);
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .text-right {
@@ -160,10 +171,29 @@ img {
 .text-left {
     text-align: left;
 }
+
 .text-up {
     top: 5px;
 }
 
 .text-down {
     top: 260px;
+}
+
+.text-title {
+    font-family: "NZBZ";
+    font-size: 40px;
+    font-weight: 700;
+    color: #000000;
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
+    letter-spacing: 20px;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-now {
+    font-family: "NZBZ";
+    color: #000000;
 }
