@@ -7,7 +7,7 @@ zhishui-plugin是一个Yunzai-BotV3的扩展插件
 ## 安装教程  
 **Tip：zhishui-plugin仅适配Yunzai-BotV3!!!**  
 
-请将zhishui-plugin放置在Yunzai-Bot的plugins目录下，重启Yunzai-Bot后即可使用。 
+请将`zhishui-plugin`放置在`Yunzai-Bot`的`plugins`目录下，重启`Yunzai-Bot`后即可使用。 
 
 推荐使用git进行安装，以方便后续升级。在Yunzai目录打开终端，运行  
 
@@ -46,6 +46,10 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
 
 - `#查看搜剧接口`  
   查看可用的搜剧接口  
+
+- `#我的搜剧`  
+  查看用户的搜剧记录、播放记录    
+ 
 
 - `#添加搜剧接口`
   未完成，敬请期待  
