@@ -12,7 +12,7 @@ const Path = process.cwd()
 const Plugin_Name = 'zhishui-plugin'
 const Plugin_Path = `${Path}/plugins/${Plugin_Name}`
 class Config {
-  constructor () {
+  constructor() {
     this.config = {}
 
     /** 监听文件 */
@@ -22,7 +22,7 @@ class Config {
   }
 
   /** 初始化配置 */
-  initCfg () {
+  initCfg() {
     let path = `${Plugin_Path}/config/config/`
     let pathDef = `${Plugin_Path}/config/default_config/`
     const files = fs.readdirSync(pathDef).filter(file => file.endsWith('.yaml'))
@@ -35,7 +35,7 @@ class Config {
   }
 
   /** 群配置 */
-  getGroup (groupId = '') {
+  getGroup(groupId = '') {
     let config = this.getConfig('whole')
     let group = this.getConfig('group')
     let defCfg = this.getdefSet('whole')
@@ -47,44 +47,44 @@ class Config {
   }
 
   /** 主人QQ */
-  get masterQQ () {
+  get masterQQ() {
     return cfg.masterQQ
   }
-  
+
   /** 获取全局设置 */
-  get Notice () {
+  get Notice() {
     return this.getDefOrConfig('whole')
   }
 
   /** 获取搜剧设置 */
-  get SearchVideos () {
+  get SearchVideos() {
     return this.getDefOrConfig('souju')
   }
 
   /** 获取对话设置 */
-  get Chat () {
+  get Chat() {
     return this.getDefOrConfig('duihua')
   }
-  
+
   /** 代理 */
-  get proxy () {
+  get proxy() {
     return this.getDefOrConfig('proxy')
   }
 
   /** 默认配置和用户配置 */
-  getDefOrConfig (name) {
+  getDefOrConfig(name) {
     let def = this.getdefSet(name)
     let config = this.getConfig(name)
     return { ...def, ...config }
   }
 
   /** 默认配置 */
-  getdefSet (name) {
+  getdefSet(name) {
     return this.getYaml('default_config', name)
   }
 
   /** 用户配置 */
-  getConfig (name) {
+  getConfig(name) {
     return this.getYaml('config', name)
   }
 
@@ -93,7 +93,7 @@ class Config {
    * @param type 默认跑配置-defSet，用户配置-config
    * @param name 名称
    */
-  getYaml (type, name) {
+  getYaml(type, name) {
     let file = `${Plugin_Path}/config/${type}/${name}.yaml`
     let key = `${type}.${name}`
 
@@ -109,7 +109,7 @@ class Config {
   }
 
   /** 监听配置文件 */
-  watch (file, name, type = 'default_config') {
+  watch(file, name, type = 'default_config') {
     let key = `${type}.${name}`
 
     if (this.watcher[key]) return
@@ -134,7 +134,7 @@ class Config {
    * @param {String|Number} value 修改的value值
    * @param {'config'|'default_config'} type 配置文件或默认
    */
-  modify (name, key, value, type = 'config') {
+  modify(name, key, value, type = 'config') {
     let path = `${Plugin_Path}/config/${type}/${name}.yaml`
     new YamlReader(path).set(key, value)
     delete this.config[`${type}.${name}`]
@@ -146,7 +146,7 @@ class Config {
    * @param {String} key 设置项
    * @param {unknown} value
    */
-  aloneModify (groupId, key, value, isDel) {
+  aloneModify(groupId, key, value, isDel) {
     let path = `${Plugin_Path}/config/config/group.yaml`
     let yaml = new YamlReader(path)
     let groupCfg = yaml.jsonData[groupId] ?? {}
@@ -163,7 +163,7 @@ class Config {
    * @param {'add'|'del'} category 类别 add or del
    * @param {'config'|'default_config'} type 配置文件或默认
    */
-  modifyarr (name, key, value, category = 'add', type = 'config') {
+  modifyarr(name, key, value, category = 'add', type = 'config') {
     let path = `${Plugin_Path}/config/${type}/${name}.yaml`
     let yaml = new YamlReader(path)
     if (category == 'add') {
@@ -174,28 +174,24 @@ class Config {
     }
   }
 
-  async change_picApi () {
-    let tmp = {}
-
-    logger.debug('[止水]api接口修改，重载fun.js')
-    tmp = await import(`../apps/fun.js?${moment().format('x')}`)
-
-    _.forEach(tmp, (p) => {
-      /* eslint-disable new-cap */
-      let plugin = new p()
-      for (let i in loader.priority) {
-        if (loader.priority[i].key == Plugin_Name && loader.priority[i].name == '止水插件') {
-          loader.priority[i].class = p
-          loader.priority[i].priority = plugin.priority
-        }
-      }
-    })
+  /**
+ * @description: 获取用户搜剧配置
+ * @param {String} QQ 用户QQ号码
+ * @param {String} key key值
+ */
+  async GetUserSearchVideos(QQ, key) {
+    return await redis.get("zhishui:qq:" + QQ + ":SearchVideos:" + key);
   }
 
-  async change_pixiv () {
-    let pixiv = (await import('../model/index.js')).Pixiv
-    let PixivApi = (await import('../model/Pixiv/api.js')).default
-    pixiv.PixivClient = new PixivApi(this.pixiv.refresh_token)
+  /**
+ * @description: 写入用户搜剧配置
+ * @param {String} QQ 用户QQ号码
+ * @param {String} key key值
+ * @param {String|Number} value value
+ */
+  async SetUserSearchVideos(QQ, key, value) {
+    return await redis.set("zhishui:qq" + QQ + ":SearchVideos:" + key, value);
   }
+
 }
 export default new Config()

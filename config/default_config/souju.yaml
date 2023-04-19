@@ -4,24 +4,6 @@ analysis: http://jx.qxyys.com/jx.php?url=
 # 播放器链接
 player: http://bfq.qxyys.com/?url=
 
-# 当前使用的资源站点索引
-idx: 0
-
-# 搜索关键词
-keyword:
-
-# 当前页数
-page:
-
-# 当前视频
-Video:
-
-# 当前集
-Episode:
-
-# 当前线路
-Route: 0
-
 #绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
 cfTLSVersion: TLSv1.1
 

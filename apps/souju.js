@@ -25,7 +25,7 @@ export class souju extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: "^#搜剧(.*)$",
+                    reg: "^#(重新)?搜剧(.*)$",
                     fnc: 'SearchVideos'
                 }, {
                     reg: '^#设置搜剧接口(.*)$',
@@ -57,34 +57,57 @@ export class souju extends plugin {
     async SearchVideos(e) {
 
         if (zzss == 1) {
-            e.reply('当前正在搜索中...请勿重复搜索')
-            return
+            e.reply('前面的搜索尚未完成，你先等等！');
+            return;
         }
-        let jiekou = await Config.SearchVideos.resources[Config.SearchVideos.idx].site
-        if (e.msg.includes("#搜剧") && zzss == 0) {
-            if (jiekou == undefined) {
-                e.reply('接口错误！')
-                zzss = 0
-                return false
+
+        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
+        const jiekou = await Config.SearchVideos.resources[idx].site;
+
+        if (zzss == 0) {
+            if (!isNotNull(jiekou)) {
+                e.reply('接口错误！');
+                zzss = 0;
+                return false;
             }
-            zzss = 1
+            zzss = 1;
 
-            SearchName = e.msg.replace(/#搜剧/g, "").trim()
+            SearchName = e.msg.replace(/#(重新)搜剧/g, "").trim();
+            e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`);
 
-            //保存数据
-            Config.modify('souju', 'keyword', SearchName)
-            Config.modify('souju', 'page', 1)
+            const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
+            const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
+            const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
+            const domain = Config.SearchVideos.resources[idx].site.url
+            let SearchResults;
+            if ((page == 1) && (keyword == SearchName)) {
+                //判断缓存
+                SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+                if (isNotNull(SearchResults)) {
+                    SearchResults = JSON.parse(SearchResults);
+                } else {
 
-            e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`)
+                    //不存在缓存，重新搜索
+                    SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain)
+                    //写入缓存
+                    WriteCacheJson('SearchResults.json', SearchResults);
+                };
+            } else {
+                //保存数据
+                await Config.SetUserSearchVideos(e.user_id, 'keyword', keyword);
+                await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+                //不存在缓存，重新搜索
+                SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain)
+                //写入缓存
+                WriteCacheJson('SearchResults.json', SearchResults);
+            };
 
-            /** 搜剧结果 */
-            let SearchResults = await SearchVideo(SearchName, 1)
+
             IDs = SearchResults.list.map(item => item.vod_id);
-            console.log(`获取数组：${IDs}`)
+            console.log(`获取数组：${IDs}`);
 
             if (isNotNull(SearchResults.list)) {
-                //写到缓存
-                WriteCacheJson('SearchResults.json', SearchResults)
+
                 //发送图片
                 await puppeteer.render("souju/result", {
                     list: SearchResults.list,
@@ -95,12 +118,12 @@ export class souju extends plugin {
                     scale: 1.6
                 });
 
-                zzss = 0
-                return true
+                zzss = 0;
+                return true;
             } else {
-                zzss = 0
-                e.reply('未能搜索到  [' + SearchName || '最新视频' + ']，抱歉')
-                return false
+                zzss = 0;
+                e.reply('未能搜索到  [' + SearchName || '最新视频' + ']，抱歉');
+                return false;
             }
 
         }
@@ -113,7 +136,7 @@ export class souju extends plugin {
             let index = parseInt(e.msg.replace(/\D+/, '').trim());
 
             if (index <= Config.SearchVideos.resources.length && index > 0) {
-                Config.modify('souju', 'idx', index - 1)
+                await Config.SetUserSearchVideos(e.user_id, 'idx', index - 1);
                 Show_Interface(e);
             } else {
                 e.reply("接口编号错误！");
@@ -145,11 +168,16 @@ export class souju extends plugin {
     async SelectVideo(e) {
         console.log(`当前数组：${IDs}`)
         /** 搜剧结果 */
-        let SearchResults = ReadCacheJson('SearchResults.json')
-
-        if (!isNotNull(SearchResults.list)) {
-            e.reply('你还没有 [ #搜剧 ] 哦。')
-            return false
+        let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+        if (isNotNull(SearchResults)) {
+            SearchResults = JSON.parse(SearchResults)
+            if (!isNotNull(SearchResults.list)) {
+                e.reply(`搜剧数据错误，请重新#搜剧！`)
+                return false
+            }
+        } else {
+            e.reply(`你需要先#搜剧，才可以#选剧！`)
+            return false;
         }
 
         //选剧
@@ -167,7 +195,7 @@ export class souju extends plugin {
 
 
         //线路
-        CurrentrRoute = await Config.SearchVideos.Route
+        CurrentrRoute = await Config.GetUserSearchVideos(e.user_id, 'Route')
 
         let idx = SearchResults.list[CurrentID].vod_id
         let showpic = SearchResults.list[CurrentID].showpic
@@ -219,7 +247,8 @@ export class souju extends plugin {
 
     /** 看剧 */
     async WatchVideo(e) {
-        let Episode = await Config.SearchVideos.Episode || 1
+        /**  当前集 */
+        let Episode = await Config.GetUserSearchVideos(e.user_id, 'Episode') || 1
         let msg = e.msg
 
         if (msg.search(`上一集`) != -1) {
@@ -238,24 +267,30 @@ export class souju extends plugin {
         }
 
 
-        let PlayData = await ReadCacheJson('PlayData.json')
+        let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+        if (isNotNull(SearchResults)) {
+            SearchResults = JSON.parse(SearchResults)
+        } else {
+            e.reply(`搜索数据错误，请重新搜索！`)
+            return false;
+        }
 
         //集数效验，防止超出范围
         if (Episode < 1) {
             Episode = 1
-        } else if (Episode > PlayData.wangzhi.length) {
-            Episode = PlayData.wangzhi.length
+        } else if (Episode > SearchResults.wangzhi.length) {
+            Episode = SearchResults.wangzhi.length
         }
 
         console.log(`看剧：${Episode}`);
-        //保存参数
-        Config.modify('souju', 'Episode', Episode)
+        //保存当前集
+        await Config.SetUserSearchVideos(e.user_id, 'Episode', Episode)
 
-        console.log(`网址：${PlayData.wangzhi}`);
-        if (isNotNull(PlayData.wangzhi[Episode - 1])) {
-            let msg = '片名：' + PlayData.VodName + '\n'
-            msg += PlayData.mingzi[Episode - 1] + ' 观看地址：\n'
-            msg += await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1] + '\n\n'
+        console.log(`网址：${SearchResults.wangzhi}`);
+        if (isNotNull(SearchResults.wangzhi[Episode - 1])) {
+            let msg = '片名：' + SearchResults.VodName + '\n'
+            msg += SearchResults.mingzi[Episode - 1] + ' 观看地址：\n'
+            msg += await Config.SearchVideos.player + SearchResults.wangzhi[Episode - 1] + '\n\n'
             msg += '*** 请复制到浏览器中观看 ***'
             e.reply(msg)
             return true;//返回true 阻挡消息不再往下
@@ -268,42 +303,44 @@ export class souju extends plugin {
     /** 到指定页 */
     async GoPage(e) {
         let msg = e.msg
-        let SearchName = await Config.SearchVideos.keyword
-        let yema = await Config.SearchVideos.page || 1
+        const SearchName = await Config.GetUserSearchVideos(e.user_id, 'keyword') || ''
+        let page = await Config.GetUserSearchVideos(e.user_id, 'page') || 1
         if (msg.search(`上一页`) != -1) {
-            if (yema > 1) {
-                yema--;
+            if (page > 1) {
+                page--;
             } else {
-                yema = 1;
+                page = 1;
             }
 
         } else if (msg.search(`下一页`) != -1) {
-            yema++
+            page++
         } else {
             msg = e.msg.replace(/[#到第页\s]/g, '').trim();
             if (msg == '首') {
-                yema = 1
+                page = 1
             } else if (msg == '尾') {
-                yema = 999
+                page = 999
             } else {
-                yema = transformChar(msg)
+                page = transformChar(msg)
             }
         }
         //保存参数
-        Config.modify('souju', 'page', yema)
+        await Config.SetUserSearchVideos(e.user_id, 'page', page)
 
-        e.reply(`开始跳转到 [${SearchName || '最新视频'}] - 第${yema}页`);
+        e.reply(`开始跳转到 [${SearchName || '最新视频'}] - 第${page}页`);
 
 
         /** 搜剧结果 */
-        let SearchResults = await SearchVideo(SearchName, yema)
+        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
+        const domain = Config.SearchVideos.resources[idx].site.url
+        const SearchResults = await SearchVideo(SearchName, page, 0, 0, domain)
         IDs = SearchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`)
 
         if (isNotNull(SearchResults.list)) {
             //写到缓存
             WriteCacheJson('SearchResults.json', SearchResults)
-            let showpic = await Config.SearchVideos.resources[Config.SearchVideos.idx].site.showpic
+            const showpic = await Config.SearchVideos.resources[idx].site.showpic
             //发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
@@ -327,8 +364,7 @@ export class souju extends plugin {
     async ChangingRoute(e) {
         let index = parseInt(e.msg.replace(/\D+/, '').trim());
         e.reply("当前线路：" + index);
-        Config.modify('souju', 'Route', index - 1)
-
+        await Config.SetUserSearchVideos(e.user_id, 'Route', index - 1)
         return true
     }
 }
@@ -339,10 +375,11 @@ async function Show_Interface(e) {
     let msg = "***搜剧接口***\n\n";
     let title = ""
     let resources
+    const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
     for (var i = 0; i < Config.SearchVideos.resources.length; i++) {
         resources = Config.SearchVideos.resources[i].site
         title = resources.title
-        if (Config.SearchVideos.idx == i) {
+        if (idx == i) {
             title = `>> ${resources.title} <<`
         }
         msg += `${i + 1}、${title}\n`;
@@ -395,10 +432,6 @@ function isNotNull(obj) {
  * @returns {Array<string>} 返回搜索结果信息数组
  */
 async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
-    if (domain == '') {
-        domain = Config.SearchVideos.resources[Config.SearchVideos.idx].site.url
-    }
-
     let url = domain + '?ac=detail&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
     let res = await request.get(url)
         .then(res => res.json())
@@ -419,10 +452,6 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
  * @returns {Array<string>} 返回搜索结果信息数组
  */
 async function GetVideoDetails(ids = 0, page = 1, type = 0, hour = 0, domain = '') {
-    if (domain == '') {
-        domain = Config.SearchVideos.resources[Config.SearchVideos.idx].site.url
-    }
-
     let url = domain + '?ac=detail&ids=' + ids + "&t=" + type + "&h=" + hour + "&pg=" + page
     console.log(`开始请求：${url}`);
     let res = await request.get(url)
