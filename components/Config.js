@@ -180,7 +180,11 @@ class Config {
  * @param {String} key key值
  */
   async GetUserSearchVideos(QQ, key) {
-    return await redis.get("zhishui:qq:" + QQ + ":SearchVideos:" + key);
+    let path = `zhishui:SearchVideos:${QQ.toString()}:${key}`
+    let ret = await redis.get(path)
+    //console.log(`读取数据库：${path}`);
+    //console.log(`${ret}`);
+    return ret;
   }
 
   /**
@@ -190,7 +194,11 @@ class Config {
  * @param {String|Number} value value
  */
   async SetUserSearchVideos(QQ, key, value) {
-    return await redis.set("zhishui:qq" + QQ + ":SearchVideos:" + key, value);
+    let path = `zhishui:SearchVideos:${QQ.toString()}:${key}`
+    let ret = await redis.set(path, value)
+    //console.log(`写入数据库：${path}`);
+    //console.log(`${ret}`);
+    return ret;
   }
 
 }
