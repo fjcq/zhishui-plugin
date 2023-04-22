@@ -80,9 +80,17 @@ git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
   
 - 设置必应参数    
   *必应参数需自行提供，否则无法使用必应对话。*  
-  请在浏览器中打开必应对话，然后将Cookie发送给BOT，Cookie中必须包含`KievRPSSecAuth`和`_U`字段  
+  请在浏览器中打开必应对话，按F12打开`开发人员工具`，复制页面`Cookie`后发送给BOT，Cookie中必须包含`KievRPSSecAuth`和`_U`字段  
 
 - `#止水对话查看必应参数`  
-  可查看当前的必应参数   
+  可查看当前的必应参数 
+
+- `#止水对话设置对话身份`+身份描述文本  
+  例如：`#设置对话身份从现在开始你是一只喵娘`  
+  你也可以直接修改`/zhishui-plugin/resources/data/Context.txt`来进行身份设置。  
+  *对话身份仅对必应生效*  
+  
+- `#止水对话查看对话身份` 查看当前的对话身份设置  
+  *对话身份仅对必应生效*  
 
 </details>
