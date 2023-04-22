@@ -122,7 +122,8 @@ export class duihua extends plugin {
         if (!isNotNull(jieguo)) {
             jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
             console.log(`Bing结果：${jieguo}`);
-            jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/, name).trim();
+            //jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/g, name).trim();
+            jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
             jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
 
         }
@@ -554,8 +555,9 @@ async function AiBing(msg) {
         cache: cacheOptions,
     });
 
-    if (messageId == '' || jailbreakConversationId == '') {
+    if (!messageId || !jailbreakConversationId) {
         Bingres = await bingAIClient.sendMessage(msg, {
+            toneStyle: 'creative', // balanced, creative, precise, fast
             jailbreakConversationId: true,
             onProgress: (token) => {
                 process.stdout.write(token);
