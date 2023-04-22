@@ -7,6 +7,7 @@ import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
+import { KeyvFile } from 'keyv-file';
 
 /** 缓存目录 */
 const CachePath = `${Plugin_Path}/resources/Cache/Chat`
@@ -20,13 +21,15 @@ try {
 
 /** 聊天昵称 */ let NickName = await Config.Chat.NickName;
 /** 发音人列表 */ const VoiceList = await ReadVoiceList()
-/**消息缓存 Chang */ var ForChangeMsg = ""
+/** Chang消息缓存 */ var ForChangeMsg = ""
 
-let zs
+// 必应相关变量
+let jailbreakConversationId = ''
+let messageId = ''
+
 /** 工作状态 */ let works = 0;
-let cs = 0
 let ChatosID = ''
-
+let zs = 0
 //https://chatgptmirror.com/chat
 
 /** 提交数据 AiWwang */
@@ -35,6 +38,12 @@ const WwangDate = {
     "temperature": 0.6,
     "password": "",
     "model": "gpt-3.5-turbo"
+};
+
+/** 缓存选项 */
+const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` })
+const cacheOptions = {
+    store: keyv,
 };
 
 export class duihua extends plugin {
@@ -85,7 +94,12 @@ export class duihua extends plugin {
         Config.modify('duihua', 'MirrorBearer', "");
         Config.modify('duihua', 'MirrorConversationId', "");
         works = 0;
-        cs = 0
+
+        //重置必应
+        messageId = ''
+        jailbreakConversationId = ''
+        keyv.clear()
+
         e.reply('已经重置对话了！');
         return true;
     };
@@ -108,7 +122,7 @@ export class duihua extends plugin {
         if (!isNotNull(jieguo)) {
             jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
             console.log(`Bing结果：${jieguo}`);
-            jieguo = jieguo?.replace(/(Bing|微软必应|必应)/, name).trim();
+            jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/, name).trim();
             jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
 
         }
@@ -118,7 +132,7 @@ export class duihua extends plugin {
             jieguo = await Aichatos(msg);
             console.log(`AiMirror结果：${jieguo}`);
         }
-        
+
         //接口3
         if (!isNotNull(jieguo)) {
             jieguo = await AiMirror(msg);
@@ -520,11 +534,7 @@ async function Aichatos(msg) {
  */
 async function AiBing(msg) {
     let BingCookie = await Config.Chat.BingCookie;
-    let conversationId = ''
-    let clientId = ''
-    let conversationSignature = ''
-    let Bingres = ''
-    let text = ''
+    let Bingres = {}
     if (BingCookie == "") {
         return undefined;
     }
@@ -537,55 +547,36 @@ async function AiBing(msg) {
         proxy: '',
         debug: false,
     }
+
     /** 必应客户端 */
-    const bingAIClient = new BingAIClient(options);
+    const bingAIClient = new BingAIClient({
+        ...options,
+        cache: cacheOptions,
+    });
 
-
-    if (cs == 20) {
-        cs = 0
-    }
-
-    if (cs == 0) {
-        text = ""
+    if (messageId == '' || jailbreakConversationId == '') {
         Bingres = await bingAIClient.sendMessage(msg, {
+            jailbreakConversationId: true,
             onProgress: (token) => {
                 process.stdout.write(token);
-                text += token
             },
         });
-        cs += 1
-
-        console.log(Bingres.details.text);
-        await common.sleep(1000)
-        if (Bingres.details.text == undefined) {
-            return text
-        }
-        return Bingres.details.text
-    }
-
-
-    if (cs != 0 & cs < 20) {
+        jailbreakConversationId = Bingres.jailbreakConversationId;
+        messageId = Bingres.messageId;
+        //console.log(JSON.stringify(Bingres, null, 2));
+    } else {
         Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'balanced', //or creative, precise
-            conversationSignature: Bingres.conversationSignature,
-            conversationId: Bingres.conversationId,
-            clientId: Bingres.clientId,
-            invocationId: Bingres.invocationId,
+            jailbreakConversationId: jailbreakConversationId,
+            parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
-                text += token
             },
         });
-        console.log(Bingres.details.text);
-        await common.sleep(1000)
-        cs += 1
-        if (Bingres.details.text == undefined) {
-            return text
-        }
-        return Bingres.details.text
-
+        //console.log(JSON.stringify(Bingres, null, 2));
     }
 
+    await common.sleep(100);
+    return Bingres.details.text;
 }
 
 /** 解析必应参数 */
@@ -605,45 +596,9 @@ async function AnalysisBingCookie(Cookie = '') {
 
 /** 检查必应参数 */
 async function InspectBingCookie(KievRPSSecAuth, _U) {
-    let ret = {}
-    /*
-    let opt = {
-        headers: {
-            accept: 'application/json',
-            'accept-language': 'en-US,en;q=0.9',
-            'content-type': 'application/json',
-            'sec-ch-ua': '"Chromium";v="112", "Microsoft Edge";v="112", "Not:A-Brand";v="99"',
-            'sec-ch-ua-arch': '"x86"',
-            'sec-ch-ua-bitness': '"64"',
-            'sec-ch-ua-full-version': '"112.0.1722.7"',
-            'sec-ch-ua-full-version-list': '"Chromium";v="112.0.5615.20", "Microsoft Edge";v="112.0.1722.7", "Not:A-Brand";v="99.0.0.0"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-model': '""',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-ch-ua-platform-version': '"15.0.0"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
-            'x-ms-client-request-id': crypto.randomUUID(),
-            'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-            cookie: `KievRPSSecAuth=${BingCookie}`,
-            Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
-            'Referrer-Policy': 'origin-when-cross-origin',
-            // Workaround for request being blocked due to geolocation
-            'x-forwarded-for': '1.1.1.1',
-        },
-        statusCode: 'json'
-    };
-    ret = await request.get('https://www.bing.com/turing/conversation/create', opt)
-    console.log(JSON.stringify(ret, null, 2));
-    if (ret.clientId == undefined) {
-        return false
-    }
-    */
-
     let opt = { statusCode: 'json' }
     let url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
-    ret = await request.get(url, opt)
+    let ret = await request.get(url, opt)
     console.log('ret:' + JSON.stringify(ret));
     if (ret.clientId == undefined) {
         return false
@@ -713,22 +668,4 @@ async function ReadVoiceList() {
     return temp;
 }
 
-/**
- * 读取缓存JSON
- * @param {string} file - 文件名
- * @returns {JSON<object>} 返回JSON对象
- */
-function ReadCacheJson(file = '') {
-    let object = Data.readJSON(file, CachePath)
-    return object
-}
 
-/**
- * 写入缓存JSON
- * @param {string} file - 文件名
- * @param {object} [data={}] - 要写入的内容
- * @returns {boolean} 返回JSON对象
- */
-function WriteCacheJson(file = '', data = {}) {
-    return Data.writeJSON(file, data, CachePath)
-}
