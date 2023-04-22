@@ -55,9 +55,6 @@ export class duihua extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: NickName,
-                    fnc: 'duihua'
-                }, {
                     reg: '^#?(止水对话)?(取消|结束|重置|关闭)(对话|聊天)$', //匹配消息正则,命令正则
                     /** 执行方法 */
                     fnc: 'ResetChat'
@@ -82,7 +79,16 @@ export class duihua extends plugin {
                 }, {
                     reg: '^#?(止水对话)?查看发音人$',
                     fnc: 'ShowVoiceId'
-                }
+                }, {
+                    reg: '^#?(止水对话)?设置对话身份(.*)$',
+                    fnc: 'SetContext'
+                }, {
+                    reg: '^#?(止水对话)?查看对话身份$',
+                    fnc: 'ShowContext'
+                },{
+                    reg: NickName,
+                    fnc: 'duihua'
+                } 
             ]
         })
     }
@@ -299,6 +305,39 @@ export class duihua extends plugin {
         msg.push(list);
         await ForwardMsg(e, msg);
         return true;
+
+    }
+
+    /** 设置对话身份 */
+    async SetContext(e) {
+        if (e.isMaster) {
+            let Context = e.msg.replace(/#?(止水对话)?设置对话身份/g, '').trim();
+            if (Context = ''){
+                e.reply("你是不是忘记输入对话身份内容了？" );
+                return false;
+            }
+
+            if (await WriteContext(Context)){
+                e.reply("设置对话身份成功！" );
+                return true;
+            } else{
+                e.reply("设置对话身份失败！" );
+                return false;
+            }
+        }
+    }
+
+    /** 查看对话身份 */
+    async ShowContext(e) {
+        if (e.isMaster) {
+            let Context = await ReadContext();
+            if (Context.length > 0){
+                e.reply(Context);
+            } else{
+                e.reply("你还没 #设置对话身份" );
+            }
+
+        };
 
     }
 
@@ -555,9 +594,12 @@ async function AiBing(msg) {
         cache: cacheOptions,
     });
 
+    let Context = await ReadContext()
+
+    //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
-        Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'creative', // balanced, creative, precise, fast
+        Bingres = await bingAIClient.sendMessage(Context, {
+            toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
             onProgress: (token) => {
                 process.stdout.write(token);
@@ -566,16 +608,17 @@ async function AiBing(msg) {
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
         //console.log(JSON.stringify(Bingres, null, 2));
-    } else {
-        Bingres = await bingAIClient.sendMessage(msg, {
-            jailbreakConversationId: jailbreakConversationId,
-            parentMessageId: messageId,
-            onProgress: (token) => {
-                process.stdout.write(token);
-            },
-        });
-        //console.log(JSON.stringify(Bingres, null, 2));
-    }
+    } 
+
+    //开始正式对话
+    Bingres = await bingAIClient.sendMessage(msg, {
+        jailbreakConversationId: jailbreakConversationId,
+        parentMessageId: messageId,
+        onProgress: (token) => {
+            process.stdout.write(token);
+        },
+    });
+    //console.log(JSON.stringify(Bingres, null, 2));
 
     await common.sleep(100);
     return Bingres.details.text;
@@ -670,4 +713,36 @@ async function ReadVoiceList() {
     return temp;
 }
 
+/**
+ * 读身份设定
+ */
+async function ReadContext() {
+    let Context = '';
+    const DataFile = `${Plugin_Path}/resources/data/Context.txt`;
+
+    if (fs.existsSync(DataFile)) {
+        return fs.readFileSync(DataFile, 'utf8')
+    } else {
+        return ''
+    }
+
+}
+
+/**
+ * 写身份设定
+ */
+async function WriteContext(Context = '') {
+    if (Context.length >0){
+        const DataFile = `${Plugin_Path}/resources/data/Context.txt`;
+        try {
+          fs.writeFileSync(DataFile, Context)
+          return true
+        } catch (err) {
+          logger.error(err)
+          return false
+        }
+    } else {
+        return false
+    }
+}
 
