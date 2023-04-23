@@ -2,6 +2,13 @@ import Ver from './components/Version.js'
 import fs from "node:fs"
 import chalk from 'chalk'
 
+//检查依赖
+import {checkPackage} from './components/check.js'
+let passed = await checkPackage()
+if (!passed) {
+  throw 'Missing necessary dependencies'
+}
+
 const files = fs
     .readdirSync("./plugins/zhishui-plugin/apps")
     .filter((file) => file.endsWith(".js"));
@@ -9,6 +16,8 @@ const files = fs
 let ret = []
 
 logger.info(chalk.yellow(`正在加载 止水插件${Ver.ver}`))
+
+
 
 files.forEach((file) => {
     ret.push(import(`./apps/${file}`))

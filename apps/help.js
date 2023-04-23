@@ -13,7 +13,7 @@ const helpReg = new RegExp(
 export class ZhishuiHelp extends plugin {
   constructor () {
     super({
-      name: '止水帮助',
+      name: '[止水插件]帮助',
       event: 'message',
       priority: 2000,
       rule: [
