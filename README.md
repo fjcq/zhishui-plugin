@@ -15,6 +15,13 @@ zhishui-plugin是一个Yunzai-BotV3的扩展插件
 git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin  
 ```
 
+clon完成之后，安装依赖  
+
+```
+cd plugins/zhishui-plugin
+pnpm update
+```
+
 
 ## 功能介绍  
 

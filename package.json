@@ -1,20 +1,24 @@
 {
   "name": "zhishui-plugin",
-  "version": "1.2.1",
+  "version": "1.2.4",
   "author": "fjcq",
-  "description": "zhishui-plugin",
+  "description": "Yunzai-Bot插件扩展",
+  "main": "index.js",
   "type": "module",
   "scripts": {},
+  "repository": {
+    "type": "git",
+    "url": "https://gitee.com/fjcq/zhishui-plugin.git"
+  },
+  "keywords": [
+    "Yunzai-Bot",
+    "zhishui-plguin"
+  ],
   "dependencies": {
-    "@waylaidwanderer/chatgpt-api": "^1.35.0",
     "fetch-undici": "^3.0.1",
     "keyv": "^4.5.2",
     "keyv-file": "^0.2.0",
     "undici": "^5.22.0",
     "ws": "^8.13.0"
-  },
-  "imports": {
-    "#zhishui": "./components/index.js",
-    "#zhishui.models": "./models/index.js"
   }
 }

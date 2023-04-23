@@ -1,0 +1,122 @@
+body {
+  transform: scale(1);
+  width: 1100px;
+  background: url("../common/theme/bg-01.jpg");
+}
+
+.container {
+  background: url(./main.png) right center no-repeat;
+  background-size: cover;
+  padding: 20px 35px 10px 25px;
+  width: 1130px;
+}
+
+.head-box {
+  margin: 60px 0 0 0;
+  padding-bottom: 0;
+}
+
+.head-box .title {
+  font-size: 50px;
+}
+
+.cont-box {
+  /* border-radius: 15px; */
+  margin-top: 20px;
+  margin-bottom: 30px;
+  overflow: hidden;
+  position: relative;
+  font-size: 20px;
+  background: rgba(90, 82, 82, 0.15);
+  /* box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37); */
+  box-shadow: 20px 20px 20px -5px rgba(0, 0, 0, 0.15),
+    inset 5px 5px 5px rgba(255, 255, 255, 0.75),
+    -5px -5px 5px rgba(255, 255, 255, 0.55),
+    inset -1px -1px 5px rgba(0, 0, 0, 0.2);
+  /* 毛玻璃 */
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+
+  border-radius: 10px;
+  /* border: 1px solid rgba(255, 255, 255, 0.18); */
+  /* color: #8E54E9; */
+}
+
+.help-group {
+  font-size: 20px;
+  font-weight: bold;
+  padding: 15px 15px 10px 20px;
+  /* 渐变文字 */
+  display: inline-block;
+  background-image: linear-gradient(to top, #bfc7b2, #acc09a);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.help-table {
+  text-align: center;
+  border-collapse: collapse;
+  margin: 0;
+  border-radius: 0 0 10px 10px;
+  display: table;
+  overflow: hidden;
+  width: 100%;
+  color: #dbcbcb;
+}
+
+.help-table .tr {
+  display: table-row;
+}
+
+.help-table .td,
+.help-table .th {
+  font-size: 14px;
+  display: table-cell;
+  box-shadow: 0 0 1px 0 #ffffff inset;
+  padding: 12px 0 12px 50px;
+  line-height: 24px;
+  position: relative;
+  text-align: left;
+  width: 33%;
+}
+
+.help-table .tr:last-child .td {
+  padding-bottom: 12px;
+}
+
+.help-table .th {
+  background: rgba(230, 255, 1, 0.5);
+}
+
+.help-icon {
+  width: 40px;
+  height: 40px;
+  display: block;
+  position: absolute;
+  background: url("icon.png") 0 0 no-repeat;
+  background-size: 500px auto;
+  border-radius: 5px;
+  left: 6px;
+  top: 12px;
+  transform: scale(0.85);
+}
+
+.help-title {
+  display: inline-block;
+  /* color: #0059ff; */
+  font-size: 19px;
+  line-height: 24px;
+  background-image: linear-gradient(to top, #ffffff, #d2cadd);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.help-desc {
+  display: block;
+  font-size: 16px;
+  line-height: 18px;
+}
+
+/*# sourceMappingURL=index.css.map */
