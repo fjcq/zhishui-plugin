@@ -12,7 +12,7 @@ let SearchName = ""
 var IDs = []
 /** 当前播放线路 */
 var CurrentrRoute = 0
-/** 当前视频ID */
+/** 当前视频索引 */
 var CurrentID = 1
 var zzss = 0
 
@@ -64,8 +64,8 @@ export class souju extends plugin {
             return;
         }
 
-        const Route = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0;
-        const jiekou = await Config.SearchVideos.resources[Route].site;
+        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
+        const jiekou = await Config.SearchVideos.resources[idx].site;
 
         if (zzss == 0) {
             if (!isNotNull(jiekou)) {
@@ -80,7 +80,7 @@ export class souju extends plugin {
 
             const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
             const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
-            const domain = Config.SearchVideos.resources[Route].site.url
+            const domain = Config.SearchVideos.resources[idx].site.url
             let SearchResults;
             if ((page == 1) && (keyword == SearchName)) {
                 //判断缓存
@@ -173,10 +173,10 @@ export class souju extends plugin {
 
     /** 选剧 */
     async SelectVideo(e) {
-        console.log(`当前数组：${IDs}`)
+        //console.log(`当前数组：${IDs}`)
         /** 搜剧结果 */
         let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
-        console.log(SearchResults);
+        //console.log(SearchResults);
         if (isNotNull(SearchResults)) {
             SearchResults = JSON.parse(SearchResults)
             if (!isNotNull(SearchResults.list)) {
@@ -204,11 +204,12 @@ export class souju extends plugin {
 
         //线路
         let NowRoute = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0
-
-        const idx = SearchResults.list[CurrentID]?.vod_id || 0
-        const showpic = await Config.SearchVideos.resources[NowRoute]?.site.showpic || false
-        console.log(`选择的ID：${idx}，选择的线路：${NowRoute}`);
-        const Detail = SearchResults.list.find(item => item.vod_id == idx);
+        //接口
+        let idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
+        const id = SearchResults.list[CurrentID]?.vod_id || 0
+        const showpic = await Config.SearchVideos.resources[idx]?.site.showpic || false
+        console.log(`视频ID：${id}，搜索接口：${idx}`);
+        const Detail = SearchResults.list.find(item => item.vod_id == id);
 
         //分割出 线路组
         let Route = Detail.vod_play_from.split('$$$')
@@ -216,13 +217,13 @@ export class souju extends plugin {
         //分割出 资源线路组
         let jiedian = Detail.vod_play_url.split('$$$')
 
-        if (jiedian.length < (CurrentrRoute - 1)) {
-            CurrentrRoute = 0
+        if (jiedian.length < (NowRoute - 1)) {
+            NowRoute = 0
         }
 
         //有分集时
-        let jishu2 = jiedian[CurrentrRoute]?.split('#') || [jiedian[0]];
-        console.log(jishu2);
+        let jishu2 = jiedian[NowRoute]?.split('#') || [jiedian[0]];
+        //console.log(jishu2);
         let mingzi = []
         let wangzhi = []
         for (var i = 0; i < jishu2.length; i++) {
@@ -239,7 +240,7 @@ export class souju extends plugin {
             mingzi: mingzi,
             Route: Route,
             showpic: showpic,
-            CurrentrRoute: CurrentrRoute
+            CurrentrRoute: NowRoute
         }, {
             e,
             scale: 1.6
@@ -291,11 +292,11 @@ export class souju extends plugin {
             Episode = PlayData.wangzhi.length
         }
 
-        console.log(`看剧：${Episode}`);
+        //console.log(`看剧：${Episode}`);
         //保存当前集
         await Config.SetUserSearchVideos(e.user_id, 'Episode', Episode)
 
-        console.log(`网址：${PlayData.wangzhi}`);
+        //console.log(`网址：${PlayData.wangzhi}`);
         if (isNotNull(PlayData.wangzhi[Episode - 1])) {
             let msg = PlayData.VodName + '\n'
             msg += PlayData.mingzi[Episode - 1] + ' \n'
@@ -340,8 +341,8 @@ export class souju extends plugin {
 
 
         /** 搜剧结果 */
-        const Route = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0
-        const domain = Config.SearchVideos.resources[Route].site.url
+        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
+        const domain = Config.SearchVideos.resources[idx].site.url
         const SearchResults = await SearchVideo(SearchName, page, 0, 0, domain)
         IDs = SearchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`)
@@ -349,7 +350,7 @@ export class souju extends plugin {
         if (isNotNull(SearchResults.list)) {
             //写到缓存
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-            const showpic = await Config.SearchVideos.resources[Route].site.showpic
+            const showpic = await Config.SearchVideos.resources[idx].site.showpic
             //发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
@@ -373,27 +374,35 @@ export class souju extends plugin {
     /** 切换线路 */
     async ChangingRoute(e) {
         let Route = parseInt(e.msg.replace(/\D+/, '').trim());
-        e.reply("当前线路：" + Route);
+        if (!Route) {
+            Route = 1
+        }
+
+        //记录当前线路
         await Config.SetUserSearchVideos(e.user_id, 'Route', Route - 1)
-        return true
+
+        e.msg = '#选剧' + CurrentID.toString()
+        return await this.SelectVideo(e)
     }
 
     /** 我的搜剧 */
     async MySearchVideo(e) {
-        let keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword')
-        let page = await Config.GetUserSearchVideos(e.user_id, 'page')
-        let Episode = await Config.GetUserSearchVideos(e.user_id, 'Episode')
-        let Route = await Config.GetUserSearchVideos(e.user_id, 'Route')
+        let keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword');
+        let page = await Config.GetUserSearchVideos(e.user_id, 'page') || 1;
+        let Episode = await Config.GetUserSearchVideos(e.user_id, 'Episode');
+        let idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
         let PlayData = await Config.GetUserSearchVideos(e.user_id, 'PlayData');
+        let Route = await Config.GetUserSearchVideos(e.user_id, 'Route')
         PlayData = JSON.parse(PlayData)
         let msg = ''
         //资源接口站名
-        Route = await Config.SearchVideos.resources[Route]?.site.title || '错误'
+        let InterfaceName = await Config.SearchVideos.resources[idx]?.site.title || '错误'
 
         msg += '*** 搜索记录 ***\n'
-        msg += `接口：${Route}\n`
+        msg += `接口：${InterfaceName}\n`
         msg += `关键词：${keyword}\n`
-        msg += `搜索页：${page}\n\n`
+        msg += `搜索页：${page}\n`
+        msg += `线路：${Route}\n\n`
 
         //集数效验，防止超出范围
         if (Episode < 1) {
@@ -423,7 +432,7 @@ async function Show_Interface(e) {
     let msg = "***搜剧接口***\n\n";
     let title = ""
     let resources
-    const Route = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0
+    const Route = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
     for (var i = 0; i < Config.SearchVideos.resources.length; i++) {
         resources = Config.SearchVideos.resources[i].site
         title = resources.title
