@@ -1,5 +1,10 @@
 # zhishui-plugin  
 
+[![访问量](https://visitor-badge.glitch.me/badge?page_id=fjcq.zhishui-plugin&right_color=red&left_text=访%20问%20量)](https://gitee.com/fjcq/zhishui-plugin)
+[![Stars](https://img.shields.io/github/stars/fjcq/zhishui-plugin?color=yellow&label=收藏)](../../stargazers)
+
+[![访问量](https://profile-counter.glitch.me/fjcq-zhishui-plugin/count.svg)](https://gitee.com/fjcq/zhishui-plugin)
+
 ## 介绍  
 zhishui-plugin是一个Yunzai-BotV3的扩展插件  
 本插件开发纯属学习与爱好  
