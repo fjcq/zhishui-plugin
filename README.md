@@ -1,7 +1,7 @@
 # zhishui-plugin  
 
 [![访问量](https://visitor-badge.glitch.me/badge?page_id=fjcq.zhishui-plugin&right_color=red&left_text=访%20问%20量)](https://gitee.com/fjcq/zhishui-plugin)
-[![Stars](https://img.shields.io/github/stars/fjcq/zhishui-plugin?color=yellow&label=收藏)](../../stargazers)
+<a href='https://gitee.com/fjcq/zhishui-plugin/stargazers'><img src='https://gitee.com/fjcq/zhishui-plugin/badge/star.svg?theme=dark' alt='star'></img></a>
 
 [![访问量](https://profile-counter.glitch.me/fjcq-zhishui-plugin/count.svg)](https://gitee.com/fjcq/zhishui-plugin)
 
@@ -105,4 +105,26 @@ pnpm update
 - `#止水对话查看对话身份` 查看当前的对话身份设置  
   *对话身份仅对必应生效*  
 
-</details>
+</details>  
+
+## 常见问题  
+
+<details>
+  <summary>如何在 [对话] 中使用 [必应] 功能</summary>  
+
+- 首先，需要一个已经激活了聊天功能的 新必应(`NewBing`)帐号   
+  如何获取必应帐号，网上很多攻略，这里就不多介绍了。
+
+- 直接打开 [新必应](https://www.bing.com/search?form=MY02AE&OCID=MY02AE&pl=launch&q=Bing+AI&showconv=1) 网站  
+  无需梯子，直接用浏览器打开就可以。  
+
+- 获取必应参数(Cookie)  
+  在浏览器中按下`F12`键，打开`开发人员工具`  
+  点击`开发人员工具`上方的`网络`选项卡  
+  在下面的`名称`栏里，找到`lsp.aspx`文件  
+  复制`lsp.aspx`文件的`Cookie`值  
+
+- 将刚刚复制的`Cookie`发送给机器人  
+  这个`Cookie`至少要包含`KievRPSSecAuth`和`_U`字段  
+
+</details> 
