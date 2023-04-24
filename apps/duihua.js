@@ -598,9 +598,10 @@ async function AiBing(msg) {
 
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
-        Bingres = await bingAIClient.sendMessage(Context, {
+        Bingres = await bingAIClient.sendMessage(msg, {
             toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
+            systemMessage:Context,
             onProgress: (token) => {
                 process.stdout.write(token);
             },
@@ -608,16 +609,19 @@ async function AiBing(msg) {
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
         //console.log(JSON.stringify(Bingres, null, 2));
-    } 
-
+    } else{
     //开始正式对话
     Bingres = await bingAIClient.sendMessage(msg, {
         jailbreakConversationId: jailbreakConversationId,
+        systemMessage:Context,
         parentMessageId: messageId,
         onProgress: (token) => {
             process.stdout.write(token);
         },
     });
+    }
+
+
     //console.log(JSON.stringify(Bingres, null, 2));
 
     await common.sleep(100);
