@@ -594,6 +594,7 @@ async function AiBing(msg) {
         cache: cacheOptions,
     });
 
+    //载入身份预设
     let Context = await ReadContext()
 
     //首次对话 初始化参数和身份设定
@@ -620,10 +621,7 @@ async function AiBing(msg) {
         },
     });
     }
-
-
     //console.log(JSON.stringify(Bingres, null, 2));
-
     await common.sleep(100);
     return Bingres.details.text;
 }
