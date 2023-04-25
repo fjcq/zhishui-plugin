@@ -1,0 +1,4 @@
+# 演奏品质
+# Quality: true   #高品质 但是PC端可能无法听到
+# Quality: false  #低品质 PC端可直接点击播放
+Quality: true

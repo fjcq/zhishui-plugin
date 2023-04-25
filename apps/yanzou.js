@@ -1,8 +1,9 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
+import { Plugin_Path, Config } from '../components/index.js'
 
 const require = createRequire(import.meta.url)
-const { exec, spawn } = require("child_process");
+const { spawn } = require("child_process");
 const _path = process.cwd();
 const FFMPEG_PATH = "ffmpeg"
 let segment = ""
@@ -31,6 +32,9 @@ export class yanzou extends plugin {
                 }, {
                     reg: "^#取消演奏$",
                     fnc: 'PlayeStop'
+                }, {
+                    reg: "^#高品质演奏(开启|关闭)$",
+                    fnc: 'PlayeQuality'
                 }, {
                     reg: "^#调试演奏(.*)$",
                     fnc: 'TestPlaye'
@@ -102,7 +106,13 @@ export class yanzou extends plugin {
         ffmpeg.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
-                e.reply([segment.record(`${OutputFile}${Format}`)]);
+                let fileName = `${OutputFile}${Format}`
+                if (await Config.YanZou.Quality || false) {
+                    let played = await uploadRecord(fileName, 0, false)
+                    e.reply(played)
+                } else {
+                    e.reply([segment.record(fileName)]);
+                }
                 kg = 0
                 return true;
             } else {
@@ -157,7 +167,7 @@ export class yanzou extends plugin {
 
     }
 
-    //取消演奏
+    /** 取消演奏 */
     async PlayeStop(e) {
         if (kg == 1) {
             e.reply('已经取消演奏！')
@@ -166,6 +176,24 @@ export class yanzou extends plugin {
         }
     }
 
+    /** 高品质演奏 */
+    async PlayeQuality(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        let Enable = e.msg.search('开启') != -1;
+
+        Config.modify('yanzou', 'Quality', Enable);
+
+        if (Enable) {
+            e.reply("[高品质演奏] 已开启！");
+        } else {
+            e.reply("[高品质演奏] 已关闭！");
+        }
+
+        return true;
+    }
     //演奏测试
     async TestPlaye(e) {
         let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
@@ -198,7 +226,7 @@ function sleep(ms) {
 * 获取Ffmpeg的执行代码，返回参数数组
 * @param msg 土块编码消息
 */
- async function GetFFmpegCommand(msg) {
+async function GetFFmpegCommand(msg) {
     let Music = ""
     let Beats = 0;
     let File = ""; //文件名
@@ -336,7 +364,7 @@ function sleep(ms) {
 /**
  * 演奏帮助
  */
- function GetPlayHelp() {
+function GetPlayHelp() {
 
     let msg = ""
     msg += "演奏指令分为3部分，1、乐器；2、简谱；3、节拍。\n\n"
@@ -364,7 +392,7 @@ function sleep(ms) {
  * @param obj 对象
  * @returns obj==null/undefined,return false,other return true
  */
- function isNotNull(obj) {
+function isNotNull(obj) {
     if (obj == undefined || obj == null || obj != obj) { return false }
     return true
 }
