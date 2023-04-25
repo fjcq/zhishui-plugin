@@ -87,6 +87,12 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看(全局|群)?对话身份$',
                     fnc: 'ShowContext'
                 }, {
+                    reg: '^#?(止水对话)?设置(全局|群)?对话场景(.*)$',
+                    fnc: 'SetScene'
+                }, {
+                    reg: '^#?(止水对话)?查看(全局|群)?对话场景$',
+                    fnc: 'ShowScene'
+                }, {
                     reg: `^#?${NickName}`,
                     fnc: 'duihua'
                 }
@@ -125,7 +131,10 @@ export class duihua extends plugin {
 
             //启用必应时，优先必应
             if (!isNotNull(jieguo)) {
-                jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+
+                let BingMsg = `${e.nickname}（${e.user_id}）：${msg}：`
+                //console.log(`Bing角色：${BingMsg}`);
+                jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
                 console.log(`Bing结果：${jieguo}`);
                 //jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/g, name).trim();
                 jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
@@ -351,6 +360,41 @@ export class duihua extends plugin {
         };
 
     }
+
+        /** 设置对话场景 */
+        async SetScene(e) {
+            if (e.isMaster) {
+                let Scene = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话场景/, '').trim();
+    
+    
+                if (Scene == '') {
+                    e.reply("你是不是忘记输入对话场景内容了？");
+                    return false;
+                }
+    
+                if (await WriteScene(Scene)) {
+                    e.reply("设置对话场景成功！");
+                    return true;
+                } else {
+                    e.reply("设置对话场景失败！");
+                    return false;
+                }
+            }
+        }
+    
+        /** 查看对话场景 */
+        async ShowScene(e) {
+            if (e.isMaster) {
+                let Scene = await ReadScene();
+                if (Scene.length > 0) {
+                    e.reply(Scene);
+                } else {
+                    e.reply("你还没 #设置对话场景");
+                }
+    
+            };
+    
+        }
 
 }
 
@@ -606,7 +650,7 @@ async function AiBing(msg) {
     });
 
     //载入身份预设
-    let Context = await ReadContext()
+    let Context = await ReadContext() + await ReadScene()
 
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
@@ -614,6 +658,9 @@ async function AiBing(msg) {
             toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
             systemMessage: Context,
+            onProgress: (token) => {
+                process.stdout.write(token);
+            },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
@@ -625,6 +672,9 @@ async function AiBing(msg) {
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
             parentMessageId: messageId,
+            onProgress: (token) => {
+                process.stdout.write(token);
+            },
         });
     }
 
@@ -731,19 +781,19 @@ async function ReadContext() {
     const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
     const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
-    if (fs.existsSync(userFile)){
+    if (fs.existsSync(userFile)) {
         context = fs.readFileSync(userFile, 'utf8');
-        if (!context){
+        if (!context) {
             context = fs.readFileSync(defFile, 'utf8');
         }
-    }else {
+    } else {
         context = fs.readFileSync(defFile, 'utf8');
     }
 
-    if (!context){
+    if (!context) {
         context = '';
     }
-    
+
     return context;
 
 }
@@ -753,6 +803,48 @@ async function ReadContext() {
  */
 async function WriteContext(Context) {
     const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.txt');
+    console.log("设置身份：" + Context)
+    try {
+        fs.writeFileSync(DataFile, Context)
+        return true
+    } catch (error) {
+        logger.error(error)
+        return false
+    }
+
+}
+
+/**
+ * 读场景设定
+ */
+async function ReadScene() {
+    let context = '';
+    const fileName = 'Scene.txt'
+    const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
+    const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
+
+    if (fs.existsSync(userFile)) {
+        context = fs.readFileSync(userFile, 'utf8');
+        if (!context) {
+            context = fs.readFileSync(defFile, 'utf8');
+        }
+    } else {
+        context = fs.readFileSync(defFile, 'utf8');
+    }
+
+    if (!context) {
+        context = '';
+    }
+
+    return context;
+
+}
+
+/**
+ * 写场景设定
+ */
+async function WriteScene(Context) {
+    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
     console.log("设置身份：" + Context)
     try {
         fs.writeFileSync(DataFile, Context)
