@@ -85,10 +85,10 @@ export class duihua extends plugin {
                 }, {
                     reg: '^#?(止水对话)?查看对话身份$',
                     fnc: 'ShowContext'
-                },{
+                }, {
                     reg: NickName,
                     fnc: 'duihua'
-                } 
+                }
             ]
         })
     }
@@ -272,9 +272,16 @@ export class duihua extends plugin {
         let VoiceIndex = parseInt(e.msg.replace(/\D+/, '').trim());
         console.log(VoiceIndex)
         if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
-            Config.modify('duihua', 'VoiceIndex', VoiceIndex - 1);
-            let name = VoiceList[VoiceIndex - 1].name
+            VoiceIndex = VoiceIndex - 1
+            Config.modify('duihua', 'VoiceIndex', VoiceIndex);
+            let name = VoiceList[VoiceIndex].name
             e.reply("[对话发音人]:" + name);
+
+            let voiceId = VoiceList[VoiceIndex].voiceId
+            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`
+            e.reply([segment.record(url)])
+
+
 
         } else {
             e.reply("[对话发音人]错误！");
@@ -312,16 +319,16 @@ export class duihua extends plugin {
     async SetContext(e) {
         if (e.isMaster) {
             let Context = e.msg.replace(/#?(止水对话)?设置对话身份/g, '').trim();
-            if (Context = ''){
-                e.reply("你是不是忘记输入对话身份内容了？" );
+            if (Context = '') {
+                e.reply("你是不是忘记输入对话身份内容了？");
                 return false;
             }
 
-            if (await WriteContext(Context)){
-                e.reply("设置对话身份成功！" );
+            if (await WriteContext(Context)) {
+                e.reply("设置对话身份成功！");
                 return true;
-            } else{
-                e.reply("设置对话身份失败！" );
+            } else {
+                e.reply("设置对话身份失败！");
                 return false;
             }
         }
@@ -331,10 +338,10 @@ export class duihua extends plugin {
     async ShowContext(e) {
         if (e.isMaster) {
             let Context = await ReadContext();
-            if (Context.length > 0){
+            if (Context.length > 0) {
                 e.reply(Context);
-            } else{
-                e.reply("你还没 #设置对话身份" );
+            } else {
+                e.reply("你还没 #设置对话身份");
             }
 
         };
@@ -602,7 +609,7 @@ async function AiBing(msg) {
         Bingres = await bingAIClient.sendMessage(msg, {
             toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
-            systemMessage:Context,
+            systemMessage: Context,
             onProgress: (token) => {
                 process.stdout.write(token);
             },
@@ -610,16 +617,16 @@ async function AiBing(msg) {
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
         //console.log(JSON.stringify(Bingres, null, 2));
-    } else{
-    //开始正式对话
-    Bingres = await bingAIClient.sendMessage(msg, {
-        jailbreakConversationId: jailbreakConversationId,
-        systemMessage:Context,
-        parentMessageId: messageId,
-        onProgress: (token) => {
-            process.stdout.write(token);
-        },
-    });
+    } else {
+        //开始正式对话
+        Bingres = await bingAIClient.sendMessage(msg, {
+            jailbreakConversationId: jailbreakConversationId,
+            systemMessage: Context,
+            parentMessageId: messageId,
+            onProgress: (token) => {
+                process.stdout.write(token);
+            },
+        });
     }
     //console.log(JSON.stringify(Bingres, null, 2));
     await common.sleep(100);
@@ -734,14 +741,14 @@ async function ReadContext() {
  * 写身份设定
  */
 async function WriteContext(Context = '') {
-    if (Context.length >0){
+    if (Context.length > 0) {
         const DataFile = `${Plugin_Path}/resources/data/Context.txt`;
         try {
-          fs.writeFileSync(DataFile, Context)
-          return true
+            fs.writeFileSync(DataFile, Context)
+            return true
         } catch (err) {
-          logger.error(err)
-          return false
+            logger.error(err)
+            return false
         }
     } else {
         return false
