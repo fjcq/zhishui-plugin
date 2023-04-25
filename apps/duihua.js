@@ -113,11 +113,6 @@ export class duihua extends plugin {
 
     /** 对话 */
     async duihua(e) {
-        if (works != 0) {
-            e.reply('你先别急，我有点忙不过来辣！', true);
-            return false;
-        };
-
         let msg = ''
         const regex = new RegExp(`^#?${NickName}`);
         if (regex.test(e.msg)) {
@@ -619,9 +614,6 @@ async function AiBing(msg) {
             toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
             systemMessage: Context,
-            onProgress: (token) => {
-                process.stdout.write(token);
-            },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
@@ -633,12 +625,11 @@ async function AiBing(msg) {
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
             parentMessageId: messageId,
-            onProgress: (token) => {
-                process.stdout.write(token);
-            },
         });
     }
-    //console.log(JSON.stringify(Bingres, null, 2));
+
+    Data.sleep(1000)
+    console.log(JSON.stringify(Bingres, null, 2));
     return Bingres.details.text;
 }
 
@@ -740,20 +731,21 @@ async function ReadContext() {
     const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
     const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
-    try {
-        if (fs.existsSync(userFile)) {
-            context = fs.readFileSync(userFile, 'utf8');
-            if (!context) {
-                throw new Error('UserFile content is empty.');
-            }
-        } else {
+    if (fs.existsSync(userFile)){
+        context = fs.readFileSync(userFile, 'utf8');
+        if (!context){
             context = fs.readFileSync(defFile, 'utf8');
         }
-    } catch (error) {
-        console.error(error);
+    }else {
+        context = fs.readFileSync(defFile, 'utf8');
     }
 
+    if (!context){
+        context = '';
+    }
+    
     return context;
+
 }
 
 /**
