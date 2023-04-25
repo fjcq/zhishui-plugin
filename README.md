@@ -116,7 +116,7 @@ pnpm update
   如何获取必应帐号，网上很多攻略，这里就不多介绍了。
 
 - 直接打开 [新必应](https://www.bing.com/search?form=MY02AE&OCID=MY02AE&pl=launch&q=Bing+AI&showconv=1) 网站  
-  无需梯子，直接用浏览器打开就可以。  
+  不用科学，直接用浏览器打开就可以。  
 
 - 获取必应参数(Cookie)  
   在浏览器中按下`F12`键，打开`开发人员工具`  
@@ -124,7 +124,7 @@ pnpm update
   在下面的`名称`栏里，找到`lsp.aspx`文件  
   复制`lsp.aspx`文件的`Cookie`值  
 
-- 将刚刚复制的`Cookie`发送给机器人  
+- 将刚刚复制的`Cookie`发送给BOT  
   这个`Cookie`至少要包含`KievRPSSecAuth`和`_U`字段  
 
 </details> 
