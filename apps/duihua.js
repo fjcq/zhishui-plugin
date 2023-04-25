@@ -80,13 +80,13 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看发音人$',
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^#?(止水对话)?设置对话身份(.*)$',
+                    reg: '^#?(止水对话)?设置(全局|群)?对话身份(.*)$',
                     fnc: 'SetContext'
                 }, {
-                    reg: '^#?(止水对话)?查看对话身份$',
+                    reg: '^#?(止水对话)?查看(全局|群)?对话身份$',
                     fnc: 'ShowContext'
                 }, {
-                    reg: NickName,
+                    reg: `^#?${NickName}`,
                     fnc: 'duihua'
                 }
             ]
@@ -112,70 +112,76 @@ export class duihua extends plugin {
 
     /** 对话 */
     async duihua(e) {
-        if (works > 1) {
+        if (works != 0) {
             e.reply('你先别急，我有点忙不过来辣！', true);
             return false;
         };
 
-        works = 1
-        let jieguo;
-        let name = await Config.Chat.NickName
-        let msg = e.msg.replace(name, '').trim();
-        msg = msg.replace(/^[#\s]+/, '');
-        console.log("提问：" + msg);
+        let msg = ''
+        const regex = new RegExp(`^#?${NickName}`);
+        if (regex.test(e.msg)) {
+            works = 1
+            let jieguo;
+            const name = await Config.Chat.NickName
 
-        //启用必应时，优先必应
-        if (!isNotNull(jieguo)) {
-            jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
-            console.log(`Bing结果：${jieguo}`);
-            //jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/g, name).trim();
-            jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
-            jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
+            msg = e.msg.replace(regex, '').trim();
+            console.log("提问：" + msg);
 
-        }
+            //启用必应时，优先必应
+            if (!isNotNull(jieguo)) {
+                jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(msg) : undefined;
+                console.log(`Bing结果：${jieguo}`);
+                //jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/g, name).trim();
+                jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
+                jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
 
-        //接口4
-        if (!isNotNull(jieguo)) {
-            jieguo = await Aichatos(msg);
-            console.log(`AiMirror结果：${jieguo}`);
-        }
+            }
 
-        //接口3
-        if (!isNotNull(jieguo)) {
-            jieguo = await AiMirror(msg);
-            console.log(`AiMirror结果：${jieguo}`);
-        }
+            //接口4
+            if (!isNotNull(jieguo)) {
+                jieguo = await Aichatos(msg);
+                console.log(`AiMirror结果：${jieguo}`);
+            }
 
-        //接口1
-        if (!isNotNull(jieguo)) {
-            jieguo = await AiForChange(msg);
-            console.log(`ForChange结果：${jieguo}`);
-        }
+            //接口3
+            if (!isNotNull(jieguo)) {
+                jieguo = await AiMirror(msg);
+                console.log(`AiMirror结果：${jieguo}`);
+            }
 
-        //接口2
-        if (!isNotNull(jieguo)) {
-            jieguo = await AiWwang(msg);
-            console.log(`AiWwang结果：${jieguo}`);
-        }
+            //接口1
+            if (!isNotNull(jieguo)) {
+                jieguo = await AiForChange(msg);
+                console.log(`ForChange结果：${jieguo}`);
+            }
 
-        if (!isNotNull(jieguo)) {
-            this.ResetChat(e);
+            //接口2
+            if (!isNotNull(jieguo)) {
+                jieguo = await AiWwang(msg);
+                console.log(`AiWwang结果：${jieguo}`);
+            }
+
+            if (!isNotNull(jieguo)) {
+                this.ResetChat(e);
+                works = 0;
+                return true;
+            }
+
+            e.reply(jieguo, true)
+
+            //语音合成
+            if (await Config.Chat.EnableVoice) {
+                let voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId
+                let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
+                e.reply([segment.record(url)])
+            }
+
+
             works = 0;
             return true;
         }
 
-        e.reply(jieguo, true)
 
-        //语音合成
-        if (await Config.Chat.EnableVoice) {
-            let voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId
-            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
-            e.reply([segment.record(url)])
-        }
-
-
-        works = 0;
-        return true;
     }
 
     /** 设置必应参数 */
@@ -318,7 +324,7 @@ export class duihua extends plugin {
     /** 设置对话身份 */
     async SetContext(e) {
         if (e.isMaster) {
-            let Context = e.msg.replace(/#?(止水对话)?设置对话身份/g, '').trim();
+            let Context = e.msg.replace(/#?(止水对话)?设置(全局|群)?对话身份/g, '').trim();
             if (Context = '') {
                 e.reply("你是不是忘记输入对话身份内容了？");
                 return false;
