@@ -626,6 +626,7 @@ async function AiBing(msg) {
     } else {
         //开始正式对话
         Bingres = await bingAIClient.sendMessage(msg, {
+            toneStyle: 'creative', 
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
             parentMessageId: messageId,
@@ -635,7 +636,6 @@ async function AiBing(msg) {
         });
     }
     //console.log(JSON.stringify(Bingres, null, 2));
-    await common.sleep(100);
     return Bingres.details.text;
 }
 
