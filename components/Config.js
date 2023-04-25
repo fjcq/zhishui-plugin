@@ -66,6 +66,12 @@ class Config {
     return this.getDefOrConfig('duihua')
   }
 
+    /** 获取演奏设置 */
+    get YanZou() {
+      return this.getDefOrConfig('yanzou')
+    }
+
+    
   /** 代理 */
   get proxy() {
     return this.getDefOrConfig('proxy')

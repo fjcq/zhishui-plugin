@@ -8,9 +8,10 @@ import BingAIClient from '../model/BingAIClient.js'
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 import { KeyvFile } from 'keyv-file';
+import path from 'path'
 
 /** 缓存目录 */
-const CachePath = `${Plugin_Path}/resources/Cache/Chat`
+const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat')
 let segment = ""
 try {
     segment = (await import("oicq")).segment
@@ -324,8 +325,10 @@ export class duihua extends plugin {
     /** 设置对话身份 */
     async SetContext(e) {
         if (e.isMaster) {
-            let Context = e.msg.replace(/#?(止水对话)?设置(全局|群)?对话身份/g, '').trim();
-            if (Context = '') {
+            let Context = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话身份/, '').trim();
+
+
+            if (Context == '') {
                 e.reply("你是不是忘记输入对话身份内容了？");
                 return false;
             }
@@ -626,7 +629,7 @@ async function AiBing(msg) {
     } else {
         //开始正式对话
         Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'creative', 
+            toneStyle: 'creative',
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
             parentMessageId: messageId,
@@ -719,10 +722,10 @@ async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json')
  */
 async function ReadVoiceList() {
     let temp = {};
-    const DataPath = "./plugins/zhishui-plugin/resources/data/";
-
-    if (fs.existsSync(DataPath + "VoiceList.json")) {
-        temp = Data.readJSON("VoiceList.json", DataPath);
+    const DataPath = path.join(Plugin_Path, 'resources', 'data');
+    const fileName = 'VoiceList.json'
+    if (fs.existsSync(path.join(DataPath, fileName))) {
+        temp = Data.readJSON(fileName, DataPath);
     }
 
     return temp;
@@ -732,32 +735,39 @@ async function ReadVoiceList() {
  * 读身份设定
  */
 async function ReadContext() {
-    let Context = '';
-    const DataFile = `${Plugin_Path}/resources/data/Context.txt`;
+    let context = '';
+    const fileName = 'Context.txt'
+    const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
+    const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
-    if (fs.existsSync(DataFile)) {
-        return fs.readFileSync(DataFile, 'utf8')
-    } else {
-        return ''
+    try {
+        if (fs.existsSync(userFile)) {
+            context = fs.readFileSync(userFile, 'utf8');
+            if (!context) {
+                throw new Error('UserFile content is empty.');
+            }
+        } else {
+            context = fs.readFileSync(defFile, 'utf8');
+        }
+    } catch (error) {
+        console.error(error);
     }
 
+    return context;
 }
 
 /**
  * 写身份设定
  */
-async function WriteContext(Context = '') {
-    if (Context.length > 0) {
-        const DataFile = `${Plugin_Path}/resources/data/Context.txt`;
-        try {
-            fs.writeFileSync(DataFile, Context)
-            return true
-        } catch (err) {
-            logger.error(err)
-            return false
-        }
-    } else {
+async function WriteContext(Context) {
+    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.txt');
+    console.log("设置身份：" + Context)
+    try {
+        fs.writeFileSync(DataFile, Context)
+        return true
+    } catch (error) {
+        logger.error(error)
         return false
     }
-}
 
+}
