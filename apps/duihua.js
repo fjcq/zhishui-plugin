@@ -132,14 +132,22 @@ export class duihua extends plugin {
             //启用必应时，优先必应
             if (!isNotNull(jieguo)) {
 
-                let BingMsg = `${e.nickname}（${e.user_id}）：${msg}：`
-                //console.log(`Bing角色：${BingMsg}`);
+                let Favora = await GetFavora(e.user_id)
+                let BingMsg = `${e.user_id}：${msg}｛${Favora}｝`
+
                 jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
                 console.log(`Bing结果：${jieguo}`);
-                //jieguo = jieguo?.replace(/(Bing|微软必应|必应|Sydney)/g, name).trim();
-                jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
-                jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
-
+                
+                if (jieguo){
+                    jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
+                    jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
+    
+                    //取出好感结果
+    
+                    const pattern = /｛(-?\d*)｝.*$/;
+                    const ResFavora = pattern.exec(jieguo) | Favora;
+                    await SetFavora(e.user_id,ResFavora)
+                }
             }
 
             //接口4
@@ -361,40 +369,34 @@ export class duihua extends plugin {
 
     }
 
-        /** 设置对话场景 */
-        async SetScene(e) {
-            if (e.isMaster) {
-                let Scene = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话场景/, '').trim();
-    
-    
-                if (Scene == '') {
-                    e.reply("你是不是忘记输入对话场景内容了？");
-                    return false;
-                }
-    
-                if (await WriteScene(Scene)) {
-                    e.reply("设置对话场景成功！");
-                    return true;
-                } else {
-                    e.reply("设置对话场景失败！");
-                    return false;
-                }
+    /** 设置对话场景 */
+    async SetScene(e) {
+        if (e.isMaster) {
+            let Scene = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话场景/, '').trim();
+
+            if (await WriteScene(Scene)) {
+                e.reply("设置对话场景成功！");
+                return true;
+            } else {
+                e.reply("设置对话场景失败！");
+                return false;
             }
         }
-    
-        /** 查看对话场景 */
-        async ShowScene(e) {
-            if (e.isMaster) {
-                let Scene = await ReadScene();
-                if (Scene.length > 0) {
-                    e.reply(Scene);
-                } else {
-                    e.reply("你还没 #设置对话场景");
-                }
-    
-            };
-    
-        }
+    }
+
+    /** 查看对话场景 */
+    async ShowScene(e) {
+        if (e.isMaster) {
+            let Scene = await ReadScene();
+            if (Scene.length > 0) {
+                e.reply(Scene);
+            } else {
+                e.reply("你还没 #设置对话场景");
+            }
+
+        };
+
+    }
 
 }
 
@@ -755,7 +757,7 @@ async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json')
     //console.log('请求：' + Url, '参数' + JSON.stringify(data))
     let Response = await request.post(Url, Options)
     //console.log('返回：' + JSON.stringify(Response));
-    return await Response;
+    return Response;
 };
 
 /**
@@ -854,4 +856,29 @@ async function WriteScene(Context) {
         return false
     }
 
+}
+
+/**
+ * 获取好感度
+ */
+async function GetFavora(qq) {
+    let user = {};
+    const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
+    const fileName = `${qq}.json`
+    if (fs.existsSync(path.join(DataPath, fileName))) {
+        user = await Data.readJSON(fileName, DataPath);
+    }
+
+    return user.Favora | 0;
+}
+
+/**
+ * 设置好感度
+ */
+async function SetFavora(qq, favora = 0) {
+    let user = { Favora: favora };
+    const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
+    const fileName = `${qq}.json`
+
+    return Data.writeJSON(fileName, user, DataPath);
 }
