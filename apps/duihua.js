@@ -137,16 +137,16 @@ export class duihua extends plugin {
 
                 jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
                 console.log(`Bing结果：${jieguo}`);
-                
-                if (jieguo){
+
+                if (jieguo) {
                     jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
                     jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
-    
+
                     //取出好感结果
-    
+
                     const pattern = /｛(-?\d*)｝.*$/;
                     const ResFavora = pattern.exec(jieguo) | Favora;
-                    await SetFavora(e.user_id,ResFavora)
+                    await SetFavora(e.user_id, ResFavora)
                 }
             }
 
@@ -691,11 +691,11 @@ async function AnalysisBingCookie(Cookie = '') {
     let match
     regexp = /\bKievRPSSecAuth=(\S+)\b/g;
     match = regexp.exec(Cookie);
-    let KievRPSSecAuth = match[1]
+    let KievRPSSecAuth = match[1] | ''
 
     regexp = /\b_U=(\S+)\b/g;
     match = regexp.exec(Cookie);
-    let _U = match[1]
+    let _U = match[1] | ''
     return { KievRPSSecAuth, _U }
 }
 
