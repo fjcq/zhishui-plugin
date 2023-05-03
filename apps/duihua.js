@@ -687,15 +687,16 @@ async function AiBing(msg) {
 
 /** 解析必应参数 */
 async function AnalysisBingCookie(Cookie = '') {
-    let regexp
-    let match
-    regexp = /\bKievRPSSecAuth=(\S+)\b/g;
-    match = regexp.exec(Cookie);
-    let KievRPSSecAuth = match[1] | ''
+    let KievRPSSecAuth = ''
+    let _U = ''
+    if (Cookie.includes("KievRPSSecAuth=")) {
+        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1]
+    }
 
-    regexp = /\b_U=(\S+)\b/g;
-    match = regexp.exec(Cookie);
-    let _U = match[1] | ''
+    if (Cookie.includes("_U=")) {
+        _U = Cookie.match(/\b_U=(\S+)\b/)[1]
+    }
+
     return { KievRPSSecAuth, _U }
 }
 
