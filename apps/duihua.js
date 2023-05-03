@@ -93,6 +93,9 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看(全局|群)?对话场景$',
                     fnc: 'ShowScene'
                 }, {
+                    reg: '^#设置好感度(.*)$',
+                    fnc: 'SetUserFavora'
+                }, {
                     reg: `^#?${NickName}`,
                     fnc: 'duihua'
                 }
@@ -143,10 +146,14 @@ export class duihua extends plugin {
                     jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
 
                     //取出好感结果
+                    const pattern = /｛(-?\d*)｝$/;
+                    let ResFavora = pattern.exec(jieguo);
+                    ResFavora = ResFavora ? Number(ResFavora[1]) : Favora;
 
-                    const pattern = /｛(-?\d*)｝.*$/;
-                    const ResFavora = pattern.exec(jieguo) | Favora;
                     await SetFavora(e.user_id, ResFavora)
+
+                    //不显示尾部的好感度
+                    jieguo = jieguo?.replace(/｛(-?\d*)｝$/, '');
                 }
             }
 
@@ -397,6 +404,24 @@ export class duihua extends plugin {
         };
 
     }
+
+    /** 设置用户好感度 */
+    async SetUserFavora(e) {
+        if (e.isMaster) {
+            let regex = /-?\d+/g;
+            let result = text.match(regex);
+            if (result.length != 2) {
+                e.reply("设置好感度格式错误！正确的格式应该是“#设置好感度+QQ号码 好感度数值”\n例如：#设置好感度1234567 50");
+                return false;
+            }
+
+            const favora = SetFavora(result[0], result[1]);
+            e.reply(`设置好感度${favora ? "成功" : "失败"}！`);
+            return true;
+        };
+
+    }
+
 
 }
 
@@ -653,6 +678,7 @@ async function AiBing(msg) {
 
     //载入身份预设
     let Context = await ReadContext() + await ReadScene()
+    let ResText = ''
 
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
@@ -662,6 +688,7 @@ async function AiBing(msg) {
             systemMessage: Context,
             onProgress: (token) => {
                 process.stdout.write(token);
+                ResText += token
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
@@ -676,13 +703,21 @@ async function AiBing(msg) {
             parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
+                ResText += token
             },
         });
+        jailbreakConversationId = Bingres.jailbreakConversationId;
+        messageId = Bingres.messageId;
     }
 
     Data.sleep(1000)
     console.log(JSON.stringify(Bingres, null, 2));
-    return Bingres.details.text;
+
+    if (Bingres.details.text && Bingres.details.text != 'N/A') {
+        ResText = Bingres.details.text;
+    }
+
+    return ResText
 }
 
 /** 解析必应参数 */
