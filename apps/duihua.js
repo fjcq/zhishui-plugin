@@ -12,13 +12,6 @@ import path from 'path'
 
 /** 缓存目录 */
 const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat')
-let segment = ""
-try {
-    segment = (await import("oicq")).segment
-} catch (err) {
-    segment = (await import("icqq")).segment
-}
-
 
 /** 聊天昵称 */ let NickName = await Config.Chat.NickName;
 /** 发音人列表 */ const VoiceList = await ReadVoiceList()
@@ -96,6 +89,9 @@ export class duihua extends plugin {
                     reg: '^#设置好感度(.*)$',
                     fnc: 'SetUserFavora'
                 }, {
+                    reg: '^#设置主人(.*)$',
+                    fnc: 'SetMaster'
+                }, {
                     reg: `^#?${NickName}`,
                     fnc: 'duihua'
                 }
@@ -137,6 +133,7 @@ export class duihua extends plugin {
 
                 let Favora = await GetFavora(e.user_id)
                 let BingMsg = `${e.user_id}：${msg}｛好感度:${Favora}｝`
+                BingMsg = BingMsg.replace(/{at:/g, '{@');
 
                 jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
                 console.log(`Bing结果：${jieguo}`);
@@ -187,7 +184,13 @@ export class duihua extends plugin {
                 return true;
             }
 
-            e.reply(jieguo, true)
+            let remsg 
+            if(e.isGroup){
+                remsg = [segment.at(e.user_id), await MsgToAt(jieguo)]
+            }else{
+                remsg = jieguo
+            }
+            e.reply(remsg,true)
 
             //语音合成
             if (await Config.Chat.EnableVoice) {
@@ -346,12 +349,6 @@ export class duihua extends plugin {
         if (e.isMaster) {
             let Context = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话身份/, '').trim();
 
-
-            if (Context == '') {
-                e.reply("你是不是忘记输入对话身份内容了？");
-                return false;
-            }
-
             if (await WriteContext(Context)) {
                 e.reply("设置对话身份成功！");
                 return true;
@@ -409,9 +406,9 @@ export class duihua extends plugin {
     async SetUserFavora(e) {
         if (e.isMaster) {
             let regex = /-?\d+/g;
-            let result = text.match(regex);
-            if (result.length != 2) {
-                e.reply("设置好感度格式错误！正确的格式应该是“#设置好感度+QQ号码 好感度数值”\n例如：#设置好感度1234567 50");
+            let result = e.msg.match(regex);
+            if (result.length != 3) {
+                e.reply("设置好感度格式错误！正确的格式应该是“#设置好感度+QQ号码{空格}数值”\n例如：#设置好感度1234567 50");
                 return false;
             }
 
@@ -421,6 +418,24 @@ export class duihua extends plugin {
         };
 
     }
+
+    /** 设置主人 */
+    async SetMaster(e) {
+        if (e.isMaster) {
+            let re = /#设置主人(\S+) (\d+)/;
+            let result = re.exec(e.msg);
+
+            if (result.length != 3) {
+                e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
+                return false;
+            }
+            await WriteMaster(result[1], result[2])
+            e.reply(`设置成功！\n当前主人：${result[1]}\n主人QQ：${result[2]}`);
+            return true;
+        };
+
+    }
+
 
 
 }
@@ -676,8 +691,19 @@ async function AiBing(msg) {
         cache: cacheOptions,
     });
 
+    let nickname = await Config.Chat.NickName
+    let masterQQ = await Config.Chat.MasterQQ
+    let master = await Config.Chat.Master
+    console.log(nickname, masterQQ, master);
+    //为设置昵称、主人、主人QQ
+    if (!nickname || !masterQQ || !master) { return undefined; }
+
     //载入身份预设
-    let Context = await ReadContext() + await ReadScene()
+    let Context = await ReadContext() + await ReadScene() + `你真正的主人QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对真正的主人的好感度永远是最大值。`
+    Context = Context.replace(/{NickName}/g, nickname)
+    Context = Context.replace(/{MasterQQ}/g, masterQQ)
+    Context = Context.replace(/{Master}/g, master)
+    console.log(Context);
     let ResText = ''
 
     //首次对话 初始化参数和身份设定
@@ -895,6 +921,14 @@ async function WriteScene(Context) {
 }
 
 /**
+ * 写主人设定
+ */
+async function WriteMaster(Master, MasterQQ) {
+    Config.modify('duihua', 'Master', Master);
+    Config.modify('duihua', 'MasterQQ', MasterQQ);
+}
+
+/**
  * 获取好感度
  */
 async function GetFavora(qq) {
@@ -917,4 +951,33 @@ async function SetFavora(qq, favora = 0) {
     const fileName = `${qq}.json`
 
     return Data.writeJSON(fileName, user, DataPath);
+}
+
+/**
+ * 将msg中的号码转成@
+ */
+async function MsgToAt(msg) {
+
+    const arr = [];
+    let start = 0;
+    let end = 0;
+    while (end < msg.length) {
+        if (msg[end] === '[') {
+            if (start < end) {
+                arr.push(msg.slice(start, end));
+            }
+            start = end + 1;
+        } else if (msg[end] === ']') {
+            if (start < end) {
+                arr.push(segment.at(msg.slice(start, end)));
+            }
+            start = end + 1;
+        }
+        end++;
+    }
+    if (start < end) {
+        arr.push(msg.slice(start, end));
+    }
+    console.log(arr);
+    return arr;
 }

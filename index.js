@@ -24,12 +24,14 @@ files.forEach((file) => {
 })
 
 if (!global.segment) {
+    global.segment = (await import("oicq")).segment
+  }
+  
+  if (!global.core) {
     try {
-        global.segment = (await import('oicq')).segment
-    } catch (err) {
-        global.segment = (await import('icqq')).segment
-    }
-}
+      global.core = (await import("oicq")).core
+    } catch (err) {}
+  }
 
 ret = await Promise.allSettled(ret)
 

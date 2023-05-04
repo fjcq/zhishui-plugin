@@ -4,7 +4,6 @@
 import template from 'art-template'
 import fs from 'fs'
 import lodash from 'lodash'
-import { segment } from 'oicq'
 
 const _path = process.cwd()
 
