@@ -136,7 +136,7 @@ export class duihua extends plugin {
             if (!isNotNull(jieguo)) {
 
                 let Favora = await GetFavora(e.user_id)
-                let BingMsg = `${e.user_id}：${msg}｛${Favora}｝`
+                let BingMsg = `${e.user_id}：${msg}｛好感度:${Favora}｝`
 
                 jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
                 console.log(`Bing结果：${jieguo}`);
@@ -146,14 +146,14 @@ export class duihua extends plugin {
                     jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
 
                     //取出好感结果
-                    const pattern = /｛(-?\d*)｝$/;
+                    const pattern = /｛好感度:(-?\d*)｝/;
                     let ResFavora = pattern.exec(jieguo);
                     ResFavora = ResFavora ? Number(ResFavora[1]) : Favora;
 
                     await SetFavora(e.user_id, ResFavora)
 
                     //不显示尾部的好感度
-                    jieguo = jieguo?.replace(/｛(-?\d*)｝$/, '');
+                    jieguo = jieguo?.replace(/｛好感度:(-?\d*)｝/, '');
                 }
             }
 
