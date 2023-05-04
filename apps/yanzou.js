@@ -6,12 +6,7 @@ const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
 const _path = process.cwd();
 const FFMPEG_PATH = "ffmpeg"
-let segment = ""
-try {
-    segment = (await import("oicq")).segment
-} catch (err) {
-    segment = (await import("icqq")).segment
-}
+
 let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
 let YueqiPath = `${ResPath}/gangqin/`;
 let OutputFile = `${_path}/resources/output`;
