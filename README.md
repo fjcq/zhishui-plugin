@@ -6,32 +6,36 @@
 [![访问量](https://profile-counter.glitch.me/fjcq-zhishui-plugin/count.svg)](https://gitee.com/fjcq/zhishui-plugin)
 
 ## 介绍  
-zhishui-plugin是一个Yunzai-BotV3的扩展插件  
-本插件开发纯属学习与爱好  
+`zhishui-plugin`是`Yunzai-Bot`的扩展插件，提供了搜剧、AI对话等娱乐功能。
+具体功能可在安装插件后，通过发送`#止水帮助`来进行查看。
 
 ## 安装教程  
-**Tip：zhishui-plugin仅适配Yunzai-BotV3!!!**  
+#### 第 1 步：下载插件
 
-请将`zhishui-plugin`放置在`Yunzai-Bot`的`plugins`目录下，重启`Yunzai-Bot`后即可使用。 
-
-推荐使用git进行安装，以方便后续升级。在Yunzai目录打开终端，运行  
+在云崽根目录下打开终端，运行 
 
 ```
 git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin  
 ```
 
-clon完成之后，安装依赖  
+#### 第 2 步：安装依赖 
+
+要在云崽根目录下运行此命令： 
 
 ```
-cd plugins/zhishui-plugin
-pnpm update
+pnpm install --filter=zhishui-plugin
 ```
+> 注：请务必直接复制提供的命令，否则可能会导致依赖丢失的情况，若发生需自行重新安装。<br>
+> `--filter=zhishui-plugin`：只安装`zhishui-plugin`下的依赖，其他依赖不处理，防止丢失。 
 
+## 更新插件  
+
+一般会自动更新，如需手动更新，请发送`#锅巴更新`指令 
 
 ## 功能介绍  
 
-<details>
-  <summary>搜剧</summary>
+<details>  
+  <summary>搜剧</summary>  
 
 - `#搜剧+剧名`  
   根据剧名进行搜索  
