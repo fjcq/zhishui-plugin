@@ -91,15 +91,16 @@ export default class BingAIClient {
 
     /** 解析必应参数 */
     async AnalysisBingCookie(Cookie) {
-        let regexp
-        let match
-        regexp = /\bKievRPSSecAuth=(\S+)\b/g;
-        match = regexp.exec(Cookie);
-        let KievRPSSecAuth = match[1]
-
-        regexp = /\b_U=(\S+)\b/g;
-        match = regexp.exec(Cookie);
-        let _U = match[1]
+        let KievRPSSecAuth = ''
+        let _U = ''
+        if (Cookie.includes("KievRPSSecAuth=")) {
+            KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1]
+        }
+    
+        if (Cookie.includes("_U=")) {
+            _U = Cookie.match(/\b_U=(\S+)\b/)[1]
+        }
+    
         return { KievRPSSecAuth, _U }
     }
 
@@ -108,9 +109,13 @@ export default class BingAIClient {
         if (this.options.proxy) {
             fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
         }
-
+        let url
         let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies)
-        let url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+        if (!KievRPSSecAuth) {
+            url = `https://www.tukuai.one/bingck.php?u=${_U}`
+        } else {
+            url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+        }
 
         const response = await fetch(url, fetchOptions);
 
