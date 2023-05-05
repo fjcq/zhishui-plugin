@@ -136,7 +136,6 @@ export class duihua extends plugin {
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
 
                 let binres = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
-                console.log(`Bing结果：${binres}`);
 
                 //结果处理
                 binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
@@ -161,7 +160,7 @@ export class duihua extends plugin {
                 } else {
                     jieguo = undefined
                 }
-                console.log(`转换后：${jieguo}`);
+                console.log(`Bing结果：${jieguo}`);
             }
 
             //接口4
@@ -749,7 +748,7 @@ async function AiBing(msg) {
     }
 
     Data.sleep(1000)
-    console.log(JSON.stringify(Bingres, null, 2));
+    //console.log(JSON.stringify(Bingres, null, 2));
 
     if (Bingres.details.text && Bingres.details.text != 'N/A') {
         ResText = Bingres.details.text;
