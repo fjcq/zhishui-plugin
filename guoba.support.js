@@ -12,7 +12,7 @@ export function supportGuoba() {
             link: "https://gitee.com/fjcq/zhishui-plugin",
             isV3: true,
             isV2: false,
-            description: "影视剧搜索与AI对话功能",
+            description: "提供了搜剧、AI对话等娱乐功能。",
             iconPath: `${PluginPath}/resources/img/zhishui.png`,
         },
         configInfo: {
