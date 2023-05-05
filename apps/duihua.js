@@ -53,7 +53,7 @@ export class duihua extends plugin {
                     /** 执行方法 */
                     fnc: 'ResetChat'
                 }, {
-                    reg: '^(.*)KievRPSSecAuth=(.*)$',
+                    reg: '^(.*)_U=(.*)$',
                     fnc: 'SetBingSettings'
                 }, {
                     reg: '^#?(止水对话)?查看必应参数$',
@@ -184,13 +184,7 @@ export class duihua extends plugin {
                 return true;
             }
 
-            let remsg 
-            if(e.isGroup){
-                remsg = [segment.at(e.user_id), await MsgToAt(jieguo)]
-            }else{
-                remsg = jieguo
-            }
-            e.reply(remsg,true)
+            e.reply(await MsgToAt(jieguo), true)
 
             //语音合成
             if (await Config.Chat.EnableVoice) {
@@ -216,7 +210,13 @@ export class duihua extends plugin {
                 e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 “KievRPSSecAuth” 字段和 “_U” 字段，发送给我`);
                 return false;
             };
-            BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`
+
+            if (KievRPSSecAuth) {
+                BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`
+            } else {
+                BingCookie = `_U=${_U}`
+            }
+
             Config.modify('duihua', 'BingCookie', BingCookie)
             e.reply("设置必应参数成功！");
             return true;
@@ -694,7 +694,7 @@ async function AiBing(msg) {
     let nickname = await Config.Chat.NickName
     let masterQQ = await Config.Chat.MasterQQ
     let master = await Config.Chat.Master
-    console.log(nickname, masterQQ, master);
+
     //为设置昵称、主人、主人QQ
     if (!nickname || !masterQQ || !master) { return undefined; }
 
@@ -703,7 +703,7 @@ async function AiBing(msg) {
     Context = Context.replace(/{NickName}/g, nickname)
     Context = Context.replace(/{MasterQQ}/g, masterQQ)
     Context = Context.replace(/{Master}/g, master)
-    console.log(Context);
+
     let ResText = ''
 
     //首次对话 初始化参数和身份设定
@@ -763,9 +763,19 @@ async function AnalysisBingCookie(Cookie = '') {
 
 
 /** 检查必应参数 */
-async function InspectBingCookie(KievRPSSecAuth, _U) {
+async function InspectBingCookie(KievRPSSecAuth = '', _U = '') {
+    let url
+    if (!_U) { return false }
+
+    if (!KievRPSSecAuth) {
+        url = `https://www.tukuai.one/bingck.php?u=${_U}`
+    } else {
+        url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+    }
+
+
     let opt = { statusCode: 'json' }
-    let url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+
     let ret = await request.get(url, opt)
     console.log('ret:' + JSON.stringify(ret));
     if (ret.clientId == undefined) {
@@ -958,26 +968,9 @@ async function SetFavora(qq, favora = 0) {
  */
 async function MsgToAt(msg) {
 
-    const arr = [];
-    let start = 0;
-    let end = 0;
-    while (end < msg.length) {
-        if (msg[end] === '[') {
-            if (start < end) {
-                arr.push(msg.slice(start, end));
-            }
-            start = end + 1;
-        } else if (msg[end] === ']') {
-            if (start < end) {
-                arr.push(segment.at(msg.slice(start, end)));
-            }
-            start = end + 1;
-        }
-        end++;
-    }
-    if (start < end) {
-        arr.push(msg.slice(start, end));
-    }
-    console.log(arr);
+    let arr = msg
+        .split(/(\[@\d+\])/)
+        .filter(Boolean)
+        .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s)
     return arr;
 }
