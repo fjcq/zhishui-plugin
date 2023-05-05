@@ -132,26 +132,36 @@ export class duihua extends plugin {
             if (!isNotNull(jieguo)) {
 
                 let Favora = await GetFavora(e.user_id)
-                let BingMsg = `${e.user_id}：${msg}｛好感度:${Favora}｝`
+                let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
 
-                jieguo = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
-                console.log(`Bing结果：${jieguo}`);
+                let binres = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
+                console.log(`Bing结果：${binres}`);
 
-                if (jieguo) {
-                    jieguo = jieguo?.replace(/(Sydney)/g, name).trim();
-                    jieguo = jieguo?.replace(/\[\^\d*\^\]/g, '');
+                //结果处理
+                binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
+                binres = binres?.replace(/\[\^\d*\^\]/g, '');
 
-                    //取出好感结果
-                    const pattern = /｛好感度:(-?\d*)｝/;
-                    let ResFavora = pattern.exec(jieguo);
-                    ResFavora = ResFavora ? Number(ResFavora[1]) : Favora;
+                if (binres.length > 0) {
+                    let qq
+                    let OldFavora = 0
+                    let NewFavora = 0
+                    const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
+                    let match;
+                    while ((match = pattern.exec(binres)) !== null) {
+                        qq = match[1]
+                        OldFavora = await GetFavora(qq)
+                        NewFavora = parseInt(OldFavora) + parseInt(match[2]) //计算好感度
+                        console.log(`好感度更新：${qq} -> ${OldFavora}+${parseInt(match[2])}=${NewFavora}`)
+                        await SetFavora(qq, NewFavora) //保存新的好感度
+                    }
 
-                    await SetFavora(e.user_id, ResFavora)
-
-                    //不显示尾部的好感度
-                    jieguo = jieguo?.replace(/｛好感度:(-?\d*)｝/, '');
+                    //删除好感度文本
+                    jieguo = binres.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
+                } else {
+                    jieguo = undefined
                 }
+                console.log(`转换后：${jieguo}`);
             }
 
             //接口4
@@ -184,7 +194,9 @@ export class duihua extends plugin {
                 return true;
             }
 
-            e.reply(await MsgToAt(jieguo), true)
+            let remsg = await MsgToAt(jieguo)
+            console.log(remsg);
+            e.reply(remsg, true)
 
             //语音合成
             if (await Config.Chat.EnableVoice) {
@@ -949,14 +961,14 @@ async function GetFavora(qq) {
         user = await Data.readJSON(fileName, DataPath);
     }
 
-    return user.Favora | 0;
+    return parseInt(user.Favora) | 0;
 }
 
 /**
  * 设置好感度
  */
 async function SetFavora(qq, favora = 0) {
-    let user = { Favora: favora };
+    let user = { Favora: parseInt(favora) | 0 };
     const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
     const fileName = `${qq}.json`
 
@@ -968,7 +980,7 @@ async function SetFavora(qq, favora = 0) {
  */
 async function MsgToAt(msg) {
 
-    let arr = msg
+    let arr = msg.toString()
         .split(/(\[@\d+\])/)
         .filter(Boolean)
         .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s)
