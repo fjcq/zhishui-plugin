@@ -25,7 +25,6 @@ export function packageTips(error) {
     logger.mark('---- 止水插件启动失败 ----')
     let pack = error.stack.match(/'(.+?)'/g)[0].replace(/'/g, '')
     logger.mark(`缺少依赖：${chalk.red(pack)}`)
-    let cmd = 'pnpm add $s -w'
-    logger.mark(`请执行安装依赖命令：${chalk.red(cmd.replace('$s', pack))}`)
+    logger.mark(`请执行安装依赖命令：pnpm install --filter=zhishui-plugin`)
     logger.mark('---------------------')
 }
