@@ -1,4 +1,20 @@
 {
     "search.useParentIgnoreFiles": false,
-    "search.useGlobalIgnoreFiles": false
+    "search.useGlobalIgnoreFiles": false,
+    "eslint.format.enable": false,
+    "eslint.packageManager": "pnpm",
+    "terminal.integrated.cwd": "D:\\MyServer\\Miao-Yunzai",
+    "eslint.validate": [
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+        "html",
+        "vue"
+    ],
+    "eslint.options": {
+        "rules": {
+            "camelcase": 0
+        }
+    }
 }

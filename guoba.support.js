@@ -1,6 +1,6 @@
 import { Config } from './components/index.js'
 const Path = process.cwd()
-const Plugin_Path = `${Path}/plugins/zhishui-plugin`
+const PluginPath = `${Path}/plugins/zhishui-plugin`
 
 export function supportGuoba() {
     return {
@@ -13,7 +13,7 @@ export function supportGuoba() {
             isV3: true,
             isV2: false,
             description: "影视剧搜索与AI对话功能",
-            iconPath: `${Plugin_Path}/resources/img/zhishui.png`,
+            iconPath: `${PluginPath}/resources/img/zhishui.png`,
         },
         configInfo: {
             schemas: [
