@@ -21,7 +21,7 @@ export class Update extends plugin {
       rule: [
         {
           reg: '^#*止水(插件)?(强制)?更新$',
-          fnc: 'update'
+          fnc: 'updated'
         }
       ]
     })
@@ -31,7 +31,7 @@ export class Update extends plugin {
    * rule - 更新止水插件
    * @returns
    */
-  async update () {
+  async updated () {
     if (!this.e.isMaster) return false
 
     /** 检查是否正在更新中 */

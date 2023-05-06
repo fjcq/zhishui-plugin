@@ -46,7 +46,7 @@ export class duihua extends plugin {
             name: '[止水插件]对话',
             dsc: '智能对话',
             event: 'message',
-            priority: 1000,
+            priority: 8888,
             rule: [
                 {
                     reg: '^#?(止水对话)?(取消|结束|重置|关闭)(对话|聊天)$', //匹配消息正则,命令正则
@@ -122,8 +122,10 @@ export class duihua extends plugin {
     /** 对话 */
     async duihua(e) {
         let msg = e.msg
-        let botQQ = global?.Bot?.uin || global?.BotConfig?.account?.qq
         let regex = new RegExp(`^#?${NickName}`);
+        if (!regex.test(msg) && !(e.atBot && await Config.Chat.EnableAt)) {
+            return;
+        }
 
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             works = 1
