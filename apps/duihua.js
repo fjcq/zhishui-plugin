@@ -77,17 +77,17 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看发音人$',
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^#?(止水对话)?设置对话身份(.*)$',
+                    reg: '^#?(止水对话)?设置对话身份(.*)',
                     fnc: 'SetContext'
                 }, {
                     reg: '^#?(止水对话)?查看对话身份$',
                     fnc: 'ShowContext'
                 }, {
-                    reg: '^#?(止水对话)?设置对话场景(.*)$',
-                    fnc: 'SetScene'
+                    reg: '^#?(止水对话)?设置对话场景(.*)',
+                    fnc: 'SetChatScene'
                 }, {
                     reg: '^#?(止水对话)?查看对话场景$',
-                    fnc: 'ShowScene'
+                    fnc: 'ShowChatScene'
                 }, {
                     reg: '^#?(止水对话)?设置好感度(.*)$',
                     fnc: 'SetUserFavora'
@@ -408,7 +408,7 @@ export class duihua extends plugin {
     }
 
     /** 设置对话场景 */
-    async SetScene(e) {
+    async SetChatScene(e) {
         if (e.isMaster) {
             let Scene = e.msg.replace(/^#?(止水对话)?设置对话场景/, '').trim();
 
@@ -423,7 +423,7 @@ export class duihua extends plugin {
     }
 
     /** 查看对话场景 */
-    async ShowScene(e) {
+    async ShowChatScene(e) {
         if (e.isMaster) {
             let Scene = await ReadScene();
             if (Scene.length > 0) {
@@ -450,7 +450,7 @@ export class duihua extends plugin {
                 Favora = Math.max(-100, Math.min(100, Favora));
 
                 const bool = SetFavora(QQ, Favora);
-                
+
                 let msg = `设置好感度${bool ? "成功" : "失败"}！\n\n`;
                 msg += `用户：${QQ}\n`;
                 msg += `好感度：${bool ? Favora : GetFavora(QQ)}`;
