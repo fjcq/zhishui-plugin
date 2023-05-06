@@ -49,6 +49,12 @@ export function supportGuoba() {
                     component: 'Switch'
                 },
                 {
+                    field: 'duihua.EnableAt',
+                    label: '艾特触发',
+                    bottomHelpMessage: '机器人被艾特时也能触发对话',
+                    component: 'Switch'
+                },
+                {
                     field: 'duihua.EnableBing',
                     label: '必应开关',
                     bottomHelpMessage: '是否开启必应对话',
@@ -77,7 +83,19 @@ export function supportGuoba() {
                     label: '语音发音人',
                     bottomHelpMessage: '输入发音人序号，对应序号可以通过 #查看发音人 获取',
                     component: 'Input'
-                }
+                },
+                {
+                    field: 'duihua.Master',
+                    label: '主人名字',
+                    bottomHelpMessage: '场景对话中机器人的主人名字',
+                    component: 'Input'
+                },
+                {
+                    field: 'duihua.MasterQQ',
+                    label: '主人QQ',
+                    bottomHelpMessage: '场景对话中机器人的主人QQ',
+                    component: 'Input'
+                },
             ],
 
             getConfigData() {
