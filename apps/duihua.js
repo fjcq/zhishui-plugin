@@ -59,7 +59,7 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看必应参数$',
                     fnc: 'GetBingSettings'
                 }, {
-                    reg: '^#?(止水对话)?必应开关$',
+                    reg: '^#?(止水对话)?必应(开启|关闭)$',
                     fnc: 'BingEnable'
                 }, {
                     reg: '^#?(止水对话)?修改昵称(.*)$',
@@ -67,6 +67,9 @@ export class duihua extends plugin {
                 }, {
                     reg: '^#?(止水对话)?语音(开启|关闭)$',
                     fnc: 'SetVoiceEnable'
+                }, {
+                    reg: '^#?(止水对话)?艾特(开启|关闭)$',
+                    fnc: 'SetAtEnable'
                 }, {
                     reg: '^#?(止水对话)?设置发音人(.*)$',
                     fnc: 'SetVoiceId'
@@ -86,13 +89,13 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看(全局|群)?对话场景$',
                     fnc: 'ShowScene'
                 }, {
-                    reg: '^#设置好感度(.*)$',
+                    reg: '^#?(止水对话)?设置好感度(.*)$',
                     fnc: 'SetUserFavora'
                 }, {
-                    reg: '^#设置主人(.*)$',
+                    reg: '^#?(止水对话)?设置对话主人(.*)$',
                     fnc: 'SetMaster'
                 }, {
-                    reg: `^#?${NickName}`,
+                    reg: ``,
                     fnc: 'duihua'
                 }
             ]
@@ -118,30 +121,28 @@ export class duihua extends plugin {
 
     /** 对话 */
     async duihua(e) {
-        let msg = ''
-        const regex = new RegExp(`^#?${NickName}`);
-        if (regex.test(e.msg)) {
+        let msg = e.msg
+        let botQQ = global?.Bot?.uin || global?.BotConfig?.account?.qq
+        let regex = new RegExp(`^#?${NickName}`);
+
+        if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             works = 1
             let jieguo;
-            const name = await Config.Chat.NickName
 
-            msg = e.msg.replace(regex, '').trim();
             console.log("提问：" + msg);
 
             //启用必应时，优先必应
-            if (!isNotNull(jieguo)) {
-
+            if (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) {
                 let Favora = await GetFavora(e.user_id)
                 let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
 
-                let binres = (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) ? await AiBing(BingMsg) : undefined;
+                let binres =await AiBing(BingMsg)
+                if (binres) {
+                    //结果处理
+                    binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
+                    binres = binres?.replace(/\[\^\d*\^\]/g, '');
 
-                //结果处理
-                binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
-                binres = binres?.replace(/\[\^\d*\^\]/g, '');
-
-                if (binres.length > 0) {
                     let qq
                     let OldFavora = 0
                     let NewFavora = 0
@@ -163,6 +164,7 @@ export class duihua extends plugin {
                 console.log(`Bing结果：${jieguo}`);
             }
 
+            msg = msg.replace(regex, '').trim();
             //接口4
             if (!isNotNull(jieguo)) {
                 jieguo = await Aichatos(msg);
@@ -255,11 +257,15 @@ export class duihua extends plugin {
             return false; //不是主人
         };
 
-        let EnableBing = !await Config.Chat.EnableBing;
-        if (EnableBing) {
+        let Enable = e.msg.search('开启') != -1;
+
+
+
+        if (Enable) {
+            //先检查必应参数
             let { KievRPSSecAuth, _U } = await AnalysisBingCookie(await Config.Chat.BingCookie);
             if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
-                e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中必须包含 “KievRPSSecAuth” 和 “_U” 字段`);
+                e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中至少要包含 “_U” 字段`);
                 return false;
             } else {
                 e.reply("[必应对话]已开启！");
@@ -268,7 +274,7 @@ export class duihua extends plugin {
             e.reply("[必应对话]已关闭！");
         }
 
-        Config.modify('duihua', 'EnableBing', EnableBing);
+        Config.modify('duihua', 'EnableBing', Enable);
         return true;
     }
 
@@ -286,6 +292,25 @@ export class duihua extends plugin {
             return true;
         }
         return false;
+    }
+
+    /** 对话艾特开关 */
+    async SetAtEnable(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        let Enable = e.msg.search('开启') != -1;
+
+        Config.modify('duihua', 'EnableAt', Enable);
+
+        if (Enable) {
+            e.reply("[对话艾特]已开启！");
+        } else {
+            e.reply("[对话艾特]已关闭！");
+        }
+
+        return true;
     }
 
     /** 对话语音开关 */

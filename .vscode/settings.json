@@ -16,5 +16,6 @@
         "rules": {
             "camelcase": 0
         }
-    }
+    },
+    "terminal.integrated.defaultProfile.windows": "JavaScript Debug Terminal"
 }
