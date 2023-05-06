@@ -458,7 +458,7 @@ export class duihua extends plugin {
     /** 设置主人 */
     async SetMaster(e) {
         if (e.isMaster) {
-            let re = /#设置主人(\S+) (\d+)/;
+            let re = /#设置对话主人(\S+) (\d+)/;
             let result = re.exec(e.msg);
 
             if (result.length != 3) {
