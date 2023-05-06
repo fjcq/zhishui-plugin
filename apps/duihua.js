@@ -77,16 +77,16 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?查看发音人$',
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^#?(止水对话)?设置(全局|群)?对话身份(.*)$',
+                    reg: '^#?(止水对话)?设置对话身份(.*)$',
                     fnc: 'SetContext'
                 }, {
-                    reg: '^#?(止水对话)?查看(全局|群)?对话身份$',
+                    reg: '^#?(止水对话)?查看对话身份$',
                     fnc: 'ShowContext'
                 }, {
-                    reg: '^#?(止水对话)?设置(全局|群)?对话场景(.*)$',
+                    reg: '^#?(止水对话)?设置对话场景(.*)$',
                     fnc: 'SetScene'
                 }, {
-                    reg: '^#?(止水对话)?查看(全局|群)?对话场景$',
+                    reg: '^#?(止水对话)?查看对话场景$',
                     fnc: 'ShowScene'
                 }, {
                     reg: '^#?(止水对话)?设置好感度(.*)$',
@@ -123,9 +123,6 @@ export class duihua extends plugin {
     async duihua(e) {
         let msg = e.msg
         let regex = new RegExp(`^#?${NickName}`);
-        if (!regex.test(msg) && !(e.atBot && await Config.Chat.EnableAt)) {
-            return;
-        }
 
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             works = 1
@@ -139,7 +136,7 @@ export class duihua extends plugin {
                 let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
 
-                let binres =await AiBing(BingMsg)
+                let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
                     binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
@@ -192,9 +189,8 @@ export class duihua extends plugin {
             }
 
             if (!isNotNull(jieguo)) {
-                this.ResetChat(e);
                 works = 0;
-                return true;
+                return false;
             }
 
             let remsg = await MsgToAt(jieguo)
@@ -213,7 +209,7 @@ export class duihua extends plugin {
             return true;
         }
 
-
+        return false;
     }
 
     /** 设置必应参数 */
@@ -414,7 +410,7 @@ export class duihua extends plugin {
     /** 设置对话场景 */
     async SetScene(e) {
         if (e.isMaster) {
-            let Scene = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话场景/, '').trim();
+            let Scene = e.msg.replace(/^#?(止水对话)?设置对话场景/, '').trim();
 
             if (await WriteScene(Scene)) {
                 e.reply("设置对话场景成功！");
@@ -443,16 +439,25 @@ export class duihua extends plugin {
     /** 设置用户好感度 */
     async SetUserFavora(e) {
         if (e.isMaster) {
-            let regex = /-?\d+/g;
+            let regex = /([0-9]+)\s+(-?[0-9]+)/;
             let result = e.msg.match(regex);
             if (result.length != 3) {
                 e.reply("设置好感度格式错误！正确的格式应该是“#设置好感度+QQ号码{空格}数值”\n例如：#设置好感度1234567 50");
                 return false;
+            } else {
+                let QQ = result[1];
+                let Favora = GetFavora(QQ);
+                Favora = Math.max(-100, Math.min(100, Favora));
+
+                const bool = SetFavora(QQ, Favora);
+                
+                let msg = `设置好感度${bool ? "成功" : "失败"}！\n\n`;
+                msg += `用户：${QQ}\n`;
+                msg += `好感度：${bool ? Favora : GetFavora(QQ)}`;
+                e.reply(msg);
+                return true;
             }
 
-            const favora = SetFavora(result[0], result[1]);
-            e.reply(`设置好感度${favora ? "成功" : "失败"}！`);
-            return true;
         };
 
     }
@@ -957,7 +962,7 @@ async function ReadScene() {
  */
 async function WriteScene(Context) {
     const DataFile = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
-    console.log("设置身份：" + Context)
+    console.log("设置场景：" + Context)
     try {
         fs.writeFileSync(DataFile, Context)
         return true
