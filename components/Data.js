@@ -1,13 +1,14 @@
 import _ from 'lodash'
 import fs from 'fs'
+import { Path, Plugin_Path, Plugin_Name } from '../components/index.js'
+import path from 'path'
 
-const _path = process.cwd()
 const plugin = 'zhishui-plugin'
 const getRoot = (root = '') => {
   if (root === 'root' || root === 'yunzai') {
-    root = `${_path}/`
+    root = `${Path}/`
   } else if (!root) {
-    root = `${_path}/plugins/${plugin}/`
+    root = Plugin_Path
   }
   return root
 }
@@ -17,7 +18,7 @@ let Data = {
   /*
   * 根据指定的path依次检查与创建目录
   * */
-  createDir (path = '', root = '', includeFile = false) {
+  createDir(path = '', root = '', includeFile = false) {
     root = getRoot(root)
     let pathList = path.split('/')
     let nowPath = root
@@ -34,12 +35,26 @@ let Data = {
     })
   },
 
+  /**
+ * 读发音人数据
+ */
+  async ReadVoiceList() {
+    let temp = {};
+    const DataPath = path.join(Plugin_Path, 'resources', 'data');
+    const fileName = 'VoiceList.json'
+    if (fs.existsSync(path.join(DataPath, fileName))) {
+      temp = await Data.readJSON(fileName, DataPath);
+    }
+
+    return temp;
+  },
+
   /** 读取json */
-  readJSON (file = '', root = '') {
+  async readJSON(file = '', root = '') {
     root = getRoot(root)
     if (fs.existsSync(`${root}/${file}`)) {
       try {
-        return JSON.parse(fs.readFileSync(`${root}/${file}`, 'utf8'))
+        return await JSON.parse(fs.readFileSync(`${root}/${file}`, 'utf8'))
       } catch (e) {
         console.log(e)
       }
@@ -48,13 +63,13 @@ let Data = {
   },
 
   /** 写JSON */
-  writeJSON (file, data, root = '', space = '\t') {
+  async writeJSON(file, data, root = '', space = '\t') {
     // 检查并创建目录
     Data.createDir(file, root, true)
     root = getRoot(root)
     // delete data._res
     try {
-      fs.writeFileSync(`${root}/${file}`, JSON.stringify(data, null, space))
+      fs.writeFileSync(path.join(root, file), JSON.stringify(data, null, space))
       return true
     } catch (err) {
       logger.error(err)
@@ -62,7 +77,7 @@ let Data = {
     }
   },
 
-  async getCacheJSON (key) {
+  async getCacheJSON(key) {
     try {
       let txt = await redis.get(key)
       if (txt) {
@@ -74,16 +89,16 @@ let Data = {
     return {}
   },
 
-  async setCacheJSON (key, data, EX = 3600 * 24 * 90) {
+  async setCacheJSON(key, data, EX = 3600 * 24 * 90) {
     await redis.set(key, JSON.stringify(data), { EX })
   },
 
-  async importModule (file, root = '') {
+  async importModule(file, root = '') {
     root = getRoot(root)
     if (!/\.js$/.test(file)) {
       file = file + '.js'
     }
-    if (fs.existsSync(`${root}/${file}`)) {
+    if (fs.existsSync(path.join(root, file))) {
       try {
         let data = await import(`file://${root}/${file}?t=${new Date() * 1}`)
         return data || {}
@@ -94,16 +109,16 @@ let Data = {
     return {}
   },
 
-  async importDefault (file, root) {
+  async importDefault(file, root) {
     let ret = await Data.importModule(file, root)
     return ret.default || {}
   },
 
-  async import (name) {
+  async import(name) {
     return await Data.importModule(`components/optional-lib/${name}.js`)
   },
 
-  async importCfg (key) {
+  async importCfg(key) {
     let sysCfg = await Data.importModule(`config/system/${key}_system.js`)
     let diyCfg = await Data.importModule(`config/${key}.js`)
     if (diyCfg.isSys) {
@@ -128,7 +143,7 @@ let Data = {
   *
   * */
 
-  getData (target, keyList = '', cfg = {}) {
+  getData(target, keyList = '', cfg = {}) {
     target = target || {}
     let defaultData = cfg.defaultData || {}
     let ret = {}
@@ -155,12 +170,12 @@ let Data = {
     return ret
   },
 
-  getVal (target, keyFrom, defaultValue) {
+  getVal(target, keyFrom, defaultValue) {
     return _.get(target, keyFrom, defaultValue)
   },
 
   // 异步池，聚合请求
-  async asyncPool (poolLimit, array, iteratorFn) {
+  async asyncPool(poolLimit, array, iteratorFn) {
     const ret = [] // 存储所有的异步任务
     const executing = [] // 存储正在执行的异步任务
     for (const item of array) {
@@ -184,12 +199,12 @@ let Data = {
   },
 
   // sleep
-  sleep (ms) {
+  sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
   },
 
   // 获取默认值
-  def () {
+  def() {
     for (let idx in arguments) {
       if (!_.isUndefined(arguments[idx])) {
         return arguments[idx]
@@ -212,7 +227,7 @@ let Data = {
     })
   },
 
-  regRet (reg, txt, idx) {
+  regRet(reg, txt, idx) {
     if (reg && txt) {
       let ret = reg.exec(txt)
       if (ret && ret[idx]) {

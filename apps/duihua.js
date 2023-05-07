@@ -14,7 +14,7 @@ import path from 'path'
 const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat')
 
 /** 聊天昵称 */ let NickName = await Config.Chat.NickName;
-/** 发音人列表 */ const VoiceList = await ReadVoiceList()
+/** 发音人列表 */ const VoiceList = await Data.ReadVoiceList()
 /** Chang消息缓存 */ var ForChangeMsg = ""
 
 // 必应相关变量
@@ -909,20 +909,6 @@ async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json')
     //console.log('返回：' + JSON.stringify(Response));
     return Response;
 };
-
-/**
- * 读发音人数据
- */
-async function ReadVoiceList() {
-    let temp = {};
-    const DataPath = path.join(Plugin_Path, 'resources', 'data');
-    const fileName = 'VoiceList.json'
-    if (fs.existsSync(path.join(DataPath, fileName))) {
-        temp = Data.readJSON(fileName, DataPath);
-    }
-
-    return temp;
-}
 
 /**
  * 读身份设定

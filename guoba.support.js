@@ -1,6 +1,8 @@
 import { Config } from './components/index.js'
+import Data from './components/Data.js'
 const Path = process.cwd()
 const PluginPath = `${Path}/plugins/zhishui-plugin`
+const VoiceList = await Data.ReadVoiceList()
 
 export function supportGuoba() {
     return {
@@ -82,7 +84,13 @@ export function supportGuoba() {
                     field: 'duihua.VoiceIndex',
                     label: '语音发音人',
                     bottomHelpMessage: '输入发音人序号，对应序号可以通过 #查看发音人 获取',
-                    component: 'Input'
+                    component: 'Select',
+                    componentProps: {
+                        options: VoiceList.map(function (element, index) {
+                            return { label: element.name, value: index }
+                        }),
+                        placeholder: '请选择发音人',
+                    },
                 },
                 {
                     field: 'duihua.Master',
