@@ -498,15 +498,17 @@ export class duihua extends plugin {
     /** 设置主人 */
     async SetMaster(e) {
         if (e.isMaster) {
-            let re = /#设置对话主人(\S+) (\d+)/;
+
+            let re = /^#?(止水对话)?设置对话主人\s*(\S+)\s+(\d+)/;
             let result = re.exec(e.msg);
 
-            if (result.length != 3) {
+            if (result?.length != 4) {
                 e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
                 return false;
             }
-            await WriteMaster(result[1], result[2])
-            e.reply(`设置成功！\n当前主人：${result[1]}\n主人QQ：${result[2]}`);
+            await WriteMaster(result[2], result[3])
+
+            e.reply(`设置成功！\n当前主人：${result[2]}\nQQ号码：${result[3]}`);
             return true;
         };
 
