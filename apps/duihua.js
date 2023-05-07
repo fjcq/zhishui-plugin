@@ -92,11 +92,15 @@ export class duihua extends plugin {
                     reg: '^#?(止水对话)?设置好感度(.*)$',
                     fnc: 'SetUserFavora'
                 }, {
+                    reg: '^#?(止水对话)?查看好感度(.*)$',
+                    fnc: 'ShowUserFavora'
+                }, {
                     reg: '^#?(止水对话)?设置对话主人(.*)$',
                     fnc: 'SetMaster'
                 }, {
                     reg: ``,
-                    fnc: 'duihua'
+                    fnc: 'duihua',
+                    log: false
                 }
             ]
         })
@@ -436,29 +440,58 @@ export class duihua extends plugin {
 
     }
 
+
+    /** 查看用户好感度 */
+    async ShowUserFavora(e) {
+        let UserQQ
+        let isat = e.message.some((item) => item.type === "at");
+        if (isat && e.isMaster) {
+            let atItem = e.message.filter((item) => item.type === "at");//获取at信息
+            UserQQ = atItem[0].qq;//对方qq
+        } else {
+            UserQQ = e.user_id
+        }
+
+        let UserFavora = await GetFavora(UserQQ) | 0;
+
+        let msg = []
+        msg.push(segment.at(parseInt(UserQQ)))
+        msg.push(`\n好感度：${UserFavora}`);
+        e.reply(msg);
+        return true;
+    }
+
     /** 设置用户好感度 */
     async SetUserFavora(e) {
-        if (e.isMaster) {
-            let regex = /([0-9]+)\s+(-?[0-9]+)/;
-            let result = e.msg.match(regex);
-            if (result.length != 3) {
-                e.reply("设置好感度格式错误！正确的格式应该是“#设置好感度+QQ号码{空格}数值”\n例如：#设置好感度1234567 50");
-                return false;
-            } else {
-                let QQ = result[1];
-                let Favora = GetFavora(QQ);
-                Favora = Math.max(-100, Math.min(100, Favora));
 
-                const bool = SetFavora(QQ, Favora);
+        if (!e.isMaster) {
+            return;
+        }
+        //对方
+        let UserQQ
+        let isat = e.message.some((item) => item.type === "at");
+        if (isat) {
+            let atItem = e.message.filter((item) => item.type === "at");//获取at信息
+            UserQQ = atItem[0].qq;//对方qq
+        } else {
+            UserQQ = e.user_id
+        }
 
-                let msg = `设置好感度${bool ? "成功" : "失败"}！\n\n`;
-                msg += `用户：${QQ}\n`;
-                msg += `好感度：${bool ? Favora : GetFavora(QQ)}`;
-                e.reply(msg);
-                return true;
-            }
 
-        };
+        const pattern = /\d+/;
+        const result = e.msg.match(pattern);
+        if (!result) {
+            e.reply(`你需要输入：好感度数值`);
+            return;
+        }
+        const UserFavora = result[0] | 0;
+        const bool = SetFavora(UserQQ, UserFavora);
+
+
+        let msg = `用户：${UserQQ}\n`;
+        msg += `好感度：${bool ? UserFavora : await GetFavora(QQ)}`;
+        e.reply(msg, true);
+        return true;
 
     }
 
