@@ -121,6 +121,10 @@ pnpm install --filter=zhishui-plugin
 
 </details>  
 
+## 交流群  
+
+点击加入：[止水插件群 556388103](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nHBGClQFxzzlokib8TRqbdVoam6kPN3z&authKey=kxnCLF%2Boj%2FCHRulcjeIWJdX5aedRVP4sAQxwKZKe5wE36ox%2FYwsHWte2cvrAQRnf&noverify=0&group_code=556388103)  
+
 ## 常见问题  
 
 <details>
