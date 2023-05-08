@@ -1031,7 +1031,6 @@ async function SetFavora(qq, favora = 0) {
  * 将msg中的号码转成@
  */
 async function MsgToAt(msg) {
-
     let arr = msg.toString()
         .split(/(\[@\d+\])/)
         .filter(Boolean)
