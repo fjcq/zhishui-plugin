@@ -108,6 +108,8 @@ export class duihua extends plugin {
 
     /** 重置对话 */
     async ResetChat(e) {
+        if (!e.isMaster) { return }
+
         ForChangeMsg = "";
         WwangDate.messages = [];
         Config.modify('duihua', 'MirrorBearer', "");
