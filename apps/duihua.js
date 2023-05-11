@@ -49,54 +49,59 @@ export class duihua extends plugin {
             priority: 8888,
             rule: [
                 {
-                    reg: '^#?(止水对话)?(取消|结束|重置|关闭)(对话|聊天)$', //匹配消息正则,命令正则
-                    /** 执行方法 */
+                    reg: `^#?(止水对话)?(取消|结束|重置|关闭)(对话|聊天)$`,
                     fnc: 'ResetChat'
                 }, {
                     reg: '^(.*)_U=(.*)$',
                     fnc: 'SetBingSettings'
                 }, {
-                    reg: '^#?(止水对话)?查看必应参数$',
+                    reg: `^#?(止水对话)?查看必应参数$`,
                     fnc: 'GetBingSettings'
                 }, {
-                    reg: '^#?(止水对话)?必应(开启|关闭)$',
+                    reg: `^#?(止水对话)?必应(开启|关闭)$`,
                     fnc: 'BingEnable'
                 }, {
-                    reg: '^#?(止水对话)?修改昵称(.*)$',
+                    reg: `^#?(止水对话)?修改(对话)?昵称(.*)$`,
                     fnc: 'ModifyNickname'
                 }, {
-                    reg: '^#?(止水对话)?语音(开启|关闭)$',
+                    reg: `^#?(止水对话)?语音(开启|关闭)$`,
                     fnc: 'SetVoiceEnable'
                 }, {
-                    reg: '^#?(止水对话)?艾特(开启|关闭)$',
+                    reg: `^#?(止水对话)?艾特(开启|关闭)$`,
                     fnc: 'SetAtEnable'
                 }, {
-                    reg: '^#?(止水对话)?设置发音人(.*)$',
+                    reg: `^#?(止水对话)?设置(对话)?发音人(.*)$`,
                     fnc: 'SetVoiceId'
                 }, {
-                    reg: '^#?(止水对话)?查看发音人$',
+                    reg: `^#?(止水对话)?查看(对话)?发音人$`,
                     fnc: 'ShowVoiceId'
                 }, {
                     reg: '^#?(止水对话)?设置对话身份(.*)',
                     fnc: 'SetContext'
                 }, {
-                    reg: '^#?(止水对话)?查看对话身份$',
+                    reg: `^#?(止水对话)?查看对话身份$`,
                     fnc: 'ShowContext'
                 }, {
-                    reg: '^#?(止水对话)?设置对话场景(.*)',
+                    reg: `^#?(止水对话)?设置对话场景(.*)`,
                     fnc: 'SetChatScene'
                 }, {
-                    reg: '^#?(止水对话)?查看对话场景$',
+                    reg: `^#?(止水对话)?查看对话场景$`,
                     fnc: 'ShowChatScene'
                 }, {
-                    reg: '^#?(止水对话)?设置好感度(.*)$',
+                    reg: `^#?(止水对话)?设置好感度(.*)$`,
                     fnc: 'SetUserFavora'
                 }, {
-                    reg: '^#?(止水对话)?查看好感度(.*)$',
+                    reg: `^#?(止水对话)?查看好感度(.*)$`,
                     fnc: 'ShowUserFavora'
                 }, {
-                    reg: '^#?(止水对话)?设置对话主人(.*)$',
+                    reg: `^#?(止水对话)?设置对话主人(.*)$`,
                     fnc: 'SetMaster'
+                }, {
+                    reg: `^#?(止水对话)?查看必应模型$`,
+                    fnc: 'ShowtoneStyle'
+                }, {
+                    reg: `^#?(止水对话)?设置必应模型(.*)$`,
+                    fnc: 'SettoneStyle'
                 }, {
                     reg: ``,
                     fnc: 'duihua',
@@ -141,7 +146,7 @@ export class duihua extends plugin {
                 let Favora = await GetFavora(e.user_id)
                 let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
-
+                console.log("提交必应 -> " + msg);
                 let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
@@ -288,7 +293,7 @@ export class duihua extends plugin {
             return false; //不是主人
         };
 
-        let nickname = e.msg.replace(/#?(止水对话)?修改昵称/g, '').trim();
+        let nickname = e.msg.replace(/^.*修改(对话)?昵称/g, '').trim();
         if (nickname.length > 0 && nickname != await Config.Chat.NickName) {
             NickName = nickname
             Config.modify('duihua', 'NickName', nickname);
@@ -387,7 +392,7 @@ export class duihua extends plugin {
     /** 设置对话身份 */
     async SetContext(e) {
         if (e.isMaster) {
-            let Context = e.msg.replace(/^#?(止水对话)?设置(全局|群)?对话身份/, '').trim();
+            let Context = e.msg.replace(/^.*?设置(全局|群)?对话身份/, '').trim();
 
             if (await WriteContext(Context)) {
                 e.reply("设置对话身份成功！");
@@ -416,7 +421,7 @@ export class duihua extends plugin {
     /** 设置对话场景 */
     async SetChatScene(e) {
         if (e.isMaster) {
-            let Scene = e.msg.replace(/^#?(止水对话)?设置对话场景/, '').trim();
+            let Scene = e.msg.replace(/^.*设置对话场景/, '').trim();
 
             if (await WriteScene(Scene)) {
                 e.reply("设置对话场景成功！");
@@ -501,7 +506,7 @@ export class duihua extends plugin {
     async SetMaster(e) {
         if (e.isMaster) {
 
-            let re = /^#?(止水对话)?设置对话主人\s*(\S+)\s+(\d+)/;
+            let re = /^.*设置对话主人\s*(\S+)\s+(\d+)/;
             let result = re.exec(e.msg);
 
             if (result?.length != 4) {
@@ -516,8 +521,51 @@ export class duihua extends plugin {
 
     }
 
+    /** 查看必应模型 */
+    async ShowtoneStyle(e) {
+        if (e.isMaster) {
+            let toneStyle = await Config.Chat.toneStyle
+            if (toneStyle == 'creative') {
+                msg = '当前必应模型为：创意'
+            } else if (toneStyle == 'precise') {
+                msg = '当前必应模型为：精确'
+            } else if (toneStyle == 'fast') {
+                msg = '当前必应模型为：快速'
+            } else {
+                msg = '当前必应模型为：默认'
+            }
+            e.reply(msg);
+            return true;
+        };
 
+    }
 
+    /** 设置必应模型 */
+    async SettoneStyle(e) {
+        if (e.isMaster) {
+            let toneStyle = e.msg.replace(/^.*设置必应模型/, '').trim();
+            let msg = ''
+            if (toneStyle == '创意' || toneStyle == 'creative') {
+                msg = '必应模型修改为：创意'
+                Config.modify('duihua', 'toneStyle', 'creative');
+            } else if (toneStyle == '精确' || toneStyle == 'precise') {
+                msg = '必应模型修改为：精确'
+                Config.modify('duihua', 'toneStyle', 'precise');
+            } else if (toneStyle == '快速' || toneStyle == 'fast') {
+                msg = '必应模型修改为：快速'
+                Config.modify('duihua', 'toneStyle', 'precise');
+            } else {
+                msg = '必应模型修改为：默认'
+                Config.modify('duihua', 'toneStyle', 'balanced');
+            }
+
+            msg = msg + '\n可选模型参数：默认 创意 精确 快速'
+            e.reply(msg);
+
+            return true;
+        };
+
+    }
 }
 
 /**
@@ -785,11 +833,11 @@ async function AiBing(msg) {
     Context = Context.replace(/{Master}/g, master)
 
     let ResText = ''
-
+    let toneStyle = await Config.Chat.toneStyle | balanced
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
         Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'creative', // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
+            toneStyle: toneStyle, // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
             systemMessage: Context,
             onProgress: (token) => {
@@ -803,7 +851,7 @@ async function AiBing(msg) {
     } else {
         //开始正式对话
         Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: 'creative',
+            toneStyle: toneStyle,
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
             parentMessageId: messageId,
