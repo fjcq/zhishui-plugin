@@ -146,7 +146,7 @@ export class duihua extends plugin {
                 let Favora = await GetFavora(e.user_id)
                 let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
-                console.log("提交必应 -> " + msg);
+                console.log("提交必应 -> " + BingMsg);
                 let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
