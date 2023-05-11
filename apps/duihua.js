@@ -524,6 +524,7 @@ export class duihua extends plugin {
     /** 查看必应模型 */
     async ShowtoneStyle(e) {
         if (e.isMaster) {
+            let msg = ''
             let toneStyle = await Config.Chat.toneStyle
             if (toneStyle == 'creative') {
                 msg = '当前必应模型为：创意'
@@ -833,7 +834,7 @@ async function AiBing(msg) {
     Context = Context.replace(/{Master}/g, master)
 
     let ResText = ''
-    let toneStyle = await Config.Chat.toneStyle | balanced
+    let toneStyle = await Config.Chat.toneStyle | `balanced`
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
         Bingres = await bingAIClient.sendMessage(msg, {
