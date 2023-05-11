@@ -150,8 +150,7 @@ export class duihua extends plugin {
                 let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
-                    binres = binres?.replace(/(Sydney)/g, await Config.Chat.NickName).trim();
-                    binres = binres?.replace(/\[\^\d*\^\]/g, '');
+                    binres = binres?.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
 
                     let qq
                     let OldFavora = 0
@@ -868,11 +867,8 @@ async function AiBing(msg) {
     Data.sleep(1000)
     //console.log(JSON.stringify(Bingres, null, 2));
 
-    if (Bingres.details.text && Bingres.details.text != 'N/A') {
-        ResText = Bingres.details.text;
-    }
-
-    return ResText
+    ResText = Bingres.details.adaptiveCards[0].body[0].text || (Bingres.details.text && Bingres.details.text != 'N/A') || ResText;
+    return ResText;
 }
 
 /** 解析必应参数 */
