@@ -59,6 +59,7 @@ export default class BingAIClient {
             },
         };
         let url
+
         let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies)
         if (!KievRPSSecAuth) {
             url = `https://www.tukuai.one/bingck.php?u=${_U}`
@@ -66,19 +67,26 @@ export default class BingAIClient {
             url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
         }
 
-        const response = await fetch(url, fetchOptions)
-            .catch(error => {
-                console.log(`[止水对话]获取必应参数失败：${error}`);
-            });
-
-        console.log(response?.text());
-        const { status, headers } = response;
-        if (status === 200 && +headers.get('content-length') < 5) {
-            throw new Error('[止水对话]: 你的IP被必应封锁！');
+        let response
+        let i = 0;
+        while (i < 10) {
+          try {
+            response = await fetch(url, fetchOptions);
+            const contentLength = response.headers.get('content-length');
+            const status = response.status;
+            if (contentLength && contentLength >= 5 && status === 200) {
+              break;
+            }
+          } catch (error) {
+            console.error(`[止水对话]: 获取必应参数 ${i} 次！\n${error}`);
+          } finally {
+            i++;
+          }
         }
 
         const body = await response.text();
         try {
+            console.log(body);
             return JSON.parse(body);
         } catch (err) {
             throw new Error(`[止水对话]: 解析必应参数失败！\n${body}`);
