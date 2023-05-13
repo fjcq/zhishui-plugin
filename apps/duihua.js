@@ -150,11 +150,12 @@ export class duihua extends plugin {
                 let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
-                    binres = binres?.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
-
                     let qq
                     let OldFavora = 0
                     let NewFavora = 0
+
+                    binres = binres?.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
+
                     const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
                     let match;
                     while ((match = pattern.exec(binres)) !== null) {
@@ -167,6 +168,7 @@ export class duihua extends plugin {
 
                     //删除好感度文本
                     jieguo = binres.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
+                    jieguo = jieguo.replace(/[｛{]@user\|-?[0-9]+[｝}]/g, '');
                 } else {
                     jieguo = undefined
                 }
