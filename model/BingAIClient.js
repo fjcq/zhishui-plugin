@@ -65,17 +65,15 @@ export default class BingAIClient {
             url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
         }
 
-        const response = await fetch(url, fetchOptions);
-
-        if (response.status != 200) {
-            throw new Error('必应接口异常！');
-        }
-
-        const body = await response.text();
         try {
-            return JSON.parse(body);
-        } catch (err) {
-            throw new Error(`${url}\n无法分析响应正文。\n${body}`);
+            const response = await fetch(url, fetchOptions);
+            if (!response.ok) {
+                throw new Error('网络响应不正常');
+            }
+            console.log(data);
+            return response.json();
+        } catch (error) {
+            console.error('获取必应会话失败:', error);
         }
     }
 
