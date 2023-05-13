@@ -53,10 +53,11 @@ export default class BingAIClient {
     }
 
     async createNewConversation() {
-        const fetchOptions = {};
-        if (this.options.proxy) {
-            fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
-        }
+        const fetchOptions = {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+            },
+        };
         let url
         let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies)
         if (!KievRPSSecAuth) {
@@ -67,10 +68,10 @@ export default class BingAIClient {
 
         const response = await fetch(url, fetchOptions)
             .catch(error => {
-                throw new Error(`[止水对话]: 获取必应参数失败！\n${error}`);
+                console.log(`[止水对话]获取必应参数失败：${error}`);
             });
 
-        console.log(response);
+        console.log(response?.text());
         const { status, headers } = response;
         if (status === 200 && +headers.get('content-length') < 5) {
             throw new Error('[止水对话]: 你的IP被必应封锁！');
@@ -82,7 +83,7 @@ export default class BingAIClient {
         } catch (err) {
             throw new Error(`[止水对话]: 解析必应参数失败！\n${body}`);
         }
-        
+
 
     }
 
