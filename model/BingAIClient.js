@@ -65,16 +65,25 @@ export default class BingAIClient {
             url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
         }
 
-        try {
-            const response = await fetch(url, fetchOptions);
-            if (!response.ok) {
-                throw new Error('网络响应不正常');
-            }
-            console.log(data);
-            return response.json();
-        } catch (error) {
-            console.error('获取必应会话失败:', error);
+        const response = await fetch(url, fetchOptions)
+            .catch(error => {
+                throw new Error(`[止水对话]: 获取必应参数失败！\n${error}`);
+            });
+
+        console.log(response);
+        const { status, headers } = response;
+        if (status === 200 && +headers.get('content-length') < 5) {
+            throw new Error('[止水对话]: 你的IP被必应封锁！');
         }
+
+        const body = await response.text();
+        try {
+            return JSON.parse(body);
+        } catch (err) {
+            throw new Error(`[止水对话]: 解析必应参数失败！\n${body}`);
+        }
+        
+
     }
 
     async createNewConversationOld() {
@@ -111,14 +120,14 @@ export default class BingAIClient {
 
         const { status, headers } = response;
         if (status === 200 && +headers.get('content-length') < 5) {
-            throw new Error('/turing/conversation/create: Your IP is blocked by BingAI.');
+            throw new Error('[止水对话]: 你的IP被必应封锁！');
         }
 
         const body = await response.text();
         try {
             return JSON.parse(body);
         } catch (err) {
-            throw new Error(`/turing/conversation/create: failed to parse response body.\n${body}`);
+            throw new Error(`[止水对话]: 解析必应参数失败！\n${body}`);
         }
     }
 
@@ -214,7 +223,7 @@ export default class BingAIClient {
         }
 
         if (jailbreakConversationId || !conversationSignature || !conversationId || !clientId) {
-            const createNewConversationResponse = await this.createNewConversation();
+            const createNewConversationResponse = await this.createNewConversationOld();
             if (this.debug) {
                 console.debug(createNewConversationResponse);
             }
