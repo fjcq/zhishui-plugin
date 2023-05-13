@@ -226,12 +226,20 @@ export class duihua extends plugin {
     async SetBingSettings(e) {
         if (e.isMaster) {
             let BingCookie = e.msg;
-            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
-            if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
-                e.reply(`必应参数错误，请在浏览器中提取必应的Cookie中的 “KievRPSSecAuth” 字段和 “_U” 字段，发送给我`);
-                return false;
-            };
-
+            /** 必应选项 */
+            const options = {
+                host: 'https://www.bing.com',
+                userToken: '',
+                cookies: BingCookie,
+                proxy: '',
+                debug: false,
+            }
+            /** 必应客户端 */
+            const bingAIClient = new BingAIClient({
+                ...options,
+                cache: cacheOptions,
+            });
+            let { KievRPSSecAuth, _U } = await bingAIClient.AnalysisBingCookie(BingCookie);
             if (KievRPSSecAuth) {
                 BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`
             } else {

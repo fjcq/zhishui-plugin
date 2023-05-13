@@ -193,6 +193,7 @@ export default class BingAIClient {
         ws.removeAllListeners();
     }
 
+    /** 发送消息 */
     async sendMessage(
         message,
         opts = {},
