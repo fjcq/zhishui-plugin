@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import WebSocket from 'ws';
 import Keyv from 'keyv';
 import { ProxyAgent } from 'undici';
-import HttpsProxyAgent from 'https-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 /**
  * https://stackoverflow.com/a/58326357
@@ -53,6 +53,11 @@ export default class BingAIClient {
     }
 
     async createNewConversation() {
+
+        if (this.options.proxy) {
+            return await this.createNewConversationOld();
+        }
+
         const fetchOptions = {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
@@ -70,18 +75,18 @@ export default class BingAIClient {
         let response
         let i = 0;
         while (i < 10) {
-          try {
-            response = await fetch(url, fetchOptions);
-            const contentLength = response.headers.get('content-length');
-            const status = response.status;
-            if (contentLength && contentLength >= 5 && status === 200) {
-              break;
+            try {
+                response = await fetch(url, fetchOptions);
+                const contentLength = response.headers.get('content-length');
+                const status = response.status;
+                if (contentLength && contentLength >= 5 && status === 200) {
+                    break;
+                }
+            } catch (error) {
+                console.error(`[止水对话]: 获取必应参数 ${i} 次！\n${error}`);
+            } finally {
+                i++;
             }
-          } catch (error) {
-            console.error(`[止水对话]: 获取必应参数 ${i} 次！\n${error}`);
-          } finally {
-            i++;
-          }
         }
 
         const body = await response.text();
@@ -232,7 +237,7 @@ export default class BingAIClient {
             onProgress = () => { };
         }
 
-        if (jailbreakConversationId || !conversationSignature || !conversationId || !clientId) {
+        if (!conversationSignature || !conversationId || !clientId) {
             const createNewConversationResponse = await this.createNewConversation();
             if (this.debug) {
                 console.debug(createNewConversationResponse);
@@ -288,18 +293,12 @@ export default class BingAIClient {
                     author: 'system',
                 },
                 ...previousCachedMessages,
+                // We still need this to avoid repeating introduction in some cases
                 {
                     text: message,
                     author: 'user',
                 },
             ] : undefined;
-
-            if (context) {
-                previousMessages.push({
-                    text: context,
-                    author: 'context', // not a real/valid author, we're just piggybacking on the existing logic
-                });
-            }
 
             // prepare messages for prompt injection
             previousMessagesFormatted = previousMessages?.map((previousMessage) => {
@@ -309,13 +308,15 @@ export default class BingAIClient {
                     case 'bot':
                         return `[assistant](#message)\n${previousMessage.text}`;
                     case 'system':
-                        return `N/A\n\n[system](#additional_instructions)\n- ${previousMessage.text}`;
-                    case 'context':
-                        return `[user](#context)\n${previousMessage.text}`;
+                        return `[system](#additional_instructions)\n${previousMessage.text}`;
                     default:
                         throw new Error(`Unknown message author: ${previousMessage.author}`);
                 }
             }).join('\n\n');
+
+            if (context) {
+                previousMessagesFormatted = `${context}\n\n${previousMessagesFormatted}`;
+            }
         }
 
         const userMessage = {
@@ -364,6 +365,7 @@ export default class BingAIClient {
                         'cricinfo',
                         'cricinfov2',
                         'dv3sugg',
+                        'nojbfedge',
                     ],
                     sliceIds: [
                         '222dtappid',
@@ -374,7 +376,7 @@ export default class BingAIClient {
                     isStartOfSession: invocationId === 0,
                     message: {
                         author: 'user',
-                        text: jailbreakConversationId ? '' : message,
+                        text: (jailbreakConversationId && invocationId === 0) ? '' : message,
                         messageType: jailbreakConversationId ? 'SearchQuery' : 'Chat',
                     },
                     conversationSignature,

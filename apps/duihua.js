@@ -94,7 +94,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水对话)?查看好感度(.*)$`,
                     fnc: 'ShowUserFavora'
                 }, {
-                    reg: `^#?(止水对话)?设置对话主人(.*)$`,
+                    reg: `^#?(止水对话)?设置(对话)?主人(.*)$`,
                     fnc: 'SetMaster'
                 }, {
                     reg: `^#?(止水对话)?查看必应模型$`,
@@ -515,16 +515,16 @@ export class duihua extends plugin {
     async SetMaster(e) {
         if (e.isMaster) {
 
-            let re = /^.*设置对话主人\s*(\S+)\s+(\d+)/;
+            let re = /^.*主人\s*(\S+)\s+(\d+)/;
             let result = re.exec(e.msg);
 
-            if (result?.length != 4) {
+            if (result?.length != 3) {
                 e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
                 return false;
             }
-            await WriteMaster(result[2], result[3])
+            await WriteMaster(result[1], result[2])
 
-            e.reply(`设置成功！\n当前主人：${result[2]}\nQQ号码：${result[3]}`);
+            e.reply(`设置成功！\n当前主人：${result[1]}\nQQ号码：${result[2]}`);
             return true;
         };
 
@@ -814,14 +814,17 @@ async function AiBing(msg) {
         return undefined;
     }
 
+    let proxy = await Config.proxy.switchProxy ? await Config.proxy.proxyAddress : '';
     /** 必应选项 */
     const options = {
         host: 'https://www.bing.com',
         userToken: '',
         cookies: BingCookie,
-        proxy: '',
+        proxy: proxy,
         debug: false,
     }
+
+    console.log('proxy:' + options.proxy);
 
     /** 必应客户端 */
     const bingAIClient = new BingAIClient({
