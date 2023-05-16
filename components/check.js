@@ -6,7 +6,8 @@ export const needPackage = [
     'keyv',
     'keyv-file',
     'undici',
-    'ws'
+    'ws',
+    'https-proxy-agent'
 ]
 
 export async function checkPackage() {
