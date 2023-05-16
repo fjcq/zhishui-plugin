@@ -103,6 +103,9 @@ export class duihua extends plugin {
                     reg: `^#?(止水对话)?设置必应模型(.*)$`,
                     fnc: 'SettoneStyle'
                 }, {
+                    reg: `^#?(止水对话)?(设置|开启|关闭)代理(.*)$`,
+                    fnc: 'SetProxy'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
@@ -574,6 +577,37 @@ export class duihua extends plugin {
 
             return true;
         };
+    }
+
+
+    /** 设置代理 */
+    async SetProxy(e) {
+        if (!e.isMaster) {
+            return;
+        };
+
+        if (e.msg.search('开启') != -1) {
+
+            Config.modify('proxy', 'switchProxy', Enable);
+            e.reply("[对话] 代理 已开启！");
+
+        } else if (e.msg.search('关闭') != -1) {
+
+            Config.modify('proxy', 'switchProxy', false);
+            e.reply("[对话] 代理 已关闭！");
+
+        } else if (e.msg.search('设置') != -1) {
+
+            let proxy = e.msg.replace(/^.*代理/, '').trim();
+            if (proxy) {
+                Config.modify('proxy', 'proxyAddress', proxy);
+                e.reply("[对话]代理设置为：" + proxy);
+             }else{
+                e.reply("[对话]设置代理失败！请在指令后面加上你要设置的http代理,例如：\n#止水对话设置代理http://127.0.0.1:7890" );
+             };
+        }
+
+        return;
 
     }
 }
