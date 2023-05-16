@@ -588,7 +588,7 @@ export class duihua extends plugin {
 
         if (e.msg.search('开启') != -1) {
 
-            Config.modify('proxy', 'switchProxy', Enable);
+            Config.modify('proxy', 'switchProxy', true);
             e.reply("[对话] 代理 已开启！");
 
         } else if (e.msg.search('关闭') != -1) {
