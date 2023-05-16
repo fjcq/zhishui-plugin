@@ -824,8 +824,6 @@ async function AiBing(msg) {
         debug: false,
     }
 
-    console.log('proxy:' + options.proxy);
-
     /** 必应客户端 */
     const bingAIClient = new BingAIClient({
         ...options,
