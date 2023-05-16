@@ -83,7 +83,7 @@ async function help (e) {
 }
 
 const rodom = async function () {
-  let image = fs.readdirSync('./plugins/yenai-plugin/resources/help/imgs/')
+  let image = fs.readdirSync('./plugins/zhishui-plugin/resources/help/imgs/')
   let list_img = []
   for (let val of image) {
     list_img.push(val)
