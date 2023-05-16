@@ -1,4 +1,3 @@
-
 import YAML from 'yaml'
 import chokidar from 'chokidar'
 import fs from 'node:fs'
@@ -66,12 +65,12 @@ class Config {
     return this.getDefOrConfig('duihua')
   }
 
-    /** 获取演奏设置 */
-    get YanZou() {
-      return this.getDefOrConfig('yanzou')
-    }
+  /** 获取演奏设置 */
+  get YanZou() {
+    return this.getDefOrConfig('yanzou')
+  }
 
-    
+
   /** 代理 */
   get proxy() {
     return this.getDefOrConfig('proxy')
@@ -169,7 +168,7 @@ class Config {
    * @param {'add'|'del'} category 类别 add or del
    * @param {'config'|'default_config'} type 配置文件或默认
    */
-  modifyarr(name, key, value, category = 'add', type = 'config') {
+  async modifyarr (name, key, value, category = 'add', type = 'config') {
     let path = `${Plugin_Path}/config/${type}/${name}.yaml`
     let yaml = new YamlReader(path)
     if (category == 'add') {
@@ -179,6 +178,7 @@ class Config {
       yaml.delete(`${key}.${index}`)
     }
   }
+
 
   /**
  * @description: 获取用户搜剧配置
