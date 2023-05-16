@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import WebSocket from 'ws';
 import Keyv from 'keyv';
 import { ProxyAgent } from 'undici';
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 /**
  * https://stackoverflow.com/a/58326357
@@ -13,9 +13,16 @@ const genRanHex = size => [...Array(size)].map(() => Math.floor(Math.random() * 
 
 export default class BingAIClient {
     constructor(options) {
-        const cacheOptions = options.cache || {};
-        cacheOptions.namespace = cacheOptions.namespace || 'bing';
-        this.conversationsCache = new Keyv(cacheOptions);
+        if (options.keyv) {
+            if (!options.keyv.namespace) {
+                console.warn('The given Keyv object has no namespace. This is a bad idea if you share a database.');
+            }
+            this.conversationsCache = options.keyv;
+        } else {
+            const cacheOptions = options.cache || {};
+            cacheOptions.namespace = cacheOptions.namespace || 'bing';
+            this.conversationsCache = new Keyv(cacheOptions);
+        }
 
         this.setOptions(options);
     }
@@ -206,7 +213,7 @@ export default class BingAIClient {
         ws.close();
         ws.removeAllListeners();
     }
-
+    
     /** 发送消息 */
     async sendMessage(
         message,
@@ -237,7 +244,7 @@ export default class BingAIClient {
             onProgress = () => { };
         }
 
-        if (!conversationSignature || !conversationId || !clientId) {
+        if (jailbreakConversationId || !conversationSignature || !conversationId || !clientId) {
             const createNewConversationResponse = await this.createNewConversation();
             if (this.debug) {
                 console.debug(createNewConversationResponse);
@@ -376,7 +383,7 @@ export default class BingAIClient {
                     isStartOfSession: invocationId === 0,
                     message: {
                         author: 'user',
-                        text: (jailbreakConversationId && invocationId === 0) ? '' : message,
+                        text: message,
                         messageType: jailbreakConversationId ? 'SearchQuery' : 'Chat',
                     },
                     conversationSignature,
@@ -514,6 +521,7 @@ export default class BingAIClient {
                                 stopTokenFound
                                 || event.item.messages[0].topicChangerText
                                 || event.item.messages[0].offense === 'OffenseTrigger'
+                                || (event.item.messages.length > 1 && event.item.messages[1].contentOrigin === 'Apology')
                             )
                         ) {
                             if (!replySoFar) {
