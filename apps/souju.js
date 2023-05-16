@@ -3,6 +3,7 @@ import { puppeteer } from '../model/index.js'
 import Data from '../components/Data.js'
 import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
+import YamlReader from '../components/YamlReader.js'
 
 /** 缓存目录 */
 const CachePath = `${Plugin_Path}/resources/Cache/SearchVideos`
@@ -28,7 +29,7 @@ export class souju extends plugin {
                     reg: "^#(重新)?搜剧(.*)$",
                     fnc: 'SearchVideos'
                 }, {
-                    reg: '^#设置搜剧接口(.*)$',
+                    reg: '^#(设置|增加|删除)搜剧接口(.*)$',
                     fnc: 'SetInterface'
                 }, {
                     reg: '^#查看搜剧接口$',
@@ -140,17 +141,70 @@ export class souju extends plugin {
     /** 设置搜剧接口 */
     async SetInterface(e) {
         if (e.isMaster) {
-            let index = parseInt(e.msg.replace(/\D+/, '').trim());
 
-            if (index <= Config.SearchVideos.resources.length && index > 0) {
+            if (e.msg.search('设置') != -1) {
+                let index = parseInt(e.msg.replace(/^.*搜剧接口/, '').trim());
+                if (isNaN(index)) {
+                    index = 1;
+                }
+
+                const resources = await Config.SearchVideos.resources
+                if (index < 1 && index > resources.length) {
+                    index = 1;
+                }
+
                 await Config.SetUserSearchVideos(e.user_id, 'idx', index - 1);
                 Show_Interface(e);
-            } else {
-                e.reply("接口编号错误！");
+
             }
-            return true;
-        }
-        return false
+
+            if (e.msg.search('增加') != -1) {
+
+                const Interface = e.msg.replace(/^.*搜剧接口/, '').trim();
+
+                if (Interface) {
+
+                    const [url, title = '新接口', showpic = 'true'] = Interface.split('|')
+                    const site = {
+                        site: {
+                            showpic: showpic === '显示' || showpic === 'true',
+                            title,
+                            url
+                        }
+                    }
+
+                    await Config.modifyarr('souju', `resources`, site, 'add')
+                    Show_Interface(e);
+                }
+
+            }
+
+            if (e.msg.search('删除') != -1) {
+
+                const index = parseInt(e.msg.replace(/^.*搜剧接口/, '').trim());
+                if (isNaN(index)) {
+                    e.reply(`接口编号错误！`)
+                    return;
+                }
+
+                let path = `${Plugin_Path}/config/config/souju.yaml`
+                let yaml = new YamlReader(path)
+                let resources = yaml.jsonData['resources']
+                let title = resources[index - 1].site.title
+
+                if (index < 0 && index >= resources.length) {
+                    e.reply(`接口编号错误！`)
+                    return;
+                }
+
+                yaml.delete(`resources.${index - 1}`)
+
+                e.reply(`已删除搜剧接口： ${title}`)
+
+            }
+
+            return;
+        };
     }
 
     /** 查看搜剧接口 */
@@ -430,20 +484,21 @@ export class souju extends plugin {
 async function Show_Interface(e) {
 
     let msg = "***搜剧接口***\n\n";
-    let title = ""
-    let resources
-    const Route = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0
-    for (var i = 0; i < Config.SearchVideos.resources.length; i++) {
-        resources = Config.SearchVideos.resources[i].site
-        title = resources.title
-        if (Route == i) {
-            title = `>> ${resources.title} <<`
-        }
-        msg += `${i + 1}、${title}\n`;
+    let title = "";
+    let resources = await Config.SearchVideos.resources;
+    const len = resources.length;
 
+    let Route = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx'));
+    if (Route < 0 && Route > len - 1) {
+        Route = 0;
     }
-    msg += "\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
-    e.reply(msg)
+
+    msg += resources.map((resource, i) => {
+        const title = resource.site.title;
+        return `${i === Route ? '>>' : ''} ${i + 1}、${title} ${i === Route ? '<<' : ''}`;
+    }).join('\n') + "\n\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
+    e.reply(msg);
+
 }
 
 
