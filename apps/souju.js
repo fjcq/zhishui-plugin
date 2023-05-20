@@ -1,6 +1,5 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { puppeteer } from '../model/index.js'
-import Data from '../components/Data.js'
 import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 import YamlReader from '../components/YamlReader.js'
@@ -11,8 +10,6 @@ const CachePath = `${Plugin_Path}/resources/Cache/SearchVideos`
 let SearchName = ""
 /** 视频ID数组 */
 var IDs = []
-/** 当前播放线路 */
-var CurrentrRoute = 0
 /** 当前视频索引 */
 var CurrentID = 1
 var zzss = 0
@@ -76,14 +73,15 @@ export class souju extends plugin {
             }
             zzss = 1;
 
-            SearchName = e.msg.replace(/#[重新]?搜剧/g, "").trim();
+            let retry = e.msg.search('重新') != -1
+            SearchName = e.msg.replace(/.*搜剧/g, "").trim();
             e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`);
 
             const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
             const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
             const domain = Config.SearchVideos.resources[idx].site.url
             let SearchResults;
-            if ((page == 1) && (keyword == SearchName)) {
+            if ((page == 1) && (keyword == SearchName) && !retry) {
                 //判断缓存
                 SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
                 if (isNotNull(SearchResults)) {
@@ -153,6 +151,10 @@ export class souju extends plugin {
                     index = 1;
                 }
 
+                //重置搜剧设置
+                this.CancelSearch(e)
+
+                //写入搜剧接口设置
                 await Config.SetUserSearchVideos(e.user_id, 'idx', index - 1);
                 Show_Interface(e);
 
@@ -220,9 +222,18 @@ export class souju extends plugin {
 
     /** 取消搜剧 */
     async CancelSearch(e) {
+
+        //重置搜剧设置
         zzss = 0
-        e.reply(`已取消 [ ${SearchName || '最新视频'} ] 的搜索`)
+        await Config.SetUserSearchVideos(e.user_id, 'SearchResults', '');
+        await Config.SetUserSearchVideos(e.user_id, 'keyword', '');
+        await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+        await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
+        await Config.SetUserSearchVideos(e.user_id, 'Route', 0);
+
+        e.reply(`已取消 [ ${SearchName || '最新视频'} ] 的搜索`);
         return true;
+
     }
 
     /** 选剧 */
@@ -484,7 +495,6 @@ export class souju extends plugin {
 async function Show_Interface(e) {
 
     let msg = "***搜剧接口***\n\n";
-    let title = "";
     let resources = await Config.SearchVideos.resources;
     const len = resources.length;
 
@@ -503,25 +513,6 @@ async function Show_Interface(e) {
 
 
 
-/**
- * 发送转发消息
- * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
-*/
-async function ForwardMsg(e, data) {
-    let msgList = []
-    for (let i of data) {
-        msgList.push({
-            message: i,
-            nickname: Bot.nickname,
-            user_id: Bot.uin
-        })
-    }
-    if (msgList.length == 1) {
-        await e.reply(msgList[0].message)
-    } else {
-        await e.reply(await Bot.makeForwardMsg(msgList))
-    }
-}
 
 /**
  * 判断对象是否不为undefined且不为null、NaN
@@ -549,28 +540,7 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
         .then(res => res.json())
         .catch(err => {
             logger.error(err)
-            throw Error(`搜剧出错啦~！：${err.message}`)
-        })
-    return res
-}
-/**
- * 获取视频详情内容
- * @param {number} ids - 视频id
- * @param {number} [page=1] - 页码，默认为1
- * @param {number} [type=0] - 搜索类型
- * @param {number} [hour=0] - 搜索几小时内的数据
- * @param {string} [domain=''] - 资源站网址
- * @throws {Error} 当未找到作品时，会抛出异常
- * @returns {Array<string>} 返回搜索结果信息数组
- */
-async function GetVideoDetails(ids = 0, page = 1, type = 0, hour = 0, domain = '') {
-    let url = domain + '?ac=detail&ids=' + ids + "&t=" + type + "&h=" + hour + "&pg=" + page
-    console.log(`开始请求：${url}`);
-    let res = await request.get(url)
-        .then(res => res.json())
-        .catch(err => {
-            logger.error(err)
-            throw Error(`搜剧出错啦~！：${err.message}`)
+            //return err
         })
     return res
 }
@@ -636,22 +606,4 @@ function transformChar(str = '') {
     return temp;
 }
 
-/**
- * 读取缓存JSON
- * @param {string} file - 文件名
- * @returns {JSON<object>} 返回JSON对象
- */
-function ReadCacheJson(file = '') {
-    let object = Data.readJSON(file, CachePath)
-    return object
-}
 
-/**
- * 写入缓存JSON
- * @param {string} file - 文件名
- * @param {object} [data={}] - 要写入的内容
- * @returns {boolean} 返回JSON对象
- */
-function WriteCacheJson(file = '', data = {}) {
-    return Data.writeJSON(file, data, CachePath)
-}
