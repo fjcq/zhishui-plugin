@@ -5,6 +5,7 @@ import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
+import { MicrosoftBingAutoLogin } from '../model/AutoLogin.js';
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 import { KeyvFile } from 'keyv-file';
@@ -106,6 +107,9 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?(设置|开启|关闭)代理(.*)$`,
                     fnc: 'SetProxy'
                 }, {
+                    reg: `^#?(止水)?(插件|对话)?测试一哈命令$`,
+                    fnc: 'denglubiying'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
@@ -113,6 +117,24 @@ export class duihua extends plugin {
             ]
         })
     }
+
+
+    /** 登录必应 */
+    async denglubiying(e) {
+        e.reply(`准备开始登录……`);
+        const bing_account = 'fjcq@2ld3lk.onmicrosoft.com';
+        const bing_password = 'tang@33416719';
+
+        const autoLogin = new MicrosoftBingAutoLogin(bing_account, bing_password);
+        await autoLogin.init();
+        await autoLogin.login();
+        const cookies = await autoLogin.getCookies();
+        await writeCookie(cookies);
+
+        const cookiesJson = JSON.stringify(cookies);
+        e.reply(`你好，这是你要的：\n${cookiesJson}`);
+        return true;
+    };
 
     /** 重置对话 */
     async ResetChat(e) {
@@ -855,6 +877,9 @@ async function AiBing(msg) {
         userToken: '',
         cookies: BingCookie,
         proxy: proxy,
+        features: {
+            genImage: true,
+        },
         debug: false,
     }
 
@@ -1128,4 +1153,14 @@ async function MsgToAt(msg) {
         .filter(Boolean)
         .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s)
     return arr;
+}
+
+/**
+ * 写出Cookie
+ */
+async function writeCookie(data) {
+    const DataPath = path.join(Plugin_Path, 'resources', 'data');
+    const fileName = `BingCookie.json`
+
+    return Data.writeJSON(fileName, data, DataPath);
 }
