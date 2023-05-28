@@ -107,6 +107,9 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?(设置|查看|开启|关闭)代理(.*)$`,
                     fnc: 'SetProxy'
                 }, {
+                    reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
+                    fnc: 'SetLinkMode'
+                }, {
                     reg: `^#?(止水)?(插件|对话)?测试一哈命令$`,
                     fnc: 'denglubiying'
                 }, {
@@ -175,18 +178,13 @@ export class duihua extends plugin {
                 let binres = await AiBing(BingMsg)
                 if (binres) {
                     //结果处理
-                    let qq
-                    let OldFavora = 0
-                    let NewFavora = 0
-
-                    binres = binres?.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
-
+                    binres = binres.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
                     const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
                     let match;
                     while ((match = pattern.exec(binres)) !== null) {
-                        qq = match[1]
-                        OldFavora = await GetFavora(qq)
-                        NewFavora = parseInt(OldFavora) + parseInt(match[2]) //计算好感度
+                        const qq = match[1];
+                        const OldFavora = await GetFavora(qq)
+                        const NewFavora = parseInt(OldFavora) + parseInt(match[2]) //计算好感度
                         console.log(`好感度更新：${qq} -> ${OldFavora}+${parseInt(match[2])}=${NewFavora}`)
                         await SetFavora(qq, NewFavora) //保存新的好感度
                     }
@@ -632,6 +630,20 @@ export class duihua extends plugin {
         return;
 
     }
+
+    /** 设置链接模式 */
+    async SetLinkMode(e) {
+        if (!e.isMaster) {
+            return;
+        };
+
+        let Enable = e.msg.search('开启') != -1;
+        Config.modify('duihua', 'LinkMode', Enable);
+        e.reply(`[对话] 链接模式 ${Enable ? '已开启' : '已关闭'}！`);
+        return true;
+
+    }
+
 }
 
 /**
@@ -937,7 +949,13 @@ async function AiBing(msg) {
     Data.sleep(1000)
     //console.log(JSON.stringify(Bingres, null, 2));
 
-    ResText = Bingres.details.adaptiveCards[0].body[0].text || (Bingres.details.text && Bingres.details.text != 'N/A') || ResText;
+    const LinkMode = await Config.Chat.LinkMode;
+    if (LinkMode && Bingres.details.adaptiveCards[0].body[0].text) {
+        ResText = Bingres.details.adaptiveCards[0].body[0].text;
+    } else if (Bingres.details.text && Bingres.details.text != 'N/A') {
+        ResText = Bingres.details.text;
+    }
+
     return ResText;
 }
 

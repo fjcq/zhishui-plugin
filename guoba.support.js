@@ -88,6 +88,12 @@ export function supportGuoba() {
                     component: 'Switch'
                 },
                 {
+                    field: 'duihua.LinkMode',
+                    label: '链接模式',
+                    bottomHelpMessage: '开启后会在回复信息中包含引用链接。',
+                    component: 'Switch'
+                },
+                {
                     field: 'duihua.VoiceIndex',
                     label: '语音发音人',
                     bottomHelpMessage: '输入发音人序号，对应序号可以通过 #查看发音人 获取',
