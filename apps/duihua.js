@@ -104,7 +104,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?设置必应模型(.*)$`,
                     fnc: 'SettoneStyle'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?(设置|开启|关闭)代理(.*)$`,
+                    reg: `^#?(止水)?(插件|对话)?(设置|查看|开启|关闭)代理(.*)$`,
                     fnc: 'SetProxy'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?测试一哈命令$`,
@@ -588,7 +588,7 @@ export class duihua extends plugin {
                 Config.modify('duihua', 'toneStyle', 'precise');
             } else if (toneStyle == '快速' || toneStyle == 'fast') {
                 msg = '必应模型修改为：快速'
-                Config.modify('duihua', 'toneStyle', 'precise');
+                Config.modify('duihua', 'toneStyle', 'fast');
             } else {
                 msg = '必应模型修改为：默认'
                 Config.modify('duihua', 'toneStyle', 'balanced');
@@ -612,20 +612,20 @@ export class duihua extends plugin {
         if (switchProxy !== null) {
             Config.modify('proxy', 'switchProxy', switchProxy);
             e.reply(`[对话] 代理 ${switchProxy ? '已开启' : '已关闭'}！`);
-        } else {
-            switch (e.msg) {
-                case '设置':
-                    const proxy = e.msg.replace(/^.*代理/, '').trim();
-                    if (proxy) {
-                        Config.modify('proxy', 'proxyAddress', proxy);
-                        e.reply(`[对话]代理设置为：${proxy}`);
-                    } else {
-                        e.reply("[对话]设置代理失败！请在指令后面加上你要设置的http代理,例如：\n#止水对话设置代理http://127.0.0.1:7890");
-                    }
-                    break;
-                default:
-                    // 其他情况的处理
-                    break;
+        } else if (e.msg.search('设置') != -1) {
+            const proxy = e.msg.replace(/^.*代理/, '').trim();
+            if (proxy) {
+                Config.modify('proxy', 'proxyAddress', proxy);
+                e.reply(`[对话]代理设置为：${proxy}`);
+            } else {
+                e.reply("[对话]设置代理失败！请在指令后面加上你要设置的http代理,例如：\n#止水对话设置代理http://127.0.0.1:7890");
+            }
+        } else if (e.msg.search('查看') != -1) {
+            const proxyAddress = await Config.proxy.proxyAddress;
+            if (proxyAddress) {
+                e.reply(`[对话]你当前的代理为：${proxyAddress}`);
+            } else {
+                e.reply("[对话]你现在还没有设置代理，可以发送指令进行设置,例如：\n#止水对话设置代理http://127.0.0.1:7890");
             }
         }
 
