@@ -1,15 +1,15 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
 import { Plugin_Path, Config } from '../components/index.js'
+import path from 'path';
 
 const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
-const _path = process.cwd();
 const FFMPEG_PATH = "ffmpeg"
 
-let ResPath = `${_path}/plugins/zhishui-plugin/resources/yanzou/`;
-let YueqiPath = `${ResPath}/gangqin/`;
-let OutputFile = `${_path}/resources/output`;
+let ResPath = path.join(Plugin_Path, 'resources/yanzou');
+let YueqiPath = path.join(ResPath, 'gangqin');
+let OutputFile = path.join(Plugin_Path, 'resources/output');
 let Format = ".wav"; // 文件格式
 let kg = 0;
 
@@ -52,12 +52,6 @@ export class yanzou extends plugin {
             e.reply(msg);
             return;
         }
-
-        // if (await FluentFFmpeg(e)) {
-        //     return true;
-        // } else {
-        //     return false;
-        // };
 
         kg = 1
         let FFmpegCommand = await GetFFmpegCommand(e.msg);
@@ -192,21 +186,11 @@ export class yanzou extends plugin {
     //演奏测试
     async TestPlaye(e) {
         let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
-        if (zhiling == "帮助") {
-            e.reply(GetPlayHelp())
-            return;
-        }
+        await mergeAudio(zhiling, YueqiPath, OutputFile);
 
-        if (kg == 1) {
-            e.reply(`正在准备演奏呢，你先别急~~`, true);
-            return;
-        }
+        let fileName = path.join(OutputFile, 'output.mp3')
 
-        if (await FluentFFmpeg(e)) {
-            return true;
-        } else {
-            return false;
-        };
+        e.reply([segment.record(fileName)]);
     }
 }
 
@@ -392,3 +376,76 @@ function isNotNull(obj) {
     return true
 }
 
+/**
+ * 合并音频文件
+ * @param {string} inputString 输入字符串，包含文件名和节拍信息
+ * @param {string} inputDirectory 输入目录，包含音频文件
+ * @param {string} outputDirectory 输出目录，用于保存合成后的音频文件
+ * @returns {Promise} 返回一个 Promise，在音频文件合并并保存到指定的输出目录时解析
+ */
+async function mergeAudio(inputString, inputDirectory, outputDirectory) {
+    const ffmpeg = require('fluent-ffmpeg');
+    return new Promise((resolve, reject) => {
+        // 分割输入字符串，获取文件名和节拍信息
+        const parts = inputString.split('|');
+        // 获取每个音频文件的节奏速度，默认为 90
+        const standardDelay = parts.length > 1 ? parseInt(parts[1]) : 90;
+        console.log(standardDelay)
+        // 获取文件名和节拍信息
+        const files = parts[0].match(/([+\-]?)(\d)(_*)/g);
+        // 初始化 ffmpeg 命令
+        const command = ffmpeg();
+        // 初始化过滤器字符串
+        let filterStr = '';
+        // 初始化输入索引
+        let inputIndex = 0;
+        // 初始化总延迟时间
+        let totalDelay = 0;
+
+        // 遍历文件名和节拍信息
+        const regex = /([+\-]?)(\d)(_*)$/;
+        for (const str of files) {
+            const match = str.match(regex);
+            if (match) {
+                const result1 = match[3] + (match[2] >= 1 && match[2] <= 7 ? '' : match[2]);
+                const result2 = (match[2] >= 1 && match[2] <= 7 ? match[1] + match[2] : '');
+
+                if (result2) {
+                    // 添加输入文件
+                    const inputFile = path.join(inputDirectory, result2 + '.wav');
+                    console.log(inputFile)
+                    command.input(inputFile);
+                    // 构建 adelay 过滤器字符串
+                    filterStr += `[${inputIndex}]adelay=${totalDelay}:all=1[${inputIndex}a];`;
+                    inputIndex++;
+                }
+
+                let Delay
+                const underscoreCount = result1.split('_').length - 1;
+                Delay = 60000 / standardDelay / Math.pow(2, underscoreCount);
+                if (result1.match(/\d/)) {
+                    Delay += 60000 / standardDelay;
+                }
+                totalDelay += Delay
+                console.log(result1, Delay, totalDelay)
+            }
+
+
+        }
+
+
+        // 构建 amix 过滤器字符串
+        filterStr += `[0a]`;
+        for (let i = 1; i < inputIndex; i++) {
+            filterStr += `[${i}a]`;
+        }
+        filterStr += `amix=inputs=${inputIndex}:dropout_transition=0:normalize=0[a]`;
+        // 设置音频过滤器图并保存输出文件
+        command
+            .complexFilter(filterStr, 'a')
+            //.on('stderr', console.log)
+            .on('end', () => resolve())
+            .on('error', (err) => reject(err))
+            .save(path.join(outputDirectory, 'output.mp3'));
+    });
+}
