@@ -5,7 +5,7 @@ import { Plugin_Path, Config } from '../components/index.js'
 import request from '../lib/request/request.js'
 import Data from '../components/Data.js'
 import BingAIClient from '../model/BingAIClient.js'
-import { MicrosoftBingAutoLogin } from '../model/AutoLogin.js';
+//import { MicrosoftBingAutoLogin } from '../model/AutoLogin.js';
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 import { KeyvFile } from 'keyv-file';
@@ -124,6 +124,7 @@ export class duihua extends plugin {
 
     /** 登录必应 */
     async denglubiying(e) {
+        return true;
         e.reply(`准备开始登录……`);
         const bing_account = 'fjcq@2ld3lk.onmicrosoft.com';
         const bing_password = 'tang@33416719';
