@@ -886,7 +886,7 @@ async function AiBing(msg) {
     let proxy = await Config.proxy.switchProxy ? await Config.proxy.proxyAddress : '';
     /** 必应选项 */
     const options = {
-        host: 'https://www.bing.com',
+        host: 'https://cn.bing.com',
         userToken: '',
         cookies: BingCookie,
         proxy: proxy,
@@ -910,7 +910,7 @@ async function AiBing(msg) {
     if (!nickname || !masterQQ || !master) { return undefined; }
 
     //载入身份预设
-    let Context = await ReadContext() + await ReadScene() + `你真正的主人QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对真正的主人的好感度永远是最大值。`
+    let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`
     Context = Context.replace(/{NickName}/g, nickname)
     Context = Context.replace(/{MasterQQ}/g, masterQQ)
     Context = Context.replace(/{Master}/g, master)
