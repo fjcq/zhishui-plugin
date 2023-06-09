@@ -29,7 +29,7 @@ Master: 止水
 MasterQQ: 172679743
 
 #必应模型   默认：balanced, 创意：creative, 精确：precise, 快速：fast
-toneStyle: creative
+toneStyle: "creative"
 
 #链接模式
 LinkMode: false

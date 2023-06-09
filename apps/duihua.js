@@ -125,10 +125,6 @@ export class duihua extends plugin {
     /** 对话测试 */
     async taklTest(e) {
         if (!e.isMaster) { return; }
-
-        let msg = e.msg.replace(/^#?(止水)?(插件|对话)?测试/, '').trim();
-
-        e.reply('msg');
         return true;
     };
 
@@ -159,7 +155,7 @@ export class duihua extends plugin {
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             works = 1;
             let jieguo;
-
+            let images
             console.log("提问：" + msg);
 
             //启用必应时，优先必应
@@ -169,12 +165,21 @@ export class duihua extends plugin {
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
                 console.log("提交必应 -> " + BingMsg);
                 let binres = await AiBing(BingMsg);
+
                 if (binres) {
                     //结果处理
-                    binres = binres.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
+                    if (binres?.images) {
+                        jieguo = binres.text;
+                        images = binres.images;
+                    } else {
+                        jieguo = binres;
+                    }
+
+
+                    jieguo = jieguo.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
                     const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
                     let match;
-                    while ((match = pattern.exec(binres)) !== null) {
+                    while ((match = pattern.exec(jieguo)) !== null) {
                         const Favora = parseInt(match[2]);
                         if (Favora !== 0) {
                             const qq = match[1];
@@ -186,7 +191,7 @@ export class duihua extends plugin {
                     }
 
                     //删除好感度文本
-                    jieguo = binres.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
+                    jieguo = jieguo.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
                     jieguo = jieguo.replace(/[｛{]@user\|-?[0-9]+[｝}]/g, '');
                 } else {
                     jieguo = undefined;
@@ -225,8 +230,16 @@ export class duihua extends plugin {
             }
 
             let remsg = await MsgToAt(jieguo);
-            console.log(remsg);
+            //console.log(remsg);
             e.reply(remsg, true);
+
+            //console.log(`images：${images}`);
+            if (isNotNull(images) ) {
+                for (let i = 0; i < images.length; i++) {
+                    e.reply([segment.image(images[i])]);
+                }
+                    
+            }
 
             //语音合成
             if (await Config.Chat.EnableVoice) {
@@ -885,9 +898,6 @@ async function AiBing(msg) {
         userToken: '',
         cookies: BingCookie,
         proxy: proxy,
-        features: {
-            genImage: true,
-        },
         debug: false,
     };
 
@@ -911,13 +921,24 @@ async function AiBing(msg) {
     Context = Context.replace(/{Master}/g, master);
 
     let ResText = '';
-    let toneStyle = await Config.Chat.toneStyle | `balanced`;
-    //首次对话 初始化参数和身份设定
+    let toneStyle = await Config.Chat.toneStyle;
+    if (!isNotNull(toneStyle)) { toneStyle = `creative` };
+    
+    // console.log(toneStyle);
+    // 首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
         Bingres = await bingAIClient.sendMessage(msg, {
             toneStyle: toneStyle, // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
             jailbreakConversationId: true,
             systemMessage: Context,
+            clientOptions: {
+                features: {
+                    genImage: {
+                        enable: true,
+                        type: 'markdown_list',
+                    },
+                },
+            },
             onProgress: (token) => {
                 process.stdout.write(token);
                 ResText += token;
@@ -932,6 +953,14 @@ async function AiBing(msg) {
             toneStyle: toneStyle,
             jailbreakConversationId: jailbreakConversationId,
             systemMessage: Context,
+            clientOptions: {
+                features: {
+                    genImage: {
+                        enable: true,
+                        type: 'markdown_list',
+                    },
+                },
+            },
             parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
@@ -943,16 +972,25 @@ async function AiBing(msg) {
     }
 
     Data.sleep(1000);
-    //console.log(JSON.stringify(Bingres, null, 2));
+    // console.log(JSON.stringify(Bingres, null, 2));
 
     const LinkMode = await Config.Chat.LinkMode;
     if (LinkMode && Bingres.details.adaptiveCards[0].body[0].text) {
         ResText = Bingres.details.adaptiveCards[0].body[0].text;
     } else if (Bingres.details.text && Bingres.details.text != 'N/A') {
         ResText = Bingres.details.text;
+    } else if (Bingres.response && Bingres.response != 'N/A') {
+        ResText = Bingres.response;
     }
 
+    if (Bingres.details?.bic?.images) {
+        return {
+            text: ResText,
+            images: Bingres.details.bic.images
+        };
+    }
     return ResText;
+
 }
 
 /** 解析必应参数 */
