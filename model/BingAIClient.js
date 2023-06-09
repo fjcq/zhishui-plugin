@@ -78,17 +78,17 @@ export default class BingAIClient {
 
     /** 解析必应参数 */
     async AnalysisBingCookie(Cookie) {
-        let KievRPSSecAuth = ''
-        let _U = ''
+        let KievRPSSecAuth = '';
+        let _U = '';
         if (Cookie.includes("KievRPSSecAuth=")) {
-            KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1]
+            KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
         }
 
         if (Cookie.includes("_U=")) {
-            _U = Cookie.match(/\b_U=(\S+)\b/)[1]
+            _U = Cookie.match(/\b_U=(\S+)\b/)[1];
         }
 
-        return { KievRPSSecAuth, _U }
+        return { KievRPSSecAuth, _U };
     }
 
     async createNewConversation() {
@@ -102,16 +102,16 @@ export default class BingAIClient {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
             },
         };
-        let url
+        let url;
 
-        let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies)
+        let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies);
         if (!KievRPSSecAuth) {
-            url = `https://www.tukuai.one/bingck.php?u=${_U}`
+            url = `https://www.tukuai.one/bingck.php?u=${_U}`;
         } else {
-            url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+            url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`;
         }
 
-        let response
+        let response;
         let i = 0;
         while (i < 10) {
             try {
@@ -144,11 +144,12 @@ export default class BingAIClient {
             headers: {
                 accept: 'application/json',
                 'accept-language': 'en-US,en;q=0.9',
-                'sec-ch-ua': '"Not/A)Brand";v="99", "Microsoft Edge";v="115", "Chromium";v="115"',
+                'content-type': 'application/json',
+                'sec-ch-ua': '"Microsoft Edge";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
                 'sec-ch-ua-arch': '"x86"',
                 'sec-ch-ua-bitness': '"64"',
-                'sec-ch-ua-full-version': '"115.0.1866.1"',
-                'sec-ch-ua-full-version-list': '"Not/A)Brand";v="99.0.0.0", "Microsoft Edge";v="115.0.1866.1", "Chromium";v="115.0.5767.0"',
+                'sec-ch-ua-full-version': '"113.0.1774.50"',
+                'sec-ch-ua-full-version-list': '"Microsoft Edge";v="113.0.1774.50", "Chromium";v="113.0.5672.127", "Not-A.Brand";v="24.0.0.0"',
                 'sec-ch-ua-mobile': '?0',
                 'sec-ch-ua-model': '""',
                 'sec-ch-ua-platform': '"Windows"',
@@ -156,13 +157,12 @@ export default class BingAIClient {
                 'sec-fetch-dest': 'empty',
                 'sec-fetch-mode': 'cors',
                 'sec-fetch-site': 'same-origin',
-                'sec-ms-gec': genRanHex(64).toUpperCase(),
-                'sec-ms-gec-version': '1-115.0.1866.1',
                 'x-ms-client-request-id': crypto.randomUUID(),
                 'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-                Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1',
-                'Referrer-Policy': 'origin-when-cross-origin',
+                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.50',
                 cookie: this.options.cookies || (this.options.userToken ? `_U=${this.options.userToken}` : undefined),
+                Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1&FORM=hpcodx',
+                'Referrer-Policy': 'origin-when-cross-origin',
                 // Workaround for request being blocked due to geolocation
                 // 'x-forwarded-for': '1.1.1.1', // 1.1.1.1 seems to no longer work.
                 ...(this.xForwardedFor ? { 'x-forwarded-for': this.xForwardedFor } : {}),
@@ -466,7 +466,7 @@ export default class BingAIClient {
             const messageTimeout = setTimeout(() => {
                 this.constructor.cleanupWebSocketConnection(ws);
                 reject(new Error('Timed out waiting for response. Try enabling debug mode to see more information.'));
-            }, 300 * 1000);
+            }, 180 * 1000);
 
             // abort the request if the abort controller is aborted
             abortController.signal.addEventListener('abort', () => {
