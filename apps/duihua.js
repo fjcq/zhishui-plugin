@@ -1,30 +1,30 @@
-import plugin from '../../../lib/plugins/plugin.js'
-import { common } from '../model/index.js'
-import fs from 'fs'
-import { Plugin_Path, Config } from '../components/index.js'
-import request from '../lib/request/request.js'
-import Data from '../components/Data.js'
-import BingAIClient from '../model/BingAIClient.js'
+import plugin from '../../../lib/plugins/plugin.js';
+import { common } from '../model/index.js';
+import fs from 'fs';
+import { Plugin_Path, Config } from '../components/index.js';
+import request from '../lib/request/request.js';
+import Data from '../components/Data.js';
+import BingAIClient from '../model/BingAIClient.js';
 //import { MicrosoftBingAutoLogin } from '../model/AutoLogin.js';
 //import BingAIClient from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 import { KeyvFile } from 'keyv-file';
-import path from 'path'
+import path from 'path';
 
 /** 缓存目录 */
-const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat')
+const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
 
 /** 聊天昵称 */ let NickName = await Config.Chat.NickName;
-/** 发音人列表 */ const VoiceList = await Data.ReadVoiceList()
-/** Chang消息缓存 */ var ForChangeMsg = ""
+/** 发音人列表 */ const VoiceList = await Data.ReadVoiceList();
+/** Chang消息缓存 */ var ForChangeMsg = "";
 
 // 必应相关变量
-let jailbreakConversationId = ''
-let messageId = ''
+let jailbreakConversationId = '';
+let messageId = '';
 
 /** 工作状态 */ let works = 0;
-let ChatosID = ''
-let zs = 0
+let ChatosID = '';
+let zs = 0;
 //https://chatgptmirror.com/chat
 
 /** 提交数据 AiWwang */
@@ -36,7 +36,7 @@ const WwangDate = {
 };
 
 /** 缓存选项 */
-const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` })
+const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` });
 const cacheOptions = {
     store: keyv,
 };
@@ -110,39 +110,31 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
                     fnc: 'SetLinkMode'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?测试一哈命令$`,
-                    fnc: 'denglubiying'
+                    reg: `^#?(止水)?(插件|对话)?测试(.*)$`,
+                    fnc: 'taklTest'
                 }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
                 }
             ]
-        })
+        });
     }
 
 
-    /** 登录必应 */
-    async denglubiying(e) {
-        return true;
-        e.reply(`准备开始登录……`);
-        const bing_account = 'fjcq@2ld3lk.onmicrosoft.com';
-        const bing_password = 'tang@33416719';
+    /** 对话测试 */
+    async taklTest(e) {
+        if (!e.isMaster) { return; }
 
-        const autoLogin = new MicrosoftBingAutoLogin(bing_account, bing_password);
-        await autoLogin.init();
-        await autoLogin.login();
-        const cookies = await autoLogin.getCookies();
-        await writeCookie(cookies);
+        let msg = e.msg.replace(/^#?(止水)?(插件|对话)?测试/, '').trim();
 
-        const cookiesJson = JSON.stringify(cookies);
-        e.reply(`你好，这是你要的：\n${cookiesJson}`);
+        e.reply('msg');
         return true;
     };
 
     /** 重置对话 */
     async ResetChat(e) {
-        if (!e.isMaster) { return }
+        if (!e.isMaster) { return; }
 
         ForChangeMsg = "";
         WwangDate.messages = [];
@@ -151,9 +143,9 @@ export class duihua extends plugin {
         works = 0;
 
         //重置必应
-        messageId = ''
-        jailbreakConversationId = ''
-        keyv.clear()
+        messageId = '';
+        jailbreakConversationId = '';
+        keyv.clear();
 
         e.reply('已经重置对话了！');
         return true;
@@ -161,40 +153,43 @@ export class duihua extends plugin {
 
     /** 对话 */
     async duihua(e) {
-        let msg = e.msg
+        let msg = e.msg;
         let regex = new RegExp(`^#?${NickName}`);
 
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
-            works = 1
+            works = 1;
             let jieguo;
 
             console.log("提问：" + msg);
 
             //启用必应时，优先必应
             if (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) {
-                let Favora = await GetFavora(e.user_id)
-                let BingMsg = `<${e.user_id}|${Favora}>：${msg}`
+                let Favora = await GetFavora(e.user_id);
+                let BingMsg = `<${e.user_id}|${Favora}>：${msg}`;
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
                 console.log("提交必应 -> " + BingMsg);
-                let binres = await AiBing(BingMsg)
+                let binres = await AiBing(BingMsg);
                 if (binres) {
                     //结果处理
                     binres = binres.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
                     const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
                     let match;
                     while ((match = pattern.exec(binres)) !== null) {
-                        const qq = match[1];
-                        const OldFavora = await GetFavora(qq)
-                        const NewFavora = parseInt(OldFavora) + parseInt(match[2]) //计算好感度
-                        console.log(`好感度更新：${qq} -> ${OldFavora}+${parseInt(match[2])}=${NewFavora}`)
-                        await SetFavora(qq, NewFavora) //保存新的好感度
+                        const Favora = parseInt(match[2]);
+                        if (Favora !== 0) {
+                            const qq = match[1];
+                            const OldFavora = await GetFavora(qq);
+                            const NewFavora = parseInt(OldFavora) + Favora; //计算好感度
+                            console.log(`好感度更新：${qq} -> ${OldFavora} + ${Favora} = ${NewFavora}`);
+                            await SetFavora(qq, NewFavora); //保存新的好感度
+                        }
                     }
 
                     //删除好感度文本
                     jieguo = binres.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
                     jieguo = jieguo.replace(/[｛{]@user\|-?[0-9]+[｝}]/g, '');
                 } else {
-                    jieguo = undefined
+                    jieguo = undefined;
                 }
                 console.log(`Bing结果：${jieguo}`);
             }
@@ -229,15 +224,15 @@ export class duihua extends plugin {
                 return false;
             }
 
-            let remsg = await MsgToAt(jieguo)
+            let remsg = await MsgToAt(jieguo);
             console.log(remsg);
-            e.reply(remsg, true)
+            e.reply(remsg, true);
 
             //语音合成
             if (await Config.Chat.EnableVoice) {
-                let voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId
-                let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`
-                e.reply([segment.record(url)])
+                let voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId;
+                let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`;
+                e.reply([segment.record(url)]);
             }
 
 
@@ -259,7 +254,7 @@ export class duihua extends plugin {
                 cookies: BingCookie,
                 proxy: '',
                 debug: false,
-            }
+            };
             /** 必应客户端 */
             const bingAIClient = new BingAIClient({
                 ...options,
@@ -267,12 +262,12 @@ export class duihua extends plugin {
             });
             let { KievRPSSecAuth, _U } = await bingAIClient.AnalysisBingCookie(BingCookie);
             if (KievRPSSecAuth) {
-                BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`
+                BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`;
             } else {
-                BingCookie = `_U=${_U}`
+                BingCookie = `_U=${_U}`;
             }
 
-            Config.modify('duihua', 'BingCookie', BingCookie)
+            Config.modify('duihua', 'BingCookie', BingCookie);
             e.reply("设置必应参数成功！");
             return true;
         }
@@ -328,7 +323,7 @@ export class duihua extends plugin {
 
         let nickname = e.msg.replace(/^.*修改(对话)?昵称/g, '').trim();
         if (nickname.length > 0 && nickname != await Config.Chat.NickName) {
-            NickName = nickname
+            NickName = nickname;
             Config.modify('duihua', 'NickName', nickname);
             e.reply("对话昵称修改为:" + nickname);
             return true;
@@ -377,16 +372,16 @@ export class duihua extends plugin {
     /** 设置对话发音人 */
     async SetVoiceId(e) {
         let VoiceIndex = parseInt(e.msg.replace(/\D+/, '').trim());
-        console.log(VoiceIndex)
+        console.log(VoiceIndex);
         if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
-            VoiceIndex = VoiceIndex - 1
+            VoiceIndex = VoiceIndex - 1;
             Config.modify('duihua', 'VoiceIndex', VoiceIndex);
-            let name = VoiceList[VoiceIndex].name
+            let name = VoiceList[VoiceIndex].name;
             e.reply("[对话发音人]:" + name);
 
-            let voiceId = VoiceList[VoiceIndex].voiceId
-            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`
-            e.reply([segment.record(url)])
+            let voiceId = VoiceList[VoiceIndex].voiceId;
+            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`;
+            e.reply([segment.record(url)]);
 
 
 
@@ -399,8 +394,8 @@ export class duihua extends plugin {
 
     /** 查看对话发音人 */
     async ShowVoiceId(e) {
-        let msg = []
-        let nowindex = await Config.Chat.VoiceIndex
+        let msg = [];
+        let nowindex = await Config.Chat.VoiceIndex;
         msg.push(`当前发音人：${(nowindex + 1)} 、${VoiceList[nowindex].name}`);
         msg.push(`#止水对话设置发音人${(nowindex + 1)}`);
         let list = `*** 发音人列表 ***\n`;
@@ -410,9 +405,9 @@ export class duihua extends plugin {
             let type = obj.type;
             let sexy = obj.sexy;
             if (nowindex == i) {
-                list += `>>>${(i + 1)} 、${name}，分类：${type}，性别：${sexy}<<<\n`
+                list += `>>>${(i + 1)} 、${name}，分类：${type}，性别：${sexy}<<<\n`;
             } else {
-                list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`
+                list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`;
             }
 
         }
@@ -483,19 +478,19 @@ export class duihua extends plugin {
 
     /** 查看用户好感度 */
     async ShowUserFavora(e) {
-        let UserQQ
+        let UserQQ;
         let isat = e.message.some((item) => item.type === "at");
         if (isat && e.isMaster) {
             let atItem = e.message.filter((item) => item.type === "at");//获取at信息
             UserQQ = atItem[0].qq;//对方qq
         } else {
-            UserQQ = e.user_id
+            UserQQ = e.user_id;
         }
 
         let UserFavora = await GetFavora(UserQQ) | 0;
 
-        let msg = []
-        msg.push(segment.at(parseInt(UserQQ)))
+        let msg = [];
+        msg.push(segment.at(parseInt(UserQQ)));
         msg.push(`\n好感度：${UserFavora}`);
         e.reply(msg);
         return true;
@@ -508,13 +503,13 @@ export class duihua extends plugin {
             return;
         }
         //对方
-        let UserQQ
+        let UserQQ;
         let isat = e.message.some((item) => item.type === "at");
         if (isat) {
             let atItem = e.message.filter((item) => item.type === "at");//获取at信息
             UserQQ = atItem[0].qq;//对方qq
         } else {
-            UserQQ = e.user_id
+            UserQQ = e.user_id;
         }
 
 
@@ -546,7 +541,7 @@ export class duihua extends plugin {
                 e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
                 return false;
             }
-            await WriteMaster(result[1], result[2])
+            await WriteMaster(result[1], result[2]);
 
             e.reply(`设置成功！\n当前主人：${result[1]}\nQQ号码：${result[2]}`);
             return true;
@@ -557,16 +552,16 @@ export class duihua extends plugin {
     /** 查看必应模型 */
     async ShowtoneStyle(e) {
         if (e.isMaster) {
-            let msg = ''
-            let toneStyle = await Config.Chat.toneStyle
+            let msg = '';
+            let toneStyle = await Config.Chat.toneStyle;
             if (toneStyle == 'creative') {
-                msg = '当前必应模型为：创意'
+                msg = '当前必应模型为：创意';
             } else if (toneStyle == 'precise') {
-                msg = '当前必应模型为：精确'
+                msg = '当前必应模型为：精确';
             } else if (toneStyle == 'fast') {
-                msg = '当前必应模型为：快速'
+                msg = '当前必应模型为：快速';
             } else {
-                msg = '当前必应模型为：默认'
+                msg = '当前必应模型为：默认';
             }
             e.reply(msg);
             return true;
@@ -578,22 +573,22 @@ export class duihua extends plugin {
     async SettoneStyle(e) {
         if (e.isMaster) {
             let toneStyle = e.msg.replace(/^.*设置必应模型/, '').trim();
-            let msg = ''
+            let msg = '';
             if (toneStyle == '创意' || toneStyle == 'creative') {
-                msg = '必应模型修改为：创意'
+                msg = '必应模型修改为：创意';
                 Config.modify('duihua', 'toneStyle', 'creative');
             } else if (toneStyle == '精确' || toneStyle == 'precise') {
-                msg = '必应模型修改为：精确'
+                msg = '必应模型修改为：精确';
                 Config.modify('duihua', 'toneStyle', 'precise');
             } else if (toneStyle == '快速' || toneStyle == 'fast') {
-                msg = '必应模型修改为：快速'
+                msg = '必应模型修改为：快速';
                 Config.modify('duihua', 'toneStyle', 'fast');
             } else {
-                msg = '必应模型修改为：默认'
+                msg = '必应模型修改为：默认';
                 Config.modify('duihua', 'toneStyle', 'balanced');
             }
 
-            msg = msg + '\n可选模型参数：默认 创意 精确 快速'
+            msg = msg + '\n可选模型参数：默认 创意 精确 快速';
             e.reply(msg);
 
             return true;
@@ -654,17 +649,17 @@ export class duihua extends plugin {
  * @return {*} 对话结果
  */
 async function AiForChange(msg) {
-    ForChangeMsg += `\nHuman: ${msg}`
+    ForChangeMsg += `\nHuman: ${msg}`;
     zs = ForChangeMsg.length;
     var ChangeData = {
         prompt: ForChangeMsg,
         tokensLength: zs
-    }
+    };
     console.log(ChangeData);
-    let url = "https://api.forchange.cn/"
+    let url = "https://api.forchange.cn/";
 
 
-    let res2 = await FetchPost(url, ChangeData)
+    let res2 = await FetchPost(url, ChangeData);
     let text = res2.choices[0].text;
 
     if (!isNotNull(text)) {
@@ -699,12 +694,12 @@ async function AiWwang(msg) {
     };
     WwangDate.messages.push(WwangTempMsg);
 
-    let url = "https://ai.wwang.eu.org/api"
-    let WwangRes = await FetchPost(url, WwangTempMsg, {}, 'text')
+    let url = "https://ai.wwang.eu.org/api";
+    let WwangRes = await FetchPost(url, WwangTempMsg, {}, 'text');
 
     if (!isNotNull(WwangRes)) {
-        WwangDate.messages = []
-        return undefined
+        WwangDate.messages = [];
+        return undefined;
     }
 
     //记录回答数据
@@ -714,7 +709,7 @@ async function AiWwang(msg) {
         "id": Date.now()
     };
     WwangDate.messages.push(WwangTempMsg);
-    return WwangRes
+    return WwangRes;
 }
 
 
@@ -727,29 +722,29 @@ async function AiWwang(msg) {
  */
 async function AiMirror(msg) {
     /** 协议头 */
-    let AiHeaders = { Authorization: "Bearer" }
+    let AiHeaders = { Authorization: "Bearer" };
     /** 提交数据 */
     let MirrorData = {};
     let base_request = { "platform_type": "Web", "client_version": "2.1", "trace_id": "", "signature": "", "share": "" };
     /** 返回数据 */
     let MirrorRes = {};
     /** 必应KEY */ let Bearer = await Config.Chat.MirrorBearer || "";
-    let url = ''
+    let url = '';
 
     //初始化
     if (Bearer == "") {
-        Config.modify('duihua', 'MirrorConversationId', "")
+        Config.modify('duihua', 'MirrorConversationId', "");
         MirrorData = { "device_id": crypto.randomUUID(), "share": "", "base_request": base_request };
         //获取 Bearer
-        url = 'https://chatgptmirror.com/api/v1/user/DefaultAccount'
+        url = 'https://chatgptmirror.com/api/v1/user/DefaultAccount';
         MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
         //console.log('Post：' + url);
         //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
         if (!isNotNull(MirrorRes.data.token)) {
-            Config.modify('duihua', 'MirrorBearer', "")
-            return undefined
+            Config.modify('duihua', 'MirrorBearer', "");
+            return undefined;
         } else {
-            Config.modify('duihua', 'MirrorBearer', MirrorRes.data.token)
+            Config.modify('duihua', 'MirrorBearer', MirrorRes.data.token);
             //console.log('Bearer：' + await Config.Chat.MirrorBearer);
         };
 
@@ -763,15 +758,15 @@ async function AiMirror(msg) {
     if (conversation_id == "") {
         //创建会话
         MirrorData = { "name": msg, "base_request": base_request };
-        url = 'https://chatgptmirror.com/api/v1/conversation/CreateConversation'
+        url = 'https://chatgptmirror.com/api/v1/conversation/CreateConversation';
         MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
         //console.log('Post：' + url);
         //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
         if (!isNotNull(MirrorRes.data.conversation.id)) {
             return undefined;
         } else {
-            conversation_id = MirrorRes.data.conversation.id
-            Config.modify('duihua', 'MirrorConversationId', conversation_id)
+            conversation_id = MirrorRes.data.conversation.id;
+            Config.modify('duihua', 'MirrorConversationId', conversation_id);
             //console.log('ConversationId' + await Config.Chat.MirrorConversationId);
         };
 
@@ -779,20 +774,20 @@ async function AiMirror(msg) {
 
     //发送消息
     MirrorData = { "conversation_id": conversation_id, "content": msg, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/Chat'
+    url = 'https://chatgptmirror.com/api/v1/conversation/Chat';
     MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
     //console.log('Post：' + url);
     //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
     if (!isNotNull(MirrorRes)) {
         return undefined;
     } else if (MirrorRes.code != 0) {
-        Config.modify('duihua', 'MirrorBearer', "")
-        return '对话已重置'
+        Config.modify('duihua', 'MirrorBearer', "");
+        return '对话已重置';
     };
 
     //取全部消息
     MirrorData = { "conversation_id": conversation_id, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/GetConvertionAllChatResult'
+    url = 'https://chatgptmirror.com/api/v1/conversation/GetConvertionAllChatResult';
     MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
     //console.log('Post：' + url);
     //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
@@ -800,22 +795,22 @@ async function AiMirror(msg) {
         return undefined;
     };
 
-    let length = MirrorRes.data.result_list.length
-    let MsgId = ''
+    let length = MirrorRes.data.result_list.length;
+    let MsgId = '';
     if (length >= 0) {
-        MsgId = MirrorRes.data.result_list[length - 1].id
+        MsgId = MirrorRes.data.result_list[length - 1].id;
         //console.log('MsgId：' + MsgId);
     } else {
-        Config.modify('duihua', 'MirrorBearer', "")
-        Config.modify('duihua', 'MirrorConversationId', "")
+        Config.modify('duihua', 'MirrorBearer', "");
+        Config.modify('duihua', 'MirrorConversationId', "");
         return undefined;
     }
 
 
     //取返回消息
-    let state = ''
+    let state = '';
     MirrorData = { "chat_result_id": MsgId, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/RefreshChat'
+    url = 'https://chatgptmirror.com/api/v1/conversation/RefreshChat';
     //console.log('Post：' + url);
     while (state != 'complete') {
         MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
@@ -826,12 +821,12 @@ async function AiMirror(msg) {
             //console.log('state' + MirrorRes.data.result.state);
         };
         //console.log('return：' + MirrorRes.data.result.content);
-        state = MirrorRes.data.result.state
+        state = MirrorRes.data.result.state;
 
-        await common.sleep(500)
+        await common.sleep(500);
     }
 
-    return await MirrorRes.data.result.content ?? undefined
+    return await MirrorRes.data.result.content ?? undefined;
 }
 
 /**
@@ -844,7 +839,7 @@ async function Aichatos(msg) {
     //记录提问数据
 
     if (ChatosID = '') {
-        ChatosID = Date.now()
+        ChatosID = Date.now();
     }
 
     const MsgData = {
@@ -861,12 +856,12 @@ async function Aichatos(msg) {
         'content-type': 'application/json',
         'origin': 'https://fwg08.aichatos.com',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-    }
+    };
 
-    let url = "https://api.aichatos.cloud/api/generateStream"
-    let PGTRes = await FetchPost(url, MsgData, opt, 'text')
+    let url = "https://api.aichatos.cloud/api/generateStream";
+    let PGTRes = await FetchPost(url, MsgData, opt, 'text');
 
-    return PGTRes
+    return PGTRes;
 }
 
 
@@ -878,7 +873,7 @@ async function Aichatos(msg) {
  */
 async function AiBing(msg) {
     let BingCookie = await Config.Chat.BingCookie;
-    let Bingres = {}
+    let Bingres = {};
     if (BingCookie == "") {
         return undefined;
     }
@@ -894,7 +889,7 @@ async function AiBing(msg) {
             genImage: true,
         },
         debug: false,
-    }
+    };
 
     /** 必应客户端 */
     const bingAIClient = new BingAIClient({
@@ -902,21 +897,21 @@ async function AiBing(msg) {
         cache: cacheOptions,
     });
 
-    let nickname = await Config.Chat.NickName
-    let masterQQ = await Config.Chat.MasterQQ
-    let master = await Config.Chat.Master
+    let nickname = await Config.Chat.NickName;
+    let masterQQ = await Config.Chat.MasterQQ;
+    let master = await Config.Chat.Master;
 
     //为设置昵称、主人、主人QQ
     if (!nickname || !masterQQ || !master) { return undefined; }
 
     //载入身份预设
-    let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`
-    Context = Context.replace(/{NickName}/g, nickname)
-    Context = Context.replace(/{MasterQQ}/g, masterQQ)
-    Context = Context.replace(/{Master}/g, master)
+    let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`;
+    Context = Context.replace(/{NickName}/g, nickname);
+    Context = Context.replace(/{MasterQQ}/g, masterQQ);
+    Context = Context.replace(/{Master}/g, master);
 
-    let ResText = ''
-    let toneStyle = await Config.Chat.toneStyle | `balanced`
+    let ResText = '';
+    let toneStyle = await Config.Chat.toneStyle | `balanced`;
     //首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
         Bingres = await bingAIClient.sendMessage(msg, {
@@ -925,7 +920,7 @@ async function AiBing(msg) {
             systemMessage: Context,
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText += token
+                ResText += token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
@@ -940,14 +935,14 @@ async function AiBing(msg) {
             parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText += token
+                ResText += token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
     }
 
-    Data.sleep(1000)
+    Data.sleep(1000);
     //console.log(JSON.stringify(Bingres, null, 2));
 
     const LinkMode = await Config.Chat.LinkMode;
@@ -962,40 +957,40 @@ async function AiBing(msg) {
 
 /** 解析必应参数 */
 async function AnalysisBingCookie(Cookie = '') {
-    let KievRPSSecAuth = ''
-    let _U = ''
+    let KievRPSSecAuth = '';
+    let _U = '';
     if (Cookie.includes("KievRPSSecAuth=")) {
-        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1]
+        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
     }
 
     if (Cookie.includes("_U=")) {
-        _U = Cookie.match(/\b_U=(\S+)\b/)[1]
+        _U = Cookie.match(/\b_U=(\S+)\b/)[1];
     }
 
-    return { KievRPSSecAuth, _U }
+    return { KievRPSSecAuth, _U };
 }
 
 
 /** 检查必应参数 */
 async function InspectBingCookie(KievRPSSecAuth = '', _U = '') {
-    let url
-    if (!_U) { return false }
+    let url;
+    if (!_U) { return false; }
 
     if (!KievRPSSecAuth) {
-        url = `https://www.tukuai.one/bingck.php?u=${_U}`
+        url = `https://www.tukuai.one/bingck.php?u=${_U}`;
     } else {
-        url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`
+        url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`;
     }
 
 
-    let opt = { statusCode: 'json' }
+    let opt = { statusCode: 'json' };
 
-    let ret = await request.get(url, opt)
+    let ret = await request.get(url, opt);
     console.log('ret:' + JSON.stringify(ret));
     if (ret.clientId == undefined) {
-        return false
+        return false;
     } else {
-        return true
+        return true;
     }
 }
 
@@ -1021,7 +1016,7 @@ async function ForwardMsg(e, data) {
  * @returns obj==null/undefined,return false,other return true
  */
 export function isNotNull(obj) {
-    if (obj == undefined || obj == null || obj != obj) { return false }
+    if (obj == undefined || obj == null || obj != obj) { return false; }
     return true;
 };
 
@@ -1039,9 +1034,9 @@ async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json')
         data,
         headers: headers,
         statusCode: statusCode
-    }
+    };
     //console.log('请求：' + Url, '参数' + JSON.stringify(data))
-    let Response = await request.post(Url, Options)
+    let Response = await request.post(Url, Options);
     //console.log('返回：' + JSON.stringify(Response));
     return Response;
 };
@@ -1051,7 +1046,7 @@ async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json')
  */
 async function ReadContext() {
     let context = '';
-    const fileName = 'Context.txt'
+    const fileName = 'Context.txt';
     const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
     const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
@@ -1077,13 +1072,13 @@ async function ReadContext() {
  */
 async function WriteContext(Context) {
     const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.txt');
-    console.log("设置身份：" + Context)
+    console.log("设置身份：" + Context);
     try {
-        fs.writeFileSync(DataFile, Context)
-        return true
+        fs.writeFileSync(DataFile, Context);
+        return true;
     } catch (error) {
-        logger.error(error)
-        return false
+        logger.error(error);
+        return false;
     }
 
 }
@@ -1093,7 +1088,7 @@ async function WriteContext(Context) {
  */
 async function ReadScene() {
     let context = '';
-    const fileName = 'Scene.txt'
+    const fileName = 'Scene.txt';
     const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
     const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
@@ -1119,13 +1114,13 @@ async function ReadScene() {
  */
 async function WriteScene(Context) {
     const DataFile = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
-    console.log("设置场景：" + Context)
+    console.log("设置场景：" + Context);
     try {
-        fs.writeFileSync(DataFile, Context)
-        return true
+        fs.writeFileSync(DataFile, Context);
+        return true;
     } catch (error) {
-        logger.error(error)
-        return false
+        logger.error(error);
+        return false;
     }
 
 }
@@ -1144,7 +1139,7 @@ async function WriteMaster(Master, MasterQQ) {
 async function GetFavora(qq) {
     let user = {};
     const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
-    const fileName = `${qq}.json`
+    const fileName = `${qq}.json`;
     if (fs.existsSync(path.join(DataPath, fileName))) {
         user = await Data.readJSON(fileName, DataPath);
     }
@@ -1158,7 +1153,7 @@ async function GetFavora(qq) {
 async function SetFavora(qq, favora = 0) {
     let user = { Favora: parseInt(favora) | 0 };
     const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
-    const fileName = `${qq}.json`
+    const fileName = `${qq}.json`;
 
     return Data.writeJSON(fileName, user, DataPath);
 }
@@ -1170,7 +1165,7 @@ async function MsgToAt(msg) {
     let arr = msg.toString()
         .split(/(\[@\d+\])/)
         .filter(Boolean)
-        .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s)
+        .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s);
     return arr;
 }
 
@@ -1179,7 +1174,7 @@ async function MsgToAt(msg) {
  */
 async function writeCookie(data) {
     const DataPath = path.join(Plugin_Path, 'resources', 'data');
-    const fileName = `BingCookie.json`
+    const fileName = `BingCookie.json`;
 
     return Data.writeJSON(fileName, data, DataPath);
 }
