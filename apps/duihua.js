@@ -110,7 +110,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
                     fnc: 'SetLinkMode'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?测试(.*)$`,
+                    reg: `^#?止水(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
                 }, {
                     reg: ``,
@@ -125,7 +125,7 @@ export class duihua extends plugin {
     /** 对话测试 */
     async taklTest(e) {
         if (!e.isMaster) { return; }
-        return true;
+        return;
     };
 
     /** 重置对话 */
@@ -144,7 +144,7 @@ export class duihua extends plugin {
         keyv.clear();
 
         e.reply('已经重置对话了！');
-        return true;
+        return;
     };
 
     /** 对话 */
@@ -226,7 +226,7 @@ export class duihua extends plugin {
 
             if (!isNotNull(jieguo)) {
                 works = 0;
-                return false;
+                return;
             }
 
             let remsg = await MsgToAt(jieguo);
@@ -234,11 +234,12 @@ export class duihua extends plugin {
             e.reply(remsg, true);
 
             //console.log(`images：${images}`);
-            if (isNotNull(images) ) {
+            if (isNotNull(images)) {
+                ForwardImageMsg(e, images)
                 for (let i = 0; i < images.length; i++) {
                     e.reply([segment.image(images[i])]);
                 }
-                    
+
             }
 
             //语音合成
@@ -250,10 +251,10 @@ export class duihua extends plugin {
 
 
             works = 0;
-            return true;
+            return;
         }
 
-        return false;
+        return;
     }
 
     /** 设置必应参数 */
@@ -282,7 +283,7 @@ export class duihua extends plugin {
 
             Config.modify('duihua', 'BingCookie', BingCookie);
             e.reply("设置必应参数成功！");
-            return true;
+            return;
         }
 
     }
@@ -297,14 +298,14 @@ export class duihua extends plugin {
         if (!e.isGroup) {
             let msg = `*** 必应参数 ***\n\n${await Config.Chat.BingCookie}`;
             e.reply(msg);
-            return true;
+            return;
         }
     }
 
     /** 必应开关 */
     async BingEnable(e) {
         if (e.isMaster == false) {
-            return false; //不是主人
+            return; //不是主人
         };
 
         let Enable = e.msg.search('开启') != -1;
@@ -316,7 +317,7 @@ export class duihua extends plugin {
             let { KievRPSSecAuth, _U } = await AnalysisBingCookie(await Config.Chat.BingCookie);
             if (await InspectBingCookie(KievRPSSecAuth, _U) == false) {
                 e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中至少要包含 “_U” 字段`);
-                return false;
+                return;
             } else {
                 e.reply("[必应对话]已开启！");
             };
@@ -325,13 +326,13 @@ export class duihua extends plugin {
         }
 
         Config.modify('duihua', 'EnableBing', Enable);
-        return true;
+        return;
     }
 
     /** 修改对话昵称 */
     async ModifyNickname(e) {
         if (e.isMaster == false) {
-            return false; //不是主人
+            return; //不是主人
         };
 
         let nickname = e.msg.replace(/^.*修改(对话)?昵称/g, '').trim();
@@ -339,15 +340,15 @@ export class duihua extends plugin {
             NickName = nickname;
             Config.modify('duihua', 'NickName', nickname);
             e.reply("对话昵称修改为:" + nickname);
-            return true;
+            return;
         }
-        return false;
+        return;
     }
 
     /** 对话艾特开关 */
     async SetAtEnable(e) {
         if (e.isMaster == false) {
-            return false; //不是主人
+            return; //不是主人
         };
 
         let Enable = e.msg.search('开启') != -1;
@@ -360,13 +361,13 @@ export class duihua extends plugin {
             e.reply("[对话艾特]已关闭！");
         }
 
-        return true;
+        return;
     }
 
     /** 对话语音开关 */
     async SetVoiceEnable(e) {
         if (e.isMaster == false) {
-            return false; //不是主人
+            return; //不是主人
         };
 
         let Enable = e.msg.search('开启') != -1;
@@ -379,7 +380,7 @@ export class duihua extends plugin {
             e.reply("[对话语音]已关闭！");
         }
 
-        return true;
+        return;
     }
 
     /** 设置对话发音人 */
@@ -402,7 +403,7 @@ export class duihua extends plugin {
             e.reply("[对话发音人]错误！");
         }
 
-        return true;
+        return;
     }
 
     /** 查看对话发音人 */
@@ -426,7 +427,7 @@ export class duihua extends plugin {
         }
         msg.push(list);
         await ForwardMsg(e, msg);
-        return true;
+        return;
 
     }
 
@@ -437,10 +438,10 @@ export class duihua extends plugin {
 
             if (await WriteContext(Context)) {
                 e.reply("设置对话身份成功！");
-                return true;
+                return;
             } else {
                 e.reply("设置对话身份失败！");
-                return false;
+                return;
             }
         }
     }
@@ -466,10 +467,10 @@ export class duihua extends plugin {
 
             if (await WriteScene(Scene)) {
                 e.reply("设置对话场景成功！");
-                return true;
+                return;
             } else {
                 e.reply("设置对话场景失败！");
-                return false;
+                return;
             }
         }
     }
@@ -485,7 +486,7 @@ export class duihua extends plugin {
             }
 
         };
-
+        return;
     }
 
 
@@ -506,7 +507,7 @@ export class duihua extends plugin {
         msg.push(segment.at(parseInt(UserQQ)));
         msg.push(`\n好感度：${UserFavora}`);
         e.reply(msg);
-        return true;
+        return;
     }
 
     /** 设置用户好感度 */
@@ -539,7 +540,7 @@ export class duihua extends plugin {
         let msg = `用户：${UserQQ}\n`;
         msg += `好感度：${bool ? UserFavora : await GetFavora(QQ)}`;
         e.reply(msg, true);
-        return true;
+        return;
 
     }
 
@@ -552,12 +553,12 @@ export class duihua extends plugin {
 
             if (result?.length != 3) {
                 e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
-                return false;
+                return;
             }
             await WriteMaster(result[1], result[2]);
 
             e.reply(`设置成功！\n当前主人：${result[1]}\nQQ号码：${result[2]}`);
-            return true;
+            return;
         };
 
     }
@@ -577,7 +578,7 @@ export class duihua extends plugin {
                 msg = '当前必应模型为：默认';
             }
             e.reply(msg);
-            return true;
+            return;
         };
 
     }
@@ -604,7 +605,7 @@ export class duihua extends plugin {
             msg = msg + '\n可选模型参数：默认 创意 精确 快速';
             e.reply(msg);
 
-            return true;
+            return;
         };
     }
 
@@ -649,7 +650,7 @@ export class duihua extends plugin {
         let Enable = e.msg.search('开启') != -1;
         Config.modify('duihua', 'LinkMode', Enable);
         e.reply(`[对话] 链接模式 ${Enable ? '已开启' : '已关闭'}！`);
-        return true;
+        return;
 
     }
 
@@ -923,7 +924,7 @@ async function AiBing(msg) {
     let ResText = '';
     let toneStyle = await Config.Chat.toneStyle;
     if (!isNotNull(toneStyle)) { toneStyle = `creative` };
-    
+
     // console.log(toneStyle);
     // 首次对话 初始化参数和身份设定
     if (!messageId || !jailbreakConversationId) {
@@ -1047,6 +1048,20 @@ async function ForwardMsg(e, data) {
     await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
 };
 
+/**
+ * 发送转发图片消息
+ * @param data 输入一个数组,元素是字符串,每一个元素都是一个图片链接.
+*/
+async function ForwardImageMsg(e, data) {
+    // use map method to create msgList
+    const msgList = data.map(i => ({
+        message: [segment.image(i)],
+        NickName: Bot.NickName,
+        user_id: Bot.uin
+    }));
+    // use ternary operator to simplify if...else statement
+    await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
+};
 
 /**
  * 判断对象是否不为undefined且不为null、NaN
