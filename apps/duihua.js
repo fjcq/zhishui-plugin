@@ -235,7 +235,7 @@ export class duihua extends plugin {
 
             //console.log(`images：${images}`);
             if (isNotNull(images)) {
-                ForwardImageMsg(e, images)
+                //ForwardImageMsg(e, images)
                 for (let i = 0; i < images.length; i++) {
                     e.reply([segment.image(images[i])]);
                 }
@@ -1053,14 +1053,23 @@ async function ForwardMsg(e, data) {
  * @param data 输入一个数组,元素是字符串,每一个元素都是一个图片链接.
 */
 async function ForwardImageMsg(e, data) {
-    // use map method to create msgList
-    const msgList = data.map(i => ({
-        message: [segment.image(i)],
-        NickName: Bot.NickName,
-        user_id: Bot.uin
-    }));
-    // use ternary operator to simplify if...else statement
-    await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
+    let msgList = [];
+    for (let i = 0; i < data.length; i++) {
+        let msg2 = await segment.image(data[i]);
+        msgList.push({
+            message: msg2,
+            nickname: Bot.nickname,
+            user_id: Bot.uin,
+        });
+    }
+    console.log(msgList);
+    if (msgList.length == 0) {
+        await e.reply(msgList[0].message);
+    }
+    else {
+        await e.reply(await Bot.makeForwardMsg(msgList));
+    }
+    return;
 };
 
 /**
