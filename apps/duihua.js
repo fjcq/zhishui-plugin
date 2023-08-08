@@ -941,7 +941,7 @@ async function AiBing(msg) {
             },
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText = token;
+                ResText += token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
@@ -966,7 +966,7 @@ async function AiBing(msg) {
             parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText = token;
+                ResText += token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
@@ -977,13 +977,16 @@ async function AiBing(msg) {
     // console.log(JSON.stringify(Bingres, null, 2));
 
     const LinkMode = await Config.Chat.LinkMode;
-    if (LinkMode && Bingres.details.adaptiveCards[0].body[0].text) {
-        ResText = Bingres.details.adaptiveCards[0].body[0].text;
-    } else if (Bingres.details.text && Bingres.details.text != 'N/A') {
-        ResText = Bingres.details.text;
-    } else if (Bingres.response && Bingres.response != 'N/A') {
-        ResText = Bingres.response;
+    if (!ResText) {
+        if (LinkMode && Bingres.details.adaptiveCards[0].body[0].text) {
+            ResText = Bingres.details.adaptiveCards[0].body[0].text;
+        } else if (Bingres.details.text && Bingres.details.text != 'N/A') {
+            ResText = Bingres.details.text;
+        } else if (Bingres.response && Bingres.response != 'N/A') {
+            ResText = Bingres.response;
+        } 
     }
+
 
     if (Bingres.details?.bic?.images) {
         return {
