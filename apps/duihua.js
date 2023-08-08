@@ -64,7 +64,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?修改(对话)?昵称(.*)$`,
                     fnc: 'ModifyNickname'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?语音(开启|关闭)$`,
+                    reg: `^#?(止水)?(插件|对话)?(语|发)音(开启|关闭)$`,
                     fnc: 'SetVoiceEnable'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?艾特(开启|关闭)$`,
