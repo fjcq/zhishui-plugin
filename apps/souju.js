@@ -536,7 +536,7 @@ function isNotNull(obj) {
  */
 async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
     let url = domain + '?ac=detail&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page
-    let res = await request.get(url)
+    let res = await request.post(url)
         .then(res => res.json())
         .catch(err => {
             logger.error(err)
