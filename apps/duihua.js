@@ -4,9 +4,8 @@ import fs from 'fs';
 import { Plugin_Path, Config } from '../components/index.js';
 import request from '../lib/request/request.js';
 import Data from '../components/Data.js';
-import BingAIClient from '../model/BingAIClient.js';
-//import { MicrosoftBingAutoLogin } from '../model/AutoLogin.js';
-//import BingAIClient from '@waylaidwanderer/chatgpt-api'
+//import BingAIClient from '../model/BingAIClient.js';
+import { BingAIClient } from '@waylaidwanderer/chatgpt-api'
 import crypto from 'crypto';
 import { KeyvFile } from 'keyv-file';
 import path from 'path';
@@ -942,12 +941,14 @@ async function AiBing(msg) {
             },
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText += token;
+                ResText = token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
         messageId = Bingres.messageId;
-        //console.log(JSON.stringify(Bingres, null, 2));
+
+        console.log(JSON.stringify(Bingres, null, 2));
+
     } else {
         //开始正式对话
         Bingres = await bingAIClient.sendMessage(msg, {
@@ -965,7 +966,7 @@ async function AiBing(msg) {
             parentMessageId: messageId,
             onProgress: (token) => {
                 process.stdout.write(token);
-                ResText += token;
+                ResText = token;
             },
         });
         jailbreakConversationId = Bingres.jailbreakConversationId;
