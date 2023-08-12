@@ -2,6 +2,7 @@ import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
 import _ from 'lodash'
 import { Restart } from '../../other/restart.js'
+import common from '../lib/common/common.js'
 
 const require = createRequire(import.meta.url)
 const { exec, execSync } = require('child_process')
@@ -67,7 +68,7 @@ export class Update extends plugin {
   async runUpdate (isForce) {
     let command = 'git -C ./plugins/zhishui-plugin/ pull --no-rebase'
     if (isForce) {
-      command = `git -C ./plugins/zhishui-plugin/ checkout . && ${command}`
+        command = `git -C ./plugins/zhishui-plugin/ reset --hard origin && ${command}`
       this.e.reply('正在执行强制更新操作，请稍等')
     } else {
       this.e.reply('正在执行更新操作，请稍等')
@@ -137,7 +138,9 @@ export class Update extends plugin {
     end =
       '更多详细信息，请前往gitee查看\nhttps://gitee.com/fjcq/zhishui-plugin/blob/master/CHANGELOG.md'
 
-    log = await this.makeForwardMsg(`止水插件更新日志，共${line}条`, log, end)
+      log = await common.getforwardMsg(this.e, forwardMsg, {
+          shouldSendMsg: false
+      })
 
     return log
   }
