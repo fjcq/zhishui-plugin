@@ -268,12 +268,8 @@ export class duihua extends plugin {
                 proxy: '',
                 debug: false,
             };
-            /** 必应客户端 */
-            const bingAIClient = new BingAIClient({
-                ...options,
-                cache: cacheOptions,
-            });
-            let { KievRPSSecAuth, _U } = await bingAIClient.AnalysisBingCookie(BingCookie);
+
+            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
             if (KievRPSSecAuth) {
                 BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`;
             } else {
@@ -984,7 +980,7 @@ async function AiBing(msg) {
             ResText = Bingres.details.text;
         } else if (Bingres.response && Bingres.response != 'N/A') {
             ResText = Bingres.response;
-        } 
+        }
     }
 
 
@@ -1243,4 +1239,19 @@ async function writeCookie(data) {
     const fileName = `BingCookie.json`;
 
     return Data.writeJSON(fileName, data, DataPath);
+}
+
+/** 解析必应参数 */
+async function AnalysisBingCookie(Cookie) {
+    let KievRPSSecAuth = '';
+    let _U = '';
+    if (Cookie.includes("KievRPSSecAuth=")) {
+        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
+    }
+
+    if (Cookie.includes("_U=")) {
+        _U = Cookie.match(/\b_U=(\S+)\b/)[1];
+    }
+
+    return { KievRPSSecAuth, _U };
 }
