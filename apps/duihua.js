@@ -1240,18 +1240,3 @@ async function writeCookie(data) {
 
     return Data.writeJSON(fileName, data, DataPath);
 }
-
-/** 解析必应参数 */
-async function AnalysisBingCookie(Cookie) {
-    let KievRPSSecAuth = '';
-    let _U = '';
-    if (Cookie.includes("KievRPSSecAuth=")) {
-        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
-    }
-
-    if (Cookie.includes("_U=")) {
-        _U = Cookie.match(/\b_U=(\S+)\b/)[1];
-    }
-
-    return { KievRPSSecAuth, _U };
-}
