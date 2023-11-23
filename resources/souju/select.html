@@ -46,7 +46,10 @@
     </div>
 
     <div class="box text-center">
-        <div class="header text-left text-data">你可以发送<font class="text-now">#线路+数字</font>来切换线路</div>
+      <div class="header text-left text-data">
+        你可以发送<font class="text-now">#线路+数字</font>来切换线路，当前线路为：
+        <font class="text-now">{{Route[CurrentrRoute]}}</font>
+      </div>
 
         <div class="item_data text-center ">
             <br />
@@ -58,9 +61,6 @@
             {{/each}}
         </div>
 
-        <div class="header text-left text-muted">当前线路为：<font class="item-data">#线路{{CurrentrRoute+1}}</font>
-            <font class="text-data">{{Route[CurrentrRoute]}}</font>
-        </div>
     </div>
 
     <div class="box text-center">

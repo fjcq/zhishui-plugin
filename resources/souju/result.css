@@ -1,199 +1,199 @@
 @font-face {
-    font-family: "jty";
-    src: url("jty.OTF");
-    font-weight: normal;
-    font-style: normal;
+  font-family: "jty";
+  src: url("jty.OTF");
+  font-weight: normal;
+  font-style: normal;
 }
 
 @font-face {
-    font-family: "NZBZ";
-    src: url("NZBZ.TTF");
-    font-weight: normal;
-    font-style: normal;
+  font-family: "NZBZ";
+  src: url("NZBZ.TTF");
+  font-weight: normal;
+  font-style: normal;
 }
 
 @font-face {
-    font-family: 'zk';
-    src: url('zk.TTF');
-    font-weight: normal;
-    font-style: normal;
+  font-family: 'zk';
+  src: url('zk.TTF');
+  font-weight: normal;
+  font-style: normal;
 }
 
 body {
-    width: 100%;
-    background: url("../img/bg/M/4.jpg") white center top no-repeat;
-    background-size: cover;
+  width: 100%;
+  background: url("./bg.png") white center top no-repeat;
+  background-size: cover;
 }
 
 .box {
-    margin: 30px 30px 30px 30px;
-    width: 740px;
-    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.25);
+  margin: 30px 30px 30px 30px;
+  width: 740px;
+  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .header {
-    margin: 10px;
-    padding: 10px;
-    width: 740px;
+  margin: 10px;
+  padding: 10px;
+  width: 740px;
 }
 
 .drop-shadow {
-    position: relative;
-    float: left;
-    width: 740px;
-    height: 80px;
-    margin-left: 80px;
-    margin-top: 80px;
-    background: #eee7e7;
-    border-radius: 20px;
-    background: #eee7e7;
-    box-shadow: 13px 13px 17px #e0d9d9, -13px -13px 17px #fcf5f5;
-    text-align: center;
+  position: relative;
+  float: left;
+  width: 740px;
+  height: 80px;
+  margin-left: 80px;
+  margin-top: 80px;
+  background: #eee7e7;
+  border-radius: 20px;
+  background: #eee7e7;
+  box-shadow: 13px 13px 17px #e0d9d9, -13px -13px 17px #fcf5f5;
+  text-align: center;
 }
 
 .item_data {
-    display: -webkit-flex;
-    display: flex;
-    flex-wrap: wrap;
-    width: 740px;
+  display: -webkit-flex;
+  display: flex;
+  flex-wrap: wrap;
+  width: 740px;
 }
 
 .item {
-    text-align: center;
-    margin: 13px;
-    padding: 10px;
-    width: 198px;
-    background: rgb(255, 255, 255, 0.85);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 5px;
-    position: relative;
+  text-align: center;
+  margin: 13px;
+  padding: 10px;
+  width: 198px;
+  background: rgb(255, 255, 255, 0.85);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 5px;
+  position: relative;
 }
 
 .item_title {
-    font-family: "jty";
-    font-size: 20px;
-    font-weight: 600;
-    color: #000000;
-    position: relative;
-    top: -10px;
+  font-family: "jty";
+  font-size: 20px;
+  font-weight: 600;
+  color: #000000;
+  position: relative;
+  top: -10px;
 }
 
 .tu {
-    padding: 5px;
-    text-align: center;
-    display: block;
-    position: relative;
-    text-align: left;
+  padding: 5px;
+  text-align: center;
+  display: block;
+  position: relative;
+  text-align: left;
 }
 
 img {
-    border-radius: 5px;
-    width: 187px;
-    height: 280px;
-    margin-bottom: 10px;
+  border-radius: 5px;
+  width: 187px;
+  height: 280px;
+  margin-bottom: 10px;
 }
 
 .tip {
-    display: block;
-    margin: 20px;
-    font-family: "jty";
+  display: block;
+  margin: 20px;
+  font-family: "jty";
 }
 
 .text-muted {
-    color: #393535;
+  color: #393535;
 }
 
 .text-data {
-    color: #3366ff;
-    font-weight: 600;
+  color: #3366ff;
+  font-weight: 600;
 }
 
 .num {
-    position: absolute;
-    font-family: "NZBZ";
-    font-size: 14px;
-    text-align: left;
-    top: -10px;
-    left: -10px;
-    color: #3366ff;
-    font-weight: 400;
+  position: absolute;
+  font-family: "NZBZ";
+  font-size: 14px;
+  text-align: left;
+  top: -10px;
+  left: -10px;
+  color: #3366ff;
+  font-weight: 400;
 }
 
 .pic-tag-top {
-    top: 5px;
-    left: 5px;
+  top: 5px;
+  left: 5px;
 }
 
 .pic-tag {
-    position: absolute;
-    z-index: 99;
-    padding: 2px 5px;
-    font-size: 12px;
-    border-radius: 2px;
+  position: absolute;
+  z-index: 99;
+  padding: 2px 5px;
+  font-size: 12px;
+  border-radius: 2px;
 }
 
 .pic-background {
-    background-repeat: no-repeat;
-    background-image: linear-gradient(transparent, rgba(0, 0, 0, .5));
-    color: #fff;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(transparent, rgba(0, 0, 0, .5));
+  color: #fff;
 }
 
 .pic-text {
-    display: block;
-    width: 167px;
-    position: absolute;
-    z-index: 99;
-    bottom: 0;
-    height: 15px;
-    padding: 5px 10px;
-    font-size: 14px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    -o-text-overflow: ellipsis;
-    white-space: nowrap;
-    left: 5px;
-    font-family: "jty";
-    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
+  display: block;
+  width: 167px;
+  position: absolute;
+  z-index: 99;
+  bottom: 0;
+  height: 15px;
+  padding: 5px 10px;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -o-text-overflow: ellipsis;
+  white-space: nowrap;
+  left: 5px;
+  font-family: "jty";
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .text-right {
-    text-align: right;
+  text-align: right;
 }
 
 .text-left {
-    text-align: left;
+  text-align: left;
 }
 
 .text-up {
-    top: 5px;
+  top: 5px;
 }
 
 .text-down {
-    top: 260px;
+  top: 260px;
 }
 
 .text-title {
-    font-family: "NZBZ";
-    font-size: 40px;
-    font-weight: 700;
-    color: #000000;
-    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
-    letter-spacing: 20px;
+  font-family: "NZBZ";
+  font-size: 40px;
+  font-weight: 700;
+  color: #000000;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
+  letter-spacing: 20px;
 }
 
 .text-center {
-    text-align: center;
+  text-align: center;
 }
 
 .text-now {
-    font-family: "NZBZ";
-    color: #000000;
+  font-family: "NZBZ";
+  color: #000000;
 }
