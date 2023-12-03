@@ -363,12 +363,11 @@ export class souju extends plugin {
 
     //console.log(`网址：${PlayData.wangzhi}`);
     if (isNotNull(PlayData.wangzhi[Episode - 1])) {
-      let msg = PlayData.VodName + '\n';
-      msg += PlayData.mingzi[Episode - 1] + ' \n';
-      msg += '*** 请复制到浏览器中观看 ***\n';
-      msg += await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1] + '\n';
-      msg += '*** 请复制到浏览器中观看 ***\n';
-      e.reply(msg);
+      let msg = [];
+      msg.push(PlayData.VodName + '\n' + PlayData.mingzi[Episode - 1] + ' \n*** 请复制到浏览器中观看 ***')
+      msg.push(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
+      ForwardMsg(e, msg)
+   
       return true;//返回true 阻挡消息不再往下
     } else {
       e.reply(`集数错误，无法观看！`);
@@ -622,3 +621,17 @@ async function RouteToName(Route = []) {
   return RouteName;
 }
 
+/**
+ * 发送转发消息
+ * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
+*/
+async function ForwardMsg(e, data) {
+  // use map method to create msgList
+  const msgList = data.map(i => ({
+    message: i,
+    NickName: Bot.NickName,
+    user_id: Bot.uin
+  }));
+  // use ternary operator to simplify if...else statement
+  await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
+};
