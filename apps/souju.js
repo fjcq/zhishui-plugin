@@ -223,9 +223,10 @@ export class souju extends plugin {
         if (type == "设置") {
             Interface = e.msg.replace(/^.*播放器/, '').trim();
             await Config.modify('souju', 'player', Interface)
-            msg += '设置成功，';
+            msg = '设置成功，当前播放器：\n';
+        } else {
+            msg = '当前播放器：\n';
         }
-        msg += '当前播放器：\n';
         msg += await Config.SearchVideos.player;
         e.reply(msg);
         return true;
