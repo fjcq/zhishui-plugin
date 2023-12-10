@@ -2,7 +2,7 @@ import './fetch-polyfill.js';
 import crypto from 'crypto';
 import WebSocket from 'ws';
 import Keyv from 'keyv';
-import { ProxyAgent } from 'undici';
+import { Agent, ProxyAgent } from 'undici';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { BingImageCreator } from '@timefox/bic-sydney';
 
@@ -40,7 +40,6 @@ export default class BingAIClient {
             this.options = {
                 ...options,
                 host: options.host || 'https://www.bing.com',
-                toneStyle: options.toneStyle || 'balanced', // or creative, precise, fast,
                 xForwardedFor: this.constructor.getValidIPv4(options.xForwardedFor),
                 features: {
                     genImage: options?.features?.genImage || false,
@@ -48,13 +47,8 @@ export default class BingAIClient {
             };
         }
         this.debug = this.options.debug;
-        if (this.options.features?.genImage?.enable) {
-            this.bic = this.bic ?? {
-                api: new BingImageCreator(this.options),
-                type: this.options?.features?.genImage?.type || 'iframe',
-            };
-        } else {
-            this.bic = undefined;
+        if (this.options.features.genImage) {
+            this.bic = new BingImageCreator(this.options);
         }
     }
 
@@ -82,50 +76,47 @@ export default class BingAIClient {
         return undefined;
     }
 
-    static isValidBicType(bicType) {
-        return (bicType === 'iframe' || bicType === 'url_list' || bicType === 'markdown_list');
-    }
+    async createNewConversation() {
+        this.headers = {
+            accept: 'application/json',
+            'accept-language': 'en-US,en;q=0.9',
+            'content-type': 'application/json',
+            'sec-ch-ua': '"Microsoft Edge";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+            'sec-ch-ua-arch': '"x86"',
+            'sec-ch-ua-bitness': '"64"',
+            'sec-ch-ua-full-version': '"113.0.1774.50"',
+            'sec-ch-ua-full-version-list': '"Microsoft Edge";v="113.0.1774.50", "Chromium";v="113.0.5672.127", "Not-A.Brand";v="24.0.0.0"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-model': '""',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-ch-ua-platform-version': '"15.0.0"',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-origin',
+            'sec-ms-gec': genRanHex(64).toUpperCase(),
+            'sec-ms-gec-version': '1-115.0.1866.1',
+            'x-ms-client-request-id': crypto.randomUUID(),
+            'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.50',
+            cookie: this.options.cookies || (this.options.userToken ? `_U=${this.options.userToken}` : undefined),
+            Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1',
+            'Referrer-Policy': 'origin-when-cross-origin',
+            // Workaround for request being blocked due to geolocation
+            // 'x-forwarded-for': '1.1.1.1', // 1.1.1.1 seems to no longer work.
+            ...(this.options.xForwardedFor ? { 'x-forwarded-for': this.options.xForwardedFor } : {}),
+        };
+        // filter undefined values
+        this.headers = Object.fromEntries(Object.entries(this.headers).filter(([, value]) => value !== undefined));
 
-    async createNewConversationOld() {
         const fetchOptions = {
-            headers: {
-                accept: 'application/json',
-                'accept-language': 'en-US,en;q=0.9',
-                'content-type': 'application/json',
-                'sec-ch-ua': '"Microsoft Edge";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
-                'sec-ch-ua-arch': '"x86"',
-                'sec-ch-ua-bitness': '"64"',
-                'sec-ch-ua-full-version': '"113.0.1774.50"',
-                'sec-ch-ua-full-version-list': '"Microsoft Edge";v="113.0.1774.50", "Chromium";v="113.0.5672.127", "Not-A.Brand";v="24.0.0.0"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-model': '""',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-ch-ua-platform-version': '"15.0.0"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'same-origin',
-                'sec-ms-gec': genRanHex(64).toUpperCase(),
-                'sec-ms-gec-version': '1-113.0.1774.57',
-                'x-ms-client-request-id': crypto.randomUUID(),
-                'x-ms-useragent': 'azsdk-js-api-client-factory/1.0.0-beta.1 core-rest-pipeline/1.10.0 OS/Win32',
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.50',
-                cookie: this.options.cookies || (this.options.userToken ? `_U=${this.options.userToken}` : undefined),
-                Referer: 'https://www.bing.com/search?q=Bing+AI&showconv=1',
-                'Referrer-Policy': 'origin-when-cross-origin',
-                // Workaround for request being blocked due to geolocation
-                ...(this.options.xForwardedFor ? { 'x-forwarded-for': this.options.xForwardedFor } : {}),
-            },
+            headers: this.headers,
         };
         if (this.options.proxy) {
             fetchOptions.dispatcher = new ProxyAgent(this.options.proxy);
+        } else {
+            fetchOptions.dispatcher = new Agent({ connect: { timeout: 20_000 } });
         }
         const response = await fetch(`${this.options.host}/turing/conversation/create`, fetchOptions);
-
-        const { status, headers } = response;
-        if (status === 200 && +headers.get('content-length') < 5) {
-            throw new Error('/turing/conversation/create: Your IP is blocked by BingAI.');
-        }
-
         const body = await response.text();
         try {
             return JSON.parse(body);
@@ -141,7 +132,7 @@ export default class BingAIClient {
                 agent = new HttpsProxyAgent(this.options.proxy);
             }
 
-            const ws = new WebSocket('wss://sydney.bing.com/sydney/ChatHub', { agent });
+            const ws = new WebSocket('wss://sydney.bing.com/sydney/ChatHub', { agent, headers: this.headers });
 
             ws.on('error', err => reject(err));
 
@@ -213,7 +204,7 @@ export default class BingAIClient {
         } = opts;
 
         const {
-            toneStyle = this.options.toneStyle,
+            toneStyle = 'balanced', // or creative, precise, fast
             invocationId = 0,
             systemMessage,
             context,
@@ -354,7 +345,7 @@ export default class BingAIClient {
                         'cricinfov2',
                         'dv3sugg',
                         'nojbfedge',
-                        ...((toneStyle === 'creative' && this?.bic) ? ['gencontentv3'] : []),
+                        ...((toneStyle === 'creative' && this.options.features.genImage) ? ['gencontentv3'] : []),
                     ],
                     sliceIds: [
                         '222dtappid',
@@ -423,7 +414,7 @@ export default class BingAIClient {
                 reject(new Error('Request aborted'));
             });
 
-            let bicContent;
+            let bicIframe;
             ws.on('message', async (data) => {
                 const objects = data.toString().split('');
                 const events = objects.map((object) => {
@@ -446,34 +437,20 @@ export default class BingAIClient {
                         if (!messages?.length || messages[0].author !== 'bot') {
                             return;
                         }
+                        if (messages[0].contentOrigin === 'Apology') {
+                            return;
+                        }
                         if (messages[0]?.contentType === 'IMAGE') {
                             // You will never get a message of this type without 'gencontentv3' being on.
-                            if (this.bic.type === 'iframe') {
-                                bicContent = this.bic.api.genImageIframeSsr(
-                                    messages[0].text,
-                                    messages[0].messageId,
-                                    progress => (progress?.contentIframe ? onProgress(progress?.contentIframe) : null),
-                                ).catch((error) => {
-                                    onProgress(error.message);
-                                    bicContent.isError = true;
-                                    return error.message;
-                                });
-                            } else {
-                                bicContent = this.bic.api.genImageList(
-                                    messages[0].text,
-                                    messages[0].messageId,
-                                    false,
-                                    () => onProgress('.'),
-                                ).catch((error) => {
-                                    onProgress(error.message);
-                                    bicContent.isError = true;
-                                    delete bicContent.isList;
-                                    return error.message;
-                                });
-                                bicContent.isList = true;
-                                bicContent.useMarkdown = this.bic.type === 'markdown_list';
-                            }
-                            bicContent.prompt = messages[0].text;
+                            bicIframe = this.bic.genImageIframeSsr(
+                                messages[0].text,
+                                messages[0].messageId,
+                                progress => (progress?.contentIframe ? onProgress(progress?.contentIframe) : null),
+                            ).catch((error) => {
+                                onProgress(error.message);
+                                bicIframe.isError = true;
+                                return error.message;
+                            });
                             return;
                         }
                         const updatedText = messages[0].text;
@@ -545,33 +522,22 @@ export default class BingAIClient {
                             // delete useless suggestions from moderation filter
                             delete eventMessage.suggestedResponses;
                         }
-                        if (bicContent) {
-                            // the last messages will be a image creation event if bicContent is present.
+                        if (bicIframe) {
+                            // the last messages will be a image creation event if bicIframe is present.
                             let i = messages.length - 1;
                             while (eventMessage?.contentType === 'IMAGE' && i > 0) {
                                 eventMessage = messages[i -= 1];
                             }
 
-                            // wait for bicContent to be completed.
+                            // wait for bicIframe to be completed.
                             // since we added a catch, we do not need to wrap this with a try catch block.
-                            let bicResult = await bicContent;
-                            let images;
-                            if (bicContent?.isList) {
-                                images = bicResult;
-                                if (bicContent.useMarkdown) {
-                                    bicResult = `${bicResult.map((s, idx) => `![${idx + 1}.${bicContent.prompt}](${s})`).join('\n')}`;
-                                } else {
-                                    bicResult = `${bicResult.map((s, idx) => `${idx + 1}.${s}`).join('\n')}`;
-                                }
-                            } else if (bicResult?.isError) {
-                                eventMessage.text += `\n${bicResult}`;
+                            const imgIframe = await bicIframe;
+                            if (!imgIframe?.isError) {
+                                eventMessage.adaptiveCards[0].body[0].text += imgIframe;
+                            } else {
+                                eventMessage.text += `<br>${imgIframe}`;
+                                eventMessage.adaptiveCards[0].body[0].text = eventMessage.text;
                             }
-                            eventMessage.adaptiveCards[0].body[0].text += `\n${bicResult}`;
-                            eventMessage.bic = {
-                                type: this.bic.type,
-                                prompt: bicContent.prompt,
-                                ...(images ? { images } : {}),
-                            };
                         }
                         resolve({
                             message: eventMessage,
@@ -665,67 +631,4 @@ export default class BingAIClient {
 
         return orderedMessages;
     }
-
-    /** 解析必应参数 */
-    async AnalysisBingCookie(Cookie) {
-        let KievRPSSecAuth = '';
-        let _U = '';
-        if (Cookie.includes("KievRPSSecAuth=")) {
-            KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
-        }
-
-        if (Cookie.includes("_U=")) {
-            _U = Cookie.match(/\b_U=(\S+)\b/)[1];
-        }
-
-        return { KievRPSSecAuth, _U };
-    }
-
-    async createNewConversation() {
-
-        if (this.options.proxy) {
-            return await this.createNewConversationOld();
-        } 
-
-        const fetchOptions = {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-            },
-        };
-        let url;
-
-        let { KievRPSSecAuth, _U } = await this.AnalysisBingCookie(this.options.cookies);
-        if (!KievRPSSecAuth) {
-            url = `https://www.tukuai.one/bingck.php?u=${_U}`;
-        } else {
-            url = `https://www.tukuai.one/bingck.php?ka=${KievRPSSecAuth}&u=${_U}`;
-        }
-
-        let response;
-        let i = 0;
-        while (i < 10) {
-            try {
-                response = await fetch(url, fetchOptions);
-                const contentLength = response.headers.get('content-length');
-                const status = response.status;
-                if (contentLength && contentLength >= 5 && status === 200) {
-                    break;
-                }
-            } catch (error) {
-                console.error(`[止水对话]: 获取必应参数 ${i} 次！\n${error}`);
-            } finally {
-                i++;
-            }
-        }
-
-        const body = await response.text();
-        try {
-            console.log(body);
-            return JSON.parse(body);
-        } catch (err) {
-            throw new Error(`[止水对话]: 解析必应参数失败！\n${body}`);
-        }
-
-    }
-
 }

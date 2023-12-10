@@ -90,7 +90,7 @@ export class souju extends plugin {
                 } else {
 
                     //不存在缓存，重新搜索
-                    SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain);
+                    SearchResults = SearchVideo(SearchName, 1, 0, 0, domain);
                     //写入缓存
                     await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
                 };
@@ -104,7 +104,7 @@ export class souju extends plugin {
                 }
 
                 //不存在缓存，重新搜索
-                SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain);
+                SearchResults = SearchVideo(SearchName, 1, 0, 0, domain);
                 //写入缓存
                 await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
             };
@@ -290,7 +290,7 @@ export class souju extends plugin {
 
         //分割出 线路组
         const Route = Detail.vod_play_from.split('$$$');
-        let RouteName = await RouteToName(Route);
+        let RouteName = RouteToName(Route);
 
 
         //分割出 资源线路组
@@ -379,7 +379,13 @@ export class souju extends plugin {
         if (isNotNull(PlayData.wangzhi[Episode - 1])) {
             let title = PlayData.VodName + '  ' + PlayData.mingzi[Episode - 1]
             let msg = ['*** 请复制到浏览器中观看 ***'];
-            msg.push(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
+            let ShortLink = await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1]
+            
+            //转短链接
+            //let ShortLink = await linkLongToShort(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
+            //console.log(`短链接：${ShortLink}`);
+
+            msg.push(ShortLink)
 
             let ret = await common.getforwardMsg(e, msg, {
                 isxml: true,
@@ -388,9 +394,11 @@ export class souju extends plugin {
                 .catch(err => {
                     msg = title + '\n'
                     if (e.isGroup) {
-                        msg += `群`
+                        let at = Number(e.user_id)
+                        msg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`]
+                    } else {
+                        msg = `消息发送失败，可能被风控。`
                     }
-                    msg += `消息发送失败，可能被风控。`
                     e.reply(msg);
                 });
 
@@ -433,7 +441,7 @@ export class souju extends plugin {
         /** 搜剧结果 */
         const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
         const domain = Config.SearchVideos.resources[idx].site.url;
-        const SearchResults = await SearchVideo(SearchName, page, 0, 0, domain);
+        const SearchResults = SearchVideo(SearchName, page, 0, 0, domain);
         IDs = SearchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`);
 
@@ -642,4 +650,53 @@ async function RouteToName(Route = []) {
         RouteName.push(Name);
     };
     return RouteName;
+};
+
+/**
+ * 长链接转短链接
+ * @param {string} LongLink - 长链接
+ * @returns {string} ShortLink - 返回短链接
+ */
+async function linkLongToShort(LongLink) {
+    const api = 'https://api.45t.cn/pc/site/index'
+    const body = {
+        "url": LongLink,
+        "sg": "6a9537e0120bb886f989b12563737c47"
+    }
+    const leng = JSON.stringify(body).length.toString()
+    const headers = {
+        Accept: 'application/json',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+        Authorization: 'cac170a1b2aae3d71c94965ed016b90d',
+        Connection: 'keep-alive',
+        'Content-Length': leng,
+        'Content-type': 'application/json',
+        Host: 'api.45t.cn',
+        Identity: 'XfCOS85yPd1702532463',
+        Origin: 'http://suo.zgzzlzkjapp.com',
+        Referer: 'http://suo.zgzzlzkjapp.com/',
+        'Sec-Fetch-Dest': 'empty',
+        'Sec-Fetch-Mode': 'cors',
+        'Sec-Fetch-Site': 'cross-site',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'sec-ch-ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+    };
+    const options = {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body)
+    };
+
+    console.log(options)
+
+    let res = ''
+    try {
+        res = await fetch(api, options).then(res => res.json())
+        console.log(`短链接：${JSON.stringify(res)}`);
+    } catch (err) {
+        console.error(err)
+    }
+    return res?.data?.url || LongLink
 };
