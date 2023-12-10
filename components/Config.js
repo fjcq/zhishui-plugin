@@ -139,7 +139,7 @@ class Config {
    * @param {String|Number} value 修改的value值
    * @param {'config'|'default_config'} type 配置文件或默认
    */
-  modify(name, key, value, type = 'config') {
+  async modify(name, key, value, type = 'config') {
     let path = `${Plugin_Path}/config/${type}/${name}.yaml`;
     new YamlReader(path).set(key, value);
     delete this.config[`${type}.${name}`];
