@@ -1,5 +1,5 @@
 import plugin from '../../../lib/plugins/plugin.js';
-import { puppeteer } from '../model/index.js';
+import { puppeteer, common } from '../model/index.js';
 import { Plugin_Path, Config } from '../components/index.js';
 import Data from '../components/Data.js';
 import request from '../lib/request/request.js';
@@ -377,10 +377,22 @@ export class souju extends plugin {
 
         //console.log(`网址：${PlayData.wangzhi}`);
         if (isNotNull(PlayData.wangzhi[Episode - 1])) {
-            let msg = [];
-            msg.push(PlayData.VodName + '\n' + PlayData.mingzi[Episode - 1] + ' \n*** 请复制到浏览器中观看 ***')
+            let title = PlayData.VodName + '  ' + PlayData.mingzi[Episode - 1]
+            let msg = ['*** 请复制到浏览器中观看 ***'];
             msg.push(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
-            ForwardMsg(e, msg)
+
+            let ret = await common.getforwardMsg(e, msg, {
+                isxml: true,
+                xmlTitle: title,
+            })
+                .catch(err => {
+                    msg = title + '\n'
+                    if (e.isGroup) {
+                        msg += `群`
+                    }
+                    msg += `消息发送失败，可能被风控。`
+                    e.reply(msg);
+                });
 
             return true;//返回true 阻挡消息不再往下
         } else {
@@ -630,19 +642,4 @@ async function RouteToName(Route = []) {
         RouteName.push(Name);
     };
     return RouteName;
-}
-
-/**
- * 发送转发消息
- * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
-*/
-async function ForwardMsg(e, data) {
-    // use map method to create msgList
-    const msgList = data.map(i => ({
-        message: i,
-        NickName: Bot.NickName,
-        user_id: Bot.uin
-    }));
-    // use ternary operator to simplify if...else statement
-    await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
 };
