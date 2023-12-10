@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 
+/** 依赖库列表 */
 export const needPackage = [
     'yaml',
     'fetch-undici',
@@ -10,6 +11,7 @@ export const needPackage = [
     'https-proxy-agent'
 ]
 
+/** 检查依赖库 */
 export async function checkPackage() {
     for (let pkgName of needPackage) {
         try {

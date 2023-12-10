@@ -22,16 +22,21 @@ let jailbreakConversationId = '';
 let messageId = '';
 
 /** 工作状态 */ let works = 0;
-let ChatosID = '';
+
 let zs = 0;
 //https://chatgptmirror.com/chat
 
-/** 提交数据 AiWwang */
-const WwangDate = {
-    "messages": [],
-    "temperature": 0.6,
-    "password": "",
-    "model": "gpt-3.5-turbo"
+let ChatosID = '#/chat/' + Date.now().toString();
+let ChatoFront, ChatoBack = ''
+
+/** GPT提交数据 */
+const ChatData = {
+    prompt: '',
+    userId: ChatosID,
+    network: true,
+    stream: false,
+    system: '',
+    withoutContext: false
 };
 
 /** 缓存选项 */
@@ -132,7 +137,11 @@ export class duihua extends plugin {
         if (!e.isMaster) { return; }
 
         ForChangeMsg = "";
-        WwangDate.messages = [];
+
+        //更新对话API
+        ChatosID = '#/chat/' + Date.now().toString();
+        await GetChatosApi()
+
         Config.modify('duihua', 'MirrorBearer', "");
         Config.modify('duihua', 'MirrorConversationId', "");
         works = 0;
@@ -199,33 +208,17 @@ export class duihua extends plugin {
             }
 
             msg = msg.replace(regex, '').trim();
-            //接口4
-            if (!isNotNull(jieguo)) {
-                jieguo = await Aichatos(msg);
-                console.log(`AiMirror结果：${jieguo}`);
-            }
-
-            //接口3
-            if (!isNotNull(jieguo)) {
-                jieguo = await AiMirror(msg);
-                console.log(`AiMirror结果：${jieguo}`);
-            }
 
             //接口1
             if (!isNotNull(jieguo)) {
-                jieguo = await AiForChange(msg);
-                console.log(`ForChange结果：${jieguo}`);
+                jieguo = await AiChatos(msg);
+                console.log(`AiChatos结果：${jieguo}`);
             }
 
-            //接口2
-            if (!isNotNull(jieguo)) {
-                jieguo = await AiWwang(msg);
-                console.log(`AiWwang结果：${jieguo}`);
-            }
 
             if (!isNotNull(jieguo)) {
                 works = 0;
-                return;
+                return false;
             }
 
             let remsg = await MsgToAt(jieguo);
@@ -250,10 +243,10 @@ export class duihua extends plugin {
 
 
             works = 0;
-            return;
+            return true;
         }
 
-        return;
+        return false;
     }
 
     /** 设置必应参数 */
@@ -575,37 +568,49 @@ export class duihua extends plugin {
     /** 查看必应模型 */
     async ShowtoneStyle(e) {
         if (e.isMaster) {
-            let msg = '';
             let toneStyle = await Config.Chat.toneStyle;
-            if (toneStyle == 'creative') {
-                msg = '当前必应模型为：创意';
-            } else if (toneStyle == 'precise') {
-                msg = '当前必应模型为：精确';
-            } else if (toneStyle == 'fast') {
-                msg = '当前必应模型为：快速';
-            } else {
-                msg = '当前必应模型为：默认';
+            let msg = `当前必应模型为：`;
+            switch (toneStyle) {
+                case 'creative':
+                    msg += '创意';
+                    break;
+                case 'precise':
+                    msg += '精确';
+                    break;
+                case 'fast':
+                    msg += '快速';
+                    break;
+                default:
+                    msg += '默认';
             }
             e.reply(msg);
             return;
         };
-
     }
+
 
     /** 设置必应模型 */
     async SettoneStyle(e) {
         if (e.isMaster) {
             let toneStyle = e.msg.replace(/^.*设置必应模型/, '').trim();
             let msg = '';
-            if (toneStyle == '创意' || toneStyle == 'creative') {
-                msg = '必应模型修改为：创意';
-                Config.modify('duihua', 'toneStyle', 'creative');
-            } else if (toneStyle == '精确' || toneStyle == 'precise') {
-                msg = '必应模型修改为：精确';
-                Config.modify('duihua', 'toneStyle', 'precise');
-            } else if (toneStyle == '快速' || toneStyle == 'fast') {
-                msg = '必应模型修改为：快速';
-                Config.modify('duihua', 'toneStyle', 'fast');
+            // 创建一个字典，存储必应模型和配置参数的映射关系
+            let toneStyleDict = {
+                '创意': 'creative',
+                'creative': 'creative',
+                '精确': 'precise',
+                'precise': 'precise',
+                '快速': 'fast',
+                'fast': 'fast',
+                '默认': 'balanced',
+                'balanced': 'balanced'
+            };
+            // 使用正则表达式来匹配必应模型的中文或英文名称
+            let toneStyleRegex = /创意|creative|精确|precise|快速|fast|默认|balanced/;
+            // 如果匹配成功，就从字典中获取对应的配置参数，否则使用默认参数
+            if (toneStyleRegex.test(toneStyle)) {
+                msg = `必应模型修改为：${toneStyle}`;
+                Config.modify('duihua', 'toneStyle', toneStyleDict[toneStyle]);
             } else {
                 msg = '必应模型修改为：默认';
                 Config.modify('duihua', 'toneStyle', 'balanced');
@@ -665,228 +670,94 @@ export class duihua extends plugin {
 
 }
 
+/** 
+ * 更新对话API 
+ * */
+async function GetChatosApi() {
+    const options = {
+        statusCode: 'text'
+    }
+    const text = await request.get('https://store-cbj.oss-cn-beijing.aliyuncs.com/notice.txt', options)
+
+    let urlRegex
+    let Reg
+
+    //前端网址
+    urlRegex = /<a[^<]+>(https?\S*?)<\/a/;
+    Reg = urlRegex.exec(text)
+    ChatoFront = Reg.length == 2 ? Reg[1] : `https://chat11.aichatos.xyz/`;
+
+    //后端网址
+    urlRegex = /<s[^<]+>(https?\S*?)<\/s/;
+    Reg = urlRegex.exec(text)
+    ChatoBack = Reg.length == 2 ? Reg[1] : `https://api.aichatos.cloud/api/generateStream`;
+
+    console.log('前端：' + ChatoFront);
+    console.log('后端：' + ChatoBack);
+
+    return;
+
+};
+
+
 /**
  * AI对话  https://api.forchange.cn/
- *
+ * 前端网址：https://store-cbj.oss-cn-beijing.aliyuncs.com/notice.txt
  * @param {*} msg 发送消息
  * @return {*} 对话结果
  */
-async function AiForChange(msg) {
-    ForChangeMsg += `\nHuman: ${msg}`;
-    zs = ForChangeMsg.length;
-    var ChangeData = {
-        prompt: ForChangeMsg,
-        tokensLength: zs
+async function AiChatos(msg) {
+    //初始化API
+    if (!isNotNull(ChatoFront) || !isNotNull(ChatoFront)) {
+        await GetChatosApi()
+    }
+
+    ChatData.prompt = msg;
+    const body = JSON.stringify(ChatData)
+    const headers = {
+        Accept: 'application/json, text/plain, */*',
+        //'Accept-Encoding': 'deflate, br',
+        //'Accept-language': 'zh-CN,zh;q=0.9',
+        //'Cache-Control': 'no-cache',
+        //'Content-Length': Buffer.byteLength(body).toString(),
+        'Content-Type': '"application/json"',
+        'Origin': ChatoFront,
+        //'Pragma': 'no-cache',
+        'Referer': ChatoFront,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        //'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        //'Sec-Ch-Ua-Mobile': '?0',
+        //'Sec-Ch-Ua-Platform': '"Windows"',
+        //'Sec-Fetch-Dest': 'empty',
+        //'Sec-Fetch-Mode': 'cors',
+        //'Sec-Fetch-Site': 'cross-site',
+    }
+
+    let options = {
+        method: 'POST',
+        headers,
+        body,
+        //redirect: 'follow',
+        //agent,
     };
-    console.log(ChangeData);
-    let url = "https://api.forchange.cn/";
+
+    //ChatoBack = 'https://api.aichatos.cloud/api/generateStream'
+    console.log(ChatoBack);
 
 
-    let res2 = await FetchPost(url, ChangeData);
-    let text = res2.choices[0].text;
+    let response = await fetch(ChatoBack, options)
+        .then((data) => console.log(data))
+        .catch(error => console.log(error));
 
-    if (!isNotNull(text)) {
-        ForChangeMsg = "";
-        return undefined;
-    }
+    console.log(`AI对话：${response}`);
 
-    ForChangeMsg += text;
+    let text = response?.text();
+    console.log(`AI对话text：${text}`);
 
-    if (text.includes('当前访问人数太多')) {
-        return undefined;
-    }
+    console.log(`AI对话json：${response?.json()}`);
 
-
-    const regex = /(?:答[:：]|Bot[:：]|robot[:：]|Computer[:：]|AI[:：])/gi;
-    text = text.replace(regex, "").trim();
     return text;
 }
-
-/**
- * AI对话  https://ai.wwang.eu.org/api
- *
- * @param {*} msg 发送消息
- * @return {*} 对话结果
- */
-async function AiWwang(msg) {
-    //记录提问数据
-    let WwangTempMsg = {
-        "role": "user",
-        "content": msg,
-        "id": Date.now()
-    };
-    WwangDate.messages.push(WwangTempMsg);
-
-    let url = "https://ai.wwang.eu.org/api";
-    let WwangRes = await FetchPost(url, WwangTempMsg, {}, 'text');
-
-    if (!isNotNull(WwangRes)) {
-        WwangDate.messages = [];
-        return undefined;
-    }
-
-    //记录回答数据
-    WwangTempMsg = {
-        "role": "assistant",
-        "content": WwangRes,
-        "id": Date.now()
-    };
-    WwangDate.messages.push(WwangTempMsg);
-    return WwangRes;
-}
-
-
-
-/**
- * AI对话  https://chatgptmirror.com/chat
- *
- * @param {string} msg 发送消息
- * @return {string} 对话结果
- */
-async function AiMirror(msg) {
-    /** 协议头 */
-    let AiHeaders = { Authorization: "Bearer" };
-    /** 提交数据 */
-    let MirrorData = {};
-    let base_request = { "platform_type": "Web", "client_version": "2.1", "trace_id": "", "signature": "", "share": "" };
-    /** 返回数据 */
-    let MirrorRes = {};
-    /** 必应KEY */ let Bearer = await Config.Chat.MirrorBearer || "";
-    let url = '';
-
-    //初始化
-    if (Bearer == "") {
-        Config.modify('duihua', 'MirrorConversationId', "");
-        MirrorData = { "device_id": crypto.randomUUID(), "share": "", "base_request": base_request };
-        //获取 Bearer
-        url = 'https://chatgptmirror.com/api/v1/user/DefaultAccount';
-        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
-        //console.log('Post：' + url);
-        //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
-        if (!isNotNull(MirrorRes.data.token)) {
-            Config.modify('duihua', 'MirrorBearer', "");
-            return undefined;
-        } else {
-            Config.modify('duihua', 'MirrorBearer', MirrorRes.data.token);
-            //console.log('Bearer：' + await Config.Chat.MirrorBearer);
-        };
-
-    }
-
-    AiHeaders.Authorization = "Bearer " + await Config.Chat.MirrorBearer;
-
-    /** 会话ID */
-    let conversation_id = await Config.Chat.MirrorConversationId || "";
-
-    if (conversation_id == "") {
-        //创建会话
-        MirrorData = { "name": msg, "base_request": base_request };
-        url = 'https://chatgptmirror.com/api/v1/conversation/CreateConversation';
-        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
-        //console.log('Post：' + url);
-        //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
-        if (!isNotNull(MirrorRes.data.conversation.id)) {
-            return undefined;
-        } else {
-            conversation_id = MirrorRes.data.conversation.id;
-            Config.modify('duihua', 'MirrorConversationId', conversation_id);
-            //console.log('ConversationId' + await Config.Chat.MirrorConversationId);
-        };
-
-    }
-
-    //发送消息
-    MirrorData = { "conversation_id": conversation_id, "content": msg, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/Chat';
-    MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
-    //console.log('Post：' + url);
-    //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
-    if (!isNotNull(MirrorRes)) {
-        return undefined;
-    } else if (MirrorRes.code != 0) {
-        Config.modify('duihua', 'MirrorBearer', "");
-        return '对话已重置';
-    };
-
-    //取全部消息
-    MirrorData = { "conversation_id": conversation_id, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/GetConvertionAllChatResult';
-    MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
-    //console.log('Post：' + url);
-    //console.log('MirrorRes：' + JSON.stringify(MirrorRes));
-    if (!isNotNull(MirrorRes.data.result_list)) {
-        return undefined;
-    };
-
-    let length = MirrorRes.data.result_list.length;
-    let MsgId = '';
-    if (length >= 0) {
-        MsgId = MirrorRes.data.result_list[length - 1].id;
-        //console.log('MsgId：' + MsgId);
-    } else {
-        Config.modify('duihua', 'MirrorBearer', "");
-        Config.modify('duihua', 'MirrorConversationId', "");
-        return undefined;
-    }
-
-
-    //取返回消息
-    let state = '';
-    MirrorData = { "chat_result_id": MsgId, "base_request": base_request };
-    url = 'https://chatgptmirror.com/api/v1/conversation/RefreshChat';
-    //console.log('Post：' + url);
-    while (state != 'complete') {
-        MirrorRes = await FetchPost(url, MirrorData, AiHeaders);
-
-        if (!isNotNull(MirrorRes.data.result.state)) {
-            return undefined;
-        } else if (MirrorRes.data.result.state != '' && MirrorRes.data.result.state != 'complete') {
-            //console.log('state' + MirrorRes.data.result.state);
-        };
-        //console.log('return：' + MirrorRes.data.result.content);
-        state = MirrorRes.data.result.state;
-
-        await common.sleep(500);
-    }
-
-    return await MirrorRes.data.result.content ?? undefined;
-}
-
-/**
- * AI对话 https://fwg08.aichatos.com
- *
- * @param {string} msg 发送消息
- * @return {string} 对话结果
- */
-async function Aichatos(msg) {
-    //记录提问数据
-
-    if (ChatosID = '') {
-        ChatosID = Date.now();
-    }
-
-    const MsgData = {
-        "prompt": msg,
-        "userId": "#/chat/" + ChatosID,
-        "network": true,
-        "apikey": "",
-        "system": "",
-        "withoutContext": false
-    };
-
-    let opt = {
-        'accept': 'application/json, text/plain, */*',
-        'content-type': 'application/json',
-        'origin': 'https://fwg08.aichatos.com',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-    };
-
-    let url = "https://api.aichatos.cloud/api/generateStream";
-    let PGTRes = await FetchPost(url, MsgData, opt, 'text');
-
-    return PGTRes;
-}
-
 
 /**
  * AI对话  新必应 NewBing
@@ -1070,27 +941,6 @@ async function ForwardImageMsg(e, data) {
 export function isNotNull(obj) {
     if (obj == undefined || obj == null || obj != obj) { return false; }
     return true;
-};
-
-/**
- * 获取API POST数据
- * @param url API地址
- * @param {Object} data 提交的json参数
- * @param {Object} headers 附加协议头
- * @param {'buffer'|'json'|'text'|'arrayBuffer'|'formData'|'blob'} statusCode 输出数据类型
- * @returns API返回数据
- */
-async function FetchPost(Url = '', data = {}, headers = {}, statusCode = 'json') {
-    /** 请求参数 */
-    let Options = {
-        data,
-        headers: headers,
-        statusCode: statusCode
-    };
-    //console.log('请求：' + Url, '参数' + JSON.stringify(data))
-    let Response = await request.post(Url, Options);
-    //console.log('返回：' + JSON.stringify(Response));
-    return Response;
 };
 
 /**
