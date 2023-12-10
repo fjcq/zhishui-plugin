@@ -388,9 +388,11 @@ export class souju extends plugin {
                 .catch(err => {
                     msg = title + '\n'
                     if (e.isGroup) {
-                        msg += `群`
+                        let at = Number(e.user_id)
+                        msg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`]
+                    } else {
+                        msg = `消息发送失败，可能被风控。`
                     }
-                    msg += `消息发送失败，可能被风控。`
                     e.reply(msg);
                 });
 
