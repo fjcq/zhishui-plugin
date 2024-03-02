@@ -57,81 +57,71 @@ export class souju extends plugin {
 
     /** 搜剧 */
     async SearchVideos(e) {
-
+        // 检查是否有正在进行的搜索
         if (zzss == 1) {
             e.reply('前面的搜索尚未完成，你先等等！');
             return;
         }
 
+        // 获取接口
         const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
         const jiekou = await Config.SearchVideos.resources[idx].site;
 
-        if (zzss == 0) {
-            if (!isNotNull(jiekou)) {
-                e.reply('接口错误！');
-                zzss = 0;
-                return false;
-            }
-            zzss = 1;
-
-            let retry = e.msg.search('重新') != -1;
-            SearchName = e.msg.replace(/.*搜剧/g, "").trim();
-            e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`);
-
-            const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
-            const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
-            const domain = Config.SearchVideos.resources[idx].site.url;
-            let SearchResults;
-            if ((page == 1) && (keyword == SearchName) && !retry) {
-                //判断缓存
-                SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
-                if (isNotNull(SearchResults)) {
-                    SearchResults = JSON.parse(SearchResults);
-                } else {
-
-                    //不存在缓存，重新搜索
-                    SearchResults = SearchVideo(SearchName, 1, 0, 0, domain);
-                    //写入缓存
-                    await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-                };
-            } else {
-                //初始化数据
-                await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
-                await Config.SetUserSearchVideos(e.user_id, 'page', 1);
-                await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
-                if (!await Config.GetUserSearchVideos(e.user_id, 'Route')) {
-                    await Config.SetUserSearchVideos(e.user_id, 'Route', 0);
-                }
-
-                //不存在缓存，重新搜索
-                SearchResults = SearchVideo(SearchName, 1, 0, 0, domain);
-                //写入缓存
-                await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-            };
-
-            if (SearchResults.list.length > 0) {
-                //发送图片
-                IDs = SearchResults.list.map(item => item.vod_id);
-                console.log(`获取数组：${IDs}`);
-                await puppeteer.render("souju/result", {
-                    list: SearchResults.list,
-                    keyword: SearchName || '最新视频',
-                    showpic: await jiekou.showpic
-                }, {
-                    e,
-                    scale: 1.6
-                });
-
-                zzss = 0;
-                return true;
-            } else {
-                zzss = 0;
-                e.reply(`未能搜索到 [${SearchName || '最新视频'}]，抱歉！`);
-                return false;
-            }
-
+        // 检查接口是否存在
+        if (!jiekou) {
+            e.reply('接口错误！');
+            return;
         }
 
+        // 设置搜索状态
+        zzss = 1;
+
+        // 获取搜索关键词
+        let SearchName = e.msg.replace(/.*搜剧/g, "").trim();
+        e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`);
+
+        // 获取缓存的搜索关键词和页码
+        const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
+        const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
+
+        // 获取搜索结果
+        let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+        if (SearchResults && keyword == SearchName && page == 1) {
+            // 如果缓存存在且关键词和页码与当前搜索相同，则使用缓存的搜索结果
+            SearchResults = JSON.parse(SearchResults);
+        } else {
+            // 否则，进行新的搜索
+            const domain = Config.SearchVideos.resources[idx].site.url;
+            SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain);
+
+            // 保存搜索关键词、页码和搜索结果到缓存
+            await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
+            await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+            await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
+            await Config.SetUserSearchVideos(e.user_id, 'Route', 0);
+            await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+        }
+
+        // 检查搜索结果
+        if (SearchResults.list) {
+            // 如果搜索结果存在，则显示搜索结果
+            const IDs = SearchResults.list.map(item => item.vod_id);
+            console.log(`获取数组：${IDs}`);
+            await puppeteer.render("souju/result", {
+                list: SearchResults.list,
+                keyword: SearchName || '最新视频',
+                showpic: await jiekou.showpic
+            }, {
+                e,
+                scale: 1.6
+            });
+        } else {
+            // 如果搜索结果不存在，则提示用户
+            e.reply(`未能搜索到 [${SearchName || '最新视频'}]，抱歉！`);
+        }
+
+        // 重置搜索状态
+        zzss = 0;
     }
 
     /** 搜剧接口 */
@@ -290,8 +280,7 @@ export class souju extends plugin {
 
         //分割出 线路组
         const Route = Detail.vod_play_from.split('$$$');
-        let RouteName = RouteToName(Route);
-
+        let RouteName = await RouteToName(Route);
 
         //分割出 资源线路组
         let jiedian = Detail.vod_play_url.split('$$$');
@@ -380,7 +369,7 @@ export class souju extends plugin {
             let title = PlayData.VodName + '  ' + PlayData.mingzi[Episode - 1]
             let msg = ['*** 请复制到浏览器中观看 ***'];
             let ShortLink = await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1]
-            
+
             //转短链接
             //let ShortLink = await linkLongToShort(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
             //console.log(`短链接：${ShortLink}`);
@@ -646,11 +635,14 @@ async function RouteToName(Route = []) {
     let RouteName = [];
 
     for (let i = 0; i < Route.length; i++) {
-        let Name = RouteList.find(item => item.RouteCode == Route[i]).RouteName;
+        const foundRoute = RouteList.find(item => item.RouteCode === Route[i]);
+        const Name = foundRoute ? foundRoute.RouteName : 'Unknown'; // 提供一个默认值
         RouteName.push(Name);
-    };
+    }
+
     return RouteName;
-};
+}
+
 
 /**
  * 长链接转短链接
