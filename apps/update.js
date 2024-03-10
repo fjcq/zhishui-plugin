@@ -21,7 +21,7 @@ export class Update extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: '^(#|\/)?*止水(插件)?(强制)?更新$',
+                    reg: `^(#|\/)?止水(插件)?(强制)?更新$`,
                     fnc: 'updated'
                 }
             ]

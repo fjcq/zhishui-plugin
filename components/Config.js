@@ -2,10 +2,7 @@ import YAML from 'yaml';
 import chokidar from 'chokidar';
 import fs from 'node:fs';
 import YamlReader from './YamlReader.js';
-import cfg from '../../../lib/config/config.js';
-import loader from '../../../lib/plugins/loader.js';
 import _ from 'lodash';
-import moment from 'moment';
 
 const Path = process.cwd();
 const Plugin_Name = 'zhishui-plugin';
@@ -43,11 +40,6 @@ class Config {
       return { ...defCfg, ...config, ...group[groupId] };
     }
     return { ...defCfg, ...config };
-  }
-
-  /** 主人QQ */
-  get masterQQ() {
-    return cfg.masterQQ;
   }
 
   /** 获取全局设置 */
