@@ -793,7 +793,9 @@ async function AiBing(msg) {
     let master = await Config.Chat.Master;
 
     //为设置昵称、主人、主人QQ
-    if (!nickname || !masterQQ || !master) { return undefined; }
+    if (!nickname || !masterQQ || !master) {
+        return undefined;
+    }
 
     //载入身份预设
     let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`;

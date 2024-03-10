@@ -1,15 +1,14 @@
 import Ver from './components/Version.js'
 import fs from 'fs'
 import chalk from 'chalk'
-import Data from './components/Data.js'
 
-logger.info(chalk.yellow(`正在加载 止水插件${Ver.ver}`))
+logger.info(chalk.yellow(`止水插件${Ver.ver} 正在加载...`))
 
 //检查依赖
 import { checkPackage } from './components/check.js'
 let passed = await checkPackage()
 if (!passed) {
-    throw 'Missing necessary dependencies'
+    throw '缺少必要的依赖项'
 }
 
 if (!global.segment) {
@@ -42,4 +41,5 @@ for (let i in files) {
     }
     apps[name] = ret[i].value[Object.keys(ret[i].value)[0]]
 }
+logger.info(chalk.yellow(`止水插件 加载完成~！`))
 export { apps }
