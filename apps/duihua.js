@@ -81,7 +81,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?发音人$`,
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^#?(止水)?(插件|对话)??设置对话身份(.*)',
+                    reg: '^(#|\/)??(止水)?(插件|对话)??设置对话身份(.*)',
                     fnc: 'SetContext'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??查看对话身份$`,

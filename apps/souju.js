@@ -24,31 +24,31 @@ export class souju extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: "^#(重新)?搜剧(.*)$",
+                    reg: "^(#|\/)?(重新)?搜剧(.*)$",
                     fnc: 'SearchVideos'
                 }, {
-                    reg: '^#(设置|增加|删除|查看)搜剧接口(.*)$',
+                    reg: '^(#|\/)?(设置|增加|删除|查看)搜剧接口(.*)$',
                     fnc: 'SearchInterface'
                 }, {
-                    reg: '^#(设置|查看)搜剧播放器(.*)$',
+                    reg: '^(#|\/)?(设置|查看)搜剧播放器(.*)$',
                     fnc: 'PlayerInterface'
                 }, {
-                    reg: '^#取消搜剧$',
+                    reg: '^(#|\/)?取消搜剧$',
                     fnc: 'CancelSearch'
                 }, {
-                    reg: '^#选剧(.*)',
+                    reg: '^(#|\/)?选剧(.*)',
                     fnc: 'SelectVideo'
                 }, {
-                    reg: '^#看剧.*集?$',
+                    reg: '^(#|\/)?看剧.*集?$',
                     fnc: 'WatchVideo'
                 }, {
-                    reg: '^#(上一页|下一页|到.*页)$',
+                    reg: '^(#|\/)?(上一页|下一页|到.*页)$',
                     fnc: 'GoPage'
                 }, {
-                    reg: '^#线路(.*)$',
+                    reg: '^(#|\/)?线路(.*)$',
                     fnc: 'ChangingRoute'
                 }, {
-                    reg: '^#我的搜剧$',
+                    reg: '^(#|\/)?我的搜剧$',
                     fnc: 'MySearchVideo'
                 }
             ]
