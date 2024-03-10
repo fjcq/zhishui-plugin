@@ -22,16 +22,16 @@ export class yanzou extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: "^#演奏(.*)",
+                    reg: "^(#|\/)?演奏(.*)",
                     fnc: 'Played'
                 }, {
-                    reg: "^#取消演奏$",
+                    reg: "^(#|\/)?取消演奏$",
                     fnc: 'PlayeStop'
                 }, {
-                    reg: "^#高品质演奏(开启|关闭)$",
+                    reg: "^(#|\/)?高品质演奏(开启|关闭)$",
                     fnc: 'PlayeQuality'
                 }, {
-                    reg: "^#调试演奏(.*)$",
+                    reg: "^(#|\/)?调试演奏(.*)$",
                     fnc: 'TestPlaye'
                 }
             ]
