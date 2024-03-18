@@ -39,6 +39,17 @@ const ChatData = {
     withoutContext: false
 };
 
+/** YT提交数据 */
+const YTData = {
+    model: 'gpt-3.5-turbo',
+    presence_penalty: 0,
+    messages: []
+};
+
+/** YT对话数据 */
+let YTMsg = [];
+
+
 /** 缓存选项 */
 const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` });
 const cacheOptions = {
@@ -137,6 +148,7 @@ export class duihua extends plugin {
         if (!e.isMaster) { return; }
 
         ForChangeMsg = "";
+        YTMsg = []
 
         //更新对话API
         ChatosID = '#/chat/' + Date.now().toString();
@@ -167,12 +179,18 @@ export class duihua extends plugin {
             console.log("提问：" + msg);
 
             //启用必应时，优先必应
-            if (await Config.Chat.EnableBing && (!await Config.Chat.OnlyMaster || e.isMaster)) {
+            if ((!await Config.Chat.OnlyMaster || e.isMaster)) {
                 let Favora = await GetFavora(e.user_id);
                 let BingMsg = `<${e.user_id}|${Favora}>：${msg}`;
                 BingMsg = BingMsg.replace(/{at:/g, '{@');
                 console.log("提交必应 -> " + BingMsg);
-                let binres = await AiBing(BingMsg);
+                let binres = '';
+
+                if (await Config.Chat.EnableBing) {
+                    binres = await AiBing(BingMsg);
+                } else {
+                    binres = await AiYT(BingMsg);
+                }
 
                 if (binres) {
                     //结果处理
@@ -210,6 +228,12 @@ export class duihua extends plugin {
             msg = msg.replace(regex, '').trim();
 
             //接口1
+            if (!isNotNull(jieguo)) {
+                jieguo = await AiYT(msg);
+                console.log(`AiYT结果：${jieguo}`);
+            }
+
+            //接口2
             if (!isNotNull(jieguo)) {
                 jieguo = await AiChatos(msg);
                 console.log(`AiChatos结果：${jieguo}`);
@@ -745,6 +769,7 @@ async function AiChatos(msg) {
     console.log(ChatoBack);
 
 
+    // 发起网络请求并等待响应
     let response = await fetch(ChatoBack, options)
         .then((data) => console.log(data))
         .catch(error => console.log(error));
@@ -759,6 +784,46 @@ async function AiChatos(msg) {
     return text;
 }
 
+
+/**
+ * API  https://y-tian-plugin.top:1111/api/v1/freechat35/completions
+ * @param {*} msg 发送消息
+ * @return {*} 对话结果
+ */
+async function AiYT(msg) {
+    const url = 'https://y-tian-plugin.top:1111/api/v1/freechat35/completions';
+
+    if (YTMsg.length == 0) {
+
+        let nickname = await Config.Chat.NickName;
+        let masterQQ = await Config.Chat.MasterQQ;
+        let master = await Config.Chat.Master;
+        //为设置昵称、主人、主人QQ
+        if (!nickname || !masterQQ || !master) {
+            console.log('昵称、主人、主人QQ未设置！');
+            return undefined;
+        }
+        //载入身份预设
+        let Context = await ReadContext() + await ReadScene() + `我的QQ号码是
+永远是最大值。`;
+        Context = Context.replace(/{NickName}/g, nickname);
+        Context = Context.replace(/{MasterQQ}/g, masterQQ);
+        Context = Context.replace(/{Master}/g, master);
+
+        YTMsg.push({ role: 'system', content: Context });
+    }
+
+    YTMsg.push({ role: 'user', content: msg });
+    YTData.messages = YTMsg;
+
+    let response = await request.post(url,{data: YTData,statusCode: 'text'})
+        .catch(err => {
+            logger.error(err);
+            //return err
+        });
+    return response;
+
+}
 /**
  * AI对话  新必应 NewBing
  *
@@ -940,7 +1005,7 @@ async function ForwardImageMsg(e, data) {
  * @param obj 对象
  * @returns obj==null/undefined,return false,other return true
  */
-export function isNotNull(obj) {
+function isNotNull(obj) {
     if (obj == undefined || obj == null || obj != obj) { return false; }
     return true;
 };
@@ -969,7 +1034,8 @@ async function ReadContext() {
 
     return context;
 
-}
+};
+
 
 /**
  * 写身份设定
@@ -1081,4 +1147,15 @@ async function writeCookie(data) {
     const fileName = `BingCookie.json`;
 
     return Data.writeJSON(fileName, data, DataPath);
+}
+
+/**
+ * 读入Cookie
+ */
+async function readCookie() {
+    const DataPath = path.join(Plugin_Path, 'resources', 'data');
+    const fileName = `BingCookie.json`;
+    let data = await Data.readJSON(fileName, DataPath);
+    return data;
+
 }
