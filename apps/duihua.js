@@ -203,7 +203,7 @@ export class duihua extends plugin {
 
 
                     jieguo = jieguo.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
-                    const pattern = /[｛{]@([0-9]+)\|(-?[0-9]+)[｝}]/g;
+                    const pattern = /[｛{(]@[0-9]+\|-?[0-9]+[)｝}]/g;
                     let match;
                     while ((match = pattern.exec(jieguo)) !== null) {
                         const Favora = parseInt(match[2]);
@@ -217,8 +217,7 @@ export class duihua extends plugin {
                     }
 
                     //删除好感度文本
-                    jieguo = jieguo.replace(/[｛{]@[0-9]+\|-?[0-9]+[｝}]/g, '');
-                    jieguo = jieguo.replace(/[｛{]@user\|-?[0-9]+[｝}]/g, '');
+                    jieguo = jieguo.replace(pattern, '');
                 } else {
                     jieguo = undefined;
                 }
@@ -809,10 +808,10 @@ async function AiYT(msg) {
         Context = Context.replace(/{NickName}/g, nickname);
         Context = Context.replace(/{MasterQQ}/g, masterQQ);
         Context = Context.replace(/{Master}/g, master);
-
+        // 初始化 YTMsg，添加系统信息
         YTMsg.push({ role: 'system', content: Context });
     }
-
+    // 添加用户消息
     YTMsg.push({ role: 'user', content: msg });
     YTData.messages = YTMsg;
 
