@@ -169,106 +169,61 @@ export class duihua extends plugin {
 
     /** 对话 */
     async duihua(e) {
+        // 检查消息是否是针对当前对话的，或者是通过@Bot的方式
         let msg = e.msg;
         let regex = new RegExp(`^#?${NickName}`);
-
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
-            works = 1;
-            let jieguo;
-            let images;
-            console.log("提问：" + msg);
+            try {
+                // 标记对话状态为进行中      
+                works = 1;
+                // 提取用户消息内容，并去除对话昵称前缀
+                msg = msg.replace(/^#?${NickName}\s*/, '').trim();
+                msg = msg.replace(/{at:/g, '{@');
 
-            //启用必应时，优先必应
-            if ((!await Config.Chat.OnlyMaster || e.isMaster)) {
-                let Favora = await GetFavora(e.user_id);
-                let BingMsg = `<${e.user_id}|${Favora}>：${msg}`;
-                BingMsg = BingMsg.replace(/{at:/g, '{@');
-                console.log("提交必应 -> " + BingMsg);
-                let binres = '';
+                const Favora = await GetFavora(e.user_id);
+                const userMessage = `<${e.user_id}|${Favora}>：${msg}`;
+                console.log("止水对话 -> " + userMessage);
 
-                if (await Config.Chat.EnableBing) {
-                    binres = await AiBing(BingMsg);
-                } else {
-                    binres = await AiYT(BingMsg);
-                }
+                // 发送消息到 YT 进行对话
+                let response = await AiYT(userMessage);
 
-                if (binres) {
-                    //结果处理
-                    if (binres?.images) {
-                        jieguo = binres.text;
-                        images = binres.images;
-                    } else {
-                        jieguo = binres;
+                if (response) {
+                    // 缓存对话消息
+                    YTMsg.push({ role: 'user', content: userMessage });
+                    YTMsg.push({ role: 'ai', content: response });
+
+                    // 更新好感度
+                    const newfavora = await updateFavora(response)
+                    console.log("止水对话 <- " + newfavora);
+
+                    // 发送回复消息给用户
+                    const remsg = await MsgToAt(newfavora);
+                    e.reply(remsg, true);
+
+                    // 如果配置了语音合成，发送语音回复
+                    if (await Config.Chat.EnableVoice) {
+                        const voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId;
+                        const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(newfavora)}&speed=0.8&volume=150&audioType=wav`;
+                        e.reply([segment.record(voiceUrl)]);
                     }
 
-
-                    jieguo = jieguo.replace(/(Sydney|必应|Bing)/g, await Config.Chat.NickName).trim();
-                    const pattern = /[｛{(]@[0-9]+\|-?[0-9]+[)｝}]/g;
-                    let match;
-                    while ((match = pattern.exec(jieguo)) !== null) {
-                        const Favora = parseInt(match[2]);
-                        if (Favora !== 0) {
-                            const qq = match[1];
-                            const OldFavora = await GetFavora(qq);
-                            const NewFavora = parseInt(OldFavora) + Favora; //计算好感度
-                            console.log(`好感度更新：${qq} -> ${OldFavora} + ${Favora} = ${NewFavora}`);
-                            await SetFavora(qq, NewFavora); //保存新的好感度
-                        }
-                    }
-
-                    //删除好感度文本
-                    jieguo = jieguo.replace(pattern, '');
+                    // 标记对话状态为完成
+                    works = 0;
                 } else {
-                    jieguo = undefined;
+                    // 如果没有获取到有效的回复，标记对话状态为未进行
+                    works = 0;
+                    return false;
                 }
-                console.log(`Bing结果：${jieguo}`);
-            }
-
-            msg = msg.replace(regex, '').trim();
-
-            //接口1
-            if (!isNotNull(jieguo)) {
-                jieguo = await AiYT(msg);
-                console.log(`AiYT结果：${jieguo}`);
-            }
-
-            //接口2
-            if (!isNotNull(jieguo)) {
-                jieguo = await AiChatos(msg);
-                console.log(`AiChatos结果：${jieguo}`);
-            }
-
-
-            if (!isNotNull(jieguo)) {
+            } catch (error) {
+                // 捕获并处理异常，例如输出错误日志
+                console.error('对话处理过程中发生错误:', error);
+                e.reply('发生错误，无法进行对话。');
                 works = 0;
                 return false;
             }
-
-            let remsg = await MsgToAt(jieguo);
-            //console.log(remsg);
-            e.reply(remsg, true);
-
-            //console.log(`images：${images}`);
-            if (isNotNull(images)) {
-                //ForwardImageMsg(e, images)
-                for (let i = 0; i < images.length; i++) {
-                    e.reply([segment.image(images[i])]);
-                }
-
-            }
-
-            //语音合成
-            if (await Config.Chat.EnableVoice) {
-                let voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId;
-                let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${jieguo}&speed=0.8&volume=150&audioType=wav`;
-                e.reply([segment.record(url)]);
-            }
-
-
-            works = 0;
-            return true;
         }
 
+        // 如果消息不是针对当前对话的，则不进行处理
         return false;
     }
 
@@ -815,7 +770,7 @@ async function AiYT(msg) {
     YTMsg.push({ role: 'user', content: msg });
     YTData.messages = YTMsg;
 
-    let response = await request.post(url,{data: YTData,statusCode: 'text'})
+    let response = await request.post(url, { data: YTData, statusCode: 'text' })
         .catch(err => {
             logger.error(err);
             //return err
@@ -1056,42 +1011,42 @@ async function WriteContext(Context) {
  * 读场景设定
  */
 async function ReadScene() {
-    let context = '';
-    const fileName = 'Scene.txt';
-    const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
-    const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
+    try {
+        const fileName = 'Scene.txt';
+        const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
+        const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
 
-    if (fs.existsSync(userFile)) {
-        context = fs.readFileSync(userFile, 'utf8');
-        if (!context) {
-            context = fs.readFileSync(defFile, 'utf8');
-        }
-    } else {
-        context = fs.readFileSync(defFile, 'utf8');
+        // 优先读取用户配置文件，如果不存在则读取默认配置文件
+        const [userScene, defaultScene] = await Promise.all([
+            fs.promises.readFile(userConfigPath, 'utf8').catch(() => ''),
+            fs.promises.readFile(defaultConfigPath, 'utf8').catch(() => ''),
+        ]);
+
+        // 返回用户配置，如果用户配置为空或不存在，则返回默认配置
+        return userScene || defaultScene;
+    } catch (error) {
+        // 处理可能的错误，例如记录日志或返回一个空字符串
+        console.error('读取场景配置文件时发生错误:', error);
+        return '';
     }
-
-    if (!context) {
-        context = '';
-    }
-
-    return context;
-
 }
 
 /**
  * 写场景设定
  */
 async function WriteScene(Context) {
-    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
-    console.log("设置场景：" + Context);
     try {
-        fs.writeFileSync(DataFile, Context);
-        return true;
+        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
+        // 使用 fs.promises.writeFile 来异步写入文件，并处理可能的异常
+        await fs.promises.writeFile(sceneFilePath, Context, 'utf8');
+        console.log('场景配置已成功保存。');
     } catch (error) {
-        logger.error(error);
+        // 处理可能的错误，例如记录日志
+        console.error('写入场景配置文件时发生错误:', error);
+        // 在发生错误时返回 false 表示写入失败
         return false;
     }
-
+    return true; // 写入成功返回 true
 }
 
 /**
@@ -1157,4 +1112,38 @@ async function readCookie() {
     let data = await Data.readJSON(fileName, DataPath);
     return data;
 
+}
+
+/**
+ * 更新好感度
+ */
+async function updateFavora(text) {
+    try {
+        const qqRegex = /(?:\(|（|｛|{)@(\d+)(?:\|(-?\d+))?(?:\)|）|｝|})/g;
+        qqRegex.lastIndex = 0;  // 重置 lastIndex
+
+        let match;
+        while ((match = qqRegex.exec(text)) !== null) {
+            const qqNumber = parseInt(match[1]);
+            const paramValue = match[2] ? parseInt(match[2]) : 0;
+
+            if (paramValue !== 0) {
+                const oldFavora = await GetFavora(qqNumber);
+                const newFavora = parseInt(oldFavora) + paramValue; // 计算好感度
+                if (await SetFavora(qqNumber, newFavora)) {
+                    console.log(`更新好感度成功：${qqNumber} ${paramValue} -> ${newFavora}`);
+                } else {
+                    logger.error(`更新好感度失败：${qqNumber} ${paramValue}`);
+                }
+            }
+        }
+
+        const updatedText = text.replace(qqRegex, '');
+
+        return updatedText;
+    } catch (error) {
+        // 处理异步操作中的错误
+        console.error('更新好感度时发生错误:', error);
+        return text;
+    }
 }
