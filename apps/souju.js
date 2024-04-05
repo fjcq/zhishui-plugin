@@ -11,8 +11,7 @@ const CachePath = `${Plugin_Path}/resources/Cache/SearchVideos`;
 let SearchName = "";
 /** 视频ID数组 */
 var IDs = [];
-/** 当前视频索引 */
-var CurrentID = 1;
+/** 正在搜索 */
 var zzss = 0;
 
 export class souju extends plugin {
@@ -58,70 +57,61 @@ export class souju extends plugin {
     /** 搜剧 */
     async SearchVideos(e) {
         // 检查是否有正在进行的搜索
-        if (zzss == 1) {
-            e.reply('前面的搜索尚未完成，你先等等！');
+        if (zzss === 1) {
+            e.reply('前方有搜索任务正在进行，请稍候再试！');
             return;
         }
 
         // 获取接口
         const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
-        const jiekou = await Config.SearchVideos.resources[idx].site;
+        const jiekou = await Config.SearchVideos.resources[idx]?.site;
 
         // 检查接口是否存在
         if (!jiekou) {
-            e.reply('接口错误！');
+            e.reply('接口配置错误，请联系管理员修复！');
             return;
         }
 
-        // 设置搜索状态
-        zzss = 1;
+        try {
+            // 开始搜索过程，设置搜索状态
+            zzss = 1;
 
-        // 获取搜索关键词
-        let SearchName = e.msg.replace(/.*搜剧/g, "").trim();
-        e.reply(`开始搜索 [${SearchName || '最新视频'}] ，请稍候片刻...`);
+            // 获取搜索关键词
+            const SearchName = extractSearchKeyword(e.msg);
+            e.reply(`正在搜索 [${SearchName || '最新视频'}] ，请稍候…`);
 
-        // 获取缓存的搜索关键词和页码
-        const keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
-        const page = parseInt(await Config.GetUserSearchVideos(e.user_id, 'page') || '1');
+            // 获取缓存数据
+            const cacheData = await getUserSearchCache(e.user_id);
 
-        // 获取搜索结果
-        let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
-        if (SearchResults && keyword == SearchName && page == 1) {
-            // 如果缓存存在且关键词和页码与当前搜索相同，则使用缓存的搜索结果
-            SearchResults = JSON.parse(SearchResults);
-        } else {
-            // 否则，进行新的搜索
-            const domain = Config.SearchVideos.resources[idx].site.url;
-            SearchResults = await SearchVideo(SearchName, 1, 0, 0, domain);
+            let SearchResults;
 
-            // 保存搜索关键词、页码和搜索结果到缓存
-            await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
-            await Config.SetUserSearchVideos(e.user_id, 'page', 1);
-            await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
-            await Config.SetUserSearchVideos(e.user_id, 'Route', 0);
-            await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+            // 判断是否使用缓存数据
+            if (SearchName == cacheData.keyword && cacheData.page > 1) { 
+                SearchResults = cacheData.SearchResults
+            } else {
+                SearchResults = await SearchVideo(SearchName, 1, 0, 0, jiekou.url);
+            }
+
+            // 保存搜索结果至缓存
+            const mergedSearchResults = {
+                ...SearchResults,
+                keyword: SearchName,
+                page: cacheData.page,
+                Episode: cacheData.Episode,
+                Route: cacheData.Route,
+                idx: idx
+            };
+            await saveUserSearchCache(e.user_id, mergedSearchResults);
+
+            // 检查并展示搜索结果
+            handleAndDisplaySearchResults(e, SearchResults, jiekou.showpic);
+
+        } catch (error) {
+            e.reply(`搜索过程中发生错误：${error.message}`);
+        } finally {
+            // 重置搜索状态
+            zzss = 0;
         }
-
-        // 检查搜索结果
-        if (SearchResults.list) {
-            // 如果搜索结果存在，则显示搜索结果
-            const IDs = SearchResults.list.map(item => item.vod_id);
-            console.log(`获取数组：${IDs}`);
-            await puppeteer.render("souju/result", {
-                list: SearchResults.list,
-                keyword: SearchName || '最新视频',
-                showpic: await jiekou.showpic
-            }, {
-                e,
-                scale: 1.6
-            });
-        } else {
-            // 如果搜索结果不存在，则提示用户
-            e.reply(`未能搜索到 [${SearchName || '最新视频'}]，抱歉！`);
-        }
-
-        // 重置搜索状态
-        zzss = 0;
     }
 
     /** 搜剧接口 */
@@ -257,12 +247,16 @@ export class souju extends plugin {
 
         //选剧
         if (e.msg.includes("#选剧")) {
-            CurrentID = parseInt(e.msg.replace(/\D+/, '').trim()) || 0;
-            CurrentID = CurrentID - 1;
+            let CurrentID = parseInt(e.msg.replace(/\D+/, '').trim());
+            if (CurrentID > 0) {
+                CurrentID = CurrentID - 1;
+            } else {
+                CurrentID = 0;
+            }
+
+            await Config.SetUserSearchVideos(e.user_id, 'CurrentID', CurrentID);
         }
-        if (CurrentID < 0) {
-            CurrentID = 0;
-        }
+
         if (CurrentID >= SearchResults.list.length) {
             e.reply('[选剧]错误，不存在这部剧！');
             return false;
@@ -398,61 +392,90 @@ export class souju extends plugin {
         }
     }
 
+
     /** 到指定页 */
     async GoPage(e) {
-        let msg = e.msg;
-        const SearchName = await Config.GetUserSearchVideos(e.user_id, 'keyword') || '';
-        let page = await Config.GetUserSearchVideos(e.user_id, 'page') || 1;
-        if (msg.search(`上一页`) != -1) {
-            if (page > 1) {
-                page--;
-            } else {
-                page = 1;
-            }
 
-        } else if (msg.search(`下一页`) != -1) {
-            page++;
-        } else {
-            msg = e.msg.replace(/[#到第页\s]/g, '').trim();
-            if (msg == '首') {
+        const PAGE_COMMANDS = {
+            PREVIOUS: '上一页',
+            NEXT: '下一页',
+            FIRST: '首',
+            LAST: '尾',
+        };
+
+        const msg = e.msg.trim();
+
+        // 一次性获取所需的用户搜索数据
+        const searchUserData = await Config.GetUserSearchVideos(e.user_id, [
+            'keyword',
+            'page',
+            'idx',
+        ]);
+
+        const {
+            keyword = '',
+            page: initialPage = 1,
+            idx: initialIdx = 0,
+        } = searchUserData;
+
+        let page = initialPage;
+
+        switch (true) {
+            case msg.includes(PAGE_COMMANDS.PREVIOUS):
+                page = page > 1 ? page - 1 : 1;
+                break;
+            case msg.includes(PAGE_COMMANDS.NEXT):
+                page++;
+                break;
+            case msg.includes(PAGE_COMMANDS.FIRST):
                 page = 1;
-            } else if (msg == '尾') {
+                break;
+            case msg.includes(PAGE_COMMANDS.LAST):
                 page = 999;
-            } else {
-                page = transformChar(msg);
-            }
+                break;
+            default:
+                const customPage = transformChar(msg);
+                if (customPage !== null) {
+                    page = customPage;
+                }
+                break;
         }
-        //保存参数
-        await Config.SetUserSearchVideos(e.user_id, 'page', page);
-        e.reply(`开始跳转到 [${SearchName || '最新视频'}] - 第${page}页`);
 
+        // 保存参数
+        await Config.SetUserSearchVideos(e.user_id, 'page', page);
+
+        e.reply(`开始跳转到 [${keyword || '最新视频'}] - 第${page}页`);
 
         /** 搜剧结果 */
-        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
-        const domain = Config.SearchVideos.resources[idx].site.url;
-        const SearchResults = SearchVideo(SearchName, page, 0, 0, domain);
-        IDs = SearchResults.list.map(item => item.vod_id);
+        const domain = Config.SearchVideos.resources[initialIdx].site.url;
+        const SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
+        let IDs = [];
+
+        if (SearchResults && SearchResults.list) {
+            IDs = SearchResults.list.map(item => item.vod_id);
+        } else {
+            console.warn('SearchResults.list 未定义或为 null。跳过 ID 提取。');
+        }
+
         console.log(`获取数组：${IDs}`);
 
         if (isNotNull(SearchResults.list)) {
-            //写到缓存
+            // 写到缓存
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-            const showpic = await Config.SearchVideos.resources[idx].site.showpic;
-            //发送图片
+            const showpic = await Config.SearchVideos.resources[initialIdx].site.showpic;
+            // 发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
-                keyword: SearchName || '最新视频',
-                showpic: await showpic
+                keyword: keyword || '最新视频',
+                showpic: await showpic,
             }, {
                 e,
-                scale: 1.6
+                scale: 1.6,
             });
 
-            zzss = 0;
             return true;
         } else {
-            zzss = 0;
-            e.reply('未能搜索到  [' + SearchName || '最新视频' + ']，抱歉');
+            e.reply(`未能搜索到 [${keyword || '最新视频'}]，抱歉`);
             return false;
         }
 
@@ -460,86 +483,132 @@ export class souju extends plugin {
 
     /** 切换线路 */
     async ChangingRoute(e) {
-        let Route = parseInt(e.msg.replace(/\D+/, '').trim());
-        if (!Route) {
-            Route = 1;
+        const routeNumber = parseInt(e.msg.replace(/\D+/, '').trim()) || 1;
+
+        // 记录当前线路
+        await Config.SetUserSearchVideos(e.user_id, 'Route', routeNumber - 1);
+
+        // 获取当前选剧ID
+        let currentId = await Config.GetUserSearchVideos(e.user_id, 'CurrentID');
+        if (currentId) {
+            currentId++
+        }else{
+            currentId = 1
         }
 
-        //记录当前线路
-        await Config.SetUserSearchVideos(e.user_id, 'Route', Route - 1);
-
-        e.msg = '#选剧' + CurrentID.toString();
+        e.msg = '#选剧' + currentId.toString();
         return await this.SelectVideo(e);
     }
 
-    /** 我的搜剧 */
     async MySearchVideo(e) {
-        let keyword = await Config.GetUserSearchVideos(e.user_id, 'keyword');
-        let page = await Config.GetUserSearchVideos(e.user_id, 'page') || 1;
-        let Episode = await Config.GetUserSearchVideos(e.user_id, 'Episode');
-        let idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
-        let PlayData = await Config.GetUserSearchVideos(e.user_id, 'PlayData');
-        let Route = await Config.GetUserSearchVideos(e.user_id, 'Route');
-        PlayData = JSON.parse(PlayData);
-        let msg = '';
-        //资源接口站名
-        let InterfaceName = await Config.SearchVideos.resources[idx]?.site.title || '错误';
+        try {
+            // 合并数据库查询，一次性获取所有所需属性
+            const userSearchData = await Config.GetUserSearchVideos(e.user_id, [
+                'keyword',
+                'page',
+                'Episode',
+                'idx',
+                'PlayData',
+                'Route'
+            ]);
 
-        msg += '*** 搜索记录 ***\n';
-        msg += `接口：${InterfaceName}\n`;
-        msg += `关键词：${keyword}\n`;
-        msg += `搜索页：${page}\n`;
-        msg += `线路：${Route}\n\n`;
+            if (userSearchData === null || userSearchData === undefined) {
+                e.reply(`未能找到你的搜剧记录`);
+                throw error;
+            }
 
-        //集数效验，防止超出范围
-        if (Episode < 1) {
-            Episode = 1;
-        } else if (Episode > PlayData.wangzhi.length) {
-            Episode = PlayData.wangzhi.length;
+            const {
+                keyword,
+                page = 1,
+                Episode: initialEpisode,
+                idx = 0,
+                PlayData: playDataStr,
+                Route
+            } = userSearchData;
+
+            // 解析JSON字符串
+            const PlayData = JSON.parse(playDataStr);
+
+            let Episode = initialEpisode;
+            let msg = '';
+
+            // 资源接口站名
+            const InterfaceName = Config.SearchVideos.resources[idx]?.site.title || '错误';
+
+            msg += '*** 搜索记录 ***\n';
+            msg += `接口：${InterfaceName}\n`;
+            msg += `关键词：${keyword}\n`;
+            msg += `搜索页：${page}\n`;
+            msg += `线路：${Route}\n\n`;
+
+            // 集数效验，防止超出范围
+            Episode = Math.max(1, Math.min(Episode, PlayData.wangzhi.length));
+
+            const VodName = PlayData.VodName;
+            const EpisodeName = PlayData.mingzi[Episode - 1] || '未知';
+
+            const PlayerUrl = Config.SearchVideos.player + PlayData.wangzhi[Episode - 1];
+
+            msg += '*** 播放记录 ***\n';
+            msg += `片名：${VodName}\n`;
+            msg += `视频：${EpisodeName}\n`;
+            msg += `链接：${PlayerUrl}\n`;
+
+            e.reply(msg);
+            return true;
+        } catch (error) {
+            e.reply(`获取搜剧记录时发生错误：${error.message}`);
+            throw error;
         }
-
-        let VodName = PlayData.VodName;
-        let EpisodeName = PlayData.mingzi[Episode - 1] || '未知';
-
-        let PlayerUrl = await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1];
-
-        msg += '*** 播放记录 ***\n';
-        msg += `片名：${VodName}\n`;
-        msg += `视频：${EpisodeName}\n`;
-        msg += `链接：${PlayerUrl}\n`;
-        e.reply(msg);
-        return true;
     }
 
 }
 
-/**显示搜剧接口 */
+/** 显示搜剧接口 */
 async function Show_SearchInterface(e) {
+    try {
+        let msg = "***搜剧接口***\n\n";
+        let resources = await Config.SearchVideos.resources;
+        if (!Array.isArray(resources) || resources.length === 0) {
+            await e.reply("有可用的搜剧接口。");
+            return false;
+        }
 
-    let msg = "***搜剧接口***\n\n";
-    let resources = await Config.SearchVideos.resources;
-    const len = resources.length;
+        const len = resources.length;
+        let routeIdx = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx'));
+        // 修复边界条件逻辑错误
+        if (routeIdx < 0 || routeIdx >= len) {
+            routeIdx = 0;
+        }
 
-    let Route = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx'));
-    if (Route < 0 && Route > len - 1) {
-        Route = 0;
+        // 提前计算索引加一，避免在map中重复计算
+        const indexes = Array.from({ length: len }, (_, i) => i + 1);
+
+        msg += indexes.map((index) => {
+            const title = resources[index - 1].site.title; // 调整索引回退一步以匹配resources数组
+            return `${index === routeIdx ? '>>' : ''} ${index}、${title} ${index === routeIdx ? '<<' : ''}`;
+        }).join('\n') + "\n\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
+
+        await e.reply(msg); // 确保在异步操作完成后发送回复
+        return true;
+    } catch (error) {
+        await e.reply(`搜剧接口显示失败：${error.message}`);
+        return false;
     }
-
-    msg += resources.map((resource, i) => {
-        const title = resource.site.title;
-        return `${i === Route ? '>>' : ''} ${i + 1}、${title} ${i === Route ? '<<' : ''}`;
-    }).join('\n') + "\n\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
-    e.reply(msg);
-
 }
 
 /**
  * 判断对象是否不为undefined且不为null、NaN
- * @param obj 对象
- * @returns obj对象不存在时返回：false，否则返回：true
+ * @param {any} obj - 待检查的对象。
+ * @returns {boolean} - 如果 obj 既不是 undefined，也不是 null，也不是 NaN，则返回 true；否则返回 false。
  */
 function isNotNull(obj) {
-    if (obj == undefined || obj == null || obj != obj) { return false; }
+    // 检查 obj 是否为 undefined 或 null
+    if (obj === undefined || obj === null) { return false; }
+
+    // 使用 Number.isNaN() 来检查 obj 是否为 NaN
+    if (Number.isNaN(obj)) { return false; }
+
     return true;
 };
 
@@ -554,14 +623,35 @@ function isNotNull(obj) {
  * @returns {Array<string>} 返回搜索结果信息数组
  */
 async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
-    let url = domain + '?ac=detail&wd=' + encodeURI(keyword) + "&t=" + type + "&h=" + hour + "&pg=" + page;
-    let res = await request.post(url)
-        .then(res => res.json())
-        .catch(err => {
-            logger.error(err);
-            //return err
+    if (page < 1) { page = 1 }
+    if (type < 0) { type = 0 }
+    if (hour < 0) { hour = 0 }
+
+    try {
+        // 使用URLSearchParams来构造查询字符串，避免直接URL拼接
+        const params = new URLSearchParams({
+            ac: 'detail',
+            wd: keyword,
+            t: type,
+            h: hour,
+            pg: page
         });
-    return res;
+
+        const url = `${domain}?${params.toString()}`;
+
+        let res = await request.post(url)
+            .then(res => res.json())
+            .catch(async (err) => {
+                logger.error(err);
+                // 适当地处理错误，比如可以返回一个特定的错误对象或消息
+                throw new Error('搜索过程中发生错误。');
+            });
+
+        return res;
+    } catch (error) {
+        // 适当地处理异常，比如可以抛出供前端捕获的异常或返回错误信息
+        throw error; // 维持原函数的行为：当未找到作品时，抛出异常
+    }
 }
 
 function transformChar(str = '') {
@@ -628,45 +718,49 @@ function transformChar(str = '') {
 /**
  * 线路转名称
  * @param {string[]} Route - 线路数组
- * @returns {string[]} Name - 返回搜索结果信息数组
+ * @returns {string[]} RouteName - 返回搜索结果信息数组
  */
 async function RouteToName(Route = []) {
-    const RouteList = await Data.ReadRouteList();
-    let RouteName = [];
+    try {
+        // 异常处理
+        const RouteList = await Data.ReadRouteList();
 
-    for (let i = 0; i < Route.length; i++) {
-        const foundRoute = RouteList.find(item => item.RouteCode === Route[i]);
-        const Name = foundRoute ? foundRoute.RouteName : 'Unknown'; // 提供一个默认值
-        RouteName.push(Name);
+        // 创建一个以RouteCode为键的对象，优化查找性能
+        const routeMap = RouteList.reduce((map, item) => {
+            // 确保每个item都有预期的属性
+            if (typeof item.RouteCode === 'string' && typeof item.RouteName === 'string') {
+                map[item.RouteCode] = item.RouteName;
+            }
+            return map;
+        }, {});
+
+        // 使用map简化代码，同时提供默认值'Unknown'
+        const RouteName = Route.map(routeCode => routeMap[routeCode] || 'Unknown');
+
+        return RouteName;
+    } catch (error) {
+        console.error("Error converting Route to Name:", error);
+        // 根据需求，这里可以选择抛出异常，或者返回一个错误信息等
+        // throw error;
+        // 或者根据业务场景返回特定的错误信息或值
+        return ['Error occurred']; // 举例，实际情况应根据需求处理
     }
-
-    return RouteName;
 }
 
 
 /**
  * 长链接转短链接
- * @param {string} LongLink - 长链接
- * @returns {string} ShortLink - 返回短链接
+ * @param {string} longLink - 长链接
+ * @returns {string} shortLink - 返回短链接
  */
-async function linkLongToShort(LongLink) {
-    const api = 'https://api.45t.cn/pc/site/index'
-    const body = {
-        "url": LongLink,
-        "sg": "6a9537e0120bb886f989b12563737c47"
-    }
-    const leng = JSON.stringify(body).length.toString()
-    const headers = {
+async function linkLongToShort(longLink) {
+    // 将API URL和请求头中的值提取为常量
+    const API_URL = 'https://api.45t.cn/pc/site/index';
+    const BASE_HEADERS = {
         Accept: 'application/json',
         'Accept-Language': 'zh-CN,zh;q=0.9',
-        Authorization: 'cac170a1b2aae3d71c94965ed016b90d',
-        Connection: 'keep-alive',
-        'Content-Length': leng,
         'Content-type': 'application/json',
         Host: 'api.45t.cn',
-        Identity: 'XfCOS85yPd1702532463',
-        Origin: 'http://suo.zgzzlzkjapp.com',
-        Referer: 'http://suo.zgzzlzkjapp.com/',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'cross-site',
@@ -675,20 +769,125 @@ async function linkLongToShort(LongLink) {
         'sec-ch-ua-mobile': '?0',
         'sec-ch-ua-platform': '"Windows"',
     };
+
+    // 检查输入的长链接是否为空或不合法
+    if (!longLink || typeof longLink !== 'string' || longLink.trim() === '') {
+        console.error('输入的长链接无效。');
+        return longLink; // 返回原链接或指定的错误链接
+    }
+
+    const body = {
+        "url": longLink,
+        "sg": "6a9537e0120bb886f989b12563737c47" // 固定值或从配置获取
+    };
+
+    // 直接在headers中计算Content-Length
+    const headers = {
+        ...BASE_HEADERS,
+        'Content-Length': JSON.stringify(body).length
+    };
+
     const options = {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
     };
 
-    console.log(options)
-
-    let res = ''
+    let res = '';
     try {
-        res = await fetch(api, options).then(res => res.json())
+        const response = await fetch(API_URL, options);
+        if (!response.ok) {
+            throw new Error(`API请求失败，状态码：${response.status}`);
+        }
+        res = await response.json();
         console.log(`短链接：${JSON.stringify(res)}`);
     } catch (err) {
-        console.error(err)
+        console.error(`链接转换出错: ${err.message}`);
     }
-    return res?.data?.url || LongLink
-};
+
+    // 返回短链接或在错误情况下返回原链接
+    return res?.data?.url || longLink;
+}
+
+/**
+ * 提取搜索关键词
+ * @param {string} message 用户输入的消息
+ * @returns {string} 搜索关键词
+ */
+function extractSearchKeyword(message) {
+    const match = message.match(/搜剧(.*)/);
+    return match ? match[1].trim() : '';
+}
+
+/**
+ * 获取用户搜索缓存数据
+ * @param {number} userId 用户ID
+ * @returns {{keyword: string, page: number, Episode: number, Route: number, SearchResults?: any}} 缓存数据对象
+ */
+async function getUserSearchCache(userId) {
+    const keyword = await Config.GetUserSearchVideos(userId, 'keyword') || '';
+    const page = parseInt(await Config.GetUserSearchVideos(userId, 'page') || '1');
+    const Episode = parseInt(await Config.GetUserSearchVideos(userId, 'Episode') || '1');
+    const Route = parseInt(await Config.GetUserSearchVideos(userId, 'Route') || '0');
+    const SearchResults = await Config.GetUserSearchVideos(userId, 'SearchResults');
+
+    return {
+        keyword,
+        page,
+        Episode,
+        Route,
+        SearchResults: SearchResults ? JSON.parse(SearchResults) : undefined,
+    };
+}
+
+/**
+ * 判断是否可以使用缓存结果
+ * @param {object} cacheData 缓存数据
+ * @param {string} currentKeyword 当前搜索关键词
+ * @param {number} page 当前请求的页码
+ * @returns {any|undefined} 可以使用的缓存结果，否则返回undefined
+ */
+function useCachedResults(cacheData, currentKeyword, page) {
+    return cacheData.SearchResults && cacheData.keyword === currentKeyword && cacheData.page === page
+        ? cacheData.SearchResults
+        : undefined;
+}
+
+/**
+ * 保存搜索结果至缓存
+ * @param {number} userId 用户ID
+ * @param {any} searchResults 搜索结果
+ */
+async function saveUserSearchCache(userId, searchResults) {
+    await Promise.all([
+        Config.SetUserSearchVideos(userId, 'keyword', searchResults.keyword),
+        Config.SetUserSearchVideos(userId, 'page', searchResults.page),
+        Config.SetUserSearchVideos(userId, 'Episode', searchResults.Episode),
+        Config.SetUserSearchVideos(userId, 'Route', searchResults.Route),
+        Config.SetUserSearchVideos(userId, 'SearchResults', JSON.stringify(searchResults)),
+        Config.SetUserSearchVideos(userId, 'idx', searchResults.idx),
+    ]);
+}
+
+/**
+ * 处理并显示搜索结果
+ * @param {Event} e 事件对象
+ * @param {any} searchResults 搜索结果
+ * @param {boolean} showPic 图片显示设置
+ */
+async function handleAndDisplaySearchResults(e, searchResults, showPic) {
+    if (searchResults.list) {
+        const IDs = searchResults.list.map(item => item.vod_id);
+        console.log(`获取数组：${IDs}`);
+        await puppeteer.render("souju/result", {
+            list: searchResults.list,
+            keyword: searchResults.keyword || '最新视频',
+            showpic: showPic,
+        }, {
+            e,
+            scale: 1.6,
+        });
+    } else {
+        e.reply(`未能找到 [${searchResults.keyword || '最新视频'}] 的相关内容，非常抱歉！`);
+    }
+}

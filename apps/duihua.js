@@ -1094,27 +1094,6 @@ async function MsgToAt(msg) {
 }
 
 /**
- * 写出Cookie
- */
-async function writeCookie(data) {
-    const DataPath = path.join(Plugin_Path, 'resources', 'data');
-    const fileName = `BingCookie.json`;
-
-    return Data.writeJSON(fileName, data, DataPath);
-}
-
-/**
- * 读入Cookie
- */
-async function readCookie() {
-    const DataPath = path.join(Plugin_Path, 'resources', 'data');
-    const fileName = `BingCookie.json`;
-    let data = await Data.readJSON(fileName, DataPath);
-    return data;
-
-}
-
-/**
  * 更新好感度
  */
 async function updateFavora(text) {
