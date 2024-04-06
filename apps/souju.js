@@ -63,7 +63,7 @@ export class souju extends plugin {
         }
 
         // 获取接口
-        const idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
+        const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
         const jiekou = await Config.SearchVideos.resources[idx]?.site;
 
         // 检查接口是否存在
