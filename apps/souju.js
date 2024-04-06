@@ -86,7 +86,7 @@ export class souju extends plugin {
             let SearchResults;
 
             // 判断是否使用缓存数据
-            if (SearchName == cacheData.keyword && cacheData.page > 1) { 
+            if (SearchName == cacheData.keyword && cacheData.page > 1) {
                 SearchResults = cacheData.SearchResults
             } else {
                 SearchResults = await SearchVideo(SearchName, 1, 0, 0, jiekou.url);
@@ -96,7 +96,7 @@ export class souju extends plugin {
             const mergedSearchResults = {
                 ...SearchResults,
                 keyword: SearchName,
-                page: cacheData.page,
+                page: cacheData.page || 1,
                 Episode: cacheData.Episode,
                 Route: cacheData.Route,
                 idx: idx
@@ -230,85 +230,81 @@ export class souju extends plugin {
 
     /** 选剧 */
     async SelectVideo(e) {
-        //console.log(`当前数组：${IDs}`)
-        /** 搜剧结果 */
-        let SearchResults = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
-        //console.log(SearchResults);
-        if (isNotNull(SearchResults)) {
-            SearchResults = JSON.parse(SearchResults);
-            if (!isNotNull(SearchResults.list)) {
-                e.reply(`搜剧数据错误，请重新#搜剧！`);
+        // 1. 获取用户搜索剧集的结果
+        let userSearchResult = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+
+        // 2. 检查是否获取到有效的搜剧结果
+        if (isNotNull(userSearchResult)) {
+            try {
+                // 尝试将结果解析为JSON对象
+                userSearchResult = JSON.parse(userSearchResult);
+
+                // 如果解析后的结果中缺少必要的list属性，则视为数据错误
+                if (!isNotNull(userSearchResult.list)) {
+                    e.reply(`搜剧数据错误，请重新#搜剧！`);
+                    return false;
+                }
+            } catch (error) {
+                console.error('解析搜剧结果为JSON时出错:', error);
+                e.reply(`解析搜剧数据时发生错误，请稍后重试！`);
                 return false;
             }
         } else {
+            // 若未获取到搜剧结果，提示用户需先执行搜剧操作
             e.reply(`你需要先#搜剧，才可以#选剧！`);
             return false;
         }
 
-        //选剧
-        if (e.msg.includes("#选剧")) {
-            let CurrentID = parseInt(e.msg.replace(/\D+/, '').trim());
-            if (CurrentID > 0) {
-                CurrentID = CurrentID - 1;
-            } else {
-                CurrentID = 0;
-            }
-
-            await Config.SetUserSearchVideos(e.user_id, 'CurrentID', CurrentID);
-        }
-
-        if (CurrentID >= SearchResults.list.length) {
+        // 3. 检查所选剧集是否存在
+        const selectedEpisodeIndex = parseInt(e.msg.replace(/\D+/, '').trim()) || 1;
+        if (selectedEpisodeIndex >= userSearchResult.list.length) {
             e.reply('[选剧]错误，不存在这部剧！');
             return false;
         }
 
+        // 4. 获取用户当前选择的播放线路和搜索接口
+        let currentPlaybackRoute = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0;
+        const searchIndex = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
 
-        //线路
-        let NowRoute = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0;
-        //接口
-        let idx = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
-        const id = SearchResults.list[CurrentID]?.vod_id || 0;
-        const showpic = await Config.SearchVideos.resources[idx]?.site.showpic || false;
-        console.log(`视频ID：${id}，搜索接口：${idx}`);
-        const Detail = SearchResults.list.find(item => item.vod_id == id);
+        // 5. 根据选中剧集编号，从搜剧结果中获取详细信息
+        const selectedEpisodeDetails = userSearchResult.list[selectedEpisodeIndex - 1];
 
-        //分割出 线路组
-        const Route = Detail.vod_play_from.split('$$$');
-        let RouteName = await RouteToName(Route);
+        // 6. 分割出线路组和资源线路组
+        const playbackRoutes = selectedEpisodeDetails.vod_play_from.split('$$$');
+        const resourceGroups = selectedEpisodeDetails.vod_play_url.split('$$$');
 
-        //分割出 资源线路组
-        let jiedian = Detail.vod_play_url.split('$$$');
-
-        if (jiedian.length < (NowRoute - 1)) {
-            NowRoute = 0;
+        // 7. 校正当前播放线路，防止超出有效范围
+        if (resourceGroups.length < currentPlaybackRoute) {
+            currentPlaybackRoute = 0;
         }
 
-        //有分集时
-        let jishu2 = jiedian[NowRoute]?.split('#') || [jiedian[0]];
-        //console.log(jishu2);
-        let mingzi = [];
-        let wangzhi = [];
-        for (var i = 0; i < jishu2.length; i++) {
-            let arr = jishu2[i].split('$');
-            mingzi[i] = arr[0];
-            wangzhi[i] = arr[1];
+        // 8. 对于有分集的剧集，提取分集信息
+        const episodesWithLinks = resourceGroups[currentPlaybackRoute]?.split('#') || [resourceGroups[0]];
+
+        // 9. 构建分集名称和链接列表
+        const episodeNames = [];
+        const episodeLinks = [];
+        for (let i = 0; i < episodesWithLinks.length; i++) {
+            const [episodeName, episodeLink] = episodesWithLinks[i].split('$');
+            episodeNames.push(episodeName);
+            episodeLinks.push(episodeLink);
         }
 
-        const PlayData = { VodName: Detail.vod_name, mingzi: mingzi, wangzhi: wangzhi };
-        //写到缓存
-        await Config.SetUserSearchVideos(e.user_id, 'PlayData', JSON.stringify(PlayData));
+        // 10. 组装播放数据对象，并保存至缓存
+        const playData = { VodName: selectedEpisodeDetails.vod_name, episodeNames, episodeLinks };
+        await Config.SetUserSearchVideos(e.user_id, 'playData', JSON.stringify(playData));
+
+        // 11. 渲染选剧页面，传递相关数据
         await puppeteer.render("souju/select", {
-            list: Detail,
-            mingzi: mingzi,
-            Route: RouteName,
-            showpic: showpic,
-            CurrentrRoute: NowRoute
+            list: selectedEpisodeDetails,
+            mingzi: episodeNames,
+            Route: await RouteToName(playbackRoutes),
+            showPic: Config.SearchVideos.resources[searchIndex]?.site.showpic || false,
+            CurrentrRoute: currentPlaybackRoute
         }, {
             e,
-            scale: 1.6
+            scale: 1.8
         });
-
-
     }
 
     /** 看剧 */
@@ -331,7 +327,7 @@ export class souju extends plugin {
             } else if (msg == '尾') {
                 Episode = 99999;
             } else {
-                msg = transformChar(msg);
+                msg = chineseToArabic(msg);
                 if (isNotNull(msg)) {
                     Episode = msg;
                 }
@@ -410,15 +406,23 @@ export class souju extends plugin {
             'keyword',
             'page',
             'idx',
+            'SearchResults',
         ]);
 
-        const {
+        let {
             keyword = '',
-            page: initialPage = 1,
-            idx: initialIdx = 0,
+            page = 1,
+            idx = 0,
+            SearchResults = '',
         } = searchUserData;
 
-        let page = initialPage;
+        // 解析SearchResults文本为JSON对象并重新赋值给SearchResults
+        try {
+            SearchResults = JSON.parse(SearchResults);
+        } catch (error) {
+            console.error('解析搜剧缓存为JSON时出错:', error);
+            // 处理错误或使用默认值/备用逻辑
+        }
 
         switch (true) {
             case msg.includes(PAGE_COMMANDS.PREVIOUS):
@@ -431,13 +435,10 @@ export class souju extends plugin {
                 page = 1;
                 break;
             case msg.includes(PAGE_COMMANDS.LAST):
-                page = 999;
+                page = SearchResults.pagecount || 99999;
                 break;
             default:
-                const customPage = transformChar(msg);
-                if (customPage !== null) {
-                    page = customPage;
-                }
+                page = chineseToArabic(msg.replace(/#|到|第|页/g, "")) || 1;
                 break;
         }
 
@@ -447,8 +448,8 @@ export class souju extends plugin {
         e.reply(`开始跳转到 [${keyword || '最新视频'}] - 第${page}页`);
 
         /** 搜剧结果 */
-        const domain = Config.SearchVideos.resources[initialIdx].site.url;
-        const SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
+        const domain = await Config.SearchVideos.resources[idx].site.url;
+        SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
         let IDs = [];
 
         if (SearchResults && SearchResults.list) {
@@ -462,7 +463,7 @@ export class souju extends plugin {
         if (isNotNull(SearchResults.list)) {
             // 写到缓存
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-            const showpic = await Config.SearchVideos.resources[initialIdx].site.showpic;
+            const showpic = await Config.SearchVideos.resources[idx].site.showpic;
             // 发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
@@ -492,7 +493,7 @@ export class souju extends plugin {
         let currentId = await Config.GetUserSearchVideos(e.user_id, 'CurrentID');
         if (currentId) {
             currentId++
-        }else{
+        } else {
             currentId = 1
         }
 
@@ -654,65 +655,59 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
     }
 }
 
-function transformChar(str = '') {
-    if (parseInt(str) == str) {
-        return parseInt(str);
-    } else if (str.search(/[十百千万亿]/) == -1) {
-        let arr = ["一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
-        for (var i = 0; i < arr.length; i++) {
-            str = str.replace(new RegExp(arr[i], "g"), (i + 1));
-        }
-        return parseInt(str);
+/**
+ * 将中文数字字符串转换为等效的阿拉伯数字。
+ *
+ * @param {string} chineseNumeral - 待转换的中文数字字符串，默认为空字符串。
+ * @returns {number} 转换后的阿拉伯数字。
+ *
+ * @throws {Error} 当输入的中文数字字符串不符合书写规则时，抛出错误。
+ */
+function chineseToArabic(chineseNumeral = '') {
+    const digitMap = {
+        '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+        '十': 10, '百': 100, '千': 1000, '万': 10000, '亿': 100000000,
+    };
+
+    // 支持类似“一十二”的非标准参数
+    const invalidPatterns = [
+        /一十/g, // "一十" -> "10"
+        /一\d{2}/g, // "一十二" -> "1十二"
+        /一\d{3}/g, // "一百二十三" -> "1百二十三"
+    ];
+
+    for (const pattern of invalidPatterns) {
+        chineseNumeral = chineseNumeral.replace(pattern, (match) => {
+            const correctedMatch = match.replace(/^一/, '1');
+            console.warn(`已将非标准中文数字"${match}"规范化为"${correctedMatch}"`);
+            return correctedMatch;
+        });
     }
 
-    const numChar = {
-        '零': 0,
-        '一': 1,
-        '二': 2,
-        '三': 3,
-        '四': 4,
-        '五': 5,
-        '六': 6,
-        '七': 7,
-        '八': 8,
-        '九': 9,
-    };
-    const levelChar = {
-        '十': 10,
-        '百': 100,
-        '千': 1000,
-        '万': 10000,
-        '亿': 100000000
-    };
-    let arr = Array.from(str);
+    let result = 0;
+    let power = 0;
+    let previousWasUnit = false;
 
-    if (arr[0] == "十") {
-        arr.unshift('一');
-    }
+    for (let i = chineseNumeral.length - 1; i >= 0; i--) {
+        const char = chineseNumeral[i];
+        const value = digitMap[char];
 
-    console.log(arr);
-
-    let sum = 0, temp = 0;
-    for (let i = 0; i < arr.length; i++) {
-        const char = arr[i];
-        if (char === '零') continue;
-        if (char === '亿' || char === '万') {
-            sum += temp * levelChar[char];
-            temp = 0;
-        } else {
-            const next = arr[i + 1];
-            if (next && next !== '亿' && next !== '万') {
-                temp += numChar[char] * levelChar[next];
-                i++;
-            } else {
-                temp += numChar[char];
+        if (value > 10) { // 单位字符
+            if (!previousWasUnit) {
+                throw new Error('无效的中文数字：单位字符无前置数字');
             }
+            power *= value;
+            previousWasUnit = false;
+        } else { // 数字字符
+            if (previousWasUnit) {
+                throw new Error('无效的中文数字：连续数字字符间缺少单位字符');
+            }
+            result += value * Math.pow(10, power);
+            previousWasUnit = true;
         }
     }
-    console.log(`sum`, sum);
-    console.log(`temp`, temp);
-    temp = parseInt(sum) + parseInt(temp);
-    return temp;
+
+    return result;
 }
 
 /**
