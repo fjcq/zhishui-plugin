@@ -23,13 +23,10 @@ export class souju extends plugin {
             priority: 1000,
             rule: [
                 {
-                    reg: "^(#|\/)?(重新)?搜剧(.*)$",
-                    fnc: 'SearchVideos'
-                }, {
                     reg: '^(#|\/)?(设置|增加|删除|查看)搜剧接口(.*)$',
                     fnc: 'SearchInterface'
                 }, {
-                    reg: '^(#|\/)?(设置|查看)搜剧播放器(.*)$',
+                    reg: '^(#|\/)?(设置|查看)(搜剧)?播放器(.*)$',
                     fnc: 'PlayerInterface'
                 }, {
                     reg: '^(#|\/)?取消搜剧$',
@@ -41,14 +38,17 @@ export class souju extends plugin {
                     reg: '^(#|\/)?看剧.*集?$',
                     fnc: 'WatchVideo'
                 }, {
-                    reg: '^(#|\/)?(上一页|下一页|到.*页)$',
-                    fnc: 'GoPage'
-                }, {
-                    reg: '^(#|\/)?线路(.*)$',
+                    reg: '^(#|\/)?(搜剧)?线路(.*)$',
                     fnc: 'ChangingRoute'
                 }, {
                     reg: '^(#|\/)?我的搜剧$',
                     fnc: 'MySearchVideo'
+                }, {
+                    reg: '^(#|\/)?(搜剧|到).*页$',
+                    fnc: 'GoPage'
+                }, {
+                    reg: "^(#|\/)?(重新)?搜剧(.*)$",
+                    fnc: 'SearchVideos'
                 }
             ]
         });
@@ -214,6 +214,8 @@ export class souju extends plugin {
 
     /** 取消搜剧 */
     async CancelSearch(e) {
+
+        const SearchName = await Config.GetUserSearchVideos(e.user_id, 'keyword');
 
         //重置搜剧设置
         zzss = 0;
@@ -420,8 +422,7 @@ export class souju extends plugin {
         try {
             SearchResults = JSON.parse(SearchResults);
         } catch (error) {
-            console.error('解析搜剧缓存为JSON时出错:', error);
-            // 处理错误或使用默认值/备用逻辑
+            SearchResults = { "pagecount": 1 }
         }
 
         switch (true) {
@@ -454,21 +455,19 @@ export class souju extends plugin {
 
         if (SearchResults && SearchResults.list) {
             IDs = SearchResults.list.map(item => item.vod_id);
+            console.log(`获取数组：${IDs}`);
         } else {
             console.warn('SearchResults.list 未定义或为 null。跳过 ID 提取。');
         }
 
-        console.log(`获取数组：${IDs}`);
-
         if (isNotNull(SearchResults.list)) {
             // 写到缓存
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
-            const showpic = await Config.SearchVideos.resources[idx].site.showpic;
             // 发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
                 keyword: keyword || '最新视频',
-                showpic: await showpic,
+                showpic: await Config.SearchVideos.resources[idx].site.showpic
             }, {
                 e,
                 scale: 1.6,
