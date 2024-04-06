@@ -183,13 +183,13 @@ class Config {
             // 单个键查询，直接返回结果
             const path = `zhishui:SearchVideos:${qq.toString()}:${keys}`;
             const value = await redis.get(path);
-            return value !== null && value !== undefined ? value : '无记录';
+            return value !== null && value !== undefined ? value : '';
         } else { 
             try {
                 let promises = keys.map(async (key) => {
                     const path = `zhishui:SearchVideos:${qq.toString()}:${key}`;
                     const value = await redis.get(path);
-                    return value !== null && value !== undefined ? value : '无记录';
+                    return value !== null && value !== undefined ? value : '';
                 });
 
                 const results = await Promise.all(promises);
