@@ -297,11 +297,13 @@ export class souju extends plugin {
         await Config.SetUserSearchVideos(e.user_id, 'playData', JSON.stringify(playData));
 
         // 11. 渲染选剧页面，传递相关数据
+        const showPic = await Config.SearchVideos.resources[searchIndex]?.site.showpic || false;
+        const routeName = await RouteToName(playbackRoutes);
         await puppeteer.render("souju/select", {
             list: selectedEpisodeDetails,
             mingzi: episodeNames,
-            Route: await RouteToName(playbackRoutes),
-            showPic: Config.SearchVideos.resources[searchIndex]?.site.showpic || false,
+            Route: routeName,
+            showPic: showPic,
             CurrentrRoute: currentPlaybackRoute
         }, {
             e,
