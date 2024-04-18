@@ -219,7 +219,7 @@ class Config {
             const ret = await redis.set(path, value);
             return ret;
         } catch (error) {
-            logger.error(`为 [${qq}] 设置 搜剧记录 时，发生错误：${error.message}`);
+            logger.error(`为 [${qq}] 设置 ${key} : ${value} 时，发生错误：${error.message}`);
             throw error;
         }
     }

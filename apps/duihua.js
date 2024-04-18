@@ -180,15 +180,13 @@ export class duihua extends plugin {
                 let response = await AiYT(userMessage);
 
                 if (response) {
-
-                    console.log(JSON.stringify(response));
                     // 缓存对话消息
                     YTMsg.push({ role: 'user', content: userMessage });
                     YTMsg.push({ role: 'ai', content: response });
 
                     // 更新好感度
                     const newfavora = await updateFavora(response)
-                    console.log("止水对话 <- " + newfavora);
+                    //console.log("止水对话 <- " + newfavora);
 
                     // 发送回复消息给用户
                     const remsg = await MsgToAt(newfavora);
@@ -772,6 +770,7 @@ async function AiYT(msg) {
         }
 
         const responseText = await response.text();
+        console.log(`止水对话 <- ${responseText}`);
 
         // 处理服务器响应，提取对话结果
         content = responseText

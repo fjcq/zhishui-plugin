@@ -39,7 +39,7 @@ export class souju extends plugin {
                     fnc: 'WatchVideo'
                 }, {
                     reg: '^(#|\/)?(搜剧)?线路(.*)$',
-                    fnc: 'ChangingRoute'
+                    fnc: 'changeRoute'
                 }, {
                     reg: '^(#|\/)?我的搜剧$',
                     fnc: 'MySearchVideo'
@@ -59,17 +59,17 @@ export class souju extends plugin {
         // 检查是否有正在进行的搜索
         if (zzss === 1) {
             e.reply('前方有搜索任务正在进行，请稍候再试！');
-            return;
+            return false;
         }
 
         // 获取接口
         const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
-        const jiekou = await Config.SearchVideos.resources[idx]?.site;
+        const site = await Config.SearchVideos.resources[idx]?.site;
 
         // 检查接口是否存在
-        if (!jiekou) {
+        if (!site) {
             e.reply('接口配置错误，请联系管理员修复！');
-            return;
+            return false;
         }
 
         try {
@@ -80,38 +80,23 @@ export class souju extends plugin {
             const SearchName = extractSearchKeyword(e.msg);
             e.reply(`正在搜索 [${SearchName || '最新视频'}] ，请稍候…`);
 
-            // 获取缓存数据
-            const cacheData = await getUserSearchCache(e.user_id);
-
-            let SearchResults;
-
-            // 判断是否使用缓存数据
-            if (SearchName == cacheData.keyword && cacheData.page > 1) {
-                SearchResults = cacheData.SearchResults
-            } else {
-                SearchResults = await SearchVideo(SearchName, 1, 0, 0, jiekou.url);
-            }
+            // 获取搜剧数据
+            let SearchResults = await getSearchResultsWithCache(e.user_id, SearchName, 1, site.url);
 
             // 保存搜索结果至缓存
-            const mergedSearchResults = {
-                ...SearchResults,
-                keyword: SearchName,
-                page: cacheData.page || 1,
-                Episode: cacheData.Episode,
-                Route: cacheData.Route,
-                idx: idx
-            };
-            await saveUserSearchCache(e.user_id, mergedSearchResults);
+            await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
+            await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+            await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+
 
             // 检查并展示搜索结果
-            handleAndDisplaySearchResults(e, SearchResults, jiekou.showpic);
+            handleAndDisplaySearchResults(e, SearchResults, site.showpic);
 
         } catch (error) {
             e.reply(`搜索过程中发生错误：${error.message}`);
-        } finally {
-            // 重置搜索状态
-            zzss = 0;
         }
+        zzss = 0;
+        return true;
     }
 
     /** 搜剧接口 */
@@ -223,7 +208,7 @@ export class souju extends plugin {
         await Config.SetUserSearchVideos(e.user_id, 'keyword', '');
         await Config.SetUserSearchVideos(e.user_id, 'page', 1);
         await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
-        await Config.SetUserSearchVideos(e.user_id, 'Route', 0);
+        await Config.SetUserSearchVideos(e.user_id, 'Route', '');
 
         e.reply(`已取消 [ ${SearchName || '最新视频'} ] 的搜索`);
         return true;
@@ -232,58 +217,69 @@ export class souju extends plugin {
 
     /** 选剧 */
     async SelectVideo(e) {
-        // 1. 获取用户搜索剧集的结果
+        // 获取用户搜索结果
         let userSearchResult = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
 
-        // 2. 检查是否获取到有效的搜剧结果
+        // 检查搜索结果是否存在
         if (isNotNull(userSearchResult)) {
             try {
-                // 尝试将结果解析为JSON对象
+                // 解析搜索结果为JSON对象
                 userSearchResult = JSON.parse(userSearchResult);
 
-                // 如果解析后的结果中缺少必要的list属性，则视为数据错误
+                // 检查JSON对象中是否包含必要的list属性
                 if (!isNotNull(userSearchResult.list)) {
+                    // 数据错误，提示用户重新搜剧
                     e.reply(`搜剧数据错误，请重新#搜剧！`);
                     return false;
                 }
             } catch (error) {
+                // 解析JSON时发生错误，记录错误信息并提示用户
                 console.error('解析搜剧结果为JSON时出错:', error);
                 e.reply(`解析搜剧数据时发生错误，请稍后重试！`);
                 return false;
             }
         } else {
-            // 若未获取到搜剧结果，提示用户需先执行搜剧操作
+            // 用户尚未执行搜剧操作，提示用户先搜剧
             e.reply(`你需要先#搜剧，才可以#选剧！`);
             return false;
         }
 
-        // 3. 检查所选剧集是否存在
-        const selectedEpisodeIndex = parseInt(e.msg.replace(/\D+/, '').trim()) || 1;
+        // 从用户消息中提取选剧编号，若无有效数字则默认为1
+        const selectedEpisodeIndex = Math.max(parseInt(e.msg.replace(/\D+/, '').trim()) || 1, 1);
+
+        // 检查选剧编号是否在有效范围内（1到搜索结果列表长度）
         if (selectedEpisodeIndex >= userSearchResult.list.length) {
-            e.reply('[选剧]错误，不存在这部剧！');
+            // 错误的选剧编号，提示用户正确输入
+            e.reply(`[选剧]错误，请确保选剧编号在1到${userSearchResult.list.length}之间。`);
             return false;
+        } else {
+            // 保存选中的剧集编号
+            await Config.SetUserSearchVideos(e.user_id, 'selectedID', selectedEpisodeIndex);
         }
 
-        // 4. 获取用户当前选择的播放线路和搜索接口
-        let currentPlaybackRoute = await Config.GetUserSearchVideos(e.user_id, 'Route') || 0;
-        const searchIndex = await Config.GetUserSearchVideos(e.user_id, 'idx') || 0;
-
-        // 5. 根据选中剧集编号，从搜剧结果中获取详细信息
+        // 获取用户已选择的播放路线（Route）及搜索结果索引
+        const siteIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
         const selectedEpisodeDetails = userSearchResult.list[selectedEpisodeIndex - 1];
-
-        // 6. 分割出线路组和资源线路组
         const playbackRoutes = selectedEpisodeDetails.vod_play_from.split('$$$');
+        const playRoutes = await RouteToNameMap(playbackRoutes);
+        await Config.SetUserSearchVideos(e.user_id, 'playRoutes', JSON.stringify(playRoutes));
+
+        // 获取当前播放路线索引（currentPlaybackRoute），并确保其有效性
+        let Route = await Config.GetUserSearchVideos(e.user_id, 'Route');
+        console.log(`当前播放路线：${Route}`);
+        let currentPlaybackRoute = await findRouteIndex(Route, playRoutes);
+        console.log(`当前播放路线索引：${currentPlaybackRoute}`);
+
+        // 根据当前播放路线获取资源分组
         const resourceGroups = selectedEpisodeDetails.vod_play_url.split('$$$');
 
-        // 7. 校正当前播放线路，防止超出有效范围
+        // 若当前播放路线索引超出资源分组范围，设置为默认路线（第一条路线）
         if (resourceGroups.length < currentPlaybackRoute) {
             currentPlaybackRoute = 0;
         }
 
-        // 8. 对于有分集的剧集，提取分集信息
+        // 解析资源分组中的剧集名称和链接
         const episodesWithLinks = resourceGroups[currentPlaybackRoute]?.split('#') || [resourceGroups[0]];
-
-        // 9. 构建分集名称和链接列表
         const episodeNames = [];
         const episodeLinks = [];
         for (let i = 0; i < episodesWithLinks.length; i++) {
@@ -292,18 +288,20 @@ export class souju extends plugin {
             episodeLinks.push(episodeLink);
         }
 
-        // 10. 组装播放数据对象，并保存至缓存
+        // 组装播放数据对象，并保存至缓存
         const playData = { VodName: selectedEpisodeDetails.vod_name, episodeNames, episodeLinks };
+        console.log(`保存用户数据：${JSON.stringify(playData)}`);
         await Config.SetUserSearchVideos(e.user_id, 'playData', JSON.stringify(playData));
 
-        // 11. 渲染选剧页面，传递相关数据
-        const showPic = await Config.SearchVideos.resources[searchIndex]?.site.showpic || false;
-        const routeName = await RouteToName(playbackRoutes);
+        // 获取渲染所需数据
+        const site = await Config.SearchVideos.resources[siteIdx]?.site;
+
+        // 渲染选剧页面，传递相关数据
         await puppeteer.render("souju/select", {
             list: selectedEpisodeDetails,
-            mingzi: episodeNames,
-            Route: routeName,
-            showPic: showPic,
+            episodeNames: episodeNames,
+            playRoutes: playRoutes,
+            showPic: site?.showpic || false,
             CurrentrRoute: currentPlaybackRoute
         }, {
             e,
@@ -313,81 +311,91 @@ export class souju extends plugin {
 
     /** 看剧 */
     async WatchVideo(e) {
-        /**  当前集 */
-        let Episode = parseInt(await Config.GetUserSearchVideos(e.user_id, 'Episode'));
-        if (!isNotNull(Episode) || isNaN(Episode)) {
+        let Episode = parseInt(await Config.GetUserSearchVideos(e.user_id, 'Episode')) || 1;
+        const playDataStr = await Config.GetUserSearchVideos(e.user_id, 'playData');
+        const playData = JSON.parse(playDataStr);
+
+        console.log(`用户集数：${Episode}`);
+        // 初始集数处理
+        if (isNaN(Episode)) {
             Episode = 1;
         }
-        let msg = e.msg;
 
-        if (msg.search(`上一集`) != -1) {
-            Episode--;
-        } else if (msg.search(`下一集`) != -1) {
-            Episode++;
+        // 解析用户输入
+        const input = e.msg.trim();
+        let targetEpisode = Episode;
+
+
+        // 删除无关字符，仅保留集数相关指令
+        const cleanedInput = input.replace(/#|看|剧|第|集/g, "");
+        console.log(`cleanedInput：${cleanedInput}`);
+        // 判断指令类型
+        if (cleanedInput === '上一') {
+            targetEpisode = Math.max(1, targetEpisode - 1);
+        } else if (cleanedInput === '下一') {
+            targetEpisode = Math.min(targetEpisode + 1, playData.episodeLinks.length);
+        } else if (cleanedInput === '最后') {
+            targetEpisode = playData.episodeLinks.length;
+        } else if (!isNaN(parseInt(cleanedInput))) {
+            targetEpisode = parseInt(cleanedInput);
         } else {
-            msg = msg.replace(/[#看剧到第集\s]/g, '').trim();
-            if (msg == '首') {
-                Episode = 1;
-            } else if (msg == '尾') {
-                Episode = 99999;
-            } else {
-                msg = chineseToArabic(msg);
-                if (isNotNull(msg)) {
-                    Episode = msg;
+            // 判断是数字还是中文
+            const chineseNumeral = cleanedInput;
+            try {
+                targetEpisode = chineseToNumber(chineseNumeral);
+                console.log(`解析中文：${targetEpisode}`);
+            } catch (error) {
+                targetEpisode = parseInt(cleanedInput);
+                if (isNaN(targetEpisode)) {
+                    e.reply('输入的集数格式不正确，请重新输入。');
+                    return false;
                 }
             }
         }
 
+        console.log(`解析集数：${targetEpisode}`);
 
-        let PlayData = await Config.GetUserSearchVideos(e.user_id, 'PlayData');
-        if (isNotNull(PlayData)) {
-            PlayData = JSON.parse(PlayData);
-        } else {
-            e.reply(`搜索数据错误，请重新搜索！`);
+
+        if (!isNotNull(playDataStr)) {
+            e.reply('搜索数据错误，请重新搜索！');
             return false;
         }
 
-        //集数效验，防止超出范围
-        if (Episode < 1) {
-            Episode = 1;
-        } else if (Episode > PlayData.wangzhi.length) {
-            Episode = PlayData.wangzhi.length;
-        }
 
-        //console.log(`看剧：${Episode}`);
-        //保存当前集
-        await Config.SetUserSearchVideos(e.user_id, 'Episode', Episode);
+        // 集数校验
+        targetEpisode = Math.max(1, Math.min(targetEpisode, playData.episodeLinks.length));
+        console.log(`最终集数：${targetEpisode}`);
 
-        //console.log(`网址：${PlayData.wangzhi}`);
-        if (isNotNull(PlayData.wangzhi[Episode - 1])) {
-            let title = PlayData.VodName + '  ' + PlayData.mingzi[Episode - 1]
-            let msg = ['*** 请复制到浏览器中观看 ***'];
-            let ShortLink = await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1]
+        // 更新并保存当前集数
+        await Config.SetUserSearchVideos(e.user_id, 'Episode', targetEpisode);
 
-            //转短链接
-            //let ShortLink = await linkLongToShort(await Config.SearchVideos.player + PlayData.wangzhi[Episode - 1])
-            //console.log(`短链接：${ShortLink}`);
+        // 构建回复消息
+        if (isNotNull(playData.episodeLinks[targetEpisode - 1])) {
+            const title = `${playData.VodName}  ${playData.episodeNames[targetEpisode - 1]}`;
+            const fullLink = Config.SearchVideos.player + playData.episodeLinks[targetEpisode - 1];
+            const msg = [
+                '*** 请复制到浏览器中观看 ***',
+                fullLink,
+            ];
 
-            msg.push(ShortLink)
+            try {
+                await common.getforwardMsg(e, msg, { isxml: true, xmlTitle: title });
+                return true; // 返回true，阻止消息继续传播
+            } catch (err) {
+                let replyMsg = title + '\n';
 
-            let ret = await common.getforwardMsg(e, msg, {
-                isxml: true,
-                xmlTitle: title,
-            })
-                .catch(err => {
-                    msg = title + '\n'
-                    if (e.isGroup) {
-                        let at = Number(e.user_id)
-                        msg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`]
-                    } else {
-                        msg = `消息发送失败，可能被风控。`
-                    }
-                    e.reply(msg);
-                });
+                if (e.isGroup) {
+                    const at = Number(e.user_id);
+                    replyMsg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`];
+                } else {
+                    replyMsg = `消息发送失败，可能被风控。`;
+                }
 
-            return true;//返回true 阻挡消息不再往下
+                e.reply(replyMsg);
+                return false; // 发送失败，允许消息继续传播
+            }
         } else {
-            e.reply(`集数错误，无法观看！`);
+            e.reply('集数错误，无法观看！');
             return false;
         }
     }
@@ -483,23 +491,49 @@ export class souju extends plugin {
 
     }
 
-    /** 切换线路 */
-    async ChangingRoute(e) {
-        const routeNumber = parseInt(e.msg.replace(/\D+/, '').trim()) || 1;
+    /**
+ * 切换线路
+ * @param {Object} e - 事件对象，包含用户ID（user_id）、原始消息（msg）等信息
+ * @returns {Promise<boolean>} - 表示切换线路操作是否成功
+ */
+    async changeRoute(e) {
+        try {
+            // 1. 解析用户输入的线路信息
+            const inputRouteStr = e.msg.replace(/^.*线路/, '').trim(); // 提取用户输入的线路内容（可能为编号或名称）
+            let inputRoute;
 
-        // 记录当前线路
-        await Config.SetUserSearchVideos(e.user_id, 'Route', routeNumber - 1);
+            // 2. 处理输入为线路编号的情况
+            if (Number.isInteger(+inputRouteStr)) {
+                // 2.1 获取可用线路列表
+                const availableRoutesStr = await Config.GetUserSearchVideos(e.user_id, 'playRoutes');
+                const availableRoutes = JSON.parse(availableRoutesStr);
 
-        // 获取当前选剧ID
-        let currentId = await Config.GetUserSearchVideos(e.user_id, 'CurrentID');
-        if (currentId) {
-            currentId++
-        } else {
-            currentId = 1
+                // 2.2 检查线路编号是否有效
+                if (+inputRouteStr < 1 || +inputRouteStr > availableRoutes.length) {
+                    return e.reply(`线路编号错误，请确保输入的数字在1到${availableRoutes.length}之间。`);
+                }
+
+                // 2.3 将线路编号转换为线路名称
+                inputRoute = availableRoutes[+inputRouteStr - 1].RouteName;
+            } else {
+                // 3. 处理输入为线路名称的情况（假设输入直接为线路名称）
+                inputRoute = inputRouteStr;
+            }
+
+            // 4. 保存当前播放线路
+            await Config.SetUserSearchVideos(e.user_id, 'Route', inputRoute);
+            console.log(`已切换到 [${inputRoute}] 线路`);
+
+            // 5. 获取当前选剧ID
+            let selectedID = await Config.GetUserSearchVideos(e.user_id, 'selectedID');
+            selectedID = selectedID > 0 ? selectedID : 1;
+
+            // 6. 更新消息并执行选剧操作
+            e.msg = '#选剧' + selectedID.toString();
+            return await this.SelectVideo(e);
+        } catch (error) {
+            return e.reply('切换线路时发生错误:', error);
         }
-
-        e.msg = '#选剧' + currentId.toString();
-        return await this.SelectVideo(e);
     }
 
     async MySearchVideo(e) {
@@ -510,7 +544,7 @@ export class souju extends plugin {
                 'page',
                 'Episode',
                 'idx',
-                'PlayData',
+                'playData',
                 'Route'
             ]);
 
@@ -524,12 +558,13 @@ export class souju extends plugin {
                 page = 1,
                 Episode: initialEpisode,
                 idx = 0,
-                PlayData: playDataStr,
+                playData: playDataStr,
                 Route
             } = userSearchData;
+            console.log(`搜索数据：${JSON.stringify(userSearchData)}`);
 
             // 解析JSON字符串
-            const PlayData = JSON.parse(playDataStr);
+            const playData = JSON.parse(playDataStr);
 
             let Episode = initialEpisode;
             let msg = '';
@@ -544,20 +579,19 @@ export class souju extends plugin {
             msg += `线路：${Route}\n\n`;
 
             // 集数效验，防止超出范围
-            Episode = Math.max(1, Math.min(Episode, PlayData.wangzhi.length));
+            Episode = Math.max(1, Math.min(Episode, playData.episodeLinks.length));
 
-            const VodName = PlayData.VodName;
-            const EpisodeName = PlayData.mingzi[Episode - 1] || '未知';
+            const VodName = playData.VodName;
+            const EpisodeName = playData.episodeNames[Episode - 1] || '未知';
 
-            const PlayerUrl = Config.SearchVideos.player + PlayData.wangzhi[Episode - 1];
+            const PlayerUrl = Config.SearchVideos.player + playData.episodeLinks[Episode - 1];
 
             msg += '*** 播放记录 ***\n';
             msg += `片名：${VodName}\n`;
             msg += `视频：${EpisodeName}\n`;
             msg += `链接：${PlayerUrl}\n`;
 
-            e.reply(msg);
-            return true;
+            return e.reply(msg);
         } catch (error) {
             e.reply(`获取搜剧记录时发生错误：${error.message}`);
             throw error;
@@ -646,7 +680,7 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
             .catch(async (err) => {
                 logger.error(err);
                 // 适当地处理错误，比如可以返回一个特定的错误对象或消息
-                throw new Error('搜索过程中发生错误。');
+                throw new Error('post过程中发生错误。');
             });
 
         return res;
@@ -659,90 +693,139 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
 /**
  * 将中文数字字符串转换为等效的阿拉伯数字。
  *
- * @param {string} chineseNumeral - 待转换的中文数字字符串，默认为空字符串。
+ * @param {string} str - 待转换的中文数字字符串，默认为空字符串。
  * @returns {number} 转换后的阿拉伯数字。
  *
  * @throws {Error} 当输入的中文数字字符串不符合书写规则时，抛出错误。
  */
-function chineseToArabic(chineseNumeral = '') {
-    const digitMap = {
-        '零': 0, '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
-        '十': 10, '百': 100, '千': 1000, '万': 10000, '亿': 100000000,
+function chineseToNumber(str) {
+    // 九十二
+    const numChar = {
+        '零': 0,
+        '一': 1,
+        '二': 2,
+        '三': 3,
+        '四': 4,
+        '五': 5,
+        '六': 6,
+        '七': 7,
+        '八': 8,
+        '九': 9,
     };
-
-    // 支持类似“一十二”的非标准参数
-    const invalidPatterns = [
-        /一十/g, // "一十" -> "10"
-        /一\d{2}/g, // "一十二" -> "1十二"
-        /一\d{3}/g, // "一百二十三" -> "1百二十三"
-    ];
-
-    for (const pattern of invalidPatterns) {
-        chineseNumeral = chineseNumeral.replace(pattern, (match) => {
-            const correctedMatch = match.replace(/^一/, '1');
-            console.warn(`已将非标准中文数字"${match}"规范化为"${correctedMatch}"`);
-            return correctedMatch;
-        });
-    }
-
-    let result = 0;
-    let power = 0;
-    let previousWasUnit = false;
-
-    for (let i = chineseNumeral.length - 1; i >= 0; i--) {
-        const char = chineseNumeral[i];
-        const value = digitMap[char];
-
-        if (value > 10) { // 单位字符
-            if (!previousWasUnit) {
-                throw new Error('无效的中文数字：单位字符无前置数字');
+    const levelChar = {
+        '十': 10,
+        '百': 100,
+        '千': 1000,
+        '万': 10000,
+        '亿': 100000000
+    };
+    let arr = Array.from(str);
+    console.log(arr);
+    let sum = 0, temp = 0;
+    for (let i = 0; i < arr.length; i++) {
+        const char = arr[i];
+        if (char === '零') continue;
+        if (char === '亿' || char === '万') {
+            sum += temp * levelChar[char];
+            temp = 0;
+        } else {
+            const next = arr[i + 1];
+            if (next && next !== '亿' && next !== '万') {
+                temp += numChar[char] * levelChar[next];
+                i++;
+            } else {
+                temp += numChar[char]
             }
-            power *= value;
-            previousWasUnit = false;
-        } else { // 数字字符
-            if (previousWasUnit) {
-                throw new Error('无效的中文数字：连续数字字符间缺少单位字符');
-            }
-            result += value * Math.pow(10, power);
-            previousWasUnit = true;
         }
     }
+    return sum + temp;
+}
 
-    return result;
+
+/**
+ * 获取线路名称
+ * @param {string} RouteCode - 线路代码
+ * @returns {Promise<string>} RouteName - 返回对应的线路名称，若未找到则返回线路代码本身。发生错误时，返回Promise.reject。
+ */
+async function RouteToName(RouteCode) {
+    try {
+        const RouteList = await Data.ReadRouteList();
+
+        // 使用Map对象以提高查找效率
+        const routeMap = new Map(RouteList.map(item => {
+            // 进行更全面的数据验证
+            if (typeof item.RouteCode === 'string' && item.RouteCode.trim() !== '' &&
+                typeof item.RouteName === 'string' && item.RouteName.trim() !== '') {
+                return [item.RouteCode.trim(), item.RouteName.trim()];
+            }
+            return null;
+        }).filter(Boolean)); // 过滤掉无效的项
+
+        // 提高代码的可读性和简洁性
+        const RouteName = routeMap.get(RouteCode) || RouteCode;
+
+        return RouteName;
+    } catch (error) {
+        // 默认的错误处理：在控制台输出错误信息，并返回Promise.reject
+        console.error("获取线路名称时发生错误:", error);
+        return Promise.reject(error);
+    }
 }
 
 /**
- * 线路转名称
+ * 线路转名称映射表（返回格式与RouteList一致）
  * @param {string[]} Route - 线路数组
- * @returns {string[]} RouteName - 返回搜索结果信息数组
+ * @returns {Array<{RouteCode: string, RouteName: string}>} RouteInfoList - 返回一个数组，每个元素是一个对象，包含RouteCode和RouteName属性
  */
-async function RouteToName(Route = []) {
+async function RouteToNameMap(Route = []) {
     try {
-        // 异常处理
         const RouteList = await Data.ReadRouteList();
 
-        // 创建一个以RouteCode为键的对象，优化查找性能
         const routeMap = RouteList.reduce((map, item) => {
-            // 确保每个item都有预期的属性
             if (typeof item.RouteCode === 'string' && typeof item.RouteName === 'string') {
                 map[item.RouteCode] = item.RouteName;
             }
             return map;
         }, {});
 
-        // 使用map简化代码，同时提供默认值'Unknown'
-        const RouteName = Route.map(routeCode => routeMap[routeCode] || 'Unknown');
+        const RouteInfoList = Route.map(routeCode => ({
+            RouteCode: routeCode,
+            RouteName: routeMap[routeCode] || routeCode
+        }));
 
-        return RouteName;
+        return RouteInfoList;
     } catch (error) {
-        console.error("Error converting Route to Name:", error);
-        // 根据需求，这里可以选择抛出异常，或者返回一个错误信息等
+        console.error("线路转名称映射表时发生错误:", error);
+        // 根据实际需求选择适当的错误处理方式，如抛出异常或返回特定错误信息
         // throw error;
-        // 或者根据业务场景返回特定的错误信息或值
-        return ['Error occurred']; // 举例，实际情况应根据需求处理
+        // 或
+        // return { error: "发生错误" };
     }
 }
 
+/**
+ * 查找线路名称或线路代码在RouteList中的索引
+ * @param {string} searchValue - 要查找的线路名称或线路代码
+ * @param {Array<Object>} RouteList - 包含线路信息的对象数组
+ * @returns {number} - 如果找到匹配的线路名称或线路代码，返回其在RouteList中的索引；否则返回0
+ */
+function findRouteIndex(searchValue, RouteList) {
+    for (let i = 0; i < RouteList.length; i++) {
+        const item = RouteList[i];
+
+        const isNameMatch = (typeof item.RouteName === 'string' && item.RouteName.trim() !== '') &&
+            item.RouteName.trim() === searchValue.trim();
+        const isCodeMatch = (typeof item.RouteCode === 'string' && item.RouteCode.trim() !== '') &&
+            item.RouteCode.trim() === searchValue.trim();
+
+        if (isNameMatch || isCodeMatch) {
+            return i;
+        }
+    }
+
+    // 查找失败，返回0
+    return 0;
+}
 
 /**
  * 长链接转短链接
@@ -816,37 +899,32 @@ function extractSearchKeyword(message) {
 }
 
 /**
- * 获取用户搜索缓存数据
+ * 获取用户搜索结果，优先使用缓存（当keyword和page与传入参数一致时且SearchResults存在），否则在线搜索
  * @param {number} userId 用户ID
- * @returns {{keyword: string, page: number, Episode: number, Route: number, SearchResults?: any}} 缓存数据对象
+ * @param {string} SearchName 搜索名称
+ * @param {number} defaultPage 默认页码
+ * @param {string} defaultUrl 默认接口URL
+ * @returns {any} SearchResults
  */
-async function getUserSearchCache(userId) {
-    const keyword = await Config.GetUserSearchVideos(userId, 'keyword') || '';
-    const page = parseInt(await Config.GetUserSearchVideos(userId, 'page') || '1');
-    const Episode = parseInt(await Config.GetUserSearchVideos(userId, 'Episode') || '1');
-    const Route = parseInt(await Config.GetUserSearchVideos(userId, 'Route') || '0');
-    const SearchResults = await Config.GetUserSearchVideos(userId, 'SearchResults');
+async function getSearchResultsWithCache(userId, SearchName, defaultPage = 1, defaultUrl = "") {
+    try {
+        // 获取用户搜索缓存数据
+        const keyword = await Config.GetUserSearchVideos(userId, 'keyword') || '';
+        const page = parseInt(await Config.GetUserSearchVideos(userId, 'page') || '1');
+        const SearchResultsStr = await Config.GetUserSearchVideos(userId, 'SearchResults');
 
-    return {
-        keyword,
-        page,
-        Episode,
-        Route,
-        SearchResults: SearchResults ? JSON.parse(SearchResults) : undefined,
-    };
-}
+        // 判断缓存的keyword和page是否与传入参数一致，且SearchResults存在
+        if (keyword === SearchName && page === defaultPage && SearchResultsStr !== undefined) {
+            console.log("载入用户搜索缓存");
+            return JSON.parse(SearchResultsStr);
+        }
+    } catch (error) {
+        console.warn("获取用户搜索缓存时出现错误:", error);
+    }
 
-/**
- * 判断是否可以使用缓存结果
- * @param {object} cacheData 缓存数据
- * @param {string} currentKeyword 当前搜索关键词
- * @param {number} page 当前请求的页码
- * @returns {any|undefined} 可以使用的缓存结果，否则返回undefined
- */
-function useCachedResults(cacheData, currentKeyword, page) {
-    return cacheData.SearchResults && cacheData.keyword === currentKeyword && cacheData.page === page
-        ? cacheData.SearchResults
-        : undefined;
+    // 在线搜索
+    console.log("调用搜索接口");
+    return await SearchVideo(SearchName, defaultPage, 0, 0, defaultUrl);
 }
 
 /**
@@ -858,10 +936,7 @@ async function saveUserSearchCache(userId, searchResults) {
     await Promise.all([
         Config.SetUserSearchVideos(userId, 'keyword', searchResults.keyword),
         Config.SetUserSearchVideos(userId, 'page', searchResults.page),
-        Config.SetUserSearchVideos(userId, 'Episode', searchResults.Episode),
-        Config.SetUserSearchVideos(userId, 'Route', searchResults.Route),
         Config.SetUserSearchVideos(userId, 'SearchResults', JSON.stringify(searchResults)),
-        Config.SetUserSearchVideos(userId, 'idx', searchResults.idx),
     ]);
 }
 

@@ -1,191 +1,210 @@
 @font-face {
-  font-family: "jty";
-  src: url("jty.OTF");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "jty";
+    src: url("jty.OTF");
+    font-weight: normal;
+    font-style: normal;
 }
 
 @font-face {
-  font-family: "NZBZ";
-  src: url("NZBZ.TTF");
-  font-weight: normal;
-  font-style: normal;
+    font-family: "NZBZ";
+    src: url("NZBZ.TTF");
+    font-weight: normal;
+    font-style: normal;
 }
 
 @font-face {
-  font-family: 'zk';
-  src: url('zk.TTF');
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'zk';
+    src: url('zk.TTF');
+    font-weight: normal;
+    font-style: normal;
 }
 
 body {
-  width: 100%;
-  background: url("./bg.png") white center top no-repeat;
-  background-size: cover;
+    width: 100%;
+    background: url("./bg.png") white center top no-repeat;
+    background-size: cover;
 }
 
 .header {
-  margin: 10px;
-  padding: 10px;
-  width: 740px;
+    margin: 10px;
+    padding: 10px;
+    width: 740px;
 }
 
 .box {
-  margin: 30px 30px 30px 30px;
-  width: 740px;
-  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+    margin: 30px 30px 30px 30px;
+    width: 740px;
+    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 .nowrap {
-  flex-wrap: nowrap;
-  display: flex;
+    flex-wrap: nowrap;
+    display: flex;
 }
 
 .text-center {
-  text-align: center;
+    text-align: center;
 }
 
 .text-left {
-  text-align: left;
+    text-align: left;
 }
 
 .top_main {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  overflow: hidden;
-  /* 隐藏超出的部分 */
-  margin: 30px;
-  padding: 20px;
-  width: 700px;
-  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+    display: flex;
+    flex-direction: column;
+    /* 子元素垂直排列 */
+    justify-content: space-between;
+    overflow: hidden;
+    /* 隐藏超出的部分 */
+    margin: 30px;
+    padding: 20px;
+    width: 700px;
+    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.top_row {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 700px;
 }
 
 .top_left {
-  width: 220px;
-  height: 330px;
-  margin: 20px;
+    width: 220px;
+    height: 330px;
+    margin: 20px;
 }
 
 .top_right {
-  flex: 1;
-  /* 设置宽度为自动填充 */
-  float: right;
-  text-align: left;
-  margin: 20px;
-  padding: 20px;
-  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-  border-radius: 10px;
+    flex: 1;
+    text-align: left;
+    margin: 20px;
+    padding: 20px;
+    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+    border-radius: 10px;
+    box-sizing: border-box;
+    /* 包含内边距和边框在内的总宽度 */
+    overflow: hidden;
+    /* 隐藏超出宽度的内容 */
 }
 
 .top_center {
-  width: calc(100% - 60px);
-  display: absolute;
-  text-align: center;
-  margin: 20px;
-  padding: 20px;
-  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-  border-radius: 10px;
+    display: absolute;
+    text-align: center;
+    margin: 20px;
+    padding: 20px;
+    background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
+    border-radius: 10px;
+    box-sizing: border-box;
+    /* 包含内边距和边框在内的总宽度 */
+    overflow: hidden;
+    /* 隐藏超出宽度的内容 */
 }
 
 .top_img_bottom {
-  width: 220px;
-  height: 330px;
-  border-radius: 10px;
-  box-shadow: 1px 2px 6px rgba(170, 31, 0, 0.2), 3px 8px 12px rgba(71, 35, 22, 0.3);
+    width: 220px;
+    height: 330px;
+    border-radius: 10px;
+    box-shadow: 1px 2px 6px rgba(170, 31, 0, 0.2), 3px 8px 12px rgba(71, 35, 22, 0.3);
 }
 
 .top_img {
-  width: 220px;
-  height: 330px;
-  border-radius: 10px;
+    width: 220px;
+    height: 330px;
+    border-radius: 10px;
 }
 
 .top_text {
-  font-family: "jty";
-  font-size: 20px;
-  font-weight: 500;
-  color: #232523;
-  margin: 10px 0px 10px 0px;
+    font-family: "jty";
+    font-size: 20px;
+    font-weight: 500;
+    color: #232523;
+    margin: 10px 0px 10px 0px;
+}
+
+.top_right .top_text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 .text-title {
-  font-family: "NZBZ";
-  font-size: 40px;
-  font-weight: 700;
-  color: #000000;
-  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
-  letter-spacing: 20px;
+    font-family: "NZBZ";
+    font-size: 40px;
+    font-weight: 700;
+    color: #000000;
+    text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
+    letter-spacing: 20px;
 }
 
 .text-muted {
-  font-family: "jty";
-  font-size: 20px;
-  font-weight: 500;
-  color: #485151;
+    font-family: "jty";
+    font-size: 20px;
+    font-weight: 500;
+    color: #485151;
 }
 
 .text-data {
-  font-family: "jty";
-  font-size: 20px;
-  font-weight: 500;
-  color: #000000;
+    font-family: "jty";
+    font-size: 20px;
+    font-weight: 500;
+    color: #000000;
 }
 
 .item_data {
-  display: -webkit-flex;
-  display: flex;
-  flex-wrap: wrap;
-  width: 740px;
-  margin: 20px;
-  /* 设置外边距 */
+    display: -webkit-flex;
+    display: flex;
+    flex-wrap: wrap;
+    width: 740px;
+    margin: 20px;
+    /* 设置外边距 */
 }
 
 .item {
-  text-align: center;
-  margin: 13px;
-  padding: 10px;
-  width: 126px;
-  border-radius: 5px;
-  background: rgb(255, 255, 255, 0.85);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  position: relative;
+    text-align: center;
+    margin: 13px;
+    padding: 10px;
+    width: 126px;
+    border-radius: 5px;
+    background: rgb(255, 255, 255, 0.85);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    position: relative;
 }
 
 .item_title {
-  font-family: "jty";
-  font-size: 20px;
-  font-weight: 400;
-  color: #000000;
-  position: relative;
+    font-family: "jty";
+    font-size: 20px;
+    font-weight: 400;
+    color: #000000;
+    position: relative;
 }
 
 .now {
-  font-family: "NZBZ";
-  color: #38216d;
-  font-weight: 600;
+    font-family: "NZBZ";
+    color: #38216d;
+    font-weight: 600;
 }
 
 .item-data {
-  font-family: "jty";
-  font-size: 16px;
-  font-weight: 500;
-  color: #3366ff;
+    font-family: "jty";
+    font-size: 16px;
+    font-weight: 500;
+    color: #3366ff;
 }
 
 .text-now {
-  font-family: "NZBZ";
-  color: #000000;
+    font-family: "NZBZ";
+    color: #000000;
 }
