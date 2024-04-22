@@ -248,7 +248,7 @@ export class souju extends plugin {
         const selectedEpisodeIndex = Math.max(parseInt(e.msg.replace(/\D+/, '').trim()) || 1, 1);
 
         // 检查选剧编号是否在有效范围内（1到搜索结果列表长度）
-        if (selectedEpisodeIndex >= userSearchResult.list.length) {
+        if (selectedEpisodeIndex > userSearchResult.list.length) {
             // 错误的选剧编号，提示用户正确输入
             e.reply(`[选剧]错误，请确保选剧编号在1到${userSearchResult.list.length}之间。`);
             return false;
