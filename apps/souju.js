@@ -88,9 +88,8 @@ export class souju extends plugin {
             await Config.SetUserSearchVideos(e.user_id, 'page', 1);
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
 
-
             // 检查并展示搜索结果
-            handleAndDisplaySearchResults(e, SearchResults, site.showpic);
+            handleAndDisplaySearchResults(e, SearchResults, site.showpic, SearchName);
 
         } catch (error) {
             e.reply(`搜索过程中发生错误：${error.message}`);
@@ -946,19 +945,19 @@ async function saveUserSearchCache(userId, searchResults) {
  * @param {any} searchResults 搜索结果
  * @param {boolean} showPic 图片显示设置
  */
-async function handleAndDisplaySearchResults(e, searchResults, showPic) {
+async function handleAndDisplaySearchResults(e, searchResults, showPic, keyword) {
     if (searchResults.list) {
         const IDs = searchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`);
         await puppeteer.render("souju/result", {
             list: searchResults.list,
-            keyword: searchResults.keyword || '最新视频',
+            keyword: keyword || '最新视频',
             showpic: showPic,
         }, {
             e,
             scale: 1.6,
         });
     } else {
-        e.reply(`未能找到 [${searchResults.keyword || '最新视频'}] 的相关内容，非常抱歉！`);
+        e.reply(`未能找到 [${keyword || '最新视频'}] 的相关内容，非常抱歉！`);
     }
 }
