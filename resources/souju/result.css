@@ -1,199 +1,167 @@
+/* 自定义字体定义 */
 @font-face {
-  font-family: "jty";
-  src: url("jty.OTF");
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'JTY';
+    src: url('jty.OTF') format('opentype');
+    font-weight: normal;
+    font-style: normal;
 }
 
-@font-face {
-  font-family: "NZBZ";
-  src: url("NZBZ.TTF");
-  font-weight: normal;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'zk';
-  src: url('zk.TTF');
-  font-weight: normal;
-  font-style: normal;
-}
-
+/* 页面基础样式 */
 body {
-  width: 100%;
-  background: url("./bg.png") white center top no-repeat;
-  background-size: cover;
+    background: url("bg.png") white center top no-repeat;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    transition: background 0.3s;
 }
 
-.box {
-  margin: 30px 30px 30px 30px;
-  width: 740px;
-  background: radial-gradient(at top left, #f8f0d955, #dcd4c15f);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+.container {
+    width: 740px;
+    margin: auto;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
 }
 
+/* 头部容器样式 */
 .header {
-  margin: 10px;
-  padding: 10px;
-  width: 740px;
+    text-align: center; /* 确保标题在头部中居中 */
+    margin-bottom: 40px; /* 与内容区域保持一定间隔 */
 }
 
-.drop-shadow {
-  position: relative;
-  float: left;
-  width: 740px;
-  height: 80px;
-  margin-left: 80px;
-  margin-top: 80px;
-  background: #eee7e7;
-  border-radius: 20px;
-  background: #eee7e7;
-  box-shadow: 13px 13px 17px #e0d9d9, -13px -13px 17px #fcf5f5;
-  text-align: center;
+/* 头部标题样式 */
+.header .title {
+    font-size: 2.7em;
+    color: #007bff; /* 设置一个醒目的蓝色作为标题文本颜色 */
+    margin-bottom: 20px;
+    padding: 15px 20px;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 添加文本阴影以增强效果 */
 }
 
-.item_data {
-  display: -webkit-flex;
-  display: flex;
-  flex-wrap: wrap;
-  width: 740px;
+/* 提示文本样式 */
+.search-results-hint {
+    text-align: left; 
+    margin: 10px 0; /* 上下边距 */
 }
 
-.item {
-  text-align: center;
-  margin: 13px;
-  padding: 10px;
-  width: 198px;
-  background: rgb(255, 255, 255, 0.85);
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 5px;
-  position: relative;
-}
-
-.item_title {
-  font-family: "jty";
-  font-size: 20px;
-  font-weight: 600;
-  color: #000000;
-  position: relative;
-  top: -10px;
-}
-
-.tu {
-  padding: 5px;
-  text-align: center;
-  display: block;
-  position: relative;
-  text-align: left;
-}
-
-img {
-  border-radius: 5px;
-  width: 187px;
-  height: 280px;
-  margin-bottom: 10px;
-}
-
-.tip {
-  display: block;
-  margin: 20px;
-  font-family: "jty";
-}
-
+/* 提示文本中普通文本的样式 */
 .text-muted {
-  color: #393535;
+    color: #6c757d; /* 温和的灰色 */
+    font-size: 0.9em; /* 字体大小略小于正常 */
 }
 
-.text-data {
-  color: #3366ff;
-  font-weight: 600;
-}
-
-.num {
-  position: absolute;
-  font-family: "NZBZ";
-  font-size: 14px;
-  text-align: left;
-  top: -10px;
-  left: -10px;
-  color: #3366ff;
-  font-weight: 400;
-}
-
-.pic-tag-top {
-  top: 5px;
-  left: 5px;
-}
-
-.pic-tag {
-  position: absolute;
-  z-index: 99;
-  padding: 2px 5px;
-  font-size: 12px;
-  border-radius: 2px;
-}
-
-.pic-background {
-  background-repeat: no-repeat;
-  background-image: linear-gradient(transparent, rgba(0, 0, 0, .5));
-  color: #fff;
-}
-
-.pic-text {
-  display: block;
-  width: 167px;
-  position: absolute;
-  z-index: 99;
-  bottom: 0;
-  height: 15px;
-  padding: 5px 10px;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -o-text-overflow: ellipsis;
-  white-space: nowrap;
-  left: 5px;
-  font-family: "jty";
-  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
-}
-
-.text-right {
-  text-align: right;
-}
-
-.text-left {
-  text-align: left;
-}
-
-.text-up {
-  top: 5px;
-}
-
-.text-down {
-  top: 260px;
-}
-
-.text-title {
-  font-family: "NZBZ";
-  font-size: 40px;
-  font-weight: 700;
-  color: #000000;
-  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4);
-  letter-spacing: 20px;
-}
-
-.text-center {
-  text-align: center;
-}
-
+/* 提示文本中强调文本的样式 */
 .text-now {
-  font-family: "NZBZ";
-  color: #000000;
+    color: #ff6b81; /* 醒目的颜色，如粉色系 */
+    font-weight: bold; /* 加粗 */
+}
+
+/* 搜索结果样式 */
+.search-results {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* 项目样式 */
+.item {
+    width: 200px;
+    margin: 7px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 10px;
+    box-shadow: 10px 10px 15px rgba(0, 0, 0, 0.1), 
+                -10px -10px 15px rgba(255, 255, 255, 0.8);
+    transition: box-shadow 0.3s;
+}
+
+/* 图片容器样式 */
+.tu {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.tu img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+/* 图片上文本样式增强可见性 */
+.tu .num,
+.pic-text {
+    position: absolute;
+    color: #ffffff;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 1.1em;
+    background-color: rgba(0, 0, 0, 0.7);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+.tu .num {
+    top: 10px;
+    left: 10px;
+	background-color: rgba(0, 123, 255, 0.7);
+}
+
+.pic-text.text-up.text-right {
+    top: 10px;
+    right: 10px;
+	background-color: rgba(255, 193, 7, 0.7);
+}
+
+.pic-text.text-down.text-left {
+    bottom: 10px;
+    left: 10px;
+	background-color: rgba(108, 117, 125, 0.7); 
+}
+
+/* 项目标题样式 */
+.item_title {
+    font-size: 1.1em;
+    color: #28a745;
+    font-weight: bold;
+    margin-top: 15px;
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+/* 页脚容器样式 */
+.footer {
+    text-align: center; /* 确保文本在页脚中居中 */
+    margin-top: 40px; /* 与内容区域保持一定间隔 */
+}
+
+.footer p {
+    font-size: 0.9em;
+    color: #6c757d; /* 温和的灰色，适合版权文本 */
+    background: rgba(255, 255, 255, 0.6); /* 半透明白色背景 */
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 10px 20px;
+    margin-bottom: 0; /* 移除默认的底部外边距 */
+}
+
+/* 版权文本样式 */
+.footer p .text-now {
+    color: #ff6b81; /* 醒目的颜色 */
+    font-weight: bold;
+}
+
+/* 如果您希望header和footer有相似的设计风格，可以考虑添加一些统一的效果，例如： */
+.header .title, .footer p {
+    transition: box-shadow 0.3s, background 0.3s; /* 平滑过渡阴影和背景色变化 */
 }

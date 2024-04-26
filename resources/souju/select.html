@@ -1,96 +1,90 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="{{_res_path}}souju/select.css" />
+    <title>选剧结果</title>
 </head>
 
 <body>
-    <div></div>
-    <div class="box">
-        <div class="header text-center text-title">{{list.vod_name}} </div>
-    </div>
-    <div class="top_main">
-        <div class="top_row">
-            <div class="top_left">
-                <div class="top_img_bottom">
-                    {{if showPic == true}}
-                    <img class="top_img" src="{{list.vod_pic}}" />
-                    {{else}}
-                    <img class="top_img" src="{{_res_path}}/souju/load.png" />
-                    {{/if}}
-
-                </div>
-            </div>
-
-            <div class="top_right">
-                <div class="top_text">分类：<font class="text-data"> {{list.type_name}}</font>
-                </div>
-                <div class="top_text">地区：<font class="text-data">{{list.vod_area}}</font>
-                </div>
-                <div class="top_text">年份：<font class="text-data">{{list.vod_year}} </font>
-                </div>
-                <div class="top_text">更新：<font class="text-data">{{list.vod_remarks}}/{{list.vod_time}}</font>
-                </div>
-                <div class="top_text">主演：<font class="text-data">{{list.vod_actor}}</font>
-                </div>
-                <div class="top_text">导演：<font class="text-data">{{list.vod_director}}</font>
-                </div>
-
-            </div>
-        </div>
-        <div class="top_center">
-            <div class="top_text">简介：<font class="text-data">{{list.vod_content}}</font>
-            </div>
-        </div>
-    </div>
-
-    <div class="box text-center">
-        <div class="header text-left text-data">
-            当前线路：<font class="text-now">{{playRoutes[CurrentrRoute].RouteName}}</font><br />
-            你可以发送<font class="text-now">#线路+数字</font>来切换线路，例如<font class="text-now">#线路2</font>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">{{list.vod_name}}</h1>
         </div>
 
-        <div class="item_data text-center ">
-            <br />
+        <div class="drama-info">
+            <div class="poster">
+                {{if showPic == true}}
+                <img src="{{list.vod_pic}}">
+                {{else}}
+                <img src="{{_res_path}}/souju/load.png">
+                {{/if}}
+
+            </div>
+            <div class="info-details">
+                <div class="details">
+                    <div class="detail-item">
+                        <span class="detail-label">分类：</span>
+                        <span class="detail-data">{{list.type_name}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">地区：</span>
+                        <span class="detail-data">{{list.vod_area}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">年份：</span>
+                        <span class="detail-data">{{list.vod_year}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">更新：</span>
+                        <span class="detail-data">{{list.vod_remarks}}/{{list.vod_time}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">主演：</span>
+                        <span class="detail-data">{{list.vod_actor}}</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">导演：</span>
+                        <span class="detail-data">{{list.vod_director}}</span>
+                    </div>
+                </div>
+
+                <div class="synopsis">
+                    <div class="detail-item">
+                        <span class="detail-label">简介：</span>
+                        <span class="detail-data">{{list.vod_content}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="select-line">
+            <p class="select-text">
+                当前线路：<font class="text-now">{{playRoutes[CurrentrRoute].RouteName}}</font>，
+                你可以发送<font class="text-now">#线路+数字</font>来切换线路，例如<font class="text-now">#线路2</font>
+            </p>
             {{each playRoutes value i}}
-            <div class="item">
-                <div class="item_title{{if CurrentrRoute == i}} now{{/if}}">{{value.RouteName}}</div>
-                <div class="item-data">#线路{{i+1}}</div>
-            </div>
+            <div><font class="text-now">#{{i+1}}</font>&ensp;{{value.RouteName}}</div>
             {{/each}}
+
         </div>
 
-    </div>
+        <div class="select-episode">
+            <p class="select-text">你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如<font class="text-now">#看剧1</font>
+            </p>
 
-    <div class="box text-center">
-        <div class="header text-left text-muted">
-            你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如
-            <font class="text-now">#看剧1</font>
-        </div>
-        <div class="item_data text-center ">
-            <br />
-            {{each episodeNames j idx}}
-            <div class="item">
-                <div class="item_title">{{j}}</div>
-                <div class="item-data">#看剧{{idx+1}}</div>
-            </div>
+            {{each episodeNames value i}}
+            <div><font class="text-now">#{{i+1}}</font>&ensp;{{value}}</div>
             {{/each}}
-            <br />
+
         </div>
 
-        <div class="header text-left text-muted">
-            你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如
-            <font class="text-now">#看剧1</font>
+        <div class="footer">
+            <p>Created By <span class="text-now">Yunzai-Bot</span> & <span class="text-now">止水</span></p>
         </div>
     </div>
-
-    <div class="box">
-        <div class="text-data text-center">Created By Yunzai-Bot & 止水</div>
-    </div>
-
-
 </body>
 
 </html>
