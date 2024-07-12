@@ -38,9 +38,8 @@ const ChatData = {
     withoutContext: false
 };
 
-/** YT对话数据 */
-let YTMsg = [];
-
+/** 对话数据 */
+let chatMsg = [];
 
 /** 缓存选项 */
 const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` });
@@ -140,7 +139,7 @@ export class duihua extends plugin {
         if (!e.isMaster) { return; }
 
         ForChangeMsg = "";
-        YTMsg = []
+        chatMsg = []
 
         //更新对话API
         ChatosID = '#/chat/' + Date.now().toString();
@@ -177,12 +176,12 @@ export class duihua extends plugin {
                 console.log("止水对话 -> " + userMessage);
 
                 // 发送消息到 YT 进行对话
-                let response = await AiYT(userMessage);
+                let response = await chatAi(userMessage);
 
                 if (response) {
                     // 缓存对话消息
-                    YTMsg.push({ role: 'user', content: userMessage });
-                    YTMsg.push({ role: 'ai', content: response });
+                    chatMsg.push({ role: 'user', content: userMessage });
+                    chatMsg.push({ role: 'ai', content: response });
 
                     // 更新好感度
                     const newfavora = await updateFavora(response)
@@ -733,26 +732,34 @@ async function AiChatos(msg) {
 
 /**
  * 通过调用 API 与 AI 进行对话并获取回复
- * API 地址: https://y-tian-plugin.top:1111/api/v1/freechat35/completions
- *
  * @param {string} msg 用户发送的消息
  * @returns {string} AI 的对话结果
  */
-async function AiYT(msg) {
-    const apiUrl = 'https://y-tian-plugin.top:1111/api/v1/freechat35/completions';
+async function chatAi(msg) {
+    const apiUrl = 'https://yuanpluss.online:3000/v1/free35/completions';
 
-    if (YTMsg.length === 0) {
-        // ... (省略初始化部分)
+    if (chatMsg.length === 0) {
+        // 首次对话，发送系统消息
+        let MasterQQ = await Config.Chat.MasterQQ;
+        let Master = await Config.Chat.Master;
+        let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`;
+
+        Context = Context.replace(/{NickName}/g, NickName);
+        Context = Context.replace(/{MasterQQ}/g, MasterQQ);
+        Context = Context.replace(/{Master}/g, Master);
+
+        chatMsg.push({ role: 'assistant', content: Context });
+        
     }
 
     // 添加用户消息
-    YTMsg.push({ role: 'user', content: msg });
+    chatMsg.push({ role: 'user', content: msg });
 
     // 构建请求数据
     const requestData = {
         model: 'gpt-3.5-turbo',
         presence_penalty: 0,
-        messages: YTMsg,
+        messages: chatMsg,
     };
 
     let content;
@@ -778,12 +785,15 @@ async function AiYT(msg) {
             .replace(/\[DONE\]/g, '')
             .replace(/\s+/g, ',');
     } catch (error) {
+        chatMsg = []
         console.error('与 AI 通信时发生错误:', error.message);
         return '与 AI 通信时发生错误，请稍后重试。';
     }
 
     // 记录 AI 的对话结果
-    YTMsg.push({ role: 'assistant', content });
+    if (content.length > 0) {
+        chatMsg.push({ role: 'assistant', content });
+    }
 
     return content;
 }
