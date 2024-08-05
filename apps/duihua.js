@@ -736,7 +736,7 @@ async function AiChatos(msg) {
  * @returns {string} AI 的对话结果
  */
 async function chatAi(msg) {
-    const apiUrl = 'https://yuanpluss.online:3000/v1/free35/completions';
+    const apiUrl = 'https://yuanpluss.online:3000/v2/free35/completions';
 
     if (chatMsg.length === 0) {
         // 首次对话，发送系统消息
@@ -757,7 +757,7 @@ async function chatAi(msg) {
 
     // 构建请求数据
     const requestData = {
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4o-mini',
         presence_penalty: 0,
         messages: chatMsg,
     };
@@ -773,7 +773,8 @@ async function chatAi(msg) {
 
         // 检查响应状态码，确保请求成功
         if (!response.ok) {
-            throw new Error(`请求失败，状态码：${response.status}`);
+            console.error(`请求失败，状态码：${response.status}`);
+            return '你说太快了辣~！';
         }
 
         const responseText = await response.text();
