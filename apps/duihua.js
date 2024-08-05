@@ -1131,9 +1131,9 @@ async function updateFavora(text) {
                 const oldFavora = await GetFavora(qqNumber);
                 const newFavora = parseInt(oldFavora) + paramValue; // 计算好感度
                 if (await SetFavora(qqNumber, newFavora)) {
-                    console.log(`更新好感度成功：${qqNumber} ${paramValue} -> ${newFavora}`);
+                    console.log(`更新好感度成功：[${qqNumber}] ${oldFavora} + ${paramValue} -> ${newFavora}`);
                 } else {
-                    logger.error(`更新好感度失败：${qqNumber} ${paramValue}`);
+                    logger.error(`更新好感度失败：[${qqNumber}] ${paramValue}`);
                 }
             }
         }
