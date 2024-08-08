@@ -70,27 +70,9 @@ export function supportGuoba() {
                     component: 'Switch'
                 },
                 {
-                    field: 'duihua.EnableBing',
-                    label: '必应开关',
-                    bottomHelpMessage: '是否开启必应对话',
-                    component: 'Switch'
-                },
-                {
-                    field: 'duihua.BingCookie',
-                    label: '必应参数',
-                    bottomHelpMessage: '必应Cookie',
-                    component: 'Input'
-                },
-                {
                     field: 'duihua.EnableVoice',
                     label: '对话语音',
                     bottomHelpMessage: '是否开启对话语音',
-                    component: 'Switch'
-                },
-                {
-                    field: 'duihua.LinkMode',
-                    label: '链接模式',
-                    bottomHelpMessage: '开启后会在回复信息中包含引用链接。',
                     component: 'Switch'
                 },
                 {
@@ -106,20 +88,21 @@ export function supportGuoba() {
                     },
                 },
                 {
-                    field: 'duihua.toneStyle',
-                    label: '必应模型',
-                    bottomHelpMessage: '必应对话的语言模型',
-                    component: 'Select',
-                    componentProps: {
-                      options: [
-                        { label: '默认', value: 'balanced' },
-                        { label: '创意', value: 'creative' },
-                        { label: '精确', value: 'precise' },
-                        { label: '快速', value: 'fast' }
-                      ],
-                      placeholder: '请选择语言模型'
-                    }
-                  },
+                    component: 'Divider',
+                    label: 'OpenAi设置'
+                },
+                {
+                    field: 'duihua.OpenAiApiUrl',
+                    label: 'API',
+                    bottomHelpMessage: '设置对话使用的API',
+                    component: 'Input'
+                },
+                {
+                    field: 'duihua.OpenAiApiKey',
+                    label: 'KEY',
+                    bottomHelpMessage: '设置对话使用的KEY',
+                    component: 'Input'
+                },
                 {
                     component: 'Divider',
                     label: '代理设置'

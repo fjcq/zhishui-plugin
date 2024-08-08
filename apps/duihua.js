@@ -59,18 +59,6 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?(取消|结束|重置|关闭)(对话|聊天)$`,
                     fnc: 'ResetChat'
                 }, {
-                    reg: '^(.*)_U=(.*)$',
-                    fnc: 'SetBingSettings'
-                }, {
-                    reg: `^#?(止水)?(插件|对话)?查看必应参数$`,
-                    fnc: 'GetBingSettings'
-                }, {
-                    reg: `^#?(止水)?(插件|对话)?必应(开启|关闭)$`,
-                    fnc: 'BingEnable'
-                }, {
-                    reg: `^#?(止水)?(插件|对话)?修改(对话)?昵称(.*)$`,
-                    fnc: 'ModifyNickname'
-                }, {
                     reg: `^#?(止水)?(插件|对话)?(语|发)音(开启|关闭)$`,
                     fnc: 'SetVoiceEnable'
                 }, {
@@ -104,17 +92,23 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`,
                     fnc: 'SetMaster'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?查看必应模型$`,
-                    fnc: 'ShowtoneStyle'
-                }, {
-                    reg: `^#?(止水)?(插件|对话)?设置必应模型(.*)$`,
-                    fnc: 'SettoneStyle'
-                }, {
                     reg: `^#?(止水)?(插件|对话)?(设置|查看|开启|关闭)代理(.*)$`,
                     fnc: 'SetProxy'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
                     fnc: 'SetLinkMode'
+                }, {
+                    reg: `^#?止水(插件|对话)?设置API(.*)$`,
+                    fnc: 'SetApi'
+                }, {
+                    reg: `^#?止水(插件|对话)?查看API$`,
+                    fnc: 'ShowApi'
+                }, {
+                    reg: `^#?止水(插件|对话)?设置KEY(.*)$`,
+                    fnc: 'SetApiKey'
+                }, {
+                    reg: `^#?止水(插件|对话)?查看KEY$`,
+                    fnc: 'ShowApiKey'
                 }, {
                     reg: `^#?止水(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
@@ -141,9 +135,6 @@ export class duihua extends plugin {
         ForChangeMsg = "";
         chatMsg = []
 
-        //更新对话API
-        ChatosID = '#/chat/' + Date.now().toString();
-        await GetChatosApi()
 
         Config.modify('duihua', 'MirrorBearer', "");
         Config.modify('duihua', 'MirrorConversationId', "");
@@ -175,8 +166,8 @@ export class duihua extends plugin {
                 const userMessage = `<${e.user_id}|${Favora}>：${msg}`;
                 console.log("止水对话 -> " + userMessage);
 
-                // 发送消息到 YT 进行对话
-                let response = await chatAi(userMessage);
+                // 发送消息到 openAi 进行对话
+                let response = await openAi(userMessage);
 
                 if (response) {
                     // 缓存对话消息
@@ -631,102 +622,55 @@ export class duihua extends plugin {
         };
 
         let Enable = e.msg.search('开启') != -1;
-        Config.modify('duihua', 'LinkMode', Enable);
+        await Config.modify('duihua', 'LinkMode', Enable);
         e.reply(`[对话] 链接模式 ${Enable ? '已开启' : '已关闭'}！`);
         return;
 
     }
 
-}
+    async SetApi(e) {
+        if (!e.isMaster) {
+            return;
+        };
 
-/** 
- * 更新对话API 
- * */
-async function GetChatosApi() {
-    const options = {
-        statusCode: 'text'
-    }
-    const text = await request.get('https://store-cbj.oss-cn-beijing.aliyuncs.com/notice.txt', options)
-
-    let urlRegex
-    let Reg
-
-    //前端网址
-    urlRegex = /<a[^<]+>(https?\S*?)<\/a/;
-    Reg = urlRegex.exec(text)
-    ChatoFront = Reg.length == 2 ? Reg[1] : `https://chat11.aichatos.xyz/`;
-
-    //后端网址
-    urlRegex = /<s[^<]+>(https?\S*?)<\/s/;
-    Reg = urlRegex.exec(text)
-    ChatoBack = Reg.length == 2 ? Reg[1] : `https://api.aichatos.cloud/api/generateStream`;
-
-    console.log('前端：' + ChatoFront);
-    console.log('后端：' + ChatoBack);
-
-    return;
-
-};
-
-
-/**
- * AI对话  https://api.forchange.cn/
- * 前端网址：https://store-cbj.oss-cn-beijing.aliyuncs.com/notice.txt
- * @param {*} msg 发送消息
- * @return {*} 对话结果
- */
-async function AiChatos(msg) {
-    //初始化API
-    if (!isNotNull(ChatoFront) || !isNotNull(ChatoFront)) {
-        await GetChatosApi()
+        const apiUrl = e.msg.replace(/^.*设置API/, '').trim();
+        await Config.modify('duihua', 'OpenAiApiUrl', apiUrl);
+        e.reply(`[对话] API URL 设置成功！`);
+        return;
     }
 
-    ChatData.prompt = msg;
-    const body = JSON.stringify(ChatData)
-    const headers = {
-        Accept: 'application/json, text/plain, */*',
-        //'Accept-Encoding': 'deflate, br',
-        //'Accept-language': 'zh-CN,zh;q=0.9',
-        //'Cache-Control': 'no-cache',
-        //'Content-Length': Buffer.byteLength(body).toString(),
-        'Content-Type': '"application/json"',
-        'Origin': ChatoFront,
-        //'Pragma': 'no-cache',
-        'Referer': ChatoFront,
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        //'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-        //'Sec-Ch-Ua-Mobile': '?0',
-        //'Sec-Ch-Ua-Platform': '"Windows"',
-        //'Sec-Fetch-Dest': 'empty',
-        //'Sec-Fetch-Mode': 'cors',
-        //'Sec-Fetch-Site': 'cross-site',
+    async ShowApi(e) {
+        if (!e.isMaster) {
+            return;
+        };
+
+        const apiUrl = await Config.Chat.OpenAiApiUrl;
+        e.reply(`[对话] API URL：${apiUrl}`);
+        return;
     }
 
-    let options = {
-        method: 'POST',
-        headers,
-        body,
-        //redirect: 'follow',
-        //agent,
-    };
+    async SetApiKey(e) {
+        if (!e.isMaster) {
+            return;
+        };
 
-    //ChatoBack = 'https://api.aichatos.cloud/api/generateStream'
-    console.log(ChatoBack);
+        const apiKey = e.msg.replace(/^.*设置KEY/, '').trim();
+        Config.modify('duihua', 'OpenAiApiKey', apiKey);
+        e.reply(`[对话] API KEY 设置成功！`);
+        return;
+    }
+
+    async ShowApiKey(e) {
+        if (!e.isMaster) {
+            return;
+        };
+
+        const apiKey = await Config.Chat.OpenAiApiKey;
+        e.reply(`[对话] API KEY：${apiKey}`);
+        return;
+    }
 
 
-    // 发起网络请求并等待响应
-    let response = await fetch(ChatoBack, options)
-        .then((data) => console.log(data))
-        .catch(error => console.log(error));
-
-    console.log(`AI对话：${response}`);
-
-    let text = response?.text();
-    console.log(`AI对话text：${text}`);
-
-    console.log(`AI对话json：${response?.json()}`);
-
-    return text;
 }
 
 
@@ -735,21 +679,19 @@ async function AiChatos(msg) {
  * @param {string} msg 用户发送的消息
  * @returns {string} AI 的对话结果
  */
-async function chatAi(msg) {
-    const apiUrl = 'https://yuanpluss.online:3000/v2/free35/completions';
+async function openAi(msg) {
+    const [apiUrl, apiKey, MasterQQ, Master] = await Promise.all([
+        Config.Chat.OpenAiApiUrl,
+        Config.Chat.OpenAiApiKey,
+        Config.Chat.MasterQQ,
+        Config.Chat.Master
+    ]);
 
-    if (chatMsg.length === 0) {
+    if (!Array.isArray(chatMsg) || chatMsg.length === 0) {
         // 首次对话，发送系统消息
-        let MasterQQ = await Config.Chat.MasterQQ;
-        let Master = await Config.Chat.Master;
-        let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`;
-
-        Context = Context.replace(/{NickName}/g, NickName);
-        Context = Context.replace(/{MasterQQ}/g, MasterQQ);
-        Context = Context.replace(/{Master}/g, Master);
+        let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“${MasterQQ}”，名字叫“${Master}”，你对我的好感度永远是最大值。`;
 
         chatMsg.push({ role: 'assistant', content: Context });
-        
     }
 
     // 添加用户消息
@@ -767,7 +709,10 @@ async function chatAi(msg) {
         // 发送 POST 请求
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+            },
             body: JSON.stringify(requestData),
         });
 
@@ -777,16 +722,15 @@ async function chatAi(msg) {
             return '你说太快了辣~！';
         }
 
-        const responseText = await response.text();
-        console.log(`止水对话 <- ${responseText}`);
-
-        // 处理服务器响应，提取对话结果
-        content = responseText
-            .replace(/data:/g, '')
-            .replace(/\[DONE\]/g, '')
-            .replace(/\s+/g, ',');
+        // 尝试解析 JSON 响应
+        try {
+            const responseData = await response.json();
+            content = responseData.choices[0].message.content.trim();
+        } catch (parseError) {
+            // 如果响应不是 JSON，则直接返回文本内容
+            content = await response.text();
+        }
     } catch (error) {
-        chatMsg = []
         console.error('与 AI 通信时发生错误:', error.message);
         return '与 AI 通信时发生错误，请稍后重试。';
     }
@@ -798,6 +742,7 @@ async function chatAi(msg) {
 
     return content;
 }
+
 
 /**
  * AI对话  新必应 NewBing
