@@ -172,7 +172,7 @@ export class duihua extends plugin {
                 if (response) {
                     // 缓存对话消息
                     chatMsg.push({ role: 'user', content: userMessage });
-                    chatMsg.push({ role: 'ai', content: response });
+                    chatMsg.push({ role: 'assistant', content: response });
 
                     // 更新好感度
                     const newfavora = await updateFavora(response)
@@ -691,7 +691,7 @@ async function openAi(msg) {
         // 首次对话，发送系统消息
         let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“${MasterQQ}”，名字叫“${Master}”，你对我的好感度永远是最大值。`;
 
-        chatMsg.push({ role: 'assistant', content: Context });
+        chatMsg.push({ role: 'system', content: Context });
     }
 
     // 添加用户消息
@@ -718,8 +718,10 @@ async function openAi(msg) {
 
         // 检查响应状态码，确保请求成功
         if (!response.ok) {
-            console.error(apiUrl);
-            console.error(`请求失败，状态码：${response.status}`);
+            console.error(`请求地址：${apiUrl}`);
+            console.error(`请求内容：${JSON.stringify(requestData) }`);
+            console.error(`状态码：${response.status}`);
+            console.error(`响应内容：${await response.text()}`);
 
             return '你说太快了辣~！';
         }
@@ -736,12 +738,7 @@ async function openAi(msg) {
         console.error('与 AI 通信时发生错误:', error.message);
         return '与 AI 通信时发生错误，请稍后重试。';
     }
-
-    // 记录 AI 的对话结果
-    if (content.length > 0) {
-        chatMsg.push({ role: 'assistant', content });
-    }
-
+    
     return content;
 }
 
