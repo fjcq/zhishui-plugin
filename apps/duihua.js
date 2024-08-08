@@ -718,7 +718,9 @@ async function openAi(msg) {
 
         // 检查响应状态码，确保请求成功
         if (!response.ok) {
+            console.error(apiUrl);
             console.error(`请求失败，状态码：${response.status}`);
+
             return '你说太快了辣~！';
         }
 
