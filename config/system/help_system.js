@@ -99,19 +99,24 @@ export const helpList = [
                 "desc": "开启或者关闭艾特对话功能"
             },
             {
-                "icon": 90,
-                "title": "#必应开关",
-                "desc": "开启或者关闭必应对话功能"
-            },
-            {
                 "icon": 29,
-                "title": "设置必应参数",
-                "desc": "将必应的Cookie直接发送给机器人"
+                "title": "#设置API",
+                "desc": "设置OpenAI的API"
             },
             {
                 "icon": 85,
-                "title": "#查看必应参数",
-                "desc": "查看当前的必应参数"
+                "title": "查看API",
+                "desc": "查看当前的OpenAI API"
+            },
+            {
+                "icon": 29,
+                "title": "#设置KEY",
+                "desc": "设置OpenAI的KEY"
+            },
+            {
+                "icon": 85,
+                "title": "#查看KEY",
+                "desc": "查看当前的OpenAI KEY"
             },
             {
                 "icon": 43,
@@ -149,16 +154,6 @@ export const helpList = [
                 "desc": "设置指定群友的好感度。"
             },
             {
-                "icon": 62,
-                "title": "#查看必应模型",
-                "desc": "查看当前必应的对话模型"
-            },
-            {
-                "icon": 63,
-                "title": "#设置必应模型",
-                "desc": "可选模型“默认”、“创意”、“精确”、“快速”，例如：#设置必应模型创意"
-            },
-            {
                 "icon": 64,
                 "title": "#止水插件查看代理",
                 "desc": "查看插件所使用的代理"
@@ -167,11 +162,6 @@ export const helpList = [
                 "icon": 65,
                 "title": "#止水插件设置代理",
                 "desc": "设置插件所使用的代理，例如：#止水插件设置代理http://127.0.0.1:7890"
-            },
-            {
-                "icon": 66,
-                "title": "#链接模式[开启|关闭]",
-                "desc": "开启后，会显示对话引用链接"
             }
         ]
     }

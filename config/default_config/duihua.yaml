@@ -33,3 +33,9 @@ toneStyle: "creative"
 
 #链接模式
 LinkMode: false
+
+#对话接口地址
+OpenAiApiUrl: "https://yuanpluss.online:3000/v2/free35/completions"
+
+#对话秘钥
+OpenAiApiKey: ""
