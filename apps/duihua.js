@@ -407,7 +407,9 @@ export class duihua extends plugin {
         if (e.isMaster) {
             let Context = await ReadContext();
             if (Context.length > 0) {
-                common.getforwardMsg(e, Context, {
+                let msg = []
+                msg.push(Context)
+                common.getforwardMsg(e, msg, {
                     isxml: true,
                     xmlTitle: '对话身份',
                 })
@@ -439,7 +441,9 @@ export class duihua extends plugin {
         if (e.isMaster) {
             let Scene = await ReadScene();
             if (Scene.length > 0) {
-                common.getforwardMsg(e, Scene, {
+                let msg = []
+                msg.push(Scene)
+                common.getforwardMsg(e, msg, {
                     isxml: true,
                     xmlTitle: '对话场景',
                 })
