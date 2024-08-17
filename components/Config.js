@@ -30,6 +30,12 @@ class Config {
         }
     }
 
+
+    /** 获取全局设置 */
+    get whole() {
+        return this.getDefOrConfig("whole")
+    }
+
     /** 群配置 */
     getGroup(groupId = '') {
         let config = this.getConfig('whole');
