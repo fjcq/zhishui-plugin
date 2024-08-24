@@ -7,9 +7,9 @@ const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
 const FFMPEG_PATH = "ffmpeg"
 
-let ResPath = path.join(Plugin_Path, 'resources/yanzou');
-let YueqiPath = path.join(ResPath, 'gangqin');
-let OutputFile = path.join(Plugin_Path, 'resources/output');
+let ResPath = path.join(Plugin_Path, 'resources', 'yanzou');
+let YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
+let OutputFile = path.join(Plugin_Path, 'resources', 'output');
 let Format = ".wav"; // 文件格式
 let kg = 0;
 
@@ -232,23 +232,23 @@ async function GetFFmpegCommand(msg) {
     }
     Format = ".wav"
     if (Yueqi == "八音盒") {
-        YueqiPath = ResPath + 'ba/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ba');
     } else if (Yueqi == "钢琴") {
-        YueqiPath = ResPath + 'gangqin/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
     } else if (Yueqi == "古筝") {
-        YueqiPath = ResPath + 'gu/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gu');
     } else if (Yueqi == "吉他") {
-        YueqiPath = ResPath + 'jita/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'jita');
     } else if (Yueqi == "萨克斯") {
-        YueqiPath = ResPath + 'sa/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'sa');
     } else if (Yueqi == "小提琴") {
-        YueqiPath = ResPath + 'ti/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ti');
     } else if (Yueqi == "箫") {
-        YueqiPath = ResPath + 'xiao/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'xiao');
     } else if (Yueqi == "西域琴") {
-        YueqiPath = ResPath + 'xiyu/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'xiyu');
     } else {
-        YueqiPath = ResPath + 'gangqin/';
+        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
     }
 
     //算出每分钟节拍数

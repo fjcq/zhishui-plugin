@@ -13,6 +13,7 @@ resources/yanzou/*/output.mp3
 resources/yanzou/*/output.amr
 resources/yanzou/*/output.wav
 resources/output/*.*
+resources/output.*
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
