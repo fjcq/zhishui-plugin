@@ -5,12 +5,18 @@ import path from 'path';
 
 const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
+const fs = require('fs');
 const FFMPEG_PATH = "ffmpeg"
 
 /** 乐器目录 */
 let YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
 /** 输出目录 */
 let OutputPath = path.join(Plugin_Path, 'resources', 'output');
+// 检查并创建目录
+if (!fs.existsSync(OutputPath)) {
+    fs.mkdirSync(OutputPath);
+}
+
 /** 输出格式 (默认值：.wav) */
 let Format = ".wav";
 let kg = 0;
@@ -97,6 +103,7 @@ export class yanzou extends plugin {
         ffmpeg.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
+
                 let fileName = path.join(OutputPath, `output${Format}`)
                 console.log("合成音频成功，文件名：" + fileName);
 
@@ -144,12 +151,9 @@ export class yanzou extends plugin {
                         msg = '内部错误';
                         break;
                     default:
-                        msg = '未知错误';
+                        msg = `错误代码：${code}`;
                         break;
                 }
-
-                console.log("FFmpeg 退出代码：", code);
-                console.log("FFmpeg 标准输出流：", stdoutData);
                 console.log("FFmpeg 标准错误流：", stderrData);
                 e.reply(`合成音频失败，${msg}！`);
                 kg = 0
