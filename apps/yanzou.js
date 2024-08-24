@@ -93,26 +93,28 @@ export class yanzou extends plugin {
         });
         ffmpeg.stdout.on('data', (data) => {
             stdoutData += data.toString();
-            //console.log(`stdout ${data}`);
         });
         ffmpeg.stderr.on('data', (data) => {
             stderrData += data.toString();
-            //console.log(`stderr ${data}`);
         });
+
+        console.log("FFmpeg 标准输出流：" + stdoutData);
 
         ffmpeg.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
 
                 let fileName = path.join(OutputPath, `output${Format}`)
-                console.log("合成音频成功，文件名：" + fileName);
-
-                if (await Config.YanZou.Quality || false) {
-                    let played = await uploadRecord(fileName, 0, false)
+                console.log("合成音频成功：" + fileName);
+                let played
+                try {
+                    played = await uploadRecord(fileName, 0, false)
                     e.reply(played)
-                } else {
-                    e.reply([segment.record(fileName)]);
+                } catch {
+                    played = await segment.record(fileName)
+                    e.reply(played)
                 }
+
                 kg = 0
                 return true;
             } else {
