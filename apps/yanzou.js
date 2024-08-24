@@ -7,10 +7,12 @@ const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
 const FFMPEG_PATH = "ffmpeg"
 
-let ResPath = path.join(Plugin_Path, 'resources', 'yanzou');
+/** 乐器目录 */
 let YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
-let OutputFile = path.join(Plugin_Path, 'resources', 'output');
-let Format = ".wav"; // 文件格式
+/** 输出目录 */
+let OutputPath = path.join(Plugin_Path, 'resources', 'output');
+/** 输出格式 (默认值：.wav) */
+let Format = ".wav";
 let kg = 0;
 
 export class yanzou extends plugin {
@@ -95,7 +97,9 @@ export class yanzou extends plugin {
         ffmpeg.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
-                let fileName = `${OutputFile}${Format}`
+                let fileName = path.join(OutputPath, `output${Format}`)
+                console.log("合成音频成功，文件名：" + fileName);
+
                 if (await Config.YanZou.Quality || false) {
                     let played = await uploadRecord(fileName, 0, false)
                     e.reply(played)
@@ -186,9 +190,9 @@ export class yanzou extends plugin {
     //演奏测试
     async TestPlaye(e) {
         let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
-        await mergeAudio(zhiling, YueqiPath, OutputFile);
+        await mergeAudio(zhiling, YueqiPath, OutputPath);
 
-        let fileName = path.join(OutputFile, 'output.mp3')
+        let fileName = path.join(OutputPath, `output${Format}`)
 
         e.reply([segment.record(fileName)]);
     }
@@ -328,8 +332,8 @@ async function GetFFmpegCommand(msg) {
         // result.push(`12.2k`)
         // result.push(`-ac`)
         // result.push(`1`)
-
-        result.push(`${OutputFile}${Format}`)
+        let fileName = path.join(OutputPath, `output${Format}`)
+        result.push(`${fileName}`)
         //result = `${ setfile } -filter_complex ${ settime }${ setorder } amix = inputs = ${ quantity }: dropout_transition = 0: normalize = 0, dynaudnorm[a] - map[a] ${ output } `
 
     } else {
