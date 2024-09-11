@@ -1,13 +1,35 @@
-/* 自定义字体定义 */
+@charset "UTF-8";
+
 @font-face {
-    font-family: 'JTY';
-    src: url('jty.OTF') format('opentype');
-    font-weight: normal;
-    font-style: normal;
+    font-family: "Number";
+    src: url("./font/tttgbnumber.woff") format("woff"), url("./font/tttgbnumber.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "FZB";
+    src: url("./font/FZB.woff") format("woff"), url("./font/FZB.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "NZBZ";
+    src: url("./font/NZBZ.woff") format("woff"), url("./font/NZBZ.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "YS";
+    src: url("./font/HYWH-65W.woff") format("woff"), url("./font/HYWH-65W.ttf") format("truetype");
+}
+
+.font-YS {
+    font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+}
+.font-NZBZ {
+    font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
 
 /* 页面基础样式 */
 body {
+    font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
     background: url("bg.png") white center top no-repeat;
     margin: 0;
     padding: 0;
@@ -22,43 +44,51 @@ body {
     background: rgba(255, 255, 255, 0.5);
     border-radius: 20px;
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(10px);
 }
 
 /* 头部容器样式 */
 .header {
-    text-align: center; /* 确保标题在头部中居中 */
-    margin-bottom: 40px; /* 与内容区域保持一定间隔 */
+    text-align: center;
+    /* 确保标题在头部中居中 */
+    margin-bottom: 40px;
+    /* 与内容区域保持一定间隔 */
 }
 
 /* 头部标题样式 */
 .header .title {
     font-size: 2.7em;
-    color: #007bff; /* 设置一个醒目的蓝色作为标题文本颜色 */
+    color: #007bff;
+    /* 设置一个醒目的蓝色作为标题文本颜色 */
     margin-bottom: 20px;
     padding: 15px 20px;
     background: rgba(255, 255, 255, 0.8);
     border-radius: 15px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 添加文本阴影以增强效果 */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* 添加文本阴影以增强效果 */
 }
 
 /* 提示文本样式 */
 .search-results-hint {
-    text-align: left; 
-    margin: 10px 0; /* 上下边距 */
+    text-align: left;
+    margin: 10px 0;
+    /* 上下边距 */
 }
 
 /* 提示文本中普通文本的样式 */
 .text-muted {
-    color: #6c757d; /* 温和的灰色 */
-    font-size: 0.9em; /* 字体大小略小于正常 */
+    color: #6c757d;
+    /* 温和的灰色 */
+    font-size: 0.9em;
+    /* 字体大小略小于正常 */
 }
 
 /* 提示文本中强调文本的样式 */
 .text-now {
-    color: #ff6b81; /* 醒目的颜色，如粉色系 */
-    font-weight: bold; /* 加粗 */
+    color: #ff6b81;
+    /* 醒目的颜色，如粉色系 */
+    font-weight: bold;
+    /* 加粗 */
 }
 
 /* 搜索结果样式 */
@@ -77,8 +107,8 @@ body {
     padding: 10px;
     background: rgba(255, 255, 255, 0.6);
     border-radius: 10px;
-    box-shadow: 10px 10px 15px rgba(0, 0, 0, 0.1), 
-                -10px -10px 15px rgba(255, 255, 255, 0.8);
+    box-shadow: 10px 10px 15px rgba(0, 0, 0, 0.1),
+        -10px -10px 15px rgba(255, 255, 255, 0.8);
     transition: box-shadow 0.3s;
 }
 
@@ -115,19 +145,19 @@ body {
 .tu .num {
     top: 10px;
     left: 10px;
-	background-color: rgba(0, 123, 255, 0.7);
+    background-color: rgba(0, 123, 255, 0.7);
 }
 
 .pic-text.text-up.text-right {
     top: 10px;
     right: 10px;
-	background-color: rgba(255, 193, 7, 0.7);
+    background-color: rgba(255, 193, 7, 0.7);
 }
 
 .pic-text.text-down.text-left {
     bottom: 10px;
     left: 10px;
-	background-color: rgba(108, 117, 125, 0.7); 
+    background-color: rgba(108, 117, 125, 0.7);
 }
 
 /* 项目标题样式 */
@@ -141,29 +171,37 @@ body {
 
 /* 页脚容器样式 */
 .footer {
-    text-align: center; /* 确保文本在页脚中居中 */
-    margin-top: 40px; /* 与内容区域保持一定间隔 */
+    text-align: center;
+    /* 确保文本在页脚中居中 */
+    margin-top: 40px;
+    /* 与内容区域保持一定间隔 */
 }
 
 .footer p {
     font-size: 0.9em;
-    color: #6c757d; /* 温和的灰色，适合版权文本 */
-    background: rgba(255, 255, 255, 0.6); /* 半透明白色背景 */
+    color: #6c757d;
+    /* 温和的灰色，适合版权文本 */
+    background: rgba(255, 255, 255, 0.6);
+    /* 半透明白色背景 */
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     padding: 10px 20px;
-    margin-bottom: 0; /* 移除默认的底部外边距 */
+    margin-bottom: 0;
+    /* 移除默认的底部外边距 */
 }
 
 /* 版权文本样式 */
 .footer p .text-now {
-    color: #ff6b81; /* 醒目的颜色 */
+    color: #ff6b81;
+    /* 醒目的颜色 */
     font-weight: bold;
 }
 
 /* 如果您希望header和footer有相似的设计风格，可以考虑添加一些统一的效果，例如： */
-.header .title, .footer p {
-    transition: box-shadow 0.3s, background 0.3s; /* 平滑过渡阴影和背景色变化 */
+.header .title,
+.footer p {
+    transition: box-shadow 0.3s, background 0.3s;
+    /* 平滑过渡阴影和背景色变化 */
 }
 
 .copyright {
