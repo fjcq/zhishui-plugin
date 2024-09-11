@@ -204,3 +204,19 @@ body {
     margin-bottom: 5px;
     text-align: left;
 }
+
+.copyright {
+    font-size: 14px;
+    text-align: center;
+    color: #fff;
+    position: relative;
+    padding-left: 10px;
+    text-shadow: 1px 1px 1px #000;
+    margin: 10px 0;
+}
+
+.copyright .version {
+    color: #d3bc8e;
+    display: inline-block;
+    padding: 0 3px;
+}

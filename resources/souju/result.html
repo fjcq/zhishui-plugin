@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="{{_res_path}}souju/result.css" />
     <title>搜剧结果</title>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -16,28 +18,29 @@
         <div class="search-results-hint">
             <font class="text-muted">你可以发送
                 <font class="text-now"> #选剧+数字 </font>
-            来查看详情。</font>
+                来查看详情。
+            </font>
         </div>
 
         <div class="search-results">
             {{each list item idx}}
-			
+
             <div class="item">
                 <div class="tu">
-				
-					{{if showpic == true}}
-                    <img src="{{item.vod_pic}}" />
-					{{else}}
-                    <img src="{{_res_path}}/souju/load.png" />
-					{{/if}}
-					
+
+                    {{if showpic == true}}
+                    <img src="{{item.vod_pic}}" alt="">
+                    {{else}}
+                    <img src="{{_res_path}}/souju/load.png" alt="">
+                    {{/if}}
+
                     <div class="num">#{{idx+1}}</div>
                     <div class="pic-text text-up text-right">{{item.type_name}}</div>
                     <div class="pic-text text-down text-left pic-background">{{item.vod_remarks}}</div>
                 </div>
                 <div class="item_title">{{item.vod_name}}</div>
             </div>
-			
+
             {{/each}}
 
 
@@ -47,12 +50,15 @@
         <div class="search-results-hint">
             <font class="text-muted">你可以发送
                 <font class="text-now"> #选剧+数字 </font>
-            来查看详情。</font>
+                来查看详情。
+            </font>
         </div>
 
         <div class="footer">
-            <p>Created By <span class="text-now">Yunzai-Bot</span> & <span class="text-now">止水</span></p>
+            <p class="copyright">{{@sys.copyright}}</p>
         </div>
+
     </div>
 </body>
+
 </html>

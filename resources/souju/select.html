@@ -17,9 +17,9 @@
         <div class="drama-info">
             <div class="poster">
                 {{if showPic == true}}
-                <img src="{{list.vod_pic}}">
+                <img src="{{list.vod_pic}}" alt="" />
                 {{else}}
-                <img src="{{_res_path}}/souju/load.png">
+                <img src="{{_res_path}}/souju/load.png" alt="" />
                 {{/if}}
 
             </div>
@@ -66,7 +66,9 @@
                 你可以发送<font class="text-now">#线路+数字</font>来切换线路，例如<font class="text-now">#线路2</font>
             </p>
             {{each playRoutes value i}}
-            <div><font class="text-now">#{{i+1}}</font>&ensp;{{value.RouteName}}</div>
+            <div>
+                <font class="text-now">#{{i+1}}</font>&ensp;{{value.RouteName}}
+            </div>
             {{/each}}
 
         </div>
@@ -76,13 +78,15 @@
             </p>
 
             {{each episodeNames value i}}
-            <div><font class="text-now">#{{i+1}}</font>&ensp;{{value}}</div>
+            <div>
+                <font class="text-now">#{{i+1}}</font>&ensp;{{value}}
+            </div>
             {{/each}}
 
         </div>
 
         <div class="footer">
-            <p>Created By <span class="text-now">Yunzai-Bot</span> & <span class="text-now">止水</span></p>
+            <p class="copyright">{{@sys.copyright}}</p>
         </div>
     </div>
 </body>
