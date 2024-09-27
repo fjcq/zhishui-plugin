@@ -35,7 +35,10 @@ toneStyle: "creative"
 LinkMode: false
 
 #对话接口地址
-OpenAiApiUrl: "https://yuanpluss.online:3000/v2/free35/completions"
+OpenAiApiUrl: "https://api.openai.com/v1/chat/completions"
 
 #对话秘钥
 OpenAiApiKey: ""
+
+#对话模型
+OpenAiModel: "gpt-4o-mini"
