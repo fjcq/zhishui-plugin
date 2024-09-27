@@ -12,19 +12,23 @@
 
 ## 安装教程  
 
-### 第 1 步：下载插件
+### 第 1 步：下载插件  
 
-在云崽根目录下打开终端，运行
+在云崽根目录下打开终端，根据你的网络选择下面指令运行： 
 
+`国内网络`  
 ```bash
 git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin  
 ```
-
+`国外网络`  
+```bash
+git clone https://github.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin  
+```
 ### 第 2 步：安装依赖
 
-要在云崽根目录下运行此命令：
+要在云崽根目录下运行此命令： 
 
-```bash
+```bash  
 pnpm install --filter=zhishui-plugin
 ```
 
@@ -136,6 +140,15 @@ pnpm install --filter=zhishui-plugin
 
 ## 常见问题  
 
-<details>
+<details>  
+  <summary>AI回复</summary>  
+
+- `抱歉，我无法满足这个请求`  
+  角色设定触发了 OpenAI 的安全机制，请修改设定。 
+
+
+- `与 AI 通信时发生错误，请稍后重试。`  
+  网络问题，请搬梯子。  
 
 </details>
+
