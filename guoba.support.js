@@ -104,6 +104,12 @@ export function supportGuoba() {
                     component: 'Input'
                 },
                 {
+                    field: 'duihua.OpenAiModel',
+                    label: '模型',
+                    bottomHelpMessage: '设置对话使用的模型',
+                    component: 'Input'
+                },
+                {
                     component: 'Divider',
                     label: '代理设置'
                 },

@@ -71,16 +71,16 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?发音人$`,
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^(#|\/)??(止水)?(插件|对话)??设置对话身份(.*)',
+                    reg: '^(#|\/)??(止水)?(插件|对话)??设置身份(.*)',
                     fnc: 'SetContext'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??查看对话身份$`,
+                    reg: `^#?(止水)?(插件|对话)??查看(对话)?身份$`,
                     fnc: 'ShowContext'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??设置对话场景(.*)`,
+                    reg: `^#?(止水)?(插件|对话)??设置(对话)?场景(.*)`,
                     fnc: 'SetChatScene'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??查看对话场景$`,
+                    reg: `^#?(止水)?(插件|对话)??查看(对话)?场景$`,
                     fnc: 'ShowChatScene'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??设置好感度(.*)$`,
@@ -109,6 +109,12 @@ export class duihua extends plugin {
                 }, {
                     reg: `^#?止水(插件|对话)?查看KEY$`,
                     fnc: 'ShowApiKey'
+                }, {
+                    reg: `^#?止水(插件|对话)?设置模型(.*)$`,
+                    fnc: 'setModel'
+                }, {
+                    reg: `^#?止水(插件|对话)?查看模型$`,
+                    fnc: 'showModel'
                 }, {
                     reg: `^#?止水(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
@@ -207,76 +213,6 @@ export class duihua extends plugin {
 
         // 如果消息不是针对当前对话的，则不进行处理
         return false;
-    }
-
-    /** 设置必应参数 */
-    async SetBingSettings(e) {
-        if (e.isMaster) {
-            let BingCookie = e.msg;
-            /** 必应选项 */
-            const options = {
-                host: 'https://www.bing.com',
-                userToken: '',
-                cookies: BingCookie,
-                proxy: '',
-                debug: false,
-            };
-
-            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(BingCookie);
-            if (KievRPSSecAuth) {
-                BingCookie = `KievRPSSecAuth=${KievRPSSecAuth}; _U=${_U}`;
-            } else {
-                BingCookie = `_U=${_U}`;
-            }
-
-            Config.modify('duihua', 'BingCookie', BingCookie);
-            e.reply("设置必应参数成功！");
-            return;
-        }
-
-    }
-
-    /** 查看必应参数 */
-    async GetBingSettings(e) {
-        //主人私聊才能查看
-        if (!e.isGroup && e.isMaster) {
-            let msg = [];
-            msg.push("*** 必应参数 ***");
-            msg.push(await Config.Chat.BingCookie);
-
-            common.getforwardMsg(e, msg, {
-                isxml: true,
-                xmlTitle: '必应参数',
-            })
-
-            return true;
-        }
-        return false;
-    }
-
-    /** 必应开关 */
-    async BingEnable(e) {
-        if (e.isMaster == false) {
-            return false; //不是主人
-        };
-
-        let Enable = e.msg.search('开启') != -1;
-
-        if (Enable) {
-            //先检查必应参数
-            let { KievRPSSecAuth, _U } = await AnalysisBingCookie(await Config.Chat.BingCookie);
-            if (!isNotNull(_U)) {
-                e.reply(`你的必应参数无效！\n请在浏览器中打开必应对话，然后将Cookie发送给我，Cookie中至少要包含 “_U” 字段`);
-                return false;
-            } else {
-                e.reply("[必应对话]已开启！");
-            };
-        } else {
-            e.reply("[必应对话]已关闭！");
-        }
-
-        Config.modify('duihua', 'EnableBing', Enable);
-        return true;
     }
 
     /** 修改对话昵称 */
@@ -529,62 +465,23 @@ export class duihua extends plugin {
 
     }
 
-    /** 查看必应模型 */
-    async ShowtoneStyle(e) {
+    /** 设置对话模型 */
+    async setModl(e) {
         if (e.isMaster) {
-            let toneStyle = await Config.Chat.toneStyle;
-            let msg = `当前必应模型为：`;
-            switch (toneStyle) {
-                case 'creative':
-                    msg += '创意';
-                    break;
-                case 'precise':
-                    msg += '精确';
-                    break;
-                case 'fast':
-                    msg += '快速';
-                    break;
-                default:
-                    msg += '默认';
-            }
-            e.reply(msg);
-            return;
+            const AiModel = e.msg.replace(/^.*设置模型/, '').trim();
+            await Config.modify('duihua', 'OpenAiModel', AiModel);
+            e.reply(`[对话] 设置模型为： ${AiModel} `);
         };
+        return;
     }
 
-
-    /** 设置必应模型 */
-    async SettoneStyle(e) {
+    /** 查看对话模型 */
+    async showModl  (e) {
         if (e.isMaster) {
-            let toneStyle = e.msg.replace(/^.*设置必应模型/, '').trim();
-            let msg = '';
-            // 创建一个字典，存储必应模型和配置参数的映射关系
-            let toneStyleDict = {
-                '创意': 'creative',
-                'creative': 'creative',
-                '精确': 'precise',
-                'precise': 'precise',
-                '快速': 'fast',
-                'fast': 'fast',
-                '默认': 'balanced',
-                'balanced': 'balanced'
-            };
-            // 使用正则表达式来匹配必应模型的中文或英文名称
-            let toneStyleRegex = /创意|creative|精确|precise|快速|fast|默认|balanced/;
-            // 如果匹配成功，就从字典中获取对应的配置参数，否则使用默认参数
-            if (toneStyleRegex.test(toneStyle)) {
-                msg = `必应模型修改为：${toneStyle}`;
-                Config.modify('duihua', 'toneStyle', toneStyleDict[toneStyle]);
-            } else {
-                msg = '必应模型修改为：默认';
-                Config.modify('duihua', 'toneStyle', 'balanced');
-            }
-
-            msg = msg + '\n可选模型参数：默认 创意 精确 快速';
-            e.reply(msg);
-
-            return;
+            const AiModel = await Config.Chat.OpenAiModel;
+            e.reply(`[对话] 当前模型为：${AiModel}`);
         };
+        return;
     }
 
 
@@ -684,9 +581,10 @@ export class duihua extends plugin {
  * @returns {string} AI 的对话结果
  */
 async function openAi(msg) {
-    const [apiUrl, apiKey, MasterQQ, Master] = await Promise.all([
+    const [apiUrl, apiKey, aiModel,MasterQQ, Master] = await Promise.all([
         Config.Chat.OpenAiApiUrl,
         Config.Chat.OpenAiApiKey,
+        Config.Chat.OpenAiModel,
         Config.Chat.MasterQQ,
         Config.Chat.Master
     ]);
@@ -703,7 +601,7 @@ async function openAi(msg) {
 
     // 构建请求数据
     const requestData = {
-        model: 'gpt-4o-mini',
+        model: aiModel,
         presence_penalty: 0,
         messages: chatMsg,
     };
