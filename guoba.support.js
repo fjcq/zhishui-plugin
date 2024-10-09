@@ -110,6 +110,12 @@ export function supportGuoba() {
                     component: 'Input'
                 },
                 {
+                    field: 'duihua.OpenAiMaxHistory',
+                    label: '最大记录',
+                    bottomHelpMessage: '最多保存几条对话记录',
+                    component: 'Input'
+                },
+                {
                     component: 'Divider',
                     label: '代理设置'
                 },
