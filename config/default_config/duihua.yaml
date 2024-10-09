@@ -42,3 +42,6 @@ OpenAiApiKey: ""
 
 #对话模型
 OpenAiModel: "gpt-4o-mini"
+
+#对话历史最大长度
+OpenAiMaxHistory: 20

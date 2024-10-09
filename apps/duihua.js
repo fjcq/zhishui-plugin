@@ -476,7 +476,7 @@ export class duihua extends plugin {
     }
 
     /** 查看对话模型 */
-    async showModl  (e) {
+    async showModl(e) {
         if (e.isMaster) {
             const AiModel = await Config.Chat.OpenAiModel;
             e.reply(`[对话] 当前模型为：${AiModel}`);
@@ -581,7 +581,7 @@ export class duihua extends plugin {
  * @returns {string} AI 的对话结果
  */
 async function openAi(msg) {
-    const [apiUrl, apiKey, aiModel,MasterQQ, Master] = await Promise.all([
+    const [apiUrl, apiKey, aiModel, MasterQQ, Master] = await Promise.all([
         Config.Chat.OpenAiApiUrl,
         Config.Chat.OpenAiApiKey,
         Config.Chat.OpenAiModel,
@@ -593,12 +593,20 @@ async function openAi(msg) {
         // 首次对话，发送系统消息
         let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“${MasterQQ}”，名字叫“${Master}”，你对我的好感度永远是最大值。`;
 
-        chatMsg.push({ role: 'system', content: Context });
+        await addMessage({ role: 'system', content: Context });
     }
 
-    // 添加用户消息
-    chatMsg.push({ role: 'user', content: msg });
+    /** 添加新消息 */
+    async function addMessage(newMessage) {
+        chatMsg.push(newMessage);
+        const OpenAiMaxHistory = await Config.Chat.OpenAiMaxHistory;
+        while (chatMsg.length > OpenAiMaxHistory) {
+            chatMsg.shift(); // 移除最老的消息
+        }
+    }
 
+    await addMessage({ role: 'user', content: msg });
+    
     // 构建请求数据
     const requestData = {
         model: aiModel,
@@ -621,17 +629,23 @@ async function openAi(msg) {
         // 检查响应状态码，确保请求成功
         if (!response.ok) {
             console.error(`请求地址：${apiUrl}`);
-            console.error(`请求内容：${JSON.stringify(requestData) }`);
+            console.error(`请求内容：${JSON.stringify(requestData)}`);
             console.error(`状态码：${response.status}`);
             console.error(`响应内容：${await response.text()}`);
 
-            return '你说太快了辣~！';
+            const errorData = await response.json();
+            return parseErrorMessage(errorData);
+
         }
 
         // 尝试解析 JSON 响应
         try {
             const responseData = await response.json();
             content = responseData.choices[0].message.content.trim();
+            
+            // 添加 历史消息 和 AI 回复
+            await addMessage({ role: 'assistant', content });
+            
         } catch (parseError) {
             // 如果响应不是 JSON，则直接返回文本内容
             content = await response.text();
@@ -640,10 +654,70 @@ async function openAi(msg) {
         console.error('与 AI 通信时发生错误:', error.message);
         return '与 AI 通信时发生错误，请稍后重试。';
     }
-    
+
     return content;
 }
 
+/**
+ * 将OpenAI错误消息转换为简洁易懂的中文描述。
+ * @param {Object} errorData - 包含错误信息的对象。
+ * @returns {string} 转换后的中文描述。
+ */
+function parseErrorMessage(errorData) {
+    const errorMessage = errorData.error.message;
+    const errorType = errorData.error.type;
+    const errorCode = errorData.error.code;
+
+    let response;
+
+    switch (errorCode) {
+        case "account_deactivated":
+            response = "您的OpenAI账户已被停用。";
+            break;
+        case "invalid_request_error":
+            response = "请求无效：" + errorMessage + "，请检查您的请求参数。";
+            break;
+        case "rate_limit_exceeded":
+            response = "请求频率过高，请稍后重试。";
+            break;
+        case "quota_exceeded":
+            response = "您已超出当前配额，请检查您的计划和账单详情。";
+            break;
+        case "invalid_api_key":
+            response = "API密钥无效，请检查您的API密钥是否正确。";
+            break;
+        case "invalid_model":
+            response = "指定的模型无效，请检查模型名称是否正确。";
+            break;
+        case "invalid_parameter":
+            response = "请求参数无效：" + errorMessage + "，请检查您的参数设置。";
+            break;
+        case "missing_parameter":
+            response = "缺少必要参数：" + errorMessage + "，请补充缺失的参数。";
+            break;
+        case "service_unavailable":
+            response = "服务暂时不可用，请稍后再试。";
+            break;
+        case "internal_server_error":
+            response = "服务器内部错误：" + errorMessage + "，请稍后再试或联系支持人员。";
+            break;
+        case "content_too_long":
+            response = "内容过长，请缩短输入内容。";
+            break;
+        case "context_error":
+            response = "上下文错误：" + errorMessage + "，请检查您的上下文设置。";
+            break;
+        default:
+            response = "出现了一个问题：" + errorMessage + "，请稍后再试或联系支持人员。";
+    }
+
+    // 如果错误信息过长，进行简化
+    if (response.length > 100) {
+        response = "出现了一个问题：" + errorMessage.substring(0, 80) + "...，请稍后再试或联系支持人员。";
+    }
+
+    return response;
+}
 
 /**
  * AI对话  新必应 NewBing
