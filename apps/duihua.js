@@ -12,30 +12,37 @@ import path from 'path';
 /** 缓存目录 */
 const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
 
-/** 聊天昵称 */ let NickName = await Config.Chat.NickName;
-/** 发音人列表 */ const VoiceList = await Data.ReadVoiceList();
-/** Chang消息缓存 */ var ForChangeMsg = "";
+/** 聊天昵称 */ 
+let NickName = await Config.Chat.NickName;
+/** 发音人列表 */ 
+const VoiceList = await Data.ReadVoiceList();
+/** Chang消息缓存 */ 
+var cachedEditMessage = "";
 
 // 必应相关变量
 let jailbreakConversationId = '';
 let messageId = '';
 
-/** 工作状态 */ let works = 0;
-
-let zs = 0;
-//https://chatgptmirror.com/chat
-
-let ChatosID = '#/chat/' + Date.now().toString();
-let ChatoFront, ChatoBack = ''
+/** 工作状态 */ 
+let isChatActive = 0;
+/** 消息计数器 */
+let messageCounter = 0;
+/** 会话ID */
+let chatSessionId = '#/chat/' + Date.now().toString();
+/** 前后缓冲区 */
+let chatFrontBuffer, chatBackBuffer = ''
 
 /** GPT提交数据 */
 const ChatData = {
     prompt: '',
-    userId: ChatosID,
+    userId: chatSessionId,
     network: true,
     stream: false,
     system: '',
-    withoutContext: false
+    withoutContext: false,
+    // 新增deepseek专用参数
+    temperature: 0.7,
+    top_p: 0.8
 };
 
 /** 对话数据 */
@@ -47,7 +54,7 @@ const cacheOptions = {
     store: keyv,
 };
 
-export class duihua extends plugin {
+export class ChatHandler extends plugin {
     constructor() {
         super({
             name: '[止水插件]对话',
@@ -71,7 +78,7 @@ export class duihua extends plugin {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?发音人$`,
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^(#|\/)??(止水)?(插件|对话)??设置身份(.*)',
+                    reg: '^#?(止水)?(插件|对话)??设置身份(.*)',
                     fnc: 'SetContext'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?身份$`,
@@ -84,7 +91,7 @@ export class duihua extends plugin {
                     fnc: 'ShowChatScene'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??设置好感度(.*)$`,
-                    fnc: 'SetUserFavora'
+                    fnc: 'updateUserFavor'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??查看好感度(.*)$`,
                     fnc: 'ShowUserFavora'
@@ -138,13 +145,13 @@ export class duihua extends plugin {
     async ResetChat(e) {
         if (!e.isMaster) { return; }
 
-        ForChangeMsg = "";
+        cachedEditMessage = "";
         chatMsg = []
 
 
         Config.modify('duihua', 'MirrorBearer', "");
         Config.modify('duihua', 'MirrorConversationId', "");
-        works = 0;
+        isChatActive = 0;
 
         //重置必应
         messageId = '';
@@ -163,7 +170,7 @@ export class duihua extends plugin {
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             try {
                 // 标记对话状态为进行中      
-                works = 1;
+                isChatActive = 1;
                 // 提取用户消息内容，并去除对话昵称前缀
                 msg = msg.replace(/^#?${NickName}\s*/, '').trim();
                 msg = msg.replace(/{at:/g, '{@');
@@ -196,17 +203,17 @@ export class duihua extends plugin {
                     }
 
                     // 标记对话状态为完成
-                    works = 0;
+                    isChatActive = 0;
                 } else {
                     // 如果没有获取到有效的回复，标记对话状态为未进行
-                    works = 0;
+                    isChatActive = 0;
                     return false;
                 }
             } catch (error) {
                 // 捕获并处理异常，例如输出错误日志
                 console.error('对话处理过程中发生错误:', error);
                 e.reply('发生错误，无法进行对话。');
-                works = 0;
+                isChatActive = 0;
                 return false;
             }
         }
@@ -413,7 +420,7 @@ export class duihua extends plugin {
     }
 
     /** 设置用户好感度 */
-    async SetUserFavora(e) {
+    async updateUserFavor(e) {
 
         if (!e.isMaster) {
             return;
@@ -606,12 +613,25 @@ async function openAi(msg) {
     }
 
     await addMessage({ role: 'user', content: msg });
-    
+
+    // 新增DeepSeek请求头
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/vnd.deepseek.v1+json' // DeepSeek专用accept头
+    };
+
     // 构建请求数据
     const requestData = {
         model: aiModel,
-        presence_penalty: 0,
         messages: chatMsg,
+        // 新增DeepSeek专用参数
+        temperature: 0.7,
+        top_p: 0.8,
+        max_tokens: 1024,
+        presence_penalty: 0,
+        frequency_penalty: 0,
+        stream: false,
     };
 
     let content;
@@ -619,13 +639,17 @@ async function openAi(msg) {
         // 发送 POST 请求
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
-            },
+            headers: headers,
             body: JSON.stringify(requestData),
         });
 
+        // 新增DeepSeek错误码处理
+        if (response.status === 401) {
+            return 'API密钥无效，请检查 Key 配置';
+        }
+        if (response.status === 429) {
+            return '请求过于频繁，请稍后再试';
+        }
         // 检查响应状态码，确保请求成功
         if (!response.ok) {
             console.error(`请求地址：${apiUrl}`);
@@ -642,10 +666,10 @@ async function openAi(msg) {
         try {
             const responseData = await response.json();
             content = responseData.choices[0].message.content.trim();
-            
+
             // 添加 历史消息 和 AI 回复
             await addMessage({ role: 'assistant', content });
-            
+
         } catch (parseError) {
             // 如果响应不是 JSON，则直接返回文本内容
             content = await response.text();
