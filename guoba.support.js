@@ -92,25 +92,25 @@ export function supportGuoba() {
                     label: 'OpenAi设置'
                 },
                 {
-                    field: 'duihua.OpenAiApiUrl',
+                    field: 'duihua.ApiUrl',
                     label: 'API',
                     bottomHelpMessage: '设置对话使用的API',
                     component: 'Input'
                 },
                 {
-                    field: 'duihua.OpenAiApiKey',
+                    field: 'duihua.ApiKey',
                     label: 'KEY',
                     bottomHelpMessage: '设置对话使用的KEY',
                     component: 'Input'
                 },
                 {
-                    field: 'duihua.OpenAiModel',
+                    field: 'duihua.ApiModel',
                     label: '模型',
                     bottomHelpMessage: '设置对话使用的模型',
                     component: 'Input'
                 },
                 {
-                    field: 'duihua.OpenAiMaxHistory',
+                    field: 'duihua.MaxHistory',
                     label: '最大记录',
                     bottomHelpMessage: '最多保存几条对话记录',
                     component: 'Input'
