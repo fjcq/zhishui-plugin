@@ -12,18 +12,18 @@ import path from 'path';
 /** 缓存目录 */
 const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
 
-/** 聊天昵称 */ 
+/** 聊天昵称 */
 let NickName = await Config.Chat.NickName;
-/** 发音人列表 */ 
+/** 发音人列表 */
 const VoiceList = await Data.ReadVoiceList();
-/** Chang消息缓存 */ 
+/** Chang消息缓存 */
 var cachedEditMessage = "";
 
 // 必应相关变量
 let jailbreakConversationId = '';
 let messageId = '';
 
-/** 工作状态 */ 
+/** 工作状态 */
 let isChatActive = 0;
 /** 消息计数器 */
 let messageCounter = 0;
@@ -473,21 +473,29 @@ export class ChatHandler extends plugin {
     }
 
     /** 设置对话模型 */
-    async setModl(e) {
-        if (e.isMaster) {
-            const AiModel = e.msg.replace(/^.*设置模型/, '').trim();
-            await Config.modify('duihua', 'OpenAiModel', AiModel);
-            e.reply(`[对话] 设置模型为： ${AiModel} `);
+    async setModel(e) {
+        if (!e.isMaster) {
+            return;
         };
+        console.log(e.msg);
+        const model = e.msg.replace(/^.*设置模型/, '').trim();
+        const success = await Config.modify('duihua', 'OpenAiModel', model);
+        if(success){
+            e.reply(`[对话] 设置模型为：${model}`);
+        } else {
+            e.reply(`[对话] 设置模型失败！`);
+        }
         return;
     }
 
     /** 查看对话模型 */
-    async showModl(e) {
-        if (e.isMaster) {
-            const AiModel = await Config.Chat.OpenAiModel;
-            e.reply(`[对话] 当前模型为：${AiModel}`);
+    async showModel(e) {
+        if (!e.isMaster) {
+            return;
         };
+
+        const model = await Config.Chat.OpenAiModel;
+        e.reply(`[对话] 当前模型：${model}`);
         return;
     }
 

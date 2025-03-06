@@ -3,7 +3,7 @@
     "search.useGlobalIgnoreFiles": false,
     "eslint.format.enable": false,
     "eslint.packageManager": "pnpm",
-    "terminal.integrated.cwd": "D:\\MyServer\\Miao-Yunzai",
+    "terminal.integrated.cwd": "D:\\Miao-Yunzai",
     "eslint.validate": [
         "javascript",
         "javascriptreact",
