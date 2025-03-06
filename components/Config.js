@@ -136,11 +136,18 @@ class Config {
      * @param {String} key 修改的key值
      * @param {String|Number} value 修改的value值
      * @param {'config'|'default_config'} type 配置文件或默认
+     * @returns {Boolean} 修改成功返回true，失败返回false
      */
     async modify(name, key, value, type = 'config') {
-        let path = `${Plugin_Path}/config/${type}/${name}.yaml`;
-        new YamlReader(path).set(key, value);
-        delete this.config[`${type}.${name}`];
+        try {
+            let path = `${Plugin_Path}/config/${type}/${name}.yaml`;
+            new YamlReader(path).set(key, value);
+            delete this.config[`${type}.${name}`];
+            return true; // 操作成功返回true
+        } catch (error) {
+            console.error(`[止水插件] 配置修改失败: ${error.message}`);
+            return false; // 操作失败返回false
+        }
     }
 
     /**
