@@ -141,14 +141,26 @@ pnpm install --filter=zhishui-plugin
 ## 常见问题  
 
 <details>  
+  <summary>对话功能中，如何使用deepseek</summary>  
+
+- 设置API地址  
+  发送指令：`#止水设置API https://api.deepseek.com/v1/chat/completions`  
+
+- 设置API KEY  
+  发送指令：`#止水设置KEY sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`  
+
+- 设置模型  
+  发送指令：`#止水设置模型 deepseek-chat`  
+
+</details>  
+
+<details>  
   <summary>AI回复</summary>  
 
 - `抱歉，我无法满足这个请求`  
-  角色设定触发了 OpenAI 的安全机制，请修改设定。 
-
+  角色设定触发了 OpenAI 的安全机制，请修改设定。  
 
 - `与 AI 通信时发生错误，请稍后重试。`  
   网络问题，请搬梯子。  
 
-</details>
-
+</details>  
