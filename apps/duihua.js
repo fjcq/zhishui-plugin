@@ -479,7 +479,7 @@ export class ChatHandler extends plugin {
         };
         console.log(e.msg);
         const model = e.msg.replace(/^.*设置模型/, '').trim();
-        const success = await Config.modify('duihua', 'OpenAiModel', model);
+        const success = await Config.modify('duihua', 'ApiModel', model);
         if(success){
             e.reply(`[对话] 设置模型为：${model}`);
         } else {
@@ -494,7 +494,7 @@ export class ChatHandler extends plugin {
             return;
         };
 
-        const model = await Config.Chat.OpenAiModel;
+        const model = await Config.Chat.ApiModel;
         e.reply(`[对话] 当前模型：${model}`);
         return;
     }
@@ -550,7 +550,7 @@ export class ChatHandler extends plugin {
         };
 
         const apiUrl = e.msg.replace(/^.*设置API/, '').trim();
-        await Config.modify('duihua', 'OpenAiApiUrl', apiUrl);
+        await Config.modify('duihua', 'ApiUrl', apiUrl);
         e.reply(`[对话] API URL 设置成功！`);
         return;
     }
@@ -560,7 +560,7 @@ export class ChatHandler extends plugin {
             return;
         };
 
-        const apiUrl = await Config.Chat.OpenAiApiUrl;
+        const apiUrl = await Config.Chat.ApiUrl;
         e.reply(`[对话] API URL：${apiUrl}`);
         return;
     }
@@ -571,7 +571,7 @@ export class ChatHandler extends plugin {
         };
 
         const apiKey = e.msg.replace(/^.*设置KEY/, '').trim();
-        Config.modify('duihua', 'OpenAiApiKey', apiKey);
+        Config.modify('duihua', 'ApiKey', apiKey);
         e.reply(`[对话] API KEY 设置成功！`);
         return;
     }
@@ -581,7 +581,7 @@ export class ChatHandler extends plugin {
             return;
         };
 
-        const apiKey = await Config.Chat.OpenAiApiKey;
+        const apiKey = await Config.Chat.ApiKey;
         e.reply(`[对话] API KEY：${apiKey}`);
         return;
     }
@@ -597,9 +597,9 @@ export class ChatHandler extends plugin {
  */
 async function openAi(msg) {
     const [apiUrl, apiKey, aiModel, MasterQQ, Master] = await Promise.all([
-        Config.Chat.OpenAiApiUrl,
-        Config.Chat.OpenAiApiKey,
-        Config.Chat.OpenAiModel,
+        Config.Chat.ApiUrl,
+        Config.Chat.ApiKey,
+        Config.Chat.ApiModel,
         Config.Chat.MasterQQ,
         Config.Chat.Master
     ]);
@@ -614,8 +614,8 @@ async function openAi(msg) {
     /** 添加新消息 */
     async function addMessage(newMessage) {
         chatMsg.push(newMessage);
-        const OpenAiMaxHistory = await Config.Chat.OpenAiMaxHistory;
-        while (chatMsg.length > OpenAiMaxHistory) {
+        const MaxHistory = await Config.Chat.MaxHistory;
+        while (chatMsg.length > MaxHistory) {
             chatMsg.shift(); // 移除最老的消息
         }
     }
