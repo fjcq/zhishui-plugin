@@ -640,6 +640,7 @@ async function openAi(msg) {
         presence_penalty: 0,
         frequency_penalty: 0,
         stream: false,
+        verbose: false,
     };
 
     let content;

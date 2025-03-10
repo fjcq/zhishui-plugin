@@ -52,24 +52,21 @@ async function help (e) {
   let helpList = diyCfg.helpList || custom.helpList || sysCfg.helpList
   let helpGroup = []
 
-  _.forEach(helpList, (group) => {
-    if (group.auth && group.auth === 'master' && !e.isMaster) {
-      return true
-    }
-
-    _.forEach(group.list, (help) => {
-      let icon = help.icon * 1
-      if (!icon) {
-        help.css = 'display:none'
-      } else {
-        let x = (icon - 1) % 10
-        let y = (icon - x - 1) / 10
-        help.css = `background-position:-${x * 50}px -${y * 50}px`
-      }
+  _.chain(helpList)
+    .filter(group => !(group.auth === 'master' && !e.isMaster))
+    .forEach(group => {
+      _.forEach(group.list, help => {
+        if (!help.icon * 1) {
+          help.css = 'display:none'
+        } else {
+          const x = (help.icon - 1) % 10
+          const y = (help.icon - x - 1) / 10
+          help.css = `background-position:-${x * 50}px -${y * 50}px`
+        }
+      })
+      helpGroup.push(group)
     })
-
-    helpGroup.push(group)
-  })
+    .value()
   return await puppeteer.render('help/index', {
     helpCfg: helpConfig,
     helpGroup,
