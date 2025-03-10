@@ -76,6 +76,12 @@ export function supportGuoba() {
                     component: 'Switch'
                 },
                 {
+                    field: 'duihua.ShowReasoning',
+                    label: '显示推理过程',
+                    bottomHelpMessage: '是否在回复中显示AI的推理过程',
+                    component: 'Switch'
+                },
+                {
                     field: 'duihua.VoiceIndex',
                     label: '语音发音人',
                     bottomHelpMessage: '输入发音人序号，对应序号可以通过 #查看发音人 获取',

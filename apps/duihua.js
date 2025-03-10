@@ -480,7 +480,7 @@ export class ChatHandler extends plugin {
         console.log(e.msg);
         const model = e.msg.replace(/^.*设置模型/, '').trim();
         const success = await Config.modify('duihua', 'ApiModel', model);
-        if(success){
+        if (success) {
             e.reply(`[对话] 设置模型为：${model}`);
         } else {
             e.reply(`[对话] 设置模型失败！`);
@@ -626,14 +626,12 @@ async function openAi(msg) {
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'Accept': 'application/vnd.deepseek.v1+json' // DeepSeek专用accept头
     };
 
     // 构建请求数据
     const requestData = {
         model: aiModel,
         messages: chatMsg,
-        // 新增DeepSeek专用参数
         temperature: 0.7,
         top_p: 0.8,
         max_tokens: 1024,
@@ -641,6 +639,7 @@ async function openAi(msg) {
         frequency_penalty: 0,
         stream: false,
         verbose: false,
+        show_reasoning: await Config.Chat.ShowReasoning
     };
 
     let content;
@@ -674,7 +673,9 @@ async function openAi(msg) {
         // 尝试解析 JSON 响应
         try {
             const responseData = await response.json();
-            content = responseData.choices[0].message.content.trim();
+            let rawContent = responseData.choices[0].message.content.trim();
+            // 移除推理过程保留最终结论
+            content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
 
             // 添加 历史消息 和 AI 回复
             await addMessage({ role: 'assistant', content });
