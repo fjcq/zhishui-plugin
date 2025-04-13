@@ -1,4 +1,35 @@
+/* 删除重复字体定义 */
 @charset "UTF-8";
+
+/* 继承common.css字体 */
+.font-YS {
+  font-family: var(--font-YS);
+}
+.font-NZBZ {
+  font-family: var(--font-NZBZ);
+}
+
+/* 应用CSS变量 */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --accent-color: #ff6b81;
+  --success-color: #28a745;
+  --bg-opacity: 0.5;
+  --font-YS: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+  --font-NZBZ: Number, "印品南征北战NZBZ体", NZBZ, var(--font-YS);
+}
+
+/* BEM规范改造 */
+.search-results__item {
+  width: 200px;
+  background: rgba(255, 255, 255, calc(var(--bg-opacity) + 0.1));
+}
+
+.copyright {
+  font-family: var(--font-YS);
+  color: var(--secondary-color);
+}
 
 @font-face {
     font-family: "Number";
