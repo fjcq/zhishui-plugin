@@ -9,13 +9,13 @@
 </head>
 
 <body>
-    <div class="container">
-        <div class="header">
-            <h1 class="title">{{list.vod_name}}</h1>
-        </div>
+    <main class="container">
+        <header class="header">
+            <h1 class="title font-NZBZ">{{list.vod_name}}</h1>
+        </header>
 
-        <div class="drama-info">
-            <div class="poster">
+        <section class="drama-info">
+            <figure class="poster">
                 {{if showPic == true}}
                 <img src="{{list.vod_pic}}" alt="" />
                 {{else}}
@@ -23,7 +23,7 @@
                 {{/if}}
 
             </div>
-            <div class="info-details">
+            <article class="info-details">
                 <div class="details">
                     <div class="detail-item">
                         <span class="detail-label">分类：</span>
@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <div class="select-line">
+        <aside class="select-line">
             <p class="select-text">
                 当前线路：<font class="text-now">{{playRoutes[CurrentrRoute].RouteName}}</font>，
                 你可以发送<font class="text-now">#线路+数字</font>来切换线路，例如<font class="text-now">#线路2</font>
@@ -73,7 +73,7 @@
 
         </div>
 
-        <div class="select-episode">
+        <aside class="select-episode">
             <p class="select-text">你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如<font class="text-now">#看剧1</font>
             </p>
 
@@ -85,10 +85,10 @@
 
         </div>
 
-        <div class="footer">
-            <p class="copyright">{{@sys.copyright}}</p>
-        </div>
-    </div>
+        <footer class="footer">
+            <p class="copyright font-YS">{{@sys.copyright}}</p>
+        </footer>
+    </main>
 </body>
 
 </html>

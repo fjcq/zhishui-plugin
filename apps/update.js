@@ -3,13 +3,16 @@ import { common } from "../model/index.js"
 import { Plugin_Name } from "../components/index.js"
 let Update = null
 try {
-    Update = (await import("../../other/update.js").catch(e => null))?.update
-    Update ||= (await import("../../system/apps/update.ts")).update
+    Update = (await import("../model/update.js").catch(e => null))?.update
+    Update ||= (await import("./system/update.js")).update
+    if (!Update) throw new Error('Update component not found')
 } catch (e) {
-    logger.error(`[止水插件]未获取到更新js ${logger.yellow("#止水更新")} 将无法使用`)
+    logger.error(`[止水插件]模块加载失败: ${e.message}`)
+    logger.debug(e.stack)
+    logger.mark(`请尝试执行 ${logger.yellow("#止水强制更新")} 修复问题`)
 }
 
-export class YenaiUpdate extends plugin {
+export class zhishuiUpdate extends plugin {
     constructor() {
         super({
             name: "止水更新插件",
@@ -30,10 +33,9 @@ export class YenaiUpdate extends plugin {
 
     async update(e = this.e) {
         if (!common.checkPermission(e, "master")) return
-        e.isMaster = true
         e.msg = `#${e.msg.includes("强制") ? "强制" : ""}更新止水插件`
-        const up = new Update(e)
-        up.e = e
+        const up = new Update()
+        await up.init(e)
         return up.update()
     }
 

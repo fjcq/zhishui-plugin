@@ -6,22 +6,27 @@ import path from 'path';
 const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
 const fs = require('fs');
-const FFMPEG_PATH = "ffmpeg"
+const FFMPEG_BIN = "ffmpeg"
 
 /** 乐器目录 */
-let YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
+const instrumentDirectory = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
 /** 输出目录 */
-let OutputPath = path.join(Plugin_Path, 'resources', 'output');
+const outputDirectory = path.join(Plugin_Path, 'resources', 'output');
 // 检查并创建目录
-if (!fs.existsSync(OutputPath)) {
-    fs.mkdirSync(OutputPath);
+if (!fs.existsSync(outputDirectory)) {
+    fs.mkdirSync(outputDirectory);
 }
 
 /** 输出格式 (默认值：.wav) */
-let Format = ".wav";
-let kg = 0;
+const outputFormat = ".wav";
+// 私有属性表示演奏状态
+this._playing = 0;
 
-export class yanzou extends plugin {
+export class YanzouPlayer extends plugin {
+    _yanzouPath = '';
+    _playing = 0;
+    isProcessing = false;
+
     constructor() {
         super({
             name: '[止水插件]演奏',
@@ -31,23 +36,28 @@ export class yanzou extends plugin {
             rule: [
                 {
                     reg: "^(#|\/)?演奏(.*)",
-                    fnc: 'Played'
+                    fnc: 'handlePlayCommand'
                 }, {
                     reg: "^(#|\/)?取消演奏$",
-                    fnc: 'PlayeStop'
+                    fnc: 'stopPlayback'
                 }, {
                     reg: "^(#|\/)?高品质演奏(开启|关闭)$",
-                    fnc: 'PlayeQuality'
+                    fnc: 'togglePlayQuality'
                 }, {
                     reg: "^(#|\/)?调试演奏(.*)$",
-                    fnc: 'TestPlaye'
+                    fnc: 'testPlayback'
                 }
             ]
         })
     }
 
-    async Played(e) {
-        let zhiling = e.msg.replace(/#演奏/g, "").trim()
+    /**
+ * 处理演奏指令
+ * @param {Object} e 事件对象
+ * @returns {Promise<boolean>} 返回执行结果
+ */
+    async handlePlayCommand(event) {
+        const commandContent = event.msg.replace(/#演奏/g, "").trim()
         let msg = ""
         if (zhiling == "帮助") {
             msg = GetPlayHelp()
@@ -55,31 +65,31 @@ export class yanzou extends plugin {
             return;
         }
 
-        if (kg == 1) {
+        if (isProcessing) {
             msg = `正在准备演奏呢，你先别急~~`;
             e.reply(msg);
             return;
         }
 
-        kg = 1
-        let FFmpegCommand = await GetFFmpegCommand(e.msg);
+        this._playing = 1
+        let ffmpegArguments = await GetffmpegArguments(e.msg);
 
-        console.log(FFmpegCommand);
-        if (FFmpegCommand != undefined && FFmpegCommand.length > 3) {
+        console.log(ffmpegArguments);
+        if (ffmpegArguments != undefined && ffmpegArguments.length > 3) {
             msg = `我要准备演奏了，请稍等一哈！`;
             e.reply(msg);
         } else {
             msg = GetPlayHelp();
             e.reply(msg);
-            kg = 0;
+            this._playing = 0;
             return;
         }
 
 
         const ffmpeg = spawn(
-            FFMPEG_PATH,
-            FFmpegCommand,
-            { cwd: YueqiPath }
+            FFMPEG_BIN,
+            ffmpegArguments,
+            { cwd: instrumentDirectory }
         );
         //console.log(ffmpeg);
         let stdoutData = "";
@@ -88,7 +98,7 @@ export class yanzou extends plugin {
             console.error(`Failed to start ffmpeg: ${err}`);
             msg = '你还没有配置ffmpeg的环境变量，请到这里下载https://ffmpeg.org/download.html，并配置环境变量';
             e.reply(msg);
-            kg = 0;
+            this._playing = 0;
             return;
         });
         ffmpeg.stdout.on('data', (data) => {
@@ -105,7 +115,12 @@ export class yanzou extends plugin {
                 await sleep(1000)
 
                 let fileName = path.join(OutputPath, `output${Format}`)
-                console.log("合成音频成功：" + fileName);
+                console.debug('[DEBUG] 合成音频成功 =>', fileName);
+                try {
+                    fs.unlinkSync(fileName);
+                } catch (e) {
+                    console.debug('清理临时文件失败:', e.message);
+                }
                 let played
                 try {
                     played = await uploadRecord(fileName, 0, false)
@@ -115,7 +130,7 @@ export class yanzou extends plugin {
                     e.reply(played)
                 }
 
-                kg = 0
+                isProcessing = false
                 return true;
             } else {
                 switch (code) {
@@ -158,7 +173,7 @@ export class yanzou extends plugin {
                 }
                 console.log("FFmpeg 标准错误流：", stderrData);
                 e.reply(`合成音频失败，${msg}！`);
-                kg = 0
+                isProcessing = false
                 return
             }
         });
@@ -167,16 +182,26 @@ export class yanzou extends plugin {
     }
 
     /** 取消演奏 */
-    async PlayeStop(e) {
-        if (kg == 1) {
-            e.reply('已经取消演奏！')
-            kg = 0
+    /**
+ * 取消演奏指令
+ * @param {Object} e 事件对象
+ * @returns {Promise<boolean>} 返回执行结果
+ */
+    async stopPlayback(event) {
+        if (this.isProcessing) {
+            event.reply('已经取消演奏！')
+            this.isProcessing = false
             return true;
         }
     }
 
     /** 高品质演奏 */
-    async PlayeQuality(e) {
+    /**
+ * 切换演奏品质模式
+ * @param {Object} e 事件对象
+ * @returns {Promise<boolean>} 返回执行结果
+ */
+    async togglePlayQuality(event) {
         if (e.isMaster == false) {
             return false; //不是主人
         };
@@ -194,6 +219,11 @@ export class yanzou extends plugin {
         return true;
     }
     //演奏测试
+    /**
+ * 演奏功能调试方法
+ * @param {Object} e 事件对象
+ * @returns {Promise<boolean>} 返回调试结果
+ */
     async TestPlaye(e) {
         let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
         await mergeAudio(zhiling, YueqiPath, OutputPath);
@@ -204,18 +234,70 @@ export class yanzou extends plugin {
     }
 }
 
-
+/**
+ * 异步延时函数
+ * @param {number} ms 毫秒数
+ * @returns {Promise} 返回延时Promise
+ */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
-
-
 
 /**
 * 获取Ffmpeg的执行代码，返回参数数组
 * @param msg 土块编码消息
 */
-async function GetFFmpegCommand(msg) {
+// 解析乐谱符号
+function parseNotation(notation) {
+    const noteReg = /([+-]?)(\d)(_*)/g;
+    const notes = [];
+    let match;
+
+    while ((match = noteReg.exec(notation)) !== null) {
+        const [full, sign, note, beats] = match;
+        const duration = Math.pow(0.5, beats.length);
+        const fileName = `${sign}${note}.wav`;
+
+        notes.push({
+            file: fileName,
+            duration: duration,
+            sign: sign || '+'
+        });
+    }
+    return notes;
+}
+
+// 构建音频拼接过滤器
+function buildConcatFilter(notes, bpm) {
+    let filterStr = '';
+    const inputs = [];
+    let totalDelay = 0;
+    const beatDuration = 60000 / bpm; // 每拍毫秒数
+
+    notes.forEach((note, index) => {
+        const delay = totalDelay;
+        const duration = beatDuration * note.duration;
+
+        filterStr += `[${index}]adelay=${delay}|${delay}[a${index}];`;
+        inputs.push(`[a${index}]`);
+
+        totalDelay += duration;
+    });
+
+    filterStr += `${inputs.join('')}amix=inputs=${notes.length}:duration=longest[aout]`;
+    return filterStr;
+}
+
+/**
+ * 构建FFmpeg音频合成命令
+ * @param {string} msg 原始消息内容
+ * @returns {Array} FFmpeg命令行参数数组
+ */
+async function GetffmpegArguments(msg) {
+    console.debug('[DEBUG] 开始解析乐谱');
+    const progressInterval = setInterval(() => {
+        console.debug('[PROGRESS] 音频合成中...');
+    }, 5000);
     let Music = ""
     let Beats = 0;
     let File = ""; //文件名
@@ -242,9 +324,9 @@ async function GetFFmpegCommand(msg) {
     }
     Format = ".wav"
     if (Yueqi == "八音盒") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ba');
+        this._yanzouPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ba');
     } else if (Yueqi == "钢琴") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
+        this._yanzouPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
     } else if (Yueqi == "古筝") {
         YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gu');
     } else if (Yueqi == "吉他") {
@@ -346,6 +428,8 @@ async function GetFFmpegCommand(msg) {
         result
     }
 
+    clearInterval(progressInterval);
+    console.debug('[DEBUG] FFmpeg命令构建完成');
     return result;
 
 }
@@ -381,6 +465,11 @@ function GetPlayHelp() {
  * @param obj 对象
  * @returns obj==null/undefined,return false,other return true
  */
+/**
+ * 检查对象有效性
+ * @param {any} obj 待检查对象
+ * @returns {boolean} 是否有效
+ */
 function isNotNull(obj) {
     if (obj == undefined || obj == null || obj != obj) { return false }
     return true
@@ -392,6 +481,13 @@ function isNotNull(obj) {
  * @param {string} inputDirectory 输入目录，包含音频文件
  * @param {string} outputDirectory 输出目录，用于保存合成后的音频文件
  * @returns {Promise} 返回一个 Promise，在音频文件合并并保存到指定的输出目录时解析
+ */
+/**
+ * 合并多个音频文件
+ * @param {string} inputString 输入指令字符串（包含文件名和节拍）
+ * @param {string} inputDirectory 输入目录路径
+ * @param {string} outputDirectory 输出目录路径
+ * @returns {Promise} 返回音频处理Promise
  */
 async function mergeAudio(inputString, inputDirectory, outputDirectory) {
     const ffmpeg = require('fluent-ffmpeg');
