@@ -4,7 +4,6 @@ import fs from 'fs';
 import { Plugin_Path, Config } from '../components/index.js';
 import request from '../lib/request/request.js';
 import Data from '../components/Data.js';
-//import BingAIClient from '../model/BingAIClient.js';
 import { BingAIClient } from '@waylaidwanderer/chatgpt-api';
 import { KeyvFile } from 'keyv-file';
 import path from 'path';
