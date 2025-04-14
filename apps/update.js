@@ -1,16 +1,7 @@
 /* eslint-disable import/no-unresolved */
 import { common } from "../model/index.js"
 import { Plugin_Name } from "../components/index.js"
-let Update = null
-try {
-    Update = (await import("../model/update.js").catch(e => null))?.update
-    Update ||= (await import("./system/update.js")).update
-    if (!Update) throw new Error('Update component not found')
-} catch (e) {
-    logger.error(`[止水插件]模块加载失败: ${e.message}`)
-    logger.debug(e.stack)
-    logger.mark(`请尝试执行 ${logger.yellow("#止水强制更新")} 修复问题`)
-}
+import { update } from "../../other/update.js"
 
 export class zhishuiUpdate extends plugin {
     constructor() {
@@ -34,14 +25,14 @@ export class zhishuiUpdate extends plugin {
     async update(e = this.e) {
         if (!common.checkPermission(e, "master")) return
         e.msg = `#${e.msg.includes("强制") ? "强制" : ""}更新止水插件`
-        const up = new Update()
+        const up = new update()
         await up.init(e)
         return up.update()
     }
 
     async update_log() {
         // eslint-disable-next-line new-cap
-        let Update_Plugin = new Update()
+        let Update_Plugin = new update()
         Update_Plugin.e = this.e
         Update_Plugin.reply = this.reply
 

@@ -6,24 +6,25 @@ import path from 'path';
 const require = createRequire(import.meta.url)
 const { spawn } = require("child_process");
 const fs = require('fs');
-const FFMPEG_BIN = "ffmpeg"
 
+/** 演奏目录 */
+const YANZOU_PATH = path.join(Plugin_Path, 'resources', 'yanzou');
 /** 乐器目录 */
-const instrumentDirectory = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
-/** 输出目录 */
-const outputDirectory = path.join(Plugin_Path, 'resources', 'output');
-// 检查并创建目录
-if (!fs.existsSync(outputDirectory)) {
-    fs.mkdirSync(outputDirectory);
-}
+let YUEQI_PATH = "";
 
-/** 输出格式 (默认值：.wav) */
-const outputFormat = ".wav";
-// 私有属性表示演奏状态
-this._playing = 0;
+/** 输出目录 */
+const OUTPUT_PATH = path.join(Plugin_Path, 'resources', 'output');
+// 检查并创建目录
+if (!fs.existsSync(OUTPUT_PATH)) {
+    fs.mkdirSync(OUTPUT_PATH);
+}
+/** 输出格式 */
+let OutFormat = ".wav";
+/** 输出文件名 */
+let OutFile = ""
 
 export class YanzouPlayer extends plugin {
-    _yanzouPath = '';
+
     _playing = 0;
     isProcessing = false;
 
@@ -49,6 +50,7 @@ export class YanzouPlayer extends plugin {
                 }
             ]
         })
+        this._playing = 0;
     }
 
     /**
@@ -56,16 +58,16 @@ export class YanzouPlayer extends plugin {
  * @param {Object} e 事件对象
  * @returns {Promise<boolean>} 返回执行结果
  */
-    async handlePlayCommand(event) {
-        const commandContent = event.msg.replace(/#演奏/g, "").trim()
+    async handlePlayCommand(e) {
+        const commandContent = e.msg.replace(/#演奏/g, "").trim()
         let msg = ""
-        if (zhiling == "帮助") {
-            msg = GetPlayHelp()
-            e.reply(msg)
+        if (commandContent == "帮助") {
+            msg = GetPlayHelp();
+            e.reply(msg);
             return;
         }
 
-        if (isProcessing) {
+        if (this.isProcessing) {
             msg = `正在准备演奏呢，你先别急~~`;
             e.reply(msg);
             return;
@@ -87,9 +89,9 @@ export class YanzouPlayer extends plugin {
 
 
         const ffmpeg = spawn(
-            FFMPEG_BIN,
+            "ffmpeg",
             ffmpegArguments,
-            { cwd: instrumentDirectory }
+            { cwd: YUEQI_PATH }
         );
         //console.log(ffmpeg);
         let stdoutData = "";
@@ -114,23 +116,23 @@ export class YanzouPlayer extends plugin {
             if (code === 0) {
                 await sleep(1000)
 
-                let fileName = path.join(OutputPath, `output${Format}`)
-                console.debug('[DEBUG] 合成音频成功 =>', fileName);
+                OutFile = path.join(OUTPUT_PATH, `output${OutFormat}`)
+                console.debug('[DEBUG] 合成音频成功 =>', OutFile);
                 try {
-                    fs.unlinkSync(fileName);
+                    fs.unlinkSync(OutFile);
                 } catch (e) {
                     console.debug('清理临时文件失败:', e.message);
                 }
                 let played
                 try {
-                    played = await uploadRecord(fileName, 0, false)
+                    played = await uploadRecord(OutFile, 0, false)
                     e.reply(played)
                 } catch {
-                    played = await segment.record(fileName)
+                    played = await segment.record(OutFile)
                     e.reply(played)
                 }
 
-                isProcessing = false
+                this.isProcessing = false
                 return true;
             } else {
                 switch (code) {
@@ -173,7 +175,7 @@ export class YanzouPlayer extends plugin {
                 }
                 console.log("FFmpeg 标准错误流：", stderrData);
                 e.reply(`合成音频失败，${msg}！`);
-                isProcessing = false
+                this.isProcessing = false
                 return
             }
         });
@@ -187,9 +189,9 @@ export class YanzouPlayer extends plugin {
  * @param {Object} e 事件对象
  * @returns {Promise<boolean>} 返回执行结果
  */
-    async stopPlayback(event) {
+    async stopPlayback(e) {
         if (this.isProcessing) {
-            event.reply('已经取消演奏！')
+            e.reply('已经取消演奏！')
             this.isProcessing = false
             return true;
         }
@@ -201,7 +203,7 @@ export class YanzouPlayer extends plugin {
  * @param {Object} e 事件对象
  * @returns {Promise<boolean>} 返回执行结果
  */
-    async togglePlayQuality(event) {
+    async togglePlayQuality(e) {
         if (e.isMaster == false) {
             return false; //不是主人
         };
@@ -224,13 +226,11 @@ export class YanzouPlayer extends plugin {
  * @param {Object} e 事件对象
  * @returns {Promise<boolean>} 返回调试结果
  */
-    async TestPlaye(e) {
+    async testPlayback(e) {
         let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
-        await mergeAudio(zhiling, YueqiPath, OutputPath);
-
-        let fileName = path.join(OutputPath, `output${Format}`)
-
-        e.reply([segment.record(fileName)]);
+        await mergeAudio(zhiling, YUEQI_PATH, OUTPUT_PATH);
+        let OutFile = path.join(OUTPUT_PATH, `output${OutFormat}`)
+        e.reply([segment.record(OutFile)]);
     }
 }
 
@@ -322,25 +322,26 @@ async function GetffmpegArguments(msg) {
     } else {
         Yueqi = "钢琴"
     }
-    Format = ".wav"
+    OutFormat = ".wav"
+
     if (Yueqi == "八音盒") {
-        this._yanzouPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ba');
+        YUEQI_PATH = path.join(YANZOU_PATH, 'ba');
     } else if (Yueqi == "钢琴") {
-        this._yanzouPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
+        YUEQI_PATH = path.join(YANZOU_PATH, 'gangqin');
     } else if (Yueqi == "古筝") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gu');
+        YUEQI_PATH = path.join(YANZOU_PATH,'gu');
     } else if (Yueqi == "吉他") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'jita');
+        YUEQI_PATH = path.join(YANZOU_PATH,  'jita');
     } else if (Yueqi == "萨克斯") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'sa');
+        YUEQI_PATH = path.join(YANZOU_PATH,  'sa');
     } else if (Yueqi == "小提琴") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'ti');
+        YUEQI_PATH = path.join(YANZOU_PATH,  'ti');
     } else if (Yueqi == "箫") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'xiao');
+        YUEQI_PATH = path.join(YANZOU_PATH,  'xiao');
     } else if (Yueqi == "西域琴") {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'xiyu');
+        YUEQI_PATH = path.join(YANZOU_PATH,  'xiyu');
     } else {
-        YueqiPath = path.join(Plugin_Path, 'resources', 'yanzou', 'gangqin');
+        YUEQI_PATH = path.join(YANZOU_PATH, 'gangqin');
     }
 
     //算出每分钟节拍数
@@ -371,7 +372,7 @@ async function GetffmpegArguments(msg) {
         //拼接ffmpeg参数
         if (Number(File) != 0 && Music != undefined) {
             result.push(`-i`)
-            result.push(`${File}${Format}`)
+            result.push(`${File}${OutFormat}`)
             settime += `[${quantity}]adelay=${Math.round(currenttime)}:all=1[${quantity}a];`;
             setorder += `[${quantity}a]`;
             quantity += 1
@@ -420,7 +421,7 @@ async function GetffmpegArguments(msg) {
         // result.push(`12.2k`)
         // result.push(`-ac`)
         // result.push(`1`)
-        let fileName = path.join(OutputPath, `output${Format}`)
+        let fileName = path.join(OUTPUT_PATH, `output${OutFormat}`)
         result.push(`${fileName}`)
         //result = `${ setfile } -filter_complex ${ settime }${ setorder } amix = inputs = ${ quantity }: dropout_transition = 0: normalize = 0, dynaudnorm[a] - map[a] ${ output } `
 
@@ -479,17 +480,10 @@ function isNotNull(obj) {
  * 合并音频文件
  * @param {string} inputString 输入字符串，包含文件名和节拍信息
  * @param {string} inputDirectory 输入目录，包含音频文件
- * @param {string} outputDirectory 输出目录，用于保存合成后的音频文件
+ * @param {string} OUTPUT_PATH 输出目录，用于保存合成后的音频文件
  * @returns {Promise} 返回一个 Promise，在音频文件合并并保存到指定的输出目录时解析
  */
-/**
- * 合并多个音频文件
- * @param {string} inputString 输入指令字符串（包含文件名和节拍）
- * @param {string} inputDirectory 输入目录路径
- * @param {string} outputDirectory 输出目录路径
- * @returns {Promise} 返回音频处理Promise
- */
-async function mergeAudio(inputString, inputDirectory, outputDirectory) {
+async function mergeAudio(inputString, inputDirectory, OUTPUT_PATH) {
     const ffmpeg = require('fluent-ffmpeg');
     return new Promise((resolve, reject) => {
         // 分割输入字符串，获取文件名和节拍信息
@@ -552,6 +546,6 @@ async function mergeAudio(inputString, inputDirectory, outputDirectory) {
             //.on('stderr', console.log)
             .on('end', () => resolve())
             .on('error', (err) => reject(err))
-            .save(path.join(outputDirectory, 'output.mp3'));
+            .save(path.join(OUTPUT_PATH, 'output.mp3'));
     });
 }
