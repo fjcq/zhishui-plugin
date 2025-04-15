@@ -182,17 +182,38 @@ export class ChatHandler extends plugin {
                     }
                 };
                 const MessageText = JSON.stringify(userMessage);
-                console.log("止水对话 -> " + MessageText );
+                console.log("止水对话 -> " + MessageText);
 
                 // 发送消息到 openAi 进行对话
                 let response = await openAi(MessageText);
 
                 if (response) {
                     // 构造结构化回复
-                    const replyObj = JSON.parse(response);
-                    if (!replyObj.message || !replyObj.favor_changes) {
-                        throw new Error('无效的AI响应格式');
+                    // 清理响应中的Markdown代码块
+                    // 预处理响应内容
+                    const cleanedResponse = response
+                        .replace(/```json|```/g, '')
+                        .replace(/^\s*\n/, '')
+                        .trim();
+
+                    // 严格JSON格式校验
+                    let replyObj;
+                    try {
+                        replyObj = JSON.parse(cleanedResponse);
+                        if (typeof replyObj !== 'object' || !replyObj.message) {
+                            replyObj = {
+                                message: cleanedResponse,
+                                favor_changes: []
+                            };
+                        }
+                    } catch (error) {
+                        console.error('JSON解析失败，使用原始响应:', error);
+                        replyObj = {
+                            message: response,
+                            favor_changes: []
+                        };
                     }
+                    replyObj.favor_changes = replyObj.favor_changes || [];
 
                     // 缓存对话消息
                     chatMsg.push({ role: 'user', content: MessageText });
