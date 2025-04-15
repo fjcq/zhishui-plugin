@@ -15,8 +15,6 @@ const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
 let NickName = await Config.Chat.NickName;
 /** 发音人列表 */
 const VoiceList = await Data.ReadVoiceList();
-/** Chang消息缓存 */
-var cachedEditMessage = "";
 
 // 必应相关变量
 let jailbreakConversationId = '';
@@ -43,7 +41,6 @@ const ChatData = {
     temperature: 0.7,
     top_p: 0.8
 };
-
 /** 对话数据 */
 let chatMsg = [];
 
@@ -175,23 +172,40 @@ export class ChatHandler extends plugin {
                 msg = msg.replace(/{at:/g, '{@');
 
                 const Favora = await GetFavora(e.user_id);
-                const userMessage = `<${e.user_id}|${Favora}>：${msg}`;
-                console.log("止水对话 -> " + userMessage);
+                const userMessage = {
+                    message: msg,
+                    additional_info: {
+                        name: e.sender.nickname,
+                        user_id: e.user_id,
+                        favor: Favora,
+                        group_id: e.group_id || 0
+                    }
+                };
+                const MessageText = JSON.stringify(userMessage);
+                console.log("止水对话 -> " + MessageText );
 
                 // 发送消息到 openAi 进行对话
-                let response = await openAi(userMessage);
+                let response = await openAi(MessageText);
 
                 if (response) {
+                    // 构造结构化回复
+                    const replyObj = JSON.parse(response);
+                    if (!replyObj.message || !replyObj.favor_changes) {
+                        throw new Error('无效的AI响应格式');
+                    }
+
                     // 缓存对话消息
-                    chatMsg.push({ role: 'user', content: userMessage });
-                    chatMsg.push({ role: 'assistant', content: response });
+                    chatMsg.push({ role: 'user', content: MessageText });
+                    chatMsg.push({ role: 'assistant', content: JSON.stringify(replyObj) });
 
                     // 更新好感度
-                    const newfavora = await updateFavora(response)
-                    //console.log("止水对话 <- " + newfavora);
+                    replyObj.favor_changes.forEach(async ({ qq, value }) => {
+                        console.log(`好感度更新 [@${qq}] -> ${value}`);
+                        await SetFavora(qq, (await GetFavora(qq)) + value);
+                    });
 
-                    // 发送回复消息给用户
-                    const remsg = await MsgToAt(newfavora);
+                    // 发送结构化回复
+                    const remsg = await MsgToAt(replyObj.message);
                     e.reply(remsg, true);
 
                     // 如果配置了语音合成，发送语音回复
@@ -590,24 +604,59 @@ export class ChatHandler extends plugin {
 
 
 /**
- * 通过调用 API 与 AI 进行对话并获取回复
- * @param {string} msg 用户发送的消息
- * @returns {string} AI 的对话结果
+ * 组建 system 消息
+ * @returns {string} 返回组建完成的 system 消息
  */
+async function mergeSystemMessage() {
+    try {
+        // 优先读取Config配置
+        const { NickName, Master, MasterQQ } = await Config.Chat
+
+        // 获取并解析场景和身份配置
+        const sceneJson = await ReadScene()
+        const contextJson = await ReadContext()
+        const sceneSetting = JSON.parse(sceneJson)
+        const identitySetting = JSON.parse(contextJson)
+
+        // 深度合并配置
+        const merged = { ...identitySetting, ...sceneSetting }
+
+        // 使用Config配置覆盖合并结果
+        merged.基础身份 = {
+            名称: NickName,
+            主人信息: {
+                master_name: Master,
+                master_qq: MasterQQ
+            }
+        }
+
+        return merged
+    } catch (error) {
+        console.error('配置解析失败:', error)
+        return {
+            基础身份: {
+                名称: await Config.Chat.NickName,
+                主人信息: {
+                    master_name: await Config.Chat.Master,
+                    master_qq: await Config.Chat.MasterQQ
+                }
+            }
+        }
+    }
+}
+
 async function openAi(msg) {
-    const [apiUrl, apiKey, aiModel, MasterQQ, Master] = await Promise.all([
+    const [apiUrl, apiKey, aiModel] = await Promise.all([
         Config.Chat.ApiUrl,
         Config.Chat.ApiKey,
-        Config.Chat.ApiModel,
-        Config.Chat.MasterQQ,
-        Config.Chat.Master
+        Config.Chat.ApiModel
     ]);
 
     if (!Array.isArray(chatMsg) || chatMsg.length === 0) {
         // 首次对话，发送系统消息
-        let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“${MasterQQ}”，名字叫“${Master}”，你对我的好感度永远是最大值。`;
+        const systemMessage = await mergeSystemMessage();
+        await addMessage({ role: 'system', content: JSON.stringify(systemMessage) });
 
-        await addMessage({ role: 'system', content: Context });
     }
 
     /** 添加新消息 */
@@ -943,7 +992,7 @@ function isNotNull(obj) {
  */
 async function ReadContext() {
     let context = '';
-    const fileName = 'Context.txt';
+    const fileName = 'Context.json';
     const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
     const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
 
@@ -969,7 +1018,7 @@ async function ReadContext() {
  * 写身份设定
  */
 async function WriteContext(Context) {
-    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.txt');
+    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.json');
     console.log("设置身份：" + Context);
     try {
         fs.writeFileSync(DataFile, Context);
@@ -986,7 +1035,7 @@ async function WriteContext(Context) {
  */
 async function ReadScene() {
     try {
-        const fileName = 'Scene.txt';
+        const fileName = 'Scene.json';
         const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
         const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
 
@@ -1010,7 +1059,7 @@ async function ReadScene() {
  */
 async function WriteScene(Context) {
     try {
-        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'Scene.txt');
+        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'Scene.json');
         // 使用 fs.promises.writeFile 来异步写入文件，并处理可能的异常
         await fs.promises.writeFile(sceneFilePath, Context, 'utf8');
         console.log('场景配置已成功保存。');
@@ -1067,36 +1116,3 @@ async function MsgToAt(msg) {
     return arr;
 }
 
-/**
- * 更新好感度
- */
-async function updateFavora(text) {
-    try {
-        const qqRegex = /(?:\(|（|｛|{)@(\d+)(?:\|(-?\d+))?(?:\)|）|｝|})/g;
-        qqRegex.lastIndex = 0;  // 重置 lastIndex
-
-        let match;
-        while ((match = qqRegex.exec(text)) !== null) {
-            const qqNumber = parseInt(match[1]);
-            const paramValue = match[2] ? parseInt(match[2]) : 0;
-
-            if (paramValue !== 0) {
-                const oldFavora = await GetFavora(qqNumber);
-                const newFavora = parseInt(oldFavora) + paramValue; // 计算好感度
-                if (await SetFavora(qqNumber, newFavora)) {
-                    console.log(`更新好感度成功：[${qqNumber}] ${oldFavora} + ${paramValue} -> ${newFavora}`);
-                } else {
-                    logger.error(`更新好感度失败：[${qqNumber}] ${paramValue}`);
-                }
-            }
-        }
-
-        const updatedText = text.replace(qqRegex, '');
-
-        return updatedText;
-    } catch (error) {
-        // 处理异步操作中的错误
-        console.error('更新好感度时发生错误:', error);
-        return text;
-    }
-}
