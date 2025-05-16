@@ -182,12 +182,15 @@ export class ChatHandler extends plugin {
                     }
                 };
                 const MessageText = JSON.stringify(userMessage);
-                console.log("止水对话 -> " + MessageText);
+                console.log("止水对话 <- " + MessageText);
 
                 // 发送消息到 openAi 进行对话
                 let response = await openAi(MessageText);
 
                 if (response) {
+
+                    console.log("止水对话 -> " + response);
+
                     // 构造结构化回复
                     // 清理响应中的Markdown代码块
                     // 预处理响应内容
@@ -220,9 +223,9 @@ export class ChatHandler extends plugin {
                     chatMsg.push({ role: 'assistant', content: JSON.stringify(replyObj) });
 
                     // 更新好感度
-                    replyObj.favor_changes.forEach(async ({ qq, value }) => {
-                        console.log(`好感度更新 [@${qq}] -> ${value}`);
-                        await SetFavora(qq, (await GetFavora(qq)) + value);
+                    replyObj.favor_changes.forEach(async ({ user_id, change }) => {
+                        console.log(`好感度更新 [@${user_id}] -> ${change}`);
+                        await SetFavora(user_id, (await GetFavora(user_id)) + change);
                     });
 
                     // 发送结构化回复
@@ -701,11 +704,14 @@ async function openAi(msg) {
     const requestData = {
         model: aiModel,
         messages: chatMsg,
-        temperature: 0.7,
+        temperature: 1.3,
         top_p: 0.8,
-        max_tokens: 1024,
+        max_tokens: 2048,
         presence_penalty: 0,
         frequency_penalty: 0,
+        response_format: {
+            type: 'json_object'
+        },
         stream: false,
         verbose: false,
         show_reasoning: await Config.Chat.ShowReasoning
