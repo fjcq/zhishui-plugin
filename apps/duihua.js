@@ -182,14 +182,14 @@ export class ChatHandler extends plugin {
                     }
                 };
                 const MessageText = JSON.stringify(userMessage);
-                console.log("止水对话 <- " + MessageText);
+                console.log("止水对话 -> " + MessageText);
 
                 // 发送消息到 openAi 进行对话
                 let response = await openAi(MessageText);
 
                 if (response) {
 
-                    console.log("止水对话 -> " + response);
+                    console.log("止水对话 <- " + response);
 
                     // 构造结构化回复
                     // 清理响应中的Markdown代码块
@@ -704,11 +704,13 @@ async function openAi(msg) {
     const requestData = {
         model: aiModel,
         messages: chatMsg,
-        temperature: 1.3,
+        temperature: 0.7,
         top_p: 0.8,
         max_tokens: 2048,
         presence_penalty: 0,
-        frequency_penalty: 0,
+        frequency_penalty: 0.5,
+        top_p: 0.7,
+        top_k: 50,
         response_format: {
             type: 'json_object'
         },
