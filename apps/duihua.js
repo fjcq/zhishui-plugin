@@ -502,7 +502,6 @@ export class ChatHandler extends plugin {
         }
     }
 
-
 }
 
 
@@ -710,128 +709,6 @@ function parseErrorMessage(errorData) {
     }
 
     return response;
-}
-
-/**
- * AI对话  新必应 NewBing
- *
- * @param {string} msg 发送消息
- * @return {string} 对话结果
- */
-async function AiBing(msg) {
-    let BingCookie = await Config.Chat.BingCookie;
-    let Bingres = {};
-    if (BingCookie == "") {
-        return undefined;
-    }
-
-    let proxy = await Config.proxy.switchProxy ? await Config.proxy.proxyAddress : '';
-    /** 必应选项 */
-    const options = {
-        host: 'https://cn.bing.com',
-        userToken: '',
-        cookies: BingCookie,
-        proxy: proxy,
-        debug: false,
-    };
-
-    /** 必应客户端 */
-    const bingAIClient = new BingAIClient({
-        ...options,
-        cache: cacheOptions,
-    });
-
-    let nickname = await Config.Chat.NickName;
-    let masterQQ = await Config.Chat.MasterQQ;
-    let master = await Config.Chat.Master;
-
-    //为设置昵称、主人、主人QQ
-    if (!nickname || !masterQQ || !master) {
-        return undefined;
-    }
-
-    //载入身份预设
-    let Context = await ReadContext() + await ReadScene() + `我的QQ号码是“{MasterQQ}”，名字叫“{Master}”，你对我的好感度永远是最大值。`;
-    Context = Context.replace(/{NickName}/g, nickname);
-    Context = Context.replace(/{MasterQQ}/g, masterQQ);
-    Context = Context.replace(/{Master}/g, master);
-
-    let ResText = '';
-    let toneStyle = await Config.Chat.toneStyle;
-    if (!isNotNull(toneStyle)) { toneStyle = `creative`; };
-
-    // console.log(toneStyle);
-    // 首次对话 初始化参数和身份设定
-    if (!messageId || !jailbreakConversationId) {
-        Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: toneStyle, // 默认：balanced, 创意：creative, 精确：precise, 快速：fast
-            jailbreakConversationId: true,
-            systemMessage: Context,
-            clientOptions: {
-                features: {
-                    genImage: {
-                        enable: true,
-                        type: 'markdown_list',
-                    },
-                },
-            },
-            onProgress: (token) => {
-                process.stdout.write(token);
-                ResText += token;
-            },
-        });
-        jailbreakConversationId = Bingres.jailbreakConversationId;
-        messageId = Bingres.messageId;
-
-        console.log(JSON.stringify(Bingres, null, 2));
-
-    } else {
-        //开始正式对话
-        Bingres = await bingAIClient.sendMessage(msg, {
-            toneStyle: toneStyle,
-            jailbreakConversationId: jailbreakConversationId,
-            systemMessage: Context,
-            clientOptions: {
-                features: {
-                    genImage: {
-                        enable: true,
-                        type: 'markdown_list',
-                    },
-                },
-            },
-            parentMessageId: messageId,
-            onProgress: (token) => {
-                process.stdout.write(token);
-                ResText += token;
-            },
-        });
-        jailbreakConversationId = Bingres.jailbreakConversationId;
-        messageId = Bingres.messageId;
-    }
-
-    Data.sleep(1000);
-    // console.log(JSON.stringify(Bingres, null, 2));
-
-    const LinkMode = await Config.Chat.LinkMode;
-    if (!ResText) {
-        if (LinkMode && Bingres.details.adaptiveCards[0].body[0].text) {
-            ResText = Bingres.details.adaptiveCards[0].body[0].text;
-        } else if (Bingres.details.text && Bingres.details.text != 'N/A') {
-            ResText = Bingres.details.text;
-        } else if (Bingres.response && Bingres.response != 'N/A') {
-            ResText = Bingres.response;
-        }
-    }
-
-
-    if (Bingres.details?.bic?.images) {
-        return {
-            text: ResText,
-            images: Bingres.details.bic.images
-        };
-    }
-    return ResText;
-
 }
 
 /** 解析必应参数 */

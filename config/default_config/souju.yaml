@@ -2,25 +2,25 @@
 analysis: http://jx.qxyys.com/jx.php?url=
 
 # 播放器链接
-player: http://bfq.qxyys.com/?url=
+player: https://zj.qxyys.com/static/player/artplayer.html?url=
 
 #绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
 cfTLSVersion: TLSv1.1
 
 # 资源站点数组
 resources:
-      - site:
-              # 是否显示海报
-              showpic: true
-              # 站点标题
-              title: 七星资源
-              # 站点链接
-              url: http://zj.qxyys.com/api.php/provide/vod/
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 七星资源
+                  # 站点链接
+                  url: http://zj.qxyys.com/api.php/provide/vod/
 
-      - site:
-              # 是否显示海报
-              showpic: false
-              # 站点标题
-              title: 皇冠资源
-              # 站点链接
-              url: https://www.partnersky-horoskop.com/api.php/provide/vod/
+        - site:
+                  # 是否显示海报
+                  showpic: false
+                  # 站点标题
+                  title: 皇冠资源
+                  # 站点链接
+                  url: https://www.partnersky-horoskop.com/api.php/provide/vod/
