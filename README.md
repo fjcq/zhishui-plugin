@@ -1,7 +1,9 @@
 # zhishui-plugin
 
-[![访问量](https://visitor-badge.glitch.me/badge?page_id=fjcq.zhishui-plugin&right_color=red&left_text=访%20问%20量)](https://gitee.com/fjcq/zhishui-plugin)
-[![star](https://gitee.com/fjcq/zhishui-plugin/badge/star.svg?theme=dark)](https://gitee.com/fjcq/zhishui-plugin/stargazers)
+[![Gitee访问量](https://visitor-badge.glitch.me/badge?page_id=fjcq.zhishui-plugin&right_color=red&left_text=Gitee访问量)](https://gitee.com/fjcq/zhishui-plugin)
+[![GitHub访问量](https://visitor-badge.glitch.me/badge?page_id=github.fjcq.zhishui-plugin&right_color=blue&left_text=GitHub访问量)](https://github.com/fjcq/zhishui-plugin)
+[![Gitee Star](https://gitee.com/fjcq/zhishui-plugin/badge/star.svg?theme=dark)](https://gitee.com/fjcq/zhishui-plugin/stargazers)
+[![GitHub Star](https://img.shields.io/github/stars/fjcq/zhishui-plugin?style=flat-square&logo=github)](https://github.com/fjcq/zhishui-plugin/stargazers)
 
 ## 插件简介
 
