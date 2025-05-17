@@ -2,8 +2,7 @@
     "search.useParentIgnoreFiles": false,
     "search.useGlobalIgnoreFiles": false,
     "eslint.format.enable": false,
-    "eslint.packageManager": "pnpm",
-    "terminal.integrated.cwd": "D:\\Miao-Yunzai",
+    "terminal.integrated.cwd": "\\\\wsl$\\Arch\\root\\TRSS_AllBot\\TRSS-Yunzai",
     "eslint.validate": [
         "javascript",
         "javascriptreact",
@@ -17,5 +16,5 @@
             "camelcase": 0
         }
     },
-    "terminal.integrated.defaultProfile.windows": "JavaScript 调试终端"
+    "terminal.integrated.defaultProfile.windows": "JavaScript Debug Terminal"
 }
