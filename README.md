@@ -5,7 +5,7 @@
 
 ## 插件简介
 
-**zhishui-plugin** 是 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 的一款功能型扩展插件，集成了**搜剧**、**AI对话**与**乐器演奏**三大娱乐功能，支持多接口切换、角色自定义、语音回复、乐器简谱演奏等丰富玩法。
+**zhishui-plugin** 是一款为 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 打造的多功能娱乐扩展插件，集成了**搜剧**、**AI对话**和**乐器演奏**三大核心功能。插件支持多资源站点切换、AI角色自定义、语音互动、乐器简谱演奏等丰富玩法，满足群聊娱乐、智能对话和音乐创作等多样需求。配置灵活，易于上手，是提升群聊活跃度与趣味性的理想选择。
 
 ---
 
