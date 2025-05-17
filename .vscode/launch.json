@@ -4,8 +4,8 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch via npm",
-            "runtimeExecutable": "npm",
+            "name": "WSL Debug",
+            "runtimeExecutable": "wsl",
             "runtimeArgs": [
                 "run",
                 "app"
