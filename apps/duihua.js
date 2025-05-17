@@ -94,22 +94,22 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
                     fnc: 'SetLinkMode'
                 }, {
-                    reg: `^#?止水(插件|对话)?设置API(.*)$`,
+                    reg: `^#?止水(插件|对话)?设置(对话)?(API|api)(.*)$`,
                     fnc: 'SetApi'
                 }, {
-                    reg: `^#?止水(插件|对话)?查看API$`,
+                    reg: `^#?止水(插件|对话)?查看(对话)?(API|api)$`,
                     fnc: 'ShowApi'
                 }, {
-                    reg: `^#?止水(插件|对话)?设置KEY(.*)$`,
+                    reg: `^#?止水(插件|对话)?设置(对话)?(KEY|key)(.*)$`,
                     fnc: 'SetApiKey'
                 }, {
-                    reg: `^#?止水(插件|对话)?查看KEY$`,
+                    reg: `^#?止水(插件|对话)?查看(对话)?(KEY|key)$`,
                     fnc: 'ShowApiKey'
                 }, {
-                    reg: `^#?止水(插件|对话)?设置模型(.*)$`,
+                    reg: `^#?止水(插件|对话)?设置(对话)?模型(.*)$`,
                     fnc: 'setModel'
                 }, {
-                    reg: `^#?止水(插件|对话)?查看模型$`,
+                    reg: `^#?止水(插件|对话)?查看(对话)?模型$`,
                     fnc: 'showModel'
                 }, {
                     reg: `^#?止水(插件|对话)?测试(.*)$`,
@@ -118,14 +118,14 @@ export class ChatHandler extends plugin {
                     reg: '^#?(止水)?(插件|对话)?角色列表$',
                     fnc: 'ShowRoleList'
                 }, {
-                    reg: '^#?(止水)?(插件|对话)?切换角色(.+)$',
+                    reg: '^#?(止水)?(插件|对话)?切换(对话)?角色(.+)$',
                     fnc: 'SwitchRole'
                 }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
                 }, {
-                    reg: '^#?(止水)?(插件|对话)?添加角色(.*)',
+                    reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)',
                     fnc: 'AddRole'
                 }
             ]
