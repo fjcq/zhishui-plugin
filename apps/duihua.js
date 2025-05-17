@@ -16,10 +16,6 @@ let NickName = await Config.Chat.NickName;
 /** 发音人列表 */
 const VoiceList = await Data.ReadVoiceList();
 
-// 必应相关变量
-let jailbreakConversationId = '';
-let messageId = '';
-
 /** 工作状态 */
 let isChatActive = 0;
 /** 消息计数器 */
@@ -74,10 +70,10 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?发音人$`,
                     fnc: 'ShowVoiceId'
                 }, {
-                    reg: '^#?(止水)?(插件|对话)??设置身份(.*)',
+                    reg: '^#?(止水)?(插件|对话)?设置(对话)?身份(.*)',
                     fnc: 'SetContext'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??查看(对话)?身份$`,
+                    reg: `^#?(止水)?(插件|对话)??查看(对话)?角色$`,
                     fnc: 'ShowContext'
                 }, {
                     reg: `^#?(止水)?(插件|对话)??设置(对话)?场景(.*)`,
@@ -88,9 +84,6 @@ export class ChatHandler extends plugin {
                 }, {
                     reg: `^#?(止水)?(插件|对话)??设置好感度(.*)$`,
                     fnc: 'updateUserFavor'
-                }, {
-                    reg: `^#?(止水)?(插件|对话)??查看好感度(.*)$`,
-                    fnc: 'ShowUserFavora'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`,
                     fnc: 'SetMaster'
@@ -122,9 +115,18 @@ export class ChatHandler extends plugin {
                     reg: `^#?止水(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
                 }, {
+                    reg: '^#?(止水)?(插件|对话)?角色列表$',
+                    fnc: 'ShowRoleList'
+                }, {
+                    reg: '^#?(止水)?(插件|对话)?切换角色(.+)$',
+                    fnc: 'SwitchRole'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
+                }, {
+                    reg: '^#?(止水)?(插件|对话)?添加角色(.*)',
+                    fnc: 'AddRole'
                 }
             ]
         });
@@ -150,8 +152,6 @@ export class ChatHandler extends plugin {
         isChatActive = 0;
 
         //重置必应
-        messageId = '';
-        jailbreakConversationId = '';
         keyv.clear();
 
         e.reply('已经重置对话了！');
@@ -210,7 +210,6 @@ export class ChatHandler extends plugin {
                             };
                         }
                     } catch (error) {
-                        console.error('JSON解析失败，使用原始响应:', error);
                         replyObj = {
                             message: response,
                             favor_changes: []
@@ -218,17 +217,39 @@ export class ChatHandler extends plugin {
                     }
                     replyObj.favor_changes = replyObj.favor_changes || [];
 
-                    // 缓存对话消息
-                    chatMsg.push({ role: 'user', content: MessageText });
-                    chatMsg.push({ role: 'assistant', content: JSON.stringify(replyObj) });
-
-                    // 更新好感度
+                    // 先处理好感度
                     replyObj.favor_changes.forEach(async ({ user_id, change }) => {
-                        console.log(`好感度更新 [@${user_id}] -> ${change}`);
                         await SetFavora(user_id, (await GetFavora(user_id)) + change);
                     });
 
-                    // 发送结构化回复
+                    // 兼容 favor_changes 数组和 additional_data.favor_change
+                    let favorLogs = [];
+                    if (replyObj.favor_changes && Array.isArray(replyObj.favor_changes)) {
+                        for (const item of replyObj.favor_changes) {
+                            // 优先用item.user_id，否则用e.user_id
+                            const user_id = item.user_id || e.user_id;
+                            const change = item.change || 0;
+                            const oldFavor = await GetFavora(user_id);
+                            await SetFavora(user_id, oldFavor + change);
+                            favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
+                        }
+                    }
+
+                    // 兼容 additional_data.favor_change
+                    if (replyObj.additional_data && typeof replyObj.additional_data.favor_change === 'number') {
+                        const change = replyObj.additional_data.favor_change;
+                        const user_id = (replyObj.additional_data.user_id || e.user_id);
+                        const oldFavor = await GetFavora(user_id);
+                        await SetFavora(user_id, oldFavor + change);
+                        favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
+                    }
+
+                    // 打印好感度日志
+                    if (favorLogs.length > 0) {
+                        console.log('[好感度变更]', favorLogs.join(' | '));
+                    }
+
+                    // 只返回 message 字段内容
                     const remsg = await MsgToAt(replyObj.message);
                     e.reply(remsg, true);
 
@@ -367,260 +388,118 @@ export class ChatHandler extends plugin {
 
     }
 
-    /** 设置对话身份 */
-    async SetContext(e) {
-        if (e.isMaster) {
-            let Context = e.msg.replace(/^.*?设置(全局|群)?对话身份/, '').trim();
-
-            if (await WriteContext(Context)) {
-                e.reply("设置对话身份成功！");
-                return;
-            } else {
-                e.reply("设置对话身份失败！");
-                return;
-            }
-        }
-    }
-
-    /** 查看对话身份 */
+    /** 查看对话身份（角色） */
     async ShowContext(e) {
-        if (e.isMaster) {
-            let Context = await ReadContext();
-            if (Context.length > 0) {
-                let msg = []
-                msg.push(Context)
-                common.getforwardMsg(e, msg, {
-                    isxml: true,
-                    xmlTitle: '对话身份',
-                })
+        let currentRoleIndex = await getCurrentRoleIndex(e);
+        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+        try {
+            const data = fs.readFileSync(roleFile, 'utf8');
+            const roles = JSON.parse(data);
+            const found = roles[currentRoleIndex];
+            if (found) {
+                e.reply(JSON.stringify(found, null, 2));
             } else {
-                e.reply("你还没 #设置对话身份");
+                e.reply("未找到当前角色设定，请先切换角色。");
             }
-
-        };
-
-    }
-
-    /** 设置对话场景 */
-    async SetChatScene(e) {
-        if (e.isMaster) {
-            let Scene = e.msg.replace(/^.*设置对话场景/, '').trim();
-
-            if (await WriteScene(Scene)) {
-                e.reply("设置对话场景成功！");
-                return;
-            } else {
-                e.reply("设置对话场景失败！");
-                return;
-            }
+        } catch (err) {
+            e.reply("读取角色设定失败：" + err.message);
         }
     }
 
-    /** 查看对话场景 */
-    async ShowChatScene(e) {
-        if (e.isMaster) {
-            let Scene = await ReadScene();
-            if (Scene.length > 0) {
-                let msg = []
-                msg.push(Scene)
-                common.getforwardMsg(e, msg, {
-                    isxml: true,
-                    xmlTitle: '对话场景',
-                })
-            } else {
-                e.reply("你还没 #设置对话场景");
+    /** 设置对话身份（角色，仅修改当前角色） */
+    async SetContext(e) {
+        if (!e.isMaster) return;
+        let jsonStr = e.msg.replace(/^#?设置对话身份/, '').trim();
+        if (!jsonStr) {
+            e.reply("请提供完整的角色JSON内容。");
+            return;
+        }
+        try {
+            const newRole = JSON.parse(jsonStr);
+            const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+            let roles = [];
+            if (fs.existsSync(roleFile)) {
+                roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
             }
-
-        };
-        return;
+            let currentRoleIndex = await getCurrentRoleIndex(e);
+            if (roles[currentRoleIndex]) {
+                roles[currentRoleIndex] = newRole;
+                fs.writeFileSync(roleFile, JSON.stringify(roles, null, 2), 'utf8');
+                e.reply("当前角色身份已修改！");
+            } else {
+                e.reply("未找到当前角色，无法修改。");
+            }
+        } catch (err) {
+            e.reply("角色JSON格式有误：" + err.message);
+        }
     }
 
+    /** 枚举角色列表（高亮当前群或全局角色） */
+    async ShowRoleList(e) {
+        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+        let roles = [];
+        let currentRoleIndex = await getCurrentRoleIndex(e);
+        try {
+            const data = fs.readFileSync(roleFile, 'utf8');
+            roles = JSON.parse(data).map(r => r.角色标题 || r.基础身份?.名称 || '未知角色');
+        } catch (err) {
+            e.reply('读取角色列表失败');
+            return;
+        }
+        const list = roles.map((r, i) => {
+            if (i === currentRoleIndex) {
+                return `${i + 1}. ${r} ✅`;
+            } else {
+                return `${i + 1}. ${r}`;
+            }
+        }).join('\n');
+        e.reply('可用角色列表：\n' + list);
+    }
 
-    /** 查看用户好感度 */
-    async ShowUserFavora(e) {
-        let UserQQ;
-        let isat = e.message.some((item) => item.type === "at");
-        if (isat && e.isMaster) {
-            let atItem = e.message.filter((item) => item.type === "at");//获取at信息
-            UserQQ = atItem[0].qq;//对方qq
+    /** 切换角色（支持群专属和全局） */
+    async SwitchRole(e) {
+        if (!e.isMaster) return;
+        const roleArg = e.msg.replace(/^#?(止水)?(插件|对话)?切换角色/, '').trim();
+        if (!roleArg) {
+            e.reply('请指定要切换的角色标题或序号');
+            return;
+        }
+        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+        let roles = [];
+        try {
+            const data = fs.readFileSync(roleFile, 'utf8');
+            roles = JSON.parse(data);
+        } catch (err) {
+            e.reply('读取角色配置失败');
+            return;
+        }
+        let idx = -1;
+        if (/^\d+$/.test(roleArg)) {
+            idx = parseInt(roleArg, 10) - 1;
         } else {
-            UserQQ = e.user_id;
+            idx = roles.findIndex(r => r.角色标题 === roleArg);
+        }
+        if (idx < 0 || idx >= roles.length) {
+            e.reply('未找到该角色，请检查角色标题或序号是否正确');
+            return;
         }
 
-        let UserFavora = await GetFavora(UserQQ) | 0;
-
-        let msg = [];
-        msg.push(segment.at(parseInt(UserQQ)));
-        msg.push(`\n好感度：${UserFavora}`);
-        e.reply(msg);
-        return;
-    }
-
-    /** 设置用户好感度 */
-    async updateUserFavor(e) {
-
-        if (!e.isMaster) {
-            return;
-        }
-        //对方
-        let UserQQ;
-        let isat = e.message.some((item) => item.type === "at");
-        if (isat) {
-            let atItem = e.message.filter((item) => item.type === "at");//获取at信息
-            UserQQ = atItem[0].qq;//对方qq
-        } else {
-            UserQQ = e.user_id;
-        }
-
-
-        const pattern = /\d+/;
-        const result = e.msg.match(pattern);
-        if (!result) {
-            e.reply(`你需要输入：好感度数值`);
-            return;
-        }
-        const UserFavora = result[0] | 0;
-        const bool = SetFavora(UserQQ, UserFavora);
-
-
-        let msg = `用户：${UserQQ}\n`;
-        msg += `好感度：${bool ? UserFavora : await GetFavora(QQ)}`;
-        e.reply(msg, true);
-        return;
-
-    }
-
-    /** 设置主人 */
-    async SetMaster(e) {
-        if (e.isMaster) {
-
-            let re = /^.*主人\s*(\S+)\s+(\d+)/;
-            let result = re.exec(e.msg);
-
-            if (result?.length != 3) {
-                e.reply("设置主人格式错误！正确的格式应该是“#设置主人主人名字{空格}QQ号码”\n例如：#设置主人止水 1234567");
-                return;
-            }
-            await WriteMaster(result[1], result[2]);
-
-            e.reply(`设置成功！\n当前主人：${result[1]}\nQQ号码：${result[2]}`);
-            return;
-        };
-
-    }
-
-    /** 设置对话模型 */
-    async setModel(e) {
-        if (!e.isMaster) {
-            return;
-        };
-        console.log(e.msg);
-        const model = e.msg.replace(/^.*设置模型/, '').trim();
-        const success = await Config.modify('duihua', 'ApiModel', model);
-        if (success) {
-            e.reply(`[对话] 设置模型为：${model}`);
-        } else {
-            e.reply(`[对话] 设置模型失败！`);
-        }
-        return;
-    }
-
-    /** 查看对话模型 */
-    async showModel(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const model = await Config.Chat.ApiModel;
-        e.reply(`[对话] 当前模型：${model}`);
-        return;
-    }
-
-
-    /** 设置代理 */
-    async SetProxy(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const switchProxy = e.msg.search('开启') != -1 ? true : e.msg.search('关闭') != -1 ? false : null;
-        if (switchProxy !== null) {
-            Config.modify('proxy', 'switchProxy', switchProxy);
-            e.reply(`[对话] 代理 ${switchProxy ? '已开启' : '已关闭'}！`);
-        } else if (e.msg.search('设置') != -1) {
-            const proxy = e.msg.replace(/^.*代理/, '').trim();
-            if (proxy) {
-                Config.modify('proxy', 'proxyAddress', proxy);
-                e.reply(`[对话]代理设置为：${proxy}`);
+        // 判断是否群聊，优先设置群专属，否则设置全局
+        if (e.group_id) {
+            let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+            const groupId = String(e.group_id);
+            const existIdx = groupRoleList.findIndex(item => String(item.group) === groupId);
+            if (existIdx >= 0) {
+                groupRoleList[existIdx].index = idx;
             } else {
-                e.reply("[对话]设置代理失败！请在指令后面加上你要设置的http代理,例如：\n#止水对话设置代理http://127.0.0.1:7890");
+                groupRoleList.push({ group: groupId, index: idx });
             }
-        } else if (e.msg.search('查看') != -1) {
-            const proxyAddress = await Config.proxy.proxyAddress;
-            if (proxyAddress) {
-                e.reply(`[对话]你当前的代理为：${proxyAddress}`);
-            } else {
-                e.reply("[对话]你现在还没有设置代理，可以发送指令进行设置,例如：\n#止水对话设置代理http://127.0.0.1:7890");
-            }
+            await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
+            e.reply(`本群已切换为角色：${roles[idx].角色标题}`);
+        } else {
+            await Config.modify('duihua', 'CurrentRoleIndex', idx);
+            e.reply(`全局已切换为角色：${roles[idx].角色标题}`);
         }
-
-        return;
-
-    }
-
-    /** 设置链接模式 */
-    async SetLinkMode(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        let Enable = e.msg.search('开启') != -1;
-        await Config.modify('duihua', 'LinkMode', Enable);
-        e.reply(`[对话] 链接模式 ${Enable ? '已开启' : '已关闭'}！`);
-        return;
-
-    }
-
-    async SetApi(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const apiUrl = e.msg.replace(/^.*设置API/, '').trim();
-        await Config.modify('duihua', 'ApiUrl', apiUrl);
-        e.reply(`[对话] API URL 设置成功！`);
-        return;
-    }
-
-    async ShowApi(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const apiUrl = await Config.Chat.ApiUrl;
-        e.reply(`[对话] API URL：${apiUrl}`);
-        return;
-    }
-
-    async SetApiKey(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const apiKey = e.msg.replace(/^.*设置KEY/, '').trim();
-        Config.modify('duihua', 'ApiKey', apiKey);
-        e.reply(`[对话] API KEY 设置成功！`);
-        return;
-    }
-
-    async ShowApiKey(e) {
-        if (!e.isMaster) {
-            return;
-        };
-
-        const apiKey = await Config.Chat.ApiKey;
-        e.reply(`[对话] API KEY：${apiKey}`);
-        return;
     }
 
 
@@ -631,32 +510,35 @@ export class ChatHandler extends plugin {
  * 组建 system 消息
  * @returns {string} 返回组建完成的 system 消息
  */
-async function mergeSystemMessage() {
+async function mergeSystemMessage(e) {
     try {
-        // 优先读取Config配置
-        const { NickName, Master, MasterQQ } = await Config.Chat
-
+        const { NickName, Master, MasterQQ } = await Config.Chat;
         // 获取并解析场景和身份配置
-        const sceneJson = await ReadScene()
-        const contextJson = await ReadContext()
-        const sceneSetting = JSON.parse(sceneJson)
-        const identitySetting = JSON.parse(contextJson)
+        const sceneJson = await ReadScene();
+        const sceneSetting = JSON.parse(sceneJson);
+
+        // 获取当前角色
+        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+        const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
+        const currentRoleIndex = await getCurrentRoleIndex(e);
+        const identitySetting = roles[currentRoleIndex] || {};
 
         // 深度合并配置
-        const merged = { ...identitySetting, ...sceneSetting }
+        const merged = { ...identitySetting, ...sceneSetting };
 
         // 使用Config配置覆盖合并结果
         merged.基础身份 = {
+            ...(merged.基础身份 || {}),
             名称: NickName,
             主人信息: {
                 master_name: Master,
                 master_qq: MasterQQ
             }
-        }
+        };
 
-        return merged
+        return merged;
     } catch (error) {
-        console.error('配置解析失败:', error)
+        console.error('配置解析失败:', error);
         return {
             基础身份: {
                 名称: await Config.Chat.NickName,
@@ -665,7 +547,7 @@ async function mergeSystemMessage() {
                     master_qq: await Config.Chat.MasterQQ
                 }
             }
-        }
+        };
     }
 }
 
@@ -1017,67 +899,20 @@ function isNotNull(obj) {
 };
 
 /**
- * 读身份设定
- */
-async function ReadContext() {
-    let context = '';
-    const fileName = 'Context.json';
-    const defFile = path.join(Plugin_Path, 'config', 'default_config', fileName);
-    const userFile = path.join(Plugin_Path, 'config', 'config', fileName);
-
-    if (fs.existsSync(userFile)) {
-        context = fs.readFileSync(userFile, 'utf8');
-        if (!context) {
-            context = fs.readFileSync(defFile, 'utf8');
-        }
-    } else {
-        context = fs.readFileSync(defFile, 'utf8');
-    }
-
-    if (!context) {
-        context = '';
-    }
-
-    return context;
-
-};
-
-
-/**
- * 写身份设定
- */
-async function WriteContext(Context) {
-    const DataFile = path.join(Plugin_Path, 'config', 'config', 'Context.json');
-    console.log("设置身份：" + Context);
-    try {
-        fs.writeFileSync(DataFile, Context);
-        return true;
-    } catch (error) {
-        logger.error(error);
-        return false;
-    }
-
-}
-
-/**
  * 读场景设定
  */
 async function ReadScene() {
     try {
-        const fileName = 'Scene.json';
+        const fileName = 'SystemConfig.json'; // 修正
         const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
         const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
 
-        // 优先读取用户配置文件，如果不存在则读取默认配置文件
         const [userScene, defaultScene] = await Promise.all([
             fs.promises.readFile(userConfigPath, 'utf8').catch(() => ''),
             fs.promises.readFile(defaultConfigPath, 'utf8').catch(() => ''),
         ]);
-
-        // 返回用户配置，如果用户配置为空或不存在，则返回默认配置
         return userScene || defaultScene;
     } catch (error) {
-        // 处理可能的错误，例如记录日志或返回一个空字符串
         console.error('读取场景配置文件时发生错误:', error);
         return '';
     }
@@ -1088,7 +923,7 @@ async function ReadScene() {
  */
 async function WriteScene(Context) {
     try {
-        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'Scene.json');
+        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'SystemConfig.json');
         // 使用 fs.promises.writeFile 来异步写入文件，并处理可能的异常
         await fs.promises.writeFile(sceneFilePath, Context, 'utf8');
         console.log('场景配置已成功保存。');
@@ -1145,3 +980,20 @@ async function MsgToAt(msg) {
     return arr;
 }
 
+/**
+ * 获取当前会话应使用的角色索引
+ * @param {object} e - 事件对象
+ * @returns {number} 角色索引
+ */
+async function getCurrentRoleIndex(e) {
+    const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+    const groupId = e && e.group_id ? String(e.group_id) : null;
+    if (groupId && Array.isArray(groupRoleList)) {
+        const found = groupRoleList.find(item => String(item.group) === groupId);
+        if (found && typeof found.index === 'number') {
+            return found.index;
+        }
+    }
+    // 默认全局角色索引
+    return parseInt(await Config.Chat.CurrentRoleIndex) || 0;
+}
