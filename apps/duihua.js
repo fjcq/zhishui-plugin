@@ -38,7 +38,7 @@ const ChatData = {
     top_p: 0.8
 };
 /** 对话数据 */
-let chatMsg = [];
+let chatMsgMap = {}; // key: group_id 或 user_id, value: chatMsg 数组
 
 /** 缓存选项 */
 const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` });
@@ -184,8 +184,8 @@ export class ChatHandler extends plugin {
                 const MessageText = JSON.stringify(userMessage);
                 console.log("止水对话 -> " + MessageText);
 
-                // 发送消息到 openAi 进行对话
-                let response = await openAi(MessageText);
+                // 发送消息到 openAi 进行对话，传递 e 以便群聊优先使用群专属角色
+                let response = await openAi(MessageText, e);
 
                 if (response) {
 
@@ -486,14 +486,16 @@ export class ChatHandler extends plugin {
 
         // 判断是否群聊，优先设置群专属，否则设置全局
         if (e.group_id) {
+            // 获取当前 GroupRoleIndex
             let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
-            const groupId = String(e.group_id);
-            const existIdx = groupRoleList.findIndex(item => String(item.group) === groupId);
+            // 查找当前群是否已存在
+            const existIdx = groupRoleList.findIndex(item => String(item.group) === String(e.group_id));
             if (existIdx >= 0) {
                 groupRoleList[existIdx].index = idx;
             } else {
-                groupRoleList.push({ group: groupId, index: idx });
+                groupRoleList.push({ group: String(e.group_id), index: idx });
             }
+            // 写入配置
             await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
             e.reply(`本群已切换为角色：${roles[idx].角色标题}`);
         } else {
@@ -512,20 +514,18 @@ export class ChatHandler extends plugin {
 async function mergeSystemMessage(e) {
     try {
         const { NickName, Master, MasterQQ } = await Config.Chat;
-        // 获取并解析场景和身份配置
         const sceneJson = await ReadScene();
         const sceneSetting = JSON.parse(sceneJson);
 
-        // 获取当前角色
         const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
         const currentRoleIndex = await getCurrentRoleIndex(e);
         const identitySetting = roles[currentRoleIndex] || {};
 
-        // 深度合并配置
-        const merged = { ...identitySetting, ...sceneSetting };
+        // 调试日志
+        console.log(`[mergeSystemMessage] 群:${e.group_id} 当前角色索引:${currentRoleIndex} 角色标题:${identitySetting.角色标题}`);
 
-        // 使用Config配置覆盖合并结果
+        const merged = { ...identitySetting, ...sceneSetting };
         merged.基础身份 = {
             ...(merged.基础身份 || {}),
             名称: NickName,
@@ -550,26 +550,39 @@ async function mergeSystemMessage(e) {
     }
 }
 
-async function openAi(msg) {
-    const [apiUrl, apiKey, aiModel] = await Promise.all([
-        Config.Chat.ApiUrl,
-        Config.Chat.ApiKey,
-        Config.Chat.ApiModel
-    ]);
+async function openAi(msg, e) {
+    // 获取唯一会话ID（群聊用 group_id，私聊用 user_id）
+    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    if (!chatMsgMap[sessionId]) chatMsgMap[sessionId] = [];
 
+    // 这里补充获取 apiKey 和 aiModel
+    const apiKey = await Config.Chat.ApiKey;
+    const aiModel = await Config.Chat.ApiModel;
+    const apiUrl = await Config.Chat.ApiUrl;
+
+    let chatMsg = chatMsgMap[sessionId];
+
+    // 每次都重新生成 system 消息，确保群专属角色生效
+    const systemMessage = await mergeSystemMessage(e);
     if (!Array.isArray(chatMsg) || chatMsg.length === 0) {
-        // 首次对话，发送系统消息
-        const systemMessage = await mergeSystemMessage();
-        await addMessage({ role: 'system', content: JSON.stringify(systemMessage) });
-
+        chatMsg = [{ role: 'system', content: JSON.stringify(systemMessage) }];
+    } else {
+        if (chatMsg[0].role === 'system') {
+            chatMsg[0] = { role: 'system', content: JSON.stringify(systemMessage) };
+        } else {
+            chatMsg.unshift({ role: 'system', content: JSON.stringify(systemMessage) });
+        }
     }
+
+    // 更新回 map
+    chatMsgMap[sessionId] = chatMsg;
 
     /** 添加新消息 */
     async function addMessage(newMessage) {
         chatMsg.push(newMessage);
         const MaxHistory = await Config.Chat.MaxHistory;
-        while (chatMsg.length > MaxHistory) {
-            chatMsg.shift(); // 移除最老的消息
+        while (chatMsg.length > MaxHistory + 1) { // +1 保留 system 消消息
+            chatMsg.splice(1, 1);
         }
     }
 

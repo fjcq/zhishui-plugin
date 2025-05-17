@@ -290,8 +290,10 @@ export function supportGuoba() {
                         fs.writeFileSync(`${PluginPath}/config/default_config/RoleProfile.json`, data[key], 'utf8')
                     } else if (key === 'selectedRoleIndex') {
                         data.selectedRoleContent = JSON.stringify(RoleList[data.selectedRoleIndex], null, 2)
+                    } else if (key === 'selectedRoleContent') {
+                        // 跳过，不保存
+                        continue
                     } else if (key === 'souju') {
-                        // 还原资源站点结构
                         let souju = { ...data.souju }
                         if (Array.isArray(souju.resources)) {
                             souju.resources = souju.resources.map(site => ({ site }))
