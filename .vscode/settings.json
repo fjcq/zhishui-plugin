@@ -16,5 +16,13 @@
             "camelcase": 0
         }
     },
-    "terminal.integrated.defaultProfile.windows": "JavaScript Debug Terminal"
+    "terminal.integrated.defaultProfile.windows": "JavaScript 调试终端",
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/.git/objects/**": true,
+        "**/.git/subtree-cache/**": true,
+        "**/tmp/**": true
+    },
+    "files.maxFileSize": 10240,
+    "remote.WSL.fileWatcher.polling": true
 }
