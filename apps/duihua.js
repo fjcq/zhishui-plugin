@@ -10,6 +10,9 @@ import path from 'path';
 
 /** 缓存目录 */
 const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
+/** 聊天上下文文件夹 */
+const ChatContextPath = path.join(Plugin_Path, 'resources', 'Cache', 'ChatContext');
+if (!fs.existsSync(ChatContextPath)) fs.mkdirSync(ChatContextPath, { recursive: true });
 
 /** 聊天昵称 */
 let NickName = await Config.Chat.NickName;
@@ -153,6 +156,16 @@ export class ChatHandler extends plugin {
 
         //重置必应
         keyv.clear();
+
+        // 删除对应上下文文件
+        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        let file;
+        if (sessionId.startsWith('group_')) {
+            file = path.join(ChatContextPath, `${sessionId}.json`);
+        } else {
+            file = path.join(ChatContextPath, `private.json`);
+        }
+        if (fs.existsSync(file)) fs.unlinkSync(file);
 
         e.reply('已经重置对话了！');
         return;
@@ -551,16 +564,16 @@ async function mergeSystemMessage(e) {
 }
 
 async function openAi(msg, e) {
+
+    const apiKey = await Config.Chat.ApiKey || '';
+    const aiModel = await Config.Chat.ApiModel || 'gpt-3.5-turbo';
+    const apiUrl = await Config.Chat.ApiUrl || 'https://api.openai.com/v1/chat/completions';
+
     // 获取唯一会话ID（群聊用 group_id，私聊用 user_id）
     const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-    if (!chatMsgMap[sessionId]) chatMsgMap[sessionId] = [];
 
-    // 这里补充获取 apiKey 和 aiModel
-    const apiKey = await Config.Chat.ApiKey;
-    const aiModel = await Config.Chat.ApiModel;
-    const apiUrl = await Config.Chat.ApiUrl;
-
-    let chatMsg = chatMsgMap[sessionId];
+    // 读取上下文
+    let chatMsg = loadChatMsg(sessionId);
 
     // 每次都重新生成 system 消息，确保群专属角色生效
     const systemMessage = await mergeSystemMessage(e);
@@ -574,9 +587,6 @@ async function openAi(msg, e) {
         }
     }
 
-    // 更新回 map
-    chatMsgMap[sessionId] = chatMsg;
-
     /** 添加新消息 */
     async function addMessage(newMessage) {
         chatMsg.push(newMessage);
@@ -584,6 +594,8 @@ async function openAi(msg, e) {
         while (chatMsg.length > MaxHistory + 1) { // +1 保留 system 消消息
             chatMsg.splice(1, 1);
         }
+        // 保存到文件
+        saveChatMsg(sessionId, chatMsg);
     }
 
     await addMessage({ role: 'user', content: msg });
@@ -634,11 +646,16 @@ async function openAi(msg, e) {
             console.error(`请求地址：${apiUrl}`);
             console.error(`请求内容：${JSON.stringify(requestData)}`);
             console.error(`状态码：${response.status}`);
-            console.error(`响应内容：${await response.text()}`);
+            let text = await response.text();
+            console.error(`响应内容：${text}`);
 
-            const errorData = await response.json();
+            let errorData;
+            try {
+                errorData = JSON.parse(text);
+            } catch {
+                errorData = { error: { message: text, code: response.status } };
+            }
             return parseErrorMessage(errorData);
-
         }
 
         // 尝试解析 JSON 响应
@@ -648,11 +665,10 @@ async function openAi(msg, e) {
             // 移除推理过程保留最终结论
             content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
 
-            // 添加 历史消息 和 AI 回复
+            // 添加历史消息和AI回复
             await addMessage({ role: 'assistant', content });
 
         } catch (parseError) {
-            // 如果响应不是 JSON，则直接返回文本内容
             content = await response.text();
         }
     } catch (error) {
@@ -886,4 +902,40 @@ async function getCurrentRoleIndex(e) {
     }
     // 默认全局角色索引
     return parseInt(await Config.Chat.CurrentRoleIndex) || 0;
+}
+
+/** 加载聊天上下文
+ * @param {string} sessionId
+ * @returns {Array}
+ */
+function loadChatMsg(sessionId) {
+    let file;
+    if (sessionId.startsWith('group_')) {
+        file = path.join(ChatContextPath, `${sessionId}.json`);
+    } else {
+        file = path.join(ChatContextPath, `private.json`);
+    }
+    if (fs.existsSync(file)) {
+        try {
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
+/**
+ * 保存聊天上下文
+ * @param {string} sessionId
+ * @param {Array} chatMsg
+ */
+function saveChatMsg(sessionId, chatMsg) {
+    let file;
+    if (sessionId.startsWith('group_')) {
+        file = path.join(ChatContextPath, `${sessionId}.json`);
+    } else {
+        file = path.join(ChatContextPath, `private.json`);
+    }
+    fs.writeFileSync(file, JSON.stringify(chatMsg, null, 2), 'utf8');
 }

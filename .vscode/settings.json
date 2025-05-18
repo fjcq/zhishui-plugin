@@ -2,7 +2,7 @@
     "search.useParentIgnoreFiles": false,
     "search.useGlobalIgnoreFiles": false,
     "eslint.format.enable": false,
-    "terminal.integrated.cwd": "/root/TRSS_AllBot/TRSS-Yunzai", // 推荐用Linux路径
+    "terminal.integrated.cwd": "\\\\wsl$\\Arch\\root\\TRSS_AllBot\\TRSS-Yunzai",
     "eslint.validate": [
         "javascript",
         "javascriptreact",
