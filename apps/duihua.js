@@ -166,10 +166,10 @@ export class ChatHandler extends plugin {
                     // 严格JSON格式校验
                     let replyObj;
                     try {
-                        replyObj = JSON.parse(cleanedResponse);
+                        replyObj = JSON.parse(response); // 这里用 response
                         if (typeof replyObj !== 'object' || !replyObj.message) {
                             replyObj = {
-                                message: cleanedResponse,
+                                message: response,
                                 favor_changes: []
                             };
                         }
