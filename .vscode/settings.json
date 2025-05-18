@@ -2,7 +2,7 @@
     "search.useParentIgnoreFiles": false,
     "search.useGlobalIgnoreFiles": false,
     "eslint.format.enable": false,
-    "terminal.integrated.cwd": "\\\\wsl$\\Arch\\root\\TRSS_AllBot\\TRSS-Yunzai",
+    "terminal.integrated.cwd": "/root/TRSS_AllBot/TRSS-Yunzai", // 推荐用Linux路径
     "eslint.validate": [
         "javascript",
         "javascriptreact",
@@ -16,7 +16,6 @@
             "camelcase": 0
         }
     },
-    "terminal.integrated.defaultProfile.windows": "JavaScript 调试终端",
     "files.watcherExclude": {
         "**/node_modules/**": true,
         "**/.git/objects/**": true,
