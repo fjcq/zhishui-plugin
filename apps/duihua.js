@@ -2,9 +2,7 @@ import plugin from '../../../lib/plugins/plugin.js';
 import { common } from '../model/index.js';
 import fs from 'fs';
 import { Plugin_Path, Config } from '../components/index.js';
-import request from '../lib/request/request.js';
 import Data from '../components/Data.js';
-import { BingAIClient } from '@waylaidwanderer/chatgpt-api';
 import { KeyvFile } from 'keyv-file';
 import path from 'path';
 
@@ -21,33 +19,10 @@ const VoiceList = await Data.ReadVoiceList();
 
 /** 工作状态 */
 let isChatActive = 0;
+
 /** 消息计数器 */
 let messageCounter = 0;
-/** 会话ID */
-let chatSessionId = '#/chat/' + Date.now().toString();
-/** 前后缓冲区 */
-let chatFrontBuffer, chatBackBuffer = ''
 
-/** GPT提交数据 */
-const ChatData = {
-    prompt: '',
-    userId: chatSessionId,
-    network: true,
-    stream: false,
-    system: '',
-    withoutContext: false,
-    // 新增deepseek专用参数
-    temperature: 0.7,
-    top_p: 0.8
-};
-/** 对话数据 */
-let chatMsgMap = {}; // key: group_id 或 user_id, value: chatMsg 数组
-
-/** 缓存选项 */
-const keyv = new KeyvFile({ filename: `${CachePath}/cache.json` });
-const cacheOptions = {
-    store: keyv,
-};
 
 export class ChatHandler extends plugin {
     constructor() {
@@ -145,27 +120,12 @@ export class ChatHandler extends plugin {
     /** 重置对话 */
     async ResetChat(e) {
         if (!e.isMaster) { return; }
-
-        cachedEditMessage = "";
-        chatMsg = []
-
-
-        Config.modify('duihua', 'MirrorBearer', "");
-        Config.modify('duihua', 'MirrorConversationId', "");
         isChatActive = 0;
 
-        //重置必应
-        keyv.clear();
-
-        // 删除对应上下文文件
+        // 删除对应上下文缓存
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-        let file;
-        if (sessionId.startsWith('group_')) {
-            file = path.join(ChatContextPath, `${sessionId}.json`);
-        } else {
-            file = path.join(ChatContextPath, `private.json`);
-        }
-        if (fs.existsSync(file)) fs.unlinkSync(file);
+        const keyv = getSessionKeyv(sessionId);
+        await keyv.delete('chatMsg');
 
         e.reply('已经重置对话了！');
         return;
@@ -201,16 +161,7 @@ export class ChatHandler extends plugin {
                 let response = await openAi(MessageText, e);
 
                 if (response) {
-
                     console.log("止水对话 <- " + response);
-
-                    // 构造结构化回复
-                    // 清理响应中的Markdown代码块
-                    // 预处理响应内容
-                    const cleanedResponse = response
-                        .replace(/```json|```/g, '')
-                        .replace(/^\s*\n/, '')
-                        .trim();
 
                     // 严格JSON格式校验
                     let replyObj;
@@ -230,16 +181,10 @@ export class ChatHandler extends plugin {
                     }
                     replyObj.favor_changes = replyObj.favor_changes || [];
 
-                    // 先处理好感度
-                    replyObj.favor_changes.forEach(async ({ user_id, change }) => {
-                        await SetFavora(user_id, (await GetFavora(user_id)) + change);
-                    });
-
-                    // 兼容 favor_changes 数组和 additional_data.favor_change
+                    // 处理好感度
                     let favorLogs = [];
-                    if (replyObj.favor_changes && Array.isArray(replyObj.favor_changes)) {
+                    if (Array.isArray(replyObj.favor_changes)) {
                         for (const item of replyObj.favor_changes) {
-                            // 优先用item.user_id，否则用e.user_id
                             const user_id = item.user_id || e.user_id;
                             const change = item.change || 0;
                             const oldFavor = await GetFavora(user_id);
@@ -247,26 +192,21 @@ export class ChatHandler extends plugin {
                             favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
                         }
                     }
-
-                    // 兼容 additional_data.favor_change
-                    if (replyObj.additional_data && typeof replyObj.additional_data.favor_change === 'number') {
-                        const change = replyObj.additional_data.favor_change;
-                        const user_id = (replyObj.additional_data.user_id || e.user_id);
-                        const oldFavor = await GetFavora(user_id);
-                        await SetFavora(user_id, oldFavor + change);
-                        favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
-                    }
-
-                    // 打印好感度日志
                     if (favorLogs.length > 0) {
                         console.log('[好感度变更]', favorLogs.join(' | '));
                     }
 
-                    // 只返回 message 字段内容
-                    const remsg = await MsgToAt(replyObj.message);
+                    // 拼接 message 和 code_example 字段
+                    let finalReply = replyObj.message;
+                    if (replyObj.code_example) {
+                        finalReply += `\n\n代码示例：\n\`\`\`\n${replyObj.code_example}\n\`\`\``;
+                    }
+
+                    // 支持 @
+                    const remsg = await MsgToAt(finalReply);
                     e.reply(remsg, true);
 
-                    // 如果配置了语音合成，发送语音回复
+                    // 语音合成（如有需要）
                     if (await Config.Chat.EnableVoice) {
                         const voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId;
                         const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(newfavora)}&speed=0.8&volume=150&audioType=wav`;
@@ -533,7 +473,12 @@ async function mergeSystemMessage(e) {
         const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
         const currentRoleIndex = await getCurrentRoleIndex(e);
-        const identitySetting = roles[currentRoleIndex] || {};
+        // 深拷贝角色设定，避免污染原数据
+        const identitySetting = JSON.parse(JSON.stringify(roles[currentRoleIndex] || {}));
+        // 移除请求参数，防止污染上下文
+        if ('请求参数' in identitySetting) {
+            delete identitySetting['请求参数'];
+        }
 
         // 调试日志
         console.log(`[mergeSystemMessage] 群:${e.group_id} 当前角色索引:${currentRoleIndex} 角色标题:${identitySetting.角色标题}`);
@@ -573,7 +518,7 @@ async function openAi(msg, e) {
     const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
 
     // 读取上下文
-    let chatMsg = loadChatMsg(sessionId);
+    let chatMsg = await loadChatMsg(sessionId);
 
     // 每次都重新生成 system 消息，确保群专属角色生效
     const systemMessage = await mergeSystemMessage(e);
@@ -595,7 +540,7 @@ async function openAi(msg, e) {
             chatMsg.splice(1, 1);
         }
         // 保存到文件
-        saveChatMsg(sessionId, chatMsg);
+        await saveChatMsg(sessionId, chatMsg);
     }
 
     await addMessage({ role: 'user', content: msg });
@@ -606,20 +551,24 @@ async function openAi(msg, e) {
         'Authorization': `Bearer ${apiKey}`,
     };
 
-    // 构建请求数据
+    // 获取当前角色配置
+    const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+    const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
+    const currentRoleIndex = await getCurrentRoleIndex(e);
+    const identitySetting = roles[currentRoleIndex] || {};
+    const apiParams = identitySetting.请求参数 || {};
+
+    // 构建请求数据，优先用角色请求参数，没有则用全局默认
     const requestData = {
         model: aiModel,
         messages: chatMsg,
-        temperature: 0.7,
-        top_p: 0.8,
-        max_tokens: 2048,
-        presence_penalty: 0,
-        frequency_penalty: 0.5,
-        top_p: 0.7,
-        top_k: 50,
-        response_format: {
-            type: 'json_object'
-        },
+        temperature: apiParams.temperature ?? 0.7,
+        top_p: apiParams.top_p ?? 0.8,
+        max_tokens: apiParams.max_tokens ?? 2048,
+        presence_penalty: apiParams.presence_penalty ?? 0,
+        frequency_penalty: apiParams.frequency_penalty ?? 0.5,
+        top_k: apiParams.top_k ?? 50,
+        response_format: { type: 'json_object' },
         stream: false,
         verbose: false,
         show_reasoning: await Config.Chat.ShowReasoning
@@ -904,38 +853,38 @@ async function getCurrentRoleIndex(e) {
     return parseInt(await Config.Chat.CurrentRoleIndex) || 0;
 }
 
-/** 加载聊天上下文
+/**
+ * 获取 KeyvFile 实例（每群/私聊一个文件）
  * @param {string} sessionId
- * @returns {Array}
+ * @returns {KeyvFile}
  */
-function loadChatMsg(sessionId) {
+function getSessionKeyv(sessionId) {
     let file;
     if (sessionId.startsWith('group_')) {
         file = path.join(ChatContextPath, `${sessionId}.json`);
     } else {
         file = path.join(ChatContextPath, `private.json`);
     }
-    if (fs.existsSync(file)) {
-        try {
-            return JSON.parse(fs.readFileSync(file, 'utf8'));
-        } catch {
-            return [];
-        }
-    }
-    return [];
+    return new KeyvFile({ filename: file });
+}
+
+/**
+ * 加载聊天上下文
+ * @param {string} sessionId
+ * @returns {Promise<Array>}
+ */
+async function loadChatMsg(sessionId) {
+    const keyv = getSessionKeyv(sessionId);
+    return (await keyv.get('chatMsg')) || [];
 }
 
 /**
  * 保存聊天上下文
  * @param {string} sessionId
  * @param {Array} chatMsg
+ * @returns {Promise<void>}
  */
-function saveChatMsg(sessionId, chatMsg) {
-    let file;
-    if (sessionId.startsWith('group_')) {
-        file = path.join(ChatContextPath, `${sessionId}.json`);
-    } else {
-        file = path.join(ChatContextPath, `private.json`);
-    }
-    fs.writeFileSync(file, JSON.stringify(chatMsg, null, 2), 'utf8');
+async function saveChatMsg(sessionId, chatMsg) {
+    const keyv = getSessionKeyv(sessionId);
+    await keyv.set('chatMsg', chatMsg);
 }

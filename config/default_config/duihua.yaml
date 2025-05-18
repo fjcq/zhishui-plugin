@@ -19,10 +19,6 @@ EnableAt: false
 # 发音人
 VoiceIndex: 23
 
-# AI数据 Mirror
-MirrorBearer: ""
-MirrorConversationId: ""
-
 # 主人名字
 Master: 止水
 #主人QQ
