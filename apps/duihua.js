@@ -147,6 +147,11 @@ export class ChatHandler extends plugin {
 
     /** 对话 */
     async duihua(e) {
+        // 检查是否有请求正在处理中
+        if (chatActive === 1) {
+            e.reply('稍等哦，正在处理上一个请求~');
+            return;
+        }
         // 检查消息是否是针对当前对话的，或者是通过@Bot的方式
         let msg = e.msg;
         let regex = new RegExp(`^#?${chatNickname}`);
