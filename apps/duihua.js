@@ -199,10 +199,12 @@ export class ChatHandler extends plugin {
                     if (Array.isArray(replyObj.favor_changes)) {
                         for (const item of replyObj.favor_changes) {
                             const user_id = item.user_id || e.user_id;
-                            const change = item.change || 0;
+                            const change = Number(item.change);
+                            if (isNaN(change)) continue; // 跳过无效变更
                             const oldFavor = await getUserFavor(user_id);
-                            await setUserFavor(user_id, oldFavor + change);
-                            favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
+                            const newFavor = Math.max(-100, oldFavor + change); // 最小-100
+                            await setUserFavor(user_id, newFavor);
+                            favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
                         }
                     }
                     if (favorLogs.length > 0) {
@@ -1116,9 +1118,13 @@ async function getUserFavor(userId) {
  * 设置好感度
  */
 async function setUserFavor(userId, favor = 0) {
-    let user = { favor: parseInt(favor) || 0 };
     const dataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
     const fileName = `${userId}.json`;
+    let user = {};
+    if (fs.existsSync(path.join(dataPath, fileName))) {
+        user = await Data.readJSON(fileName, dataPath);
+    }
+    user.favor = parseInt(favor) || 0;
     return Data.writeJSON(fileName, user, dataPath);
 }
 
