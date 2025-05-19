@@ -60,7 +60,10 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)??查看(对话)?场景$`,
                     fnc: 'ShowChatScene'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??设置好感度(.*)$`,
+                    reg: '^#?(止水)?(插件|对话)?查看(好感|亲密)度$',
+                    fnc: 'ShowFavor'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)??设置(好感|亲密)度(.*)$`,
                     fnc: 'updateUserFavor'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`,
@@ -75,20 +78,11 @@ export class ChatHandler extends plugin {
                     reg: `^#?止水(插件|对话)?设置(对话)?(API|api)(.*)$`,
                     fnc: 'SetApi'
                 }, {
+                    reg: `^#?(止水)?(插件|对话)?切换(对话)?(API|api)(.*)$`,
+                    fnc: 'SwitchApi'
+                }, {
                     reg: `^#?止水(插件|对话)?查看(对话)?(API|api)$`,
                     fnc: 'ShowApi'
-                }, {
-                    reg: `^#?止水(插件|对话)?设置(对话)?(KEY|key)(.*)$`,
-                    fnc: 'SetApiKey'
-                }, {
-                    reg: `^#?止水(插件|对话)?查看(对话)?(KEY|key)$`,
-                    fnc: 'ShowApiKey'
-                }, {
-                    reg: `^#?止水(插件|对话)?设置(对话)?模型(.*)$`,
-                    fnc: 'setModel'
-                }, {
-                    reg: `^#?止水(插件|对话)?查看(对话)?模型$`,
-                    fnc: 'showModel'
                 }, {
                     reg: `^#?止水(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
@@ -384,6 +378,30 @@ export class ChatHandler extends plugin {
 
     }
 
+    /** 查看用户好感度 */
+    async ShowFavor(e) {
+        let isAdmin = e.isMaster || e.isAdmin;
+        let atUser = null;
+
+        if (e.at && e.at.length > 0) {
+            atUser = e.at[0];
+        }
+        let targetId = atUser || e.user_id;
+
+        // 权限判断
+        if (atUser && !isAdmin) {
+            e.reply('只有主人或管理员可以查看他人好感度。');
+            return;
+        }
+
+        const favor = await getUserFavor(targetId);
+        if (atUser) {
+            e.reply(`用户 [${atUser}] 的好感度为：${favor}`);
+        } else {
+            e.reply(`你的好感度为：${favor}`);
+        }
+    }
+
     /** 查看对话身份（角色） */
     async ShowContext(e) {
         let currentRoleIndex = await getCurrentRoleIndex(e);
@@ -421,7 +439,8 @@ export class ChatHandler extends plugin {
             if (roles[currentRoleIndex]) {
                 roles[currentRoleIndex] = newRole;
                 fs.writeFileSync(roleFile, JSON.stringify(roles, null, 2), 'utf8');
-                e.reply("当前角色身份已修改！");
+                await clearSessionContext(e);
+                e.reply("当前角色身份已修改！\n已自动清除上下文缓存，请重新开始对话。");
             } else {
                 e.reply("未找到当前角色，无法修改。");
             }
@@ -493,13 +512,229 @@ export class ChatHandler extends plugin {
             }
             // 写入配置
             await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
-            e.reply(`本群已切换为角色：${roles[idx].角色标题}`);
+            await clearSessionContext(e);
+            e.reply(`本群已切换为角色：${roles[idx].角色标题}\n已自动清除上下文缓存，请重新开始对话。`);
         } else {
             await Config.modify('duihua', 'CurrentRoleIndex', idx);
-            e.reply(`全局已切换为角色：${roles[idx].角色标题}`);
+            await clearSessionContext(e);
+            e.reply(`全局已切换为角色：${roles[idx].角色标题}\n已自动清除上下文缓存，请重新开始对话。`);
         }
     }
 
+    /** 设置API（支持切换API序号） */
+    async SetApi(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以设置API。');
+            return;
+        }
+
+        // 检查敏感参数，禁止群内设置
+        if (e.group_id && sensitiveFields.includes(field)) {
+            e.reply('该参数（如密钥、助手ID）只能在私聊中设置，请私聊机器人操作。');
+            return;
+        }
+
+        // 匹配如 #设置API类型 openai
+        const match = e.msg.match(/^#?设置API(类型|地址|密钥|模型|助手ID)\s+(.+)$/i);
+        if (!match) {
+            e.reply('格式错误，请用如 #设置API类型 openai');
+            return;
+        }
+        const keyMap = {
+            '类型': 'ApiType',
+            '地址': 'ApiUrl',
+            '密钥': 'ApiKey',
+            '模型': 'ApiModel',
+            '助手ID': 'TencentAssistantId'
+        };
+        const sensitiveFields = ['ApiKey', 'TencentAssistantId'];
+        const field = keyMap[match[1]];
+        const value = match[2].trim();
+        const ApiList = await Config.Chat.ApiList || [];
+        let idx = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+
+        // 判断是否群专属API
+        if (e.group_id && Array.isArray(await Config.Chat.GroupRoleIndex)) {
+            const groupRoleList = await Config.Chat.GroupRoleIndex;
+            const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
+            if (found && typeof found.apiIndex === 'number') {
+                idx = found.apiIndex;
+            }
+        }
+
+        if (idx < 0 || idx >= ApiList.length) {
+            e.reply(`当前API索引无效，当前共${ApiList.length}个API`);
+            return;
+        }
+        if (!field) {
+            e.reply('不支持设置该参数');
+            return;
+        }
+        ApiList[idx][field] = value;
+        await Config.modify('duihua', 'ApiList', ApiList);
+        await clearSessionContext(e);
+        e.reply(`当前API的${field}已设置为：${value}\n已自动清除上下文缓存，请重新开始对话。`);
+    }
+
+    /** 切换API（支持切换API序号） */
+    async SwitchApi(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以切换API。');
+            return;
+        }
+        // 解析序号
+        const apiIndexStr = e.msg.replace(/^#?(止水)?(插件|对话)?切换(对话)?(API|api)/, '').trim();
+        const ApiList = await Config.Chat.ApiList || [];
+        let idx = parseInt(apiIndexStr, 10) - 1;
+        if (isNaN(idx) || idx < 0 || idx >= ApiList.length) {
+            e.reply(`请输入正确的API序号（1~${ApiList.length}），如：#切换API1`);
+            return;
+        }
+        await Config.modify('duihua', 'CurrentApiIndex', idx);
+        await clearSessionContext(e);
+        e.reply(`已切换到API序号${idx + 1}，类型：${ApiList[idx].ApiType || '未知类型'}\n已自动清除上下文缓存，请重新开始对话。`);
+    }
+
+    /** 查看API（显示当前API参数+API列表+指令引导） */
+    async ShowApi(e) {
+        // 群聊禁止查看API参数
+        if (e.group_id) {
+            e.reply('该指令只能在私聊中使用，请私聊机器人查看API参数。');
+            return;
+        }
+        const ApiList = await Config.Chat.ApiList || [];
+        if (!ApiList.length) {
+            e.reply('未配置任何API。');
+            return;
+        }
+        const currentIdx = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+
+        // 判断是否群专属API
+        let idx = currentIdx;
+        if (e.group_id && Array.isArray(await Config.Chat.GroupRoleIndex)) {
+            const groupRoleList = await Config.Chat.GroupRoleIndex;
+            const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
+            if (found && typeof found.apiIndex === 'number') {
+                idx = found.apiIndex;
+            }
+        }
+
+        if (idx < 0 || idx >= ApiList.length) {
+            e.reply('当前API索引无效。');
+            return;
+        }
+        const api = ApiList[idx];
+        // 参数名中英文映射
+        const nameMap = {
+            ApiType: '类型',
+            ApiUrl: '地址',
+            ApiKey: '密钥',
+            ApiModel: '模型',
+            TencentAssistantId: '助手ID'
+        };
+        let msg = `【当前API参数】\n${Object.entries(api).map(([k, v]) => `${nameMap[k] || k}: ${v}`).join('\n')}`;
+
+        // 列出所有API
+        msg += `\n\n【API列表】\n`;
+        ApiList.forEach((item, i) => {
+            msg += `${i + 1}. ${item.ApiType || '未知类型'}${i === idx ? ' ✅当前' : ''}\n`;
+        });
+
+        // 指令引导
+        msg += `\n切换API：#切换API序号  例如 #切换API1\n`;
+        msg += `设置当前API参数：#设置API类型/地址/密钥/模型/助手ID 值  例如 #设置API类型 openai`;
+
+        e.reply(msg.trim());
+    }
+
+    /** 设置好感度，支持管理员@他人 */
+    async SetUserFavor(e) {
+        // 仅主人或管理员可设置他人
+        let isAdmin = e.isMaster || e.isAdmin;
+        let atUser = null;
+        let favor = null;
+
+        // 检查是否@了某人
+        if (e.at && e.at.length > 0) {
+            atUser = e.at[0];
+        }
+
+        // 提取好感度数值
+        let match = e.msg.match(/好感度\s*(-?\d+)/);
+        if (match) {
+            favor = parseInt(match[1]);
+        } else {
+            // 兼容 #设置好感度 @某人 50
+            let numMatch = e.msg.match(/(\d+)/);
+            if (numMatch) favor = parseInt(numMatch[1]);
+        }
+
+        // 目标用户
+        let targetId = atUser || e.user_id;
+
+        // 权限判断
+        if (atUser && !isAdmin) {
+            e.reply('只有主人或管理员可以设置他人好感度。');
+            return;
+        }
+
+        if (favor === null || isNaN(favor)) {
+            e.reply('请指定要设置的好感度数值，例如：#设置好感度 50');
+            return;
+        }
+
+        await setUserFavor(targetId, favor);
+        if (atUser) {
+            e.reply(`已将 [${atUser}] 的好感度设置为：${favor}`);
+        } else {
+            e.reply(`你的好感度已设置为：${favor}`);
+        }
+    }
+
+    /** 查看场景设定（仅私聊可用） */
+    async ShowChatScene(e) {
+        if (e.group_id) {
+            e.reply('该指令只能在私聊中使用，请私聊机器人查看场景设定。');
+            return;
+        }
+        const sceneJson = await ReadScene();
+        if (!sceneJson) {
+            e.reply('未找到任何场景设定。');
+            return;
+        }
+        try {
+            const scene = JSON.parse(sceneJson);
+            let msg = '【当前场景设定】\n' + Object.entries(scene).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
+            e.reply(msg);
+        } catch {
+            e.reply('场景设定数据格式有误。');
+        }
+    }
+
+    /** 设置场景设定（仅私聊可用） */
+    async SetChatScene(e) {
+        if (e.group_id) {
+            e.reply('该指令只能在私聊中使用，请私聊机器人设置场景。');
+            return;
+        }
+        // 取指令后的内容
+        let jsonStr = e.msg.replace(/^#?(止水)?(插件|对话)?设置(对话)?场景/, '').trim();
+        if (!jsonStr) {
+            e.reply('请提供完整的场景JSON内容。例如：#设置场景 {"key":"value"}');
+            return;
+        }
+        try {
+            JSON.parse(jsonStr); // 校验格式
+            await WriteScene(jsonStr);
+            e.reply('场景设定已保存！');
+        } catch (err) {
+            e.reply('场景JSON格式有误：' + err.message);
+        }
+    }
 }
 
 
@@ -541,70 +776,112 @@ async function mergeSystemMessage(e) {
 }
 
 async function openAi(msg, e) {
+    // 1. 获取 ApiList、CurrentApiIndex、GroupRoleIndex
+    const ApiList = await Config.Chat.ApiList || [];
+    const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+        ? await Config.Chat.CurrentApiIndex
+        : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+    const GroupRoleIndex = await Config.Chat.GroupRoleIndex || [];
 
-    const apiKey = await Config.Chat.ApiKey || '';
-    const aiModel = await Config.Chat.ApiModel || 'gpt-3.5-turbo';
-    const apiUrl = await Config.Chat.ApiUrl || 'https://api.openai.com/v1/chat/completions';
+    // 2. 判断是否有群专属API
+    let apiIndex = CurrentApiIndex;
+    if (e.group_id && Array.isArray(GroupRoleIndex)) {
+        const found = GroupRoleIndex.find(item => String(item.group) === String(e.group_id));
+        if (found && typeof found.apiIndex === 'number') {
+            apiIndex = found.apiIndex;
+        }
+    }
 
-    // 获取唯一会话ID（群聊用 group_id，私聊用 user_id）
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    // 3. 获取当前要用的API配置
+    const apiConfig = ApiList[apiIndex] || ApiList[0] || {};
 
-    // 读取上下文
-    let chatMsg = await loadChatMsg(sessionId);
+    // 4. 取出各项参数
+    const apiType = apiConfig.ApiType || 'siliconflow';
+    const apiKey = apiConfig.ApiKey || '';
+    const aiModel = apiConfig.ApiModel || 'gpt-3.5-turbo';
+    const apiUrl = apiConfig.ApiUrl || '';
+    const tencentAssistantId = apiConfig.TencentAssistantId || '';
 
-    // 每次都重新生成 system 消息，确保群专属角色生效
-    const systemMessage = await mergeSystemMessage(e);
-    if (!Array.isArray(chatMsg) || chatMsg.length === 0) {
-        chatMsg = [{ role: 'system', content: JSON.stringify(systemMessage) }];
+    // 1. 先构建 headers
+    let headers;
+    if (apiType === 'tencent') {
+        headers = {
+            'X-Source': 'openapi',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        };
     } else {
-        if (chatMsg[0].role === 'system') {
-            chatMsg[0] = { role: 'system', content: JSON.stringify(systemMessage) };
-        } else {
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        };
+    }
+
+    // 2. 构建请求参数（不含 messages）
+    let requestData;
+    if (apiType === 'tencent') {
+        requestData = {
+            assistant_id: tencentAssistantId,
+            user_id: String(e.user_id),
+            stream: false,
+            messages: [] // 稍后填充
+        };
+    } else {
+        requestData = {
+            model: aiModel,
+            messages: [], // 稍后填充
+            temperature: 0.7,
+            top_p: 0.8,
+            max_tokens: 2048,
+            presence_penalty: 0,
+            frequency_penalty: 0.5,
+            stream: false,
+            response_format: { type: 'json_object' }
+        };
+    }
+
+    // 3. 构建 system 消息
+    const systemMessage = await mergeSystemMessage(e);
+
+    // 4. 添加历史对话上下文
+    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    let chatMsg = await loadChatMsg(sessionId);
+    if (!Array.isArray(chatMsg)) chatMsg = [];
+
+    // 5. 添加/更新 system 消消息
+    if (apiType !== 'tencent') {
+        // 非腾讯元器，首条为 system
+        if (chatMsg.length === 0 || chatMsg[0].role !== 'system') {
             chatMsg.unshift({ role: 'system', content: JSON.stringify(systemMessage) });
+        } else {
+            chatMsg[0] = { role: 'system', content: JSON.stringify(systemMessage) };
         }
     }
 
-    /** 添加新消息 */
-    async function addMessage(newMessage) {
-        chatMsg.push(newMessage);
-        const MaxHistory = await Config.Chat.MaxHistory;
-        while (chatMsg.length > MaxHistory + 1) { // +1 保留 system 消消息
-            chatMsg.splice(1, 1);
-        }
-        // 保存到文件
-        await saveChatMsg(sessionId, chatMsg);
+    // 6. 添加本次用户消息
+    if (chatMsg.length === 0 || chatMsg[chatMsg.length - 1].role !== 'user') {
+        chatMsg.push({ role: 'user', content: msg });
+    } else {
+        chatMsg[chatMsg.length - 1].content = msg;
     }
 
-    await addMessage({ role: 'user', content: msg });
+    // 7. 填充 messages
+    if (apiType === 'tencent') {
+        // 腾讯元器不传 system
+        requestData.messages = chatMsg
+            .filter(m => m.role !== 'system')
+            .map(m => ({
+                role: m.role,
+                content: [{ type: "text", text: m.content }]
+            }));
+    } else {
+        requestData.messages = chatMsg;
+    }
 
-    // 新增DeepSeek请求头
-    const headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-    };
-
-    // 获取当前角色配置
-    const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
-    const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
-    const currentRoleIndex = await getCurrentRoleIndex(e);
-    const identitySetting = roles[currentRoleIndex] || {};
-    const apiParams = identitySetting.请求参数 || {};
-
-    // 构建请求数据，优先用角色请求参数，没有则用全局默认
-    const requestData = {
-        model: aiModel,
-        messages: chatMsg,
-        temperature: apiParams.temperature ?? 0.7,
-        top_p: apiParams.top_p ?? 0.8,
-        max_tokens: apiParams.max_tokens ?? 2048,
-        presence_penalty: apiParams.presence_penalty ?? 0,
-        frequency_penalty: apiParams.frequency_penalty ?? 0.5,
-        top_k: apiParams.top_k ?? 50,
-        response_format: { type: 'json_object' },
-        stream: false,
-        verbose: false,
-        show_reasoning: await Config.Chat.ShowReasoning
-    };
+    // 输出请求参数调试信息
+    console.log('[openAi] 请求地址:', apiUrl);
+    console.log('[openAi] 请求头:', headers);
+    console.log('[openAi] 请求数据:', JSON.stringify(requestData, null, 2));
 
     let content;
     try {
@@ -615,45 +892,51 @@ async function openAi(msg, e) {
             body: JSON.stringify(requestData),
         });
 
-        // 新增DeepSeek错误码处理
+        // 错误码处理
         if (response.status === 401) {
+            console.error('[openAi] API密钥无效，状态码401');
             return 'API密钥无效，请检查 Key 配置';
         }
         if (response.status === 429) {
+            console.error('[openAi] 请求过于频繁，状态码429');
             return '请求过于频繁，请稍后再试';
         }
-        // 检查响应状态码，确保请求成功
         if (!response.ok) {
-            console.error(`请求地址：${apiUrl}`);
-            console.error(`请求内容：${JSON.stringify(requestData)}`);
-            console.error(`状态码：${response.status}`);
             let text = await response.text();
-            console.error(`响应内容：${text}`);
-
             let errorData;
             try {
                 errorData = JSON.parse(text);
             } catch {
                 errorData = { error: { message: text, code: response.status } };
             }
+            console.error('[openAi] 请求失败，响应内容:', errorData);
             return parseErrorMessage(errorData);
         }
 
-        // 尝试解析 JSON 响应
+        // 解析响应
         try {
             const responseData = await response.json();
-            let rawContent = responseData.choices[0].message.content.trim();
-            // 移除推理过程保留最终结论
-            content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
-
-            // 添加历史消息和AI回复
-            await addMessage({ role: 'assistant', content });
-
+            console.log('[openAi] 响应数据:', responseData);
+            if (apiType === 'tencent') {
+                // 腾讯元器返回格式
+                let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
+                content = rawContent;
+                // 只有请求成功时，才将请求和回复加入缓存
+                await addMessage({ role: 'user', content: msg }, e);
+                await addMessage({ role: 'assistant', content }, e);
+            } else {
+                // 其他API格式
+                let rawContent = responseData.choices[0].message.content.trim();
+                content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
+                await addMessage({ role: 'user', content: msg }, e);
+                await addMessage({ role: 'assistant', content }, e);
+            }
         } catch (parseError) {
+            console.error('[openAi] 响应解析失败:', parseError);
             content = await response.text();
         }
     } catch (error) {
-        console.error('与 AI 通信时发生错误:', error.message);
+        console.error('[openAi] 与 AI 通信时发生错误:', error.message);
         return '与 AI 通信时发生错误，请稍后重试。';
     }
 
@@ -851,49 +1134,6 @@ async function msgToAt(msg) {
 }
 
 /**
- * 读场景设定
- */
-async function readSystemConfig() {
-    try {
-        const fileName = 'SystemConfig.json';
-        const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
-        const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
-
-        const [userScene, defaultScene] = await Promise.all([
-            fs.promises.readFile(userConfigPath, 'utf8').catch(() => ''),
-            fs.promises.readFile(defaultConfigPath, 'utf8').catch(() => ''),
-        ]);
-        return userScene || defaultScene;
-    } catch (error) {
-        console.error('读取场景配置文件时发生错误:', error);
-        return '';
-    }
-}
-
-/**
- * 写场景设定
- */
-async function writeSystemConfig(configContent) {
-    try {
-        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'SystemConfig.json');
-        await fs.promises.writeFile(sceneFilePath, configContent, 'utf8');
-        console.log('场景配置已成功保存。');
-    } catch (error) {
-        console.error('写入场景配置文件时发生错误:', error);
-        return false;
-    }
-    return true;
-}
-
-/**
- * 写主人设定
- */
-async function writeMasterInfo(masterName, masterQQ) {
-    Config.modify('duihua', 'Master', masterName);
-    Config.modify('duihua', 'MasterQQ', masterQQ);
-}
-
-/**
  * 获取当前会话应使用的角色索引
  * @param {object} e - 事件对象
  * @returns {number} 角色索引
@@ -969,4 +1209,23 @@ async function sendCodeAsForwardMsg(e, codeText) {
         return;
     }
     await ForwardMsg(e, codeList);
+}
+
+/**
+ * 向当前会话追加一条消息并保存
+ * @param {Object} message {role, content}
+ */
+async function addMessage(message, e) {
+    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    let chatMsg = await loadChatMsg(sessionId);
+    if (!Array.isArray(chatMsg)) chatMsg = [];
+    chatMsg.push(message);
+    await saveChatMsg(sessionId, chatMsg);
+}
+
+/** 清除当前会话缓存上下文 */
+async function clearSessionContext(e) {
+    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    const keyv = getSessionKeyv(sessionId);
+    await keyv.delete('chatMsg');
 }
