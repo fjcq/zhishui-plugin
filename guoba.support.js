@@ -147,22 +147,64 @@ export function supportGuoba() {
                 // AI接口设置分组
                 { component: "SOFT_GROUP_BEGIN", label: "AI接口设置" },
                 {
-                    field: 'duihua.ApiUrl',
-                    label: 'API地址',
-                    bottomHelpMessage: '设置对话使用的API',
-                    component: 'Input'
+                    field: 'duihua.ApiList',
+                    label: 'API配置数组',
+                    bottomHelpMessage: '可配置多个API，每个API包含类型、地址、密钥、模型等信息',
+                    component: 'GSubForm',
+                    componentProps: {
+                        multiple: true,
+                        addButtonText: '添加API配置',
+                        schemas: [
+                            {
+                                field: 'ApiType',
+                                label: 'API类型',
+                                component: 'Select',
+                                required: true,
+                                componentProps: {
+                                    options: [
+                                        { label: 'OpenAI', value: 'openai' },
+                                        { label: '硅基流动', value: 'siliconflow' },
+                                        { label: '腾讯元器', value: 'tencent' }
+                                    ],
+                                    placeholder: '请选择API类型'
+                                }
+                            },
+                            {
+                                field: 'TencentAssistantId',
+                                label: '腾讯元器助手ID',
+                                component: 'Input',
+                                bottomHelpMessage: '仅当API类型为tencent时需要填写'
+                            },
+                            {
+                                field: 'ApiUrl',
+                                label: 'API地址',
+                                component: 'Input'
+                            },
+                            {
+                                field: 'ApiKey',
+                                label: 'API密钥',
+                                component: 'Input'
+                            },
+                            {
+                                field: 'ApiModel',
+                                label: '模型',
+                                component: 'Input'
+                            }
+                        ]
+                    }
                 },
                 {
-                    field: 'duihua.ApiKey',
-                    label: 'API密钥',
-                    bottomHelpMessage: '设置对话使用的KEY',
-                    component: 'Input'
-                },
-                {
-                    field: 'duihua.ApiModel',
-                    label: '模型',
-                    bottomHelpMessage: '设置对话使用的模型',
-                    component: 'Input'
+                    field: 'duihua.CurrentApiIndex',
+                    label: '全局默认API',
+                    bottomHelpMessage: '选择全局默认使用的API（对应API配置数组的下标）',
+                    component: 'Select',
+                    componentProps: {
+                        options: (Config.Chat.ApiList || []).map((api, idx) => ({
+                            label: `${api.ApiType}（${api.ApiUrl}）`,
+                            value: idx
+                        })),
+                        placeholder: '请选择全局默认API'
+                    }
                 },
 
                 // 角色与历史分组
@@ -188,12 +230,12 @@ export function supportGuoba() {
                 },
                 {
                     field: 'duihua.GroupRoleIndex',
-                    label: '群专属角色设置',
-                    bottomHelpMessage: '为不同群设置专属角色，每行一个群号和角色。',
+                    label: '群专属角色与API设置',
+                    bottomHelpMessage: '为不同群设置专属角色和API，每行一个群号、角色索引和API索引。',
                     component: 'GSubForm',
                     componentProps: {
                         multiple: true,
-                        addButtonText: '添加群专属角色',
+                        addButtonText: '添加群专属角色与API',
                         schemas: [
                             {
                                 field: 'group',
@@ -213,6 +255,19 @@ export function supportGuoba() {
                                         value: idx
                                     })),
                                     placeholder: '请选择角色'
+                                }
+                            },
+                            {
+                                field: 'apiIndex',
+                                label: 'API索引',
+                                component: 'Select',
+                                required: true,
+                                componentProps: {
+                                    options: (Config.Chat.ApiList || []).map((api, idx) => ({
+                                        label: `${api.ApiType}（${api.ApiUrl}）`,
+                                        value: idx
+                                    })),
+                                    placeholder: '请选择API'
                                 }
                             }
                         ]

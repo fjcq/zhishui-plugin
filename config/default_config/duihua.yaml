@@ -4,12 +4,6 @@ NickName: 小七
 # 对话仅限主人可用
 OnlyMaster: false
 
-# 必应开关
-EnableBing: false
-
-# 必应参数
-BingCookie: ""
-
 # 语音开关
 EnableVoice: false
 
@@ -21,23 +15,30 @@ VoiceIndex: 23
 
 # 主人名字
 Master: 止水
+
 #主人QQ
 MasterQQ: 172679743
 
-# 必应模型   默认：balanced, 创意：creative, 精确：precise, 快速：fast
-toneStyle: "creative"
+# API配置数组，每个API为一个对象，包含类型、地址、密钥、模型等
+ApiList:
+  - ApiType: "openai"
+    TencentAssistantId: ""
+    ApiUrl: "https://api.deepseek.com/v1/chat/completions"
+    ApiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ApiModel: deepseek-chat
+  - ApiType: "siliconflow"
+    TencentAssistantId: ""
+    ApiUrl: "https://api.siliconflow.cn/v1/chat/completions"
+    ApiKey: "你的siliconflow key"
+    ApiModel: siliconflow-chat
+  - ApiType: "tencent"
+    TencentAssistantId: "你的腾讯助手ID"
+    ApiUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
+    ApiKey: "你的腾讯元器key"
+    ApiModel: hunyuan-lite
 
-# 链接模式
-LinkMode: false
-
-# 对话接口地址
-ApiUrl: "https://api.deepseek.com/v1/chat/completions"
-
-# 对话秘钥
-ApiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-
-# 对话模型
-ApiModel: deepseek-chat
+# 全局默认API索引（对应ApiList的下标）
+CurrentApiIndex: 0
 
 # 对话历史最大长度
 MaxHistory: 20
@@ -45,9 +46,11 @@ MaxHistory: 20
 # 当前使用的角色索引（从0开始）
 CurrentRoleIndex: 0
 
-# 指定群聊使用的角色索引，格式：[ { group: 群号, index: 角色索引 }, ... ]
+# 指定群聊使用的角色索引和API索引，格式：[ { group: 群号, index: 角色索引, apiIndex: API索引 }, ... ]
 GroupRoleIndex:
   - group: 123456789
     index: 1
+    apiIndex: 0
   - group: 987654321
     index: 2
+    apiIndex: 1
