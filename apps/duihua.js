@@ -33,7 +33,7 @@ export class ChatHandler extends plugin {
             priority: 8888,
             rule: [
                 {
-                    reg: `^#?(止水)?(插件|对话)?(取消|结束|重置|关闭)(对话|聊天)$`,
+                    reg: `^#?(止水)?(插件|对话)?(取消|结束|重置|关闭)(全部)?(对话|聊天)$`,
                     fnc: 'ResetChat'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?(语|发)音(开启|关闭)$`,
@@ -121,6 +121,20 @@ export class ChatHandler extends plugin {
     async ResetChat(e) {
         if (!e.isMaster) { return; }
         chatActive = 0;
+
+        // 判断是否为“结束全部对话”
+        if (/全部/.test(e.msg)) {
+            // 删除所有对话上下文缓存文件
+            const files = fs.readdirSync(CHAT_CONTEXT_PATH);
+            for (const file of files) {
+                const filePath = path.join(CHAT_CONTEXT_PATH, file);
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+            }
+            e.reply('已清除全部对话缓存！');
+            return;
+        }
 
         // 删除对应上下文缓存
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
