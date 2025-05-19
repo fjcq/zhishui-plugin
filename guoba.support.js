@@ -4,7 +4,7 @@ import fs from 'fs'
 const Path = process.cwd()
 const PluginPath = `${Path}/plugins/zhishui-plugin`
 const RoleList = JSON.parse(fs.readFileSync(`${PluginPath}/config/default_config/RoleProfile.json`, 'utf8'))
-const VoiceList = await Data.ReadVoiceList()
+const VoiceList = await Data.readVoiceList()
 
 export function supportGuoba() {
     return {

@@ -51,7 +51,7 @@ let Data = {
   /**
   * 读发音人数据
   */
-  async ReadVoiceList() {
+  async readVoiceList() {
     let temp = {};
     const DataPath = path.join(getRoot(), 'resources', 'data');
     const fileName = 'VoiceList.json';

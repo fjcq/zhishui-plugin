@@ -7,21 +7,21 @@ import { KeyvFile } from 'keyv-file';
 import path from 'path';
 
 /** 缓存目录 */
-const CachePath = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
+const CACHE_PATH = path.join(Plugin_Path, 'resources', 'Cache', 'Chat');
 /** 聊天上下文文件夹 */
-const ChatContextPath = path.join(Plugin_Path, 'resources', 'Cache', 'ChatContext');
-if (!fs.existsSync(ChatContextPath)) fs.mkdirSync(ChatContextPath, { recursive: true });
+const CHAT_CONTEXT_PATH = path.join(Plugin_Path, 'resources', 'Cache', 'ChatContext');
+if (!fs.existsSync(CHAT_CONTEXT_PATH)) fs.mkdirSync(CHAT_CONTEXT_PATH, { recursive: true });
 
 /** 聊天昵称 */
-let NickName = await Config.Chat.NickName;
+let chatNickname = await Config.Chat.NickName;
 /** 发音人列表 */
-const VoiceList = await Data.ReadVoiceList();
+const voiceList = await Data.readVoiceList();
 
 /** 工作状态 */
-let isChatActive = 0;
+let chatActive = 0;
 
 /** 消息计数器 */
-let messageCounter = 0;
+let chatMessageCounter = 0;
 
 
 export class ChatHandler extends plugin {
@@ -120,7 +120,7 @@ export class ChatHandler extends plugin {
     /** 重置对话 */
     async ResetChat(e) {
         if (!e.isMaster) { return; }
-        isChatActive = 0;
+        chatActive = 0;
 
         // 删除对应上下文缓存
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
@@ -135,16 +135,16 @@ export class ChatHandler extends plugin {
     async duihua(e) {
         // 检查消息是否是针对当前对话的，或者是通过@Bot的方式
         let msg = e.msg;
-        let regex = new RegExp(`^#?${NickName}`);
+        let regex = new RegExp(`^#?${chatNickname}`);
         if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
             try {
                 // 标记对话状态为进行中      
-                isChatActive = 1;
+                chatActive = 1;
                 // 提取用户消息内容，并去除对话昵称前缀
-                msg = msg.replace(/^#?${NickName}\s*/, '').trim();
+                msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
                 msg = msg.replace(/{at:/g, '{@');
 
-                const Favora = await GetFavora(e.user_id);
+                const Favora = await getUserFavor(e.user_id);
                 const userMessage = {
                     message: msg,
                     additional_info: {
@@ -187,8 +187,8 @@ export class ChatHandler extends plugin {
                         for (const item of replyObj.favor_changes) {
                             const user_id = item.user_id || e.user_id;
                             const change = item.change || 0;
-                            const oldFavor = await GetFavora(user_id);
-                            await SetFavora(user_id, oldFavor + change);
+                            const oldFavor = await getUserFavor(user_id);
+                            await setUserFavor(user_id, oldFavor + change);
                             favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${oldFavor + change}`);
                         }
                     }
@@ -197,34 +197,58 @@ export class ChatHandler extends plugin {
                     }
 
                     // 拼接 message 和 code_example 字段
-                    let finalReply = replyObj.message;
-                    if (replyObj.code_example) {
-                        finalReply += `\n\n代码示例：\n\`\`\`\n${replyObj.code_example}\n\`\`\``;
+                    let finalReply = replyObj.message ?? '';
+                    let codeText = '';
+
+                    // 优先提取 message 里的代码块
+                    const codeRegex = /```(?:[\w]*)\n*([\s\S]*?)```/g;
+                    let codeBlocks = [];
+                    let msgWithoutCode = finalReply;
+                    let match;
+                    while ((match = codeRegex.exec(finalReply)) !== null) {
+                        codeBlocks.push(match[1].trim());
+                    }
+                    // 去除 message 里的代码块，得到纯文本
+                    if (codeBlocks.length > 0) {
+                        codeText = codeBlocks.join('\n\n');
+                        msgWithoutCode = finalReply.replace(/```[\w]*\n*[\s\S]*?```/g, '').trim();
                     }
 
-                    // 支持 @
-                    const remsg = await MsgToAt(finalReply);
-                    e.reply(remsg, true);
+                    // 如果没有 message 里的代码块，再看 code_example 字段
+                    if (!codeText && replyObj.code_example && replyObj.code_example.trim()) {
+                        codeText = replyObj.code_example.trim();
+                    }
+
+                    // 先回复普通文本（支持@），如果有
+                    if (msgWithoutCode) {
+                        const remsg = await msgToAt(msgWithoutCode);
+                        await e.reply(remsg, true);
+                    }
+
+                    // 再转发代码（只发代码内容），如果有
+                    if (codeText) {
+                        await sendCodeAsForwardMsg(e, codeText);
+                    }
 
                     // 语音合成（如有需要）
                     if (await Config.Chat.EnableVoice) {
-                        const voiceId = VoiceList[await Config.Chat.VoiceIndex].voiceId;
-                        const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(newfavora)}&speed=0.8&volume=150&audioType=wav`;
+                        const voiceId = voiceList[await Config.Chat.VoiceIndex].voiceId;
+                        const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(finalReply)}&speed=0.8&volume=150&audioType=wav`;
                         e.reply([segment.record(voiceUrl)]);
                     }
 
                     // 标记对话状态为完成
-                    isChatActive = 0;
+                    chatActive = 0;
                 } else {
                     // 如果没有获取到有效的回复，标记对话状态为未进行
-                    isChatActive = 0;
+                    chatActive = 0;
                     return false;
                 }
             } catch (error) {
                 // 捕获并处理异常，例如输出错误日志
                 console.error('对话处理过程中发生错误:', error);
                 e.reply('发生错误，无法进行对话。');
-                isChatActive = 0;
+                chatActive = 0;
                 return false;
             }
         }
@@ -241,7 +265,7 @@ export class ChatHandler extends plugin {
 
         let nickname = e.msg.replace(/^.*修改(对话)?昵称/g, '').trim();
         if (nickname.length > 0 && nickname != await Config.Chat.NickName) {
-            NickName = nickname;
+            chatNickname = nickname;
             Config.modify('duihua', 'NickName', nickname);
             e.reply("对话昵称修改为:" + nickname);
             return true;
@@ -294,13 +318,13 @@ export class ChatHandler extends plugin {
 
         let VoiceIndex = parseInt(e.msg.replace(/\D+/, '').trim());
         console.log(VoiceIndex);
-        if (VoiceIndex < VoiceList.length && VoiceIndex > 0) {
+        if (VoiceIndex < voiceList.length && VoiceIndex > 0) {
             VoiceIndex = VoiceIndex - 1;
             Config.modify('duihua', 'VoiceIndex', VoiceIndex);
-            let name = VoiceList[VoiceIndex].name;
+            let name = voiceList[VoiceIndex].name;
             e.reply("[对话发音人]:" + name);
 
-            let voiceId = VoiceList[VoiceIndex].voiceId;
+            let voiceId = voiceList[VoiceIndex].voiceId;
             let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`;
             e.reply([segment.record(url)]);
 
@@ -317,11 +341,11 @@ export class ChatHandler extends plugin {
     async ShowVoiceId(e) {
         let msg = [];
         let nowindex = await Config.Chat.VoiceIndex;
-        msg.push(`当前发音人：${(nowindex + 1)} 、${VoiceList[nowindex].name}`);
+        msg.push(`当前发音人：${(nowindex + 1)} 、${voiceList[nowindex].name}`);
         msg.push(`#止水对话设置发音人${(nowindex + 1)}`);
         let list = `*** 发音人列表 ***\n`;
-        for (let i = 0; i < VoiceList.length; i++) {
-            let obj = VoiceList[i];
+        for (let i = 0; i < voiceList.length; i++) {
+            let obj = voiceList[i];
             let name = obj.name;
             let type = obj.type;
             let sexy = obj.sexy;
@@ -465,11 +489,10 @@ export class ChatHandler extends plugin {
  * @returns {string} 返回组建完成的 system 消息
  */
 async function mergeSystemMessage(e) {
+    let merged = {};
     try {
-        const { NickName, Master, MasterQQ } = await Config.Chat;
         const sceneJson = await ReadScene();
         const sceneSetting = JSON.parse(sceneJson);
-
         const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
         const currentRoleIndex = await getCurrentRoleIndex(e);
@@ -479,33 +502,23 @@ async function mergeSystemMessage(e) {
         if ('请求参数' in identitySetting) {
             delete identitySetting['请求参数'];
         }
-
-        // 调试日志
-        console.log(`[mergeSystemMessage] 群:${e.group_id} 当前角色索引:${currentRoleIndex} 角色标题:${identitySetting.角色标题}`);
-
-        const merged = { ...identitySetting, ...sceneSetting };
-        merged.基础身份 = {
-            ...(merged.基础身份 || {}),
-            名称: NickName,
-            主人信息: {
-                master_name: Master,
-                master_qq: MasterQQ
-            }
-        };
-
-        return merged;
+        // 合并所有设定
+        merged = { ...identitySetting, ...sceneSetting };
     } catch (error) {
         console.error('配置解析失败:', error);
-        return {
-            基础身份: {
-                名称: await Config.Chat.NickName,
-                主人信息: {
-                    master_name: await Config.Chat.Master,
-                    master_qq: await Config.Chat.MasterQQ
-                }
-            }
-        };
+        // merged 保持空对象，后面统一兜底
     }
+    // 无论是否异常，都补充基础身份和主人信息
+    const { NickName, Master, MasterQQ } = await Config.Chat;
+    merged.基础身份 = {
+        ...(merged.基础身份 || {}),
+        名称: NickName
+    };
+    merged.主人信息 = {
+        master_name: Master,
+        master_qq: MasterQQ
+    };
+    return merged;
 }
 
 async function openAi(msg, e) {
@@ -689,21 +702,6 @@ function parseErrorMessage(errorData) {
     return response;
 }
 
-/** 解析必应参数 */
-async function AnalysisBingCookie(Cookie = '') {
-    let KievRPSSecAuth = '';
-    let _U = '';
-    if (Cookie.includes("KievRPSSecAuth=")) {
-        KievRPSSecAuth = Cookie.match(/\bKievRPSSecAuth=(\S+)\b/)[1];
-    }
-
-    if (Cookie.includes("_U=")) {
-        _U = Cookie.match(/\b_U=(\S+)\b/)[1];
-    }
-
-    return { KievRPSSecAuth, _U };
-}
-
 /**
  * 发送转发消息
  * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
@@ -802,37 +800,78 @@ async function WriteMaster(Master, MasterQQ) {
 /**
  * 获取好感度
  */
-async function GetFavora(qq) {
+async function getUserFavor(userId) {
     let user = {};
-    const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
-    const fileName = `${qq}.json`;
-    if (fs.existsSync(path.join(DataPath, fileName))) {
-        user = await Data.readJSON(fileName, DataPath);
+    const dataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
+    const fileName = `${userId}.json`;
+    if (fs.existsSync(path.join(dataPath, fileName))) {
+        user = await Data.readJSON(fileName, dataPath);
     }
-
-    return parseInt(user.Favora) | 0;
+    return parseInt(user.favor) || 0;
 }
 
 /**
  * 设置好感度
  */
-async function SetFavora(qq, favora = 0) {
-    let user = { Favora: parseInt(favora) | 0 };
-    const DataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
-    const fileName = `${qq}.json`;
-
-    return Data.writeJSON(fileName, user, DataPath);
+async function setUserFavor(userId, favor = 0) {
+    let user = { favor: parseInt(favor) || 0 };
+    const dataPath = path.join(Plugin_Path, 'resources', 'data', 'user');
+    const fileName = `${userId}.json`;
+    return Data.writeJSON(fileName, user, dataPath);
 }
 
 /**
  * 将msg中的号码转成@
  */
-async function MsgToAt(msg) {
+async function msgToAt(msg) {
     let arr = msg.toString()
         .split(/(\[@\d+\])/)
         .filter(Boolean)
         .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s);
     return arr;
+}
+
+/**
+ * 读场景设定
+ */
+async function readSystemConfig() {
+    try {
+        const fileName = 'SystemConfig.json';
+        const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
+        const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
+
+        const [userScene, defaultScene] = await Promise.all([
+            fs.promises.readFile(userConfigPath, 'utf8').catch(() => ''),
+            fs.promises.readFile(defaultConfigPath, 'utf8').catch(() => ''),
+        ]);
+        return userScene || defaultScene;
+    } catch (error) {
+        console.error('读取场景配置文件时发生错误:', error);
+        return '';
+    }
+}
+
+/**
+ * 写场景设定
+ */
+async function writeSystemConfig(configContent) {
+    try {
+        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'SystemConfig.json');
+        await fs.promises.writeFile(sceneFilePath, configContent, 'utf8');
+        console.log('场景配置已成功保存。');
+    } catch (error) {
+        console.error('写入场景配置文件时发生错误:', error);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * 写主人设定
+ */
+async function writeMasterInfo(masterName, masterQQ) {
+    Config.modify('duihua', 'Master', masterName);
+    Config.modify('duihua', 'MasterQQ', masterQQ);
 }
 
 /**
@@ -861,9 +900,9 @@ async function getCurrentRoleIndex(e) {
 function getSessionKeyv(sessionId) {
     let file;
     if (sessionId.startsWith('group_')) {
-        file = path.join(ChatContextPath, `${sessionId}.json`);
+        file = path.join(CHAT_CONTEXT_PATH, `${sessionId}.json`);
     } else {
-        file = path.join(ChatContextPath, `private.json`);
+        file = path.join(CHAT_CONTEXT_PATH, `private.json`);
     }
     return new KeyvFile({ filename: file });
 }
@@ -887,4 +926,28 @@ async function loadChatMsg(sessionId) {
 async function saveChatMsg(sessionId, chatMsg) {
     const keyv = getSessionKeyv(sessionId);
     await keyv.set('chatMsg', chatMsg);
+}
+
+/**
+ * 整理并通过转发消息发送代码内容，只发送代码部分
+ * @param {object} e - 事件对象
+ * @param {string} codeText - 包含代码的文本（可含多余说明）
+ */
+async function sendCodeAsForwardMsg(e, codeText) {
+    // 提取所有代码块（支持 ```、```js、```javascript 等）
+    const codeBlocks = [];
+    const codeRegex = /```(?:[\w]*)\n*([\s\S]*?)```/g;
+    let match;
+    while ((match = codeRegex.exec(codeText)) !== null) {
+        codeBlocks.push(match[1].trim());
+    }
+    // 如果没有代码块，则整体作为代码
+    let codeList = codeBlocks.length > 0 ? codeBlocks : [codeText.trim()];
+    // 过滤掉空内容
+    codeList = codeList.filter(Boolean);
+    if (codeList.length === 0) {
+        e.reply('未检测到可发送的代码内容。');
+        return;
+    }
+    await ForwardMsg(e, codeList);
 }
