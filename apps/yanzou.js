@@ -82,7 +82,12 @@ export class YanzouPlayer extends plugin {
             return
         }
 
+        // 预估准备时间
+        const noteCount = ffmpegArgs.filter(arg => arg === '-i').length
+        const estimatedTime = Math.max(5, Math.round(noteCount * 0.8)) // 每音符约0.8秒，最少5秒
         let hasStarted = false
+        let startTime = 0
+
         const ffmpegProc = spawn(
             "ffmpeg",
             ffmpegArgs,
@@ -90,7 +95,8 @@ export class YanzouPlayer extends plugin {
         )
 
         ffmpegProc.on('spawn', () => {
-            e.reply("我要准备演奏了，请稍等一哈！")
+            startTime = Date.now()
+            e.reply(`正在为你准备演奏，预计需要${estimatedTime}秒左右，请耐心等待~（音符越多等待时间越长）`)
             hasStarted = true
         })
 
@@ -111,6 +117,7 @@ export class YanzouPlayer extends plugin {
         })
 
         ffmpegProc.on('exit', async (code) => {
+            const usedTime = Math.round((Date.now() - startTime) / 1000)
             if (code === 0) {
                 await sleep(1000)
                 outputFilePath = path.join(OUTPUT_DIR, `output${OUTPUT_FORMAT}`)
@@ -121,6 +128,7 @@ export class YanzouPlayer extends plugin {
                 } catch {
                     e.reply(await segment.record(outputFilePath))
                 }
+                e.reply(`演奏准备完成，实际用时${usedTime}秒。`)
                 this._isProcessing = false
             } else {
                 const errorMsg = getFfmpegErrorMsg(code)
