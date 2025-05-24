@@ -5,25 +5,28 @@
 [![Gitee Star](https://gitee.com/fjcq/zhishui-plugin/badge/star.svg?theme=dark)](https://gitee.com/fjcq/zhishui-plugin/stargazers)
 [![GitHub Star](https://img.shields.io/github/stars/fjcq/zhishui-plugin?style=flat-square&logo=github)](https://github.com/fjcq/zhishui-plugin/stargazers)
 
-## 插件简介
+---
 
-**zhishui-plugin** 是一款为 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 打造的多功能娱乐扩展插件，集成了**搜剧**、**AI对话**和**乐器演奏**三大核心功能。插件支持多资源站点切换、AI角色自定义、语音互动、乐器简谱演奏等丰富玩法，满足群聊娱乐、智能对话和音乐创作等多样需求。配置灵活，易于上手，是提升群聊活跃度与趣味性的理想选择。
+## ✨ 插件简介
+
+**zhishui-plugin** 是一款为 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 打造的多功能娱乐扩展插件，集成了**搜剧**、**AI对话**和**乐器演奏**三大核心功能。  
+插件支持多资源站点切换、AI角色自定义、语音互动、乐器简谱演奏等丰富玩法，满足群聊娱乐、智能对话和音乐创作等多样需求。配置灵活，易于上手，是提升群聊活跃度与趣味性的理想选择。
 
 ---
 
-## 安装与更新
+## 🚀 安装与更新
 
 ### 1. 下载插件
 
 在云崽根目录下打开终端，选择合适的命令：
 
-- 国内网络  
+- **国内网络**  
 
   ```bash
   git clone https://gitee.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
   ```
 
-- 国外网络  
+- **国外网络**  
 
   ```bash
   git clone https://github.com/fjcq/zhishui-plugin.git ./plugins/zhishui-plugin
@@ -46,9 +49,11 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-## 功能总览
+## 🧩 功能总览
 
-### 一、搜剧功能
+---
+
+### 🎬 一、搜剧功能
 
 - 支持多资源站点切换，接口自定义管理
 - 剧集搜索、分页、选集、切换播放线路
@@ -72,7 +77,7 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-### 二、AI对话功能
+### 🤖 二、AI对话功能
 
 - 支持多种主流 AI 接口（如 ChatGPT、DeepSeek 等）
 - 角色、场景、主人信息均可自定义
@@ -107,7 +112,7 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-### 三、乐器演奏功能
+### 🎵 三、乐器演奏功能
 
 - 支持钢琴、八音盒、古筝、吉他、萨克斯、小提琴、箫、西域琴等多种乐器
 - 支持简谱输入，节拍自定义，自动合成乐曲
@@ -131,7 +136,10 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-## 配置说明
+## ⚙️ 配置说明
+
+> **推荐：**  
+> 建议配合 [锅巴插件](https://gitee.com/guoba-yunzai/guoba-plugin) 使用，可通过前端页面对本插件进行可视化配置，无需手动编辑配置文件，操作更便捷！
 
 - 插件支持前端可视化配置，支持自定义资源站点、AI接口、角色、代理等。
 - 角色配置支持全局与群专属，支持 JSON 格式编辑。
@@ -139,7 +147,31 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-## 常见问题
+### 🔑 AI接口Key申请与使用说明
+
+默认配置文件 `config/default_config/duihua.yaml` 中包含了三种主流AI接口（OpenAI、硅基流动、腾讯元器）的示例配置。**你需要根据实际需求申请各自的API Key，并填写到配置文件中：**
+
+- **OpenAI（如 ChatGPT、DeepSeek）**
+  - 访问 [OpenAI官网](https://platform.openai.com/) 或 [DeepSeek官网](https://deepseek.com/) 注册账号并获取API Key。
+  - 将申请到的API Key填入 `ApiKey` 字段，API地址和模型名称请参考官方文档或示例配置。
+
+- **硅基流动（SiliconFlow）**
+  - 访问 [硅基流动官网](https://siliconflow.cn/) 注册账号，进入控制台获取API Key。
+  - 将API Key填入 `ApiKey` 字段，API地址和模型名称请参考官方文档或示例配置。
+
+- **腾讯元器（腾讯混元）**
+  - 访问 [腾讯元器官网](https://yuanqi.tencent.com/) 注册账号，创建助手并获取 `ApiKey` 和 `TencentAssistantId`。
+  - 将 `ApiKey` 和 `TencentAssistantId` 分别填入对应字段，API地址和模型名称请参考官方文档或示例配置。
+
+> **注意：**  
+>
+> - 不同接口的API Key不可通用，请务必填写你实际申请到的Key。  
+> - 建议不要将API Key泄露给他人，避免账号被滥用。  
+> - 若遇到接口不可用、额度不足、模型不支持等问题，请优先检查API Key和接口参数是否正确。
+
+---
+
+## ❓ 常见问题
 
 ### AI接口常见问题
 
@@ -165,12 +197,12 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-## 交流群
+## 💬 交流群
 
 - 止水插件交流群：[556388103](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=nHBGClQFxzzlokib8TRqbdVoam6kPN3z&authKey=kxnCLF%2Boj%2FCHRulcjeIWJdX5aedRVP4sAQxwKZKe5wE36ox%2FYwsHWte2cvrAQRnf&noverify=0&group_code=556388103)
 
 ---
 
-## 致谢
+## 🙏 致谢
 
 感谢所有参与和支持本插件开发的朋友，欢迎反馈建议与贡献代码！
