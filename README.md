@@ -9,8 +9,8 @@
 
 ## ✨ 插件简介
 
-**zhishui-plugin** 是一款为 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 打造的多功能娱乐扩展插件，集成了**搜剧**、**AI对话**和**乐器演奏**三大核心功能。  
-插件支持多资源站点切换、AI角色自定义、语音互动、乐器简谱演奏等丰富玩法，满足群聊娱乐、智能对话和音乐创作等多样需求。配置灵活，易于上手，是提升群聊活跃度与趣味性的理想选择。
+**zhishui-plugin** 是为 [Yunzai-Bot](https://gitee.com/yoimiya-kokomi/Miao-Yunzai) 打造的多功能娱乐扩展插件，集成了**搜剧**、**AI对话**和**乐器演奏**三大核心功能。  
+支持多资源站点切换、AI角色自定义、语音互动、乐器简谱演奏等丰富玩法，配置灵活，易于上手，是提升群聊活跃度与趣味性的理想选择。
 
 ---
 
@@ -51,13 +51,11 @@ pnpm install --filter=zhishui-plugin
 
 ## 🧩 功能总览
 
----
+### 🎬 搜剧功能
 
-### 🎬 一、搜剧功能
-
-- 支持多资源站点切换，接口自定义管理
+- 多资源站点切换，接口自定义管理
 - 剧集搜索、分页、选集、切换播放线路
-- 支持查看和管理个人搜剧记录
+- 支持个人搜剧记录
 
 **常用指令：**
 
@@ -77,7 +75,7 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-### 🤖 二、AI对话功能
+### 🤖 AI对话功能
 
 - 支持多种主流 AI 接口（如 ChatGPT、DeepSeek 等）
 - 角色、场景、主人信息均可自定义
@@ -112,7 +110,7 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-### 🎵 三、乐器演奏功能
+### 🎵 乐器演奏功能
 
 - 支持钢琴、八音盒、古筝、吉他、萨克斯、小提琴、箫、西域琴等多种乐器
 - 支持简谱输入，节拍自定义，自动合成乐曲
@@ -147,7 +145,49 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-### 🔑 AI接口Key申请与使用说明
+## ❓ 常见问题
+
+### ffmpeg 安装问题
+
+> 乐器演奏等音频功能需 ffmpeg 支持，未安装将无法正常使用。
+
+**各系统 ffmpeg 安装方法：**
+
+- **Windows**
+  1. 访问 [ffmpeg 官网](https://ffmpeg.org/download.html) 或 [Gyan.dev 下载页](https://www.gyan.dev/ffmpeg/builds/)。
+  2. 下载 `ffmpeg-release-essentials.zip`，解压后将 `bin` 目录添加到系统环境变量 `Path`。
+  3. 打开命令行输入 `ffmpeg -version`，出现版本号即安装成功。
+
+- **Linux（如 Ubuntu/Debian）**
+
+  ```bash
+  sudo apt update
+  sudo apt install ffmpeg
+  ffmpeg -version
+  ```
+
+- **CentOS/RHEL**
+
+  ```bash
+  sudo yum install epel-release
+  sudo yum install ffmpeg
+  ffmpeg -version
+  ```
+
+- **macOS**
+
+  ```bash
+  brew install ffmpeg
+  ffmpeg -version
+  ```
+
+> 安装后请重启终端或电脑，确保 `ffmpeg` 命令可用。
+
+---
+
+### AI接口配置问题
+
+**API Key 申请与配置说明：**
 
 默认配置文件 `config/default_config/duihua.yaml` 中包含了三种主流AI接口（OpenAI、硅基流动、腾讯元器）的示例配置。**你需要根据实际需求申请各自的API Key，并填写到配置文件中：**
 
@@ -171,29 +211,23 @@ pnpm install --filter=zhishui-plugin
 
 ---
 
-## ❓ 常见问题
+### 其他常见问题
 
-### AI接口常见问题
-
-> - **API密钥无效/请求频繁/模型错误等**  
->   请检查 API 地址、KEY、模型名称是否正确，或更换代理节点。
->
-> - **国内无法访问OpenAI**  
->   请配置代理或使用反代服务。
->
-> - **角色设定触发安全机制**  
->   请适当修改角色设定，避免敏感内容。
+- **API密钥无效/请求频繁/模型错误等**  
+  请检查 API 地址、KEY、模型名称是否正确，或更换代理节点。
+- **国内无法访问OpenAI**  
+  请配置代理或使用反代服务。
+- **角色设定触发安全机制**  
+  请适当修改角色设定，避免敏感内容。
 
 ### 演奏功能常见问题
 
-> - **提示未配置ffmpeg**  
->   请确保已安装 [ffmpeg](https://ffmpeg.org/download.html) 并配置环境变量。
->
-> - **音频合成失败/无声音**  
->   检查乐器音源文件是否完整，简谱格式是否正确。
->
-> - **不支持的乐器或音符**  
->   请参考帮助指令获取支持的乐器和简谱格式。
+- **提示未配置ffmpeg**  
+  请参考上方 ffmpeg 安装指引。
+- **音频合成失败/无声音**  
+  检查乐器音源文件是否完整，简谱格式是否正确。
+- **不支持的乐器或音符**  
+  请参考帮助指令获取支持的乐器和简谱格式。
 
 ---
 
