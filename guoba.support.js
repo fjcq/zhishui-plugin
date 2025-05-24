@@ -128,6 +128,12 @@ export function supportGuoba() {
                         placeholder: '请选择发音人',
                     },
                 },
+                {
+                    field: 'duihua.EnablePrivateChat',
+                    label: '私聊AI回复',
+                    bottomHelpMessage: '开启后，私聊消息将由AI自动回复',
+                    component: 'Switch'
+                },
 
                 // 高级设置分组
                 { component: "SOFT_GROUP_BEGIN", label: "高级设置" },
