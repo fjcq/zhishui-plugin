@@ -1,6 +1,9 @@
 # 对话昵称
 NickName: 小七
 
+# 私聊是否通过AI回复
+EnablePrivateChat: true
+
 # 对话仅限主人可用
 OnlyMaster: false
 

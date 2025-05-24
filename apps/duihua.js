@@ -75,16 +75,16 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`,
                     fnc: 'SetLinkMode'
                 }, {
-                    reg: `^#?止水(插件|对话)?设置(对话)?(API|api)(.*)$`,
+                    reg: `^#?(止水)?(插件|对话)?设置(对话)?(API|api)(.*)$`,
                     fnc: 'SetApi'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?切换(对话)?(API|api)(.*)$`,
                     fnc: 'SwitchApi'
                 }, {
-                    reg: `^#?止水(插件|对话)?查看(对话)?(API|api)$`,
+                    reg: `^#?(止水)?(插件|对话)?查看(对话)?(API|api)$`,
                     fnc: 'ShowApi'
                 }, {
-                    reg: `^#?止水(插件|对话)?测试(.*)$`,
+                    reg: `^#?(止水)?(插件|对话)?测试(.*)$`,
                     fnc: 'taklTest'
                 }, {
                     reg: '^#?(止水)?(插件|对话)?角色列表$',
@@ -93,12 +93,15 @@ export class ChatHandler extends plugin {
                     reg: '^#?(止水)?(插件|对话)?切换(对话)?角色(.+)$',
                     fnc: 'SwitchRole'
                 }, {
+                    reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)',
+                    fnc: 'AddRole'
+                }, {
+                    reg: '^#?止水私聊回复(开启|关闭)$',
+                    fnc: 'SetPrivateChatEnable'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
-                }, {
-                    reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)',
-                    fnc: 'AddRole'
                 }
             ]
         });
@@ -146,126 +149,142 @@ export class ChatHandler extends plugin {
             e.reply('稍等哦，正在处理上一个请求~');
             return;
         }
-        // 检查消息是否是针对当前对话的，或者是通过@Bot的方式
+
         let msg = e.msg;
         let regex = new RegExp(`^#?${chatNickname}`);
-        if (regex.test(msg) || (e.atBot && await Config.Chat.EnableAt)) {
-            try {
-                // 标记对话状态为进行中      
-                chatActive = 1;
-                // 提取用户消息内容，并去除对话昵称前缀
-                msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
-                msg = msg.replace(/{at:/g, '{@');
+        const isPrivate = !e.group_id;
+        const enablePrivate = await Config.Chat.EnablePrivateChat;
 
-                const Favora = await getUserFavor(e.user_id);
-                const userMessage = {
-                    message: msg,
-                    additional_info: {
-                        name: e.sender.nickname,
-                        user_id: e.user_id,
-                        favor: Favora,
-                        group_id: e.group_id || 0
-                    }
-                };
-                const MessageText = JSON.stringify(userMessage);
-                console.log("止水对话 -> " + MessageText);
+        // 私聊逻辑
+        if (isPrivate) {
+            if (enablePrivate || regex.test(msg)) {
+                // 满足任一条件，AI回复
+            } else {
+                // 不满足条件，不回复
+                return false;
+            }
+        } else {
+            // 群聊逻辑，保持原有判断
+            if (!(regex.test(msg) || (e.atBot && await Config.Chat.EnableAt))) {
+                return false;
+            }
+        }
 
-                // 发送消息到 openAi 进行对话，传递 e 以便群聊优先使用群专属角色
-                let response = await openAi(MessageText, e);
+        try {
+            // 标记对话状态为进行中      
+            chatActive = 1;
+            // 提取用户消息内容，并去除对话昵称前缀
+            msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
+            msg = msg.replace(/{at:/g, '{@');
 
-                if (response) {
-                    console.log("止水对话 <- " + response);
+            const Favora = await getUserFavor(e.user_id);
+            const userMessage = {
+                message: msg,
+                additional_info: {
+                    name: e.sender.nickname,
+                    user_id: e.user_id,
+                    favor: Favora,
+                    group_id: e.group_id || 0
+                }
+            };
+            const MessageText = JSON.stringify(userMessage);
+            console.log("止水对话 -> " + MessageText);
 
-                    // 严格JSON格式校验
-                    let replyObj;
-                    try {
-                        replyObj = JSON.parse(response); // 这里用 response
-                        if (typeof replyObj !== 'object' || !replyObj.message) {
-                            replyObj = {
-                                message: response,
-                                favor_changes: []
-                            };
-                        }
-                    } catch (error) {
+            // 发送消息到 openAi 进行对话，传递 e 以便群聊优先使用群专属角色
+            let response = await openAi(MessageText, e);
+
+            if (response) {
+                console.log("止水对话 <- " + response);
+
+                // 严格JSON格式校验
+                let replyObj;
+                try {
+                    replyObj = JSON.parse(response); // 这里用 response
+                    if (typeof replyObj !== 'object' || !replyObj.message) {
                         replyObj = {
                             message: response,
                             favor_changes: []
                         };
                     }
-                    replyObj.favor_changes = replyObj.favor_changes || [];
-
-                    // 处理好感度
-                    let favorLogs = [];
-                    if (Array.isArray(replyObj.favor_changes)) {
-                        for (const item of replyObj.favor_changes) {
-                            const user_id = item.user_id || e.user_id;
-                            const change = Number(item.change);
-                            if (isNaN(change)) continue; // 跳过无效变更
-                            const oldFavor = await getUserFavor(user_id);
-                            const newFavor = Math.max(-100, oldFavor + change); // 最小-100
-                            await setUserFavor(user_id, newFavor);
-                            favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
-                        }
-                    }
-                    if (favorLogs.length > 0) {
-                        console.log('[好感度变更]', favorLogs.join(' | '));
-                    }
-
-                    // 拼接 message 和 code_example 字段
-                    let finalReply = replyObj.message ?? '';
-                    let codeText = '';
-
-                    // 优先提取 message 里的代码块
-                    const codeRegex = /```(?:[\w]*)\n*([\s\S]*?)```/g;
-                    let codeBlocks = [];
-                    let msgWithoutCode = finalReply;
-                    let match;
-                    while ((match = codeRegex.exec(finalReply)) !== null) {
-                        codeBlocks.push(match[1].trim());
-                    }
-                    // 去除 message 里的代码块，得到纯文本
-                    if (codeBlocks.length > 0) {
-                        codeText = codeBlocks.join('\n\n');
-                        msgWithoutCode = finalReply.replace(/```[\w]*\n*[\s\S]*?```/g, '').trim();
-                    }
-
-                    // 如果没有 message 里的代码块，再看 code_example 字段
-                    if (!codeText && replyObj.code_example && replyObj.code_example.trim()) {
-                        codeText = replyObj.code_example.trim();
-                    }
-
-                    // 先回复普通文本（支持@），如果有
-                    if (msgWithoutCode) {
-                        const remsg = await msgToAt(msgWithoutCode);
-                        await e.reply(remsg, true);
-                    }
-
-                    // 再转发代码（只发代码内容），如果有
-                    if (codeText) {
-                        await sendCodeAsForwardMsg(e, codeText);
-                    }
-
-                    // 语音合成（如有需要）
-                    if (await Config.Chat.EnableVoice) {
-                        const voiceId = voiceList[await Config.Chat.VoiceIndex].voiceId;
-                        const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(finalReply)}&speed=0.8&volume=150&audioType=wav`;
-                        e.reply([segment.record(voiceUrl)]);
-                    }
-
-                    // 标记对话状态为完成
-                    chatActive = 0;
-                } else {
-                    // 如果没有获取到有效的回复，标记对话状态为未进行
-                    chatActive = 0;
-                    return false;
+                } catch (error) {
+                    replyObj = {
+                        message: response,
+                        favor_changes: []
+                    };
                 }
-            } catch (error) {
-                // 捕获并处理异常，例如输出错误日志
-                console.error('对话处理过程中发生错误:', error);
-                e.reply('发生错误，无法进行对话。');
+                replyObj.favor_changes = replyObj.favor_changes || [];
+
+                // 处理好感度
+                let favorLogs = [];
+                if (Array.isArray(replyObj.favor_changes)) {
+                    for (const item of replyObj.favor_changes) {
+                        const user_id = item.user_id || e.user_id;
+                        const change = Number(item.change);
+                        if (isNaN(change)) continue; // 跳过无效变更
+                        const oldFavor = await getUserFavor(user_id);
+                        const newFavor = Math.max(-100, oldFavor + change); // 最小-100
+                        await setUserFavor(user_id, newFavor);
+                        favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
+                    }
+                }
+                if (favorLogs.length > 0) {
+                    console.log('[好感度变更]', favorLogs.join(' | '));
+                }
+
+                // 拼接 message 和 code_example 字段
+                let finalReply = replyObj.message ?? '';
+                let codeText = '';
+
+                // 优先提取 message 里的代码块
+                const codeRegex = /```(?:[\w]*)\n*([\s\S]*?)```/g;
+                let codeBlocks = [];
+                let msgWithoutCode = finalReply;
+                let match;
+                while ((match = codeRegex.exec(finalReply)) !== null) {
+                    codeBlocks.push(match[1].trim());
+                }
+                // 去除 message 里的代码块，得到纯文本
+                if (codeBlocks.length > 0) {
+                    codeText = codeBlocks.join('\n\n');
+                    msgWithoutCode = finalReply.replace(/```[\w]*\n*[\s\S]*?```/g, '').trim();
+                }
+
+                // 如果没有 message 里的代码块，再看 code_example 字段
+                if (!codeText && replyObj.code_example && replyObj.code_example.trim()) {
+                    codeText = replyObj.code_example.trim();
+                }
+
+                // 先回复普通文本（支持@），如果有
+                if (msgWithoutCode) {
+                    const remsg = await msgToAt(msgWithoutCode);
+                    await e.reply(remsg, true);
+                }
+
+                // 再转发代码（只发代码内容），如果有
+                if (codeText) {
+                    await sendCodeAsForwardMsg(e, codeText);
+                }
+
+                // 语音合成（如有需要）
+                if (await Config.Chat.EnableVoice) {
+                    const voiceId = voiceList[await Config.Chat.VoiceIndex].voiceId;
+                    const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(finalReply)}&speed=0.8&volume=150&audioType=wav`;
+                    e.reply([segment.record(voiceUrl)]);
+                }
+
+                // 标记对话状态为完成
+                chatActive = 0;
+            } else {
+                // 如果没有获取到有效的回复，标记对话状态为未进行
                 chatActive = 0;
                 return false;
             }
+        } catch (error) {
+            // 捕获并处理异常，例如输出错误日志
+            console.error('对话处理过程中发生错误:', error);
+            e.reply('发生错误，无法进行对话。');
+            chatActive = 0;
+            return false;
         }
 
         // 如果消息不是针对当前对话的，则不进行处理
@@ -736,6 +755,18 @@ export class ChatHandler extends plugin {
         } catch (err) {
             e.reply('场景JSON格式有误：' + err.message);
         }
+    }
+
+    /** 私聊AI回复开关 */
+    async SetPrivateChatEnable(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以设置私聊AI回复开关。');
+            return false;
+        }
+        let enable = e.msg.includes('开启');
+        await Config.modify('duihua', 'EnablePrivateChat', enable);
+        e.reply(`[止水私聊AI回复]已${enable ? '开启' : '关闭'}！`);
+        return true;
     }
 }
 
