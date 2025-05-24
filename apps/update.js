@@ -23,16 +23,26 @@ export class zhishuiUpdate extends plugin {
     }
 
     async update(e = this.e) {
-        if (!common.checkPermission(e, "master")) return
-        e.msg = `#${e.msg.includes("强制") ? "强制" : ""}更新止水插件`
-        const up = new update()
-        await up.init(e)
-        return up.update()
+        // 检查管理员权限
+        if (!common.checkPermission(e, "master")) {
+            return this.reply('⚠️ 更新失败：需要管理员权限')
+        }
+
+        try {
+            e.isMaster = true
+            e.msg = `#${e.msg.includes("强制") ? "强制" : ""}更新zhishui-plugin`
+            const up = new update()  // 注意保持小写
+            up.e = e
+            return up.update()
+        } catch (err) {
+            // 返回详细的错误信息给用户
+            return this.reply(`⚠️ 更新出错：${err.message}\n请查看日志获取详细信息`)
+        }
     }
 
     async update_log() {
         // eslint-disable-next-line new-cap
-        let Update_Plugin = new update()
+        let Update_Plugin = new Update()
         Update_Plugin.e = this.e
         Update_Plugin.reply = this.reply
 
