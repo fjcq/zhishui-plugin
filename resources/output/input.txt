@@ -1,0 +1,4 @@
+file '/root/TRSS_AllBot/TRSS-Yunzai/plugins/zhishui-plugin/resources/yanzou/gangqin/+6.wav'
+file '/root/TRSS_AllBot/TRSS-Yunzai/plugins/zhishui-plugin/resources/yanzou/gangqin/+4.wav'
+file '/root/TRSS_AllBot/TRSS-Yunzai/plugins/zhishui-plugin/resources/yanzou/gangqin/+3.wav'
+file '/root/TRSS_AllBot/TRSS-Yunzai/plugins/zhishui-plugin/resources/yanzou/gangqin/+2.wav'
