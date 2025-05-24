@@ -4,11 +4,8 @@ import chalk from 'chalk';
 export const needPackage = [
     'yaml',
     'fetch-undici',
-    'keyv',
     'keyv-file',
     'undici',
-    'ws',
-    'https-proxy-agent',
 ];
 
 /** 检查依赖库 */

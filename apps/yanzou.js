@@ -1,32 +1,41 @@
 import plugin from '../../../lib/plugins/plugin.js'
 import { createRequire } from 'module'
 import { Plugin_Path, Config } from '../components/index.js'
-import path from 'path';
+import path from 'path'
 
 const require = createRequire(import.meta.url)
-const { spawn } = require("child_process");
-const fs = require('fs');
+const { spawn } = require('child_process')
+const fs = require('fs')
 
-/** 演奏目录 */
-const YANZOU_PATH = path.join(Plugin_Path, 'resources', 'yanzou');
-/** 乐器目录 */
-let YUEQI_PATH = "";
-
+/** 乐器音频根目录 */
+const INSTRUMENTS_ROOT = path.join(Plugin_Path, 'resources', 'yanzou')
+/** 当前乐器目录 */
+let currentInstrumentDir = ""
 /** 输出目录 */
-const OUTPUT_PATH = path.join(Plugin_Path, 'resources', 'output');
-// 检查并创建目录
-if (!fs.existsSync(OUTPUT_PATH)) {
-    fs.mkdirSync(OUTPUT_PATH);
+const OUTPUT_DIR = path.join(Plugin_Path, 'resources', 'output')
+if (!fs.existsSync(OUTPUT_DIR)) {
+    fs.mkdirSync(OUTPUT_DIR)
 }
 /** 输出格式 */
-let OutFormat = ".wav";
+const OUTPUT_FORMAT = '.wav'
 /** 输出文件名 */
-let OutFile = ""
+let outputFilePath = ""
+
+/** 乐器映射表 */
+const INSTRUMENT_MAP = {
+    "钢琴": "gangqin",
+    "八音盒": "ba",
+    "古筝": "gu",
+    "吉他": "jita",
+    "萨克斯": "sa",
+    "小提琴": "ti",
+    "吹箫": "xiao",
+    "西域琴": "xiyu"
+}
 
 export class YanzouPlayer extends plugin {
-
-    _playing = 0;
-    isProcessing = false;
+    _isPlaying = false
+    _isProcessing = false
 
     constructor() {
         super({
@@ -35,517 +44,286 @@ export class YanzouPlayer extends plugin {
             event: 'message',
             priority: 1000,
             rule: [
-                {
-                    reg: "^(#|\/)?演奏(.*)",
-                    fnc: 'handlePlayCommand'
-                }, {
-                    reg: "^(#|\/)?取消演奏$",
-                    fnc: 'stopPlayback'
-                }, {
-                    reg: "^(#|\/)?高品质演奏(开启|关闭)$",
-                    fnc: 'togglePlayQuality'
-                }, {
-                    reg: "^(#|\/)?调试演奏(.*)$",
-                    fnc: 'testPlayback'
-                }
+                { reg: "^(#|\/)?演奏(.*)", fnc: 'handlePlayCommand' },
+                { reg: "^(#|\/)?取消演奏$", fnc: 'handleCancelCommand' },
+                { reg: "^(#|\/)?高品质演奏(开启|关闭)$", fnc: 'toggleQualityMode' },
+                { reg: "^(#|\/)?调试演奏(.*)$", fnc: 'handleDebugCommand' }
             ]
         })
-        this._playing = 0;
     }
 
     /**
- * 处理演奏指令
- * @param {Object} e 事件对象
- * @returns {Promise<boolean>} 返回执行结果
- */
+     * 处理演奏指令
+     */
     async handlePlayCommand(e) {
-        const commandContent = e.msg.replace(/#演奏/g, "").trim()
-        let msg = ""
-        if (commandContent == "帮助") {
-            msg = GetPlayHelp();
-            e.reply(msg);
-            return;
+        let stdoutLog = ''
+        let stderrLog = ''
+        const userInput = e.msg.replace(/#演奏/g, "").trim()
+        let replyMsg = ""
+
+        if (userInput === "帮助") {
+            replyMsg = getPlayHelpText()
+            e.reply(replyMsg)
+            return
         }
 
-        if (this.isProcessing) {
-            msg = `正在准备演奏呢，你先别急~~`;
-            e.reply(msg);
-            return;
+        if (this._isProcessing) {
+            e.reply("正在准备演奏呢，你先别急~~")
+            return
         }
 
-        this._playing = 1
-        let ffmpegArguments = await GetffmpegArguments(e.msg);
+        this._isPlaying = true
+        const ffmpegArgs = await buildFfmpegArgs(e.msg)
 
-        console.log(ffmpegArguments);
-        if (ffmpegArguments != undefined && ffmpegArguments.length > 3) {
-            msg = `我要准备演奏了，请稍等一哈！`;
-            e.reply(msg);
-        } else {
-            msg = GetPlayHelp();
-            e.reply(msg);
-            this._playing = 0;
-            return;
+        if (!ffmpegArgs || ffmpegArgs.length <= 3) {
+            replyMsg = getPlayHelpText()
+            e.reply(replyMsg)
+            this._isPlaying = false
+            return
         }
 
-
-        const ffmpeg = spawn(
+        let hasStarted = false
+        const ffmpegProc = spawn(
             "ffmpeg",
-            ffmpegArguments,
-            { cwd: YUEQI_PATH }
-        );
-        //console.log(ffmpeg);
-        let stdoutData = "";
-        let stderrData = "";
-        ffmpeg.on('error', (err) => {
-            console.error(`Failed to start ffmpeg: ${err}`);
-            msg = '你还没有配置ffmpeg的环境变量，请到这里下载https://ffmpeg.org/download.html，并配置环境变量';
-            e.reply(msg);
-            this._playing = 0;
-            return;
-        });
-        ffmpeg.stdout.on('data', (data) => {
-            stdoutData += data.toString();
-        });
-        ffmpeg.stderr.on('data', (data) => {
-            stderrData += data.toString();
-        });
+            ffmpegArgs,
+            { cwd: currentInstrumentDir }
+        )
 
-        console.log("FFmpeg 标准输出流：" + stdoutData);
+        ffmpegProc.on('spawn', () => {
+            e.reply("我要准备演奏了，请稍等一哈！")
+            hasStarted = true
+        })
 
-        ffmpeg.on('exit', async (code) => {
+        ffmpegProc.on('error', (err) => {
+            console.error(`Failed to start ffmpeg: ${err}`)
+            if (!hasStarted) {
+                replyMsg = '你还没有配置ffmpeg的环境变量，请到这里下载https://ffmpeg.org/download.html，并配置环境变量'
+                e.reply(replyMsg)
+            }
+            this._isPlaying = false
+        })
+
+        ffmpegProc.stdout.on('data', (data) => {
+            stdoutLog += data.toString()
+        })
+        ffmpegProc.stderr.on('data', (data) => {
+            stderrLog += data.toString()
+        })
+
+        ffmpegProc.on('exit', async (code) => {
             if (code === 0) {
                 await sleep(1000)
-
-                OutFile = path.join(OUTPUT_PATH, `output${OutFormat}`)
-                console.debug('[DEBUG] 合成音频成功 =>', OutFile);
+                outputFilePath = path.join(OUTPUT_DIR, `output${OUTPUT_FORMAT}`)
+                console.debug('[DEBUG] 合成音频成功 =>', outputFilePath)
                 try {
-                    fs.unlinkSync(OutFile);
-                } catch (e) {
-                    console.debug('清理临时文件失败:', e.message);
-                }
-                let played
-                try {
-                    played = await uploadRecord(OutFile, 0, false)
-                    e.reply(played)
+                    const audioMsg = await uploadAudio(outputFilePath)
+                    e.reply(audioMsg)
                 } catch {
-                    played = await segment.record(OutFile)
-                    e.reply(played)
+                    e.reply(await segment.record(outputFilePath))
                 }
-
-                this.isProcessing = false
-                return true;
+                this._isProcessing = false
             } else {
-                switch (code) {
-                    case 1:
-                        msg = '输入文件不存在';
-                        break;
-                    case 2:
-                        msg = '输出文件已存在';
-                        break;
-                    case 3:
-                        msg = '无法打开输入文件';
-                        break;
-                    case 4:
-                        msg = '无法打开输出文件';
-                        break;
-                    case 5:
-                        msg = '无法读取输入文件';
-                        break;
-                    case 6:
-                        msg = '无法写入输出文件';
-                        break;
-                    case 7:
-                        msg = '编码失败';
-                        break;
-                    case 8:
-                        msg = '解码失败';
-                        break;
-                    case 9:
-                        msg = '格式不支持';
-                        break;
-                    case 10:
-                        msg = '无效的参数';
-                        break;
-                    case 11:
-                        msg = '内部错误';
-                        break;
-                    default:
-                        msg = `错误代码：${code}`;
-                        break;
-                }
-                console.log("FFmpeg 标准错误流：", stderrData);
-                e.reply(`合成音频失败，${msg}！`);
-                this.isProcessing = false
-                return
+                const errorMsg = getFfmpegErrorMsg(code)
+                console.log("FFmpeg 错误流：", stderrLog)
+                e.reply(`合成音频失败，${errorMsg}！`)
+                this._isProcessing = false
             }
-        });
-
-
+        })
     }
 
-    /** 取消演奏 */
     /**
- * 取消演奏指令
- * @param {Object} e 事件对象
- * @returns {Promise<boolean>} 返回执行结果
- */
-    async stopPlayback(e) {
-        if (this.isProcessing) {
+     * 取消演奏
+     */
+    async handleCancelCommand(e) {
+        if (this._isProcessing) {
             e.reply('已经取消演奏！')
-            this.isProcessing = false
-            return true;
+            this._isProcessing = false
+            return true
         }
     }
 
-    /** 高品质演奏 */
     /**
- * 切换演奏品质模式
- * @param {Object} e 事件对象
- * @returns {Promise<boolean>} 返回执行结果
- */
-    async togglePlayQuality(e) {
-        if (e.isMaster == false) {
-            return false; //不是主人
-        };
-
-        let Enable = e.msg.search('开启') != -1;
-
-        Config.modify('yanzou', 'Quality', Enable);
-
-        if (Enable) {
-            e.reply("[高品质演奏] 已开启！");
-        } else {
-            e.reply("[高品质演奏] 已关闭！");
-        }
-
-        return true;
+     * 切换高品质演奏模式
+     */
+    async toggleQualityMode(e) {
+        if (!e.isMaster) return false
+        const enable = e.msg.includes('开启')
+        Config.modify('yanzou', 'Quality', enable)
+        e.reply(`[高品质演奏] 已${enable ? '开启' : '关闭'}！`)
+        return true
     }
-    //演奏测试
+
     /**
- * 演奏功能调试方法
- * @param {Object} e 事件对象
- * @returns {Promise<boolean>} 返回调试结果
- */
-    async testPlayback(e) {
-        let zhiling = e.msg.replace(/#调试演奏/g, "").trim()
-        await mergeAudio(zhiling, YUEQI_PATH, OUTPUT_PATH);
-        let OutFile = path.join(OUTPUT_PATH, `output${OutFormat}`)
-        e.reply([segment.record(OutFile)]);
+     * 调试演奏功能
+     */
+    async handleDebugCommand(e) {
+        const notation = e.msg.replace(/#调试演奏/g, "").trim()
+        await mergeAudioFiles(notation, currentInstrumentDir, OUTPUT_DIR)
+        const debugFile = path.join(OUTPUT_DIR, `output${OUTPUT_FORMAT}`)
+        e.reply([segment.record(debugFile)])
     }
 }
 
 /**
- * 异步延时函数
- * @param {number} ms 毫秒数
- * @returns {Promise} 返回延时Promise
+ * 生成 ffmpeg 参数
+ */
+async function buildFfmpegArgs(msg) {
+    // 解析乐器
+    let instrumentKey = "gangqin"
+    for (let key in INSTRUMENT_MAP) {
+        if (msg.includes(key)) {
+            instrumentKey = INSTRUMENT_MAP[key]
+            break
+        }
+    }
+    currentInstrumentDir = path.join(INSTRUMENTS_ROOT, instrumentKey)
+
+    // 解析简谱和节拍
+    const notationRaw = msg.replace(/#演奏[^\s\d+-]*/g, "").trim()
+    const [scoreStr, bpmStr] = notationRaw.split('|')
+    let beatDuration = 60000 / 90 // 默认90BPM
+    if (bpmStr && !isNaN(parseInt(bpmStr))) {
+        beatDuration = 60000 / parseInt(bpmStr)
+    }
+    const notes = scoreStr.match(/[-|+]*\d_*/g)
+    if (!isNotNull(notes) || notes.length < 1) return
+
+    // 生成 ffmpeg 输入和 filter_complex
+    let inputs = []
+    let filters = []
+    let concatInputs = []
+    let idx = 0
+    for (let i = 0; i < notes.length; i++) {
+        const noteRaw = notes[i]
+        const note = noteRaw.replace(/_*/g, "").trim()
+        if (note === '' || note === '0') continue
+        const filePath = path.join(currentInstrumentDir, `${note}${OUTPUT_FORMAT}`)
+        if (!fs.existsSync(filePath)) continue
+
+        // 计算音符时长
+        const underlineCount = (noteRaw.match(/_/g) || []).length
+        let duration = beatDuration
+        if (underlineCount === 1) duration *= 0.5
+        if (underlineCount === 2) duration *= 0.25
+        if (underlineCount === 3) duration *= 0.125
+
+        inputs.push('-i', filePath)
+        filters.push(`[${idx}:a]atrim=0:${(duration / 1000).toFixed(3)},asetpts=PTS-STARTPTS[a${idx}]`)
+        concatInputs.push(`[a${idx}]`)
+        idx++
+    }
+    if (idx === 0) return
+
+    const filterStr = filters.join(';') + ';' + concatInputs.join('') + `concat=n=${idx}:v=0:a=1[outa]`
+    return [
+        '-y',
+        ...inputs,
+        '-filter_complex', filterStr,
+        '-map', '[outa]',
+        '-ar', '16000',
+        '-ac', '1',
+        '-sample_fmt', 's16',
+        path.join(OUTPUT_DIR, `output${OUTPUT_FORMAT}`)
+    ]
+}
+
+/**
+ * 合成音频（调试用，fluent-ffmpeg 方式）
+ */
+async function mergeAudioFiles(notation, instrumentDir, outputDir) {
+    const ffmpeg = require('fluent-ffmpeg')
+    const notes = notation.split('+').map(f => f.trim()).filter(f => f && f !== '0')
+    const files = notes.map(f => path.join(instrumentDir, `${f}.wav`)).filter(f => fs.existsSync(f))
+    return new Promise((resolve, reject) => {
+        if (files.length === 0) return reject('无可用音符')
+        let command = ffmpeg()
+        files.forEach(file => command.input(file))
+        command
+            .on('end', resolve)
+            .on('error', reject)
+            .mergeToFile(path.join(outputDir, `output.wav`), outputDir)
+    })
+}
+
+/**
+ * 上传音频文件
+ */
+async function uploadAudio(filePath, isPtt = false) {
+    return segment.record(filePath, isPtt)
+}
+
+/**
+ * ffmpeg 错误码转中文
+ */
+function getFfmpegErrorMsg(code) {
+    const errorMap = {
+        1: '输入文件不存在',
+        2: '输出文件已存在',
+        3: '无法打开输入文件',
+        4: '无法打开输出文件',
+        5: '无法读取输入文件',
+        6: '无法写入输出文件',
+        7: '编码失败',
+        8: '解码失败',
+        9: '格式不支持',
+        10: '无效的参数',
+        11: '内部错误'
+    }
+    return errorMap[code] || `错误代码：${code}`
+}
+
+/**
+ * 延时函数
  */
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
-* 获取Ffmpeg的执行代码，返回参数数组
-* @param msg 土块编码消息
-*/
-// 解析乐谱符号
-function parseNotation(notation) {
-    const noteReg = /([+-]?)(\d)(_*)/g;
-    const notes = [];
-    let match;
-
-    while ((match = noteReg.exec(notation)) !== null) {
-        const [full, sign, note, beats] = match;
-        const duration = Math.pow(0.5, beats.length);
-        const fileName = `${sign}${note}.wav`;
-
-        notes.push({
-            file: fileName,
-            duration: duration,
-            sign: sign || '+'
-        });
-    }
-    return notes;
-}
-
-// 构建音频拼接过滤器
-function buildConcatFilter(notes, bpm) {
-    let filterStr = '';
-    const inputs = [];
-    let totalDelay = 0;
-    const beatDuration = 60000 / bpm; // 每拍毫秒数
-
-    notes.forEach((note, index) => {
-        const delay = totalDelay;
-        const duration = beatDuration * note.duration;
-
-        filterStr += `[${index}]adelay=${delay}|${delay}[a${index}];`;
-        inputs.push(`[a${index}]`);
-
-        totalDelay += duration;
-    });
-
-    filterStr += `${inputs.join('')}amix=inputs=${notes.length}:duration=longest[aout]`;
-    return filterStr;
+ * 判断对象是否有效
+ */
+function isNotNull(obj) {
+    return !(obj == undefined || obj == null || obj != obj)
 }
 
 /**
- * 构建FFmpeg音频合成命令
- * @param {string} msg 原始消息内容
- * @returns {Array} FFmpeg命令行参数数组
+ * 演奏帮助文本
  */
-async function GetffmpegArguments(msg) {
-    console.debug('[DEBUG] 开始解析乐谱');
-    const progressInterval = setInterval(() => {
-        console.debug('[PROGRESS] 音频合成中...');
-    }, 5000);
-    let Music = ""
-    let Beats = 0;
-    let File = ""; //文件名
-    let settime = ""; //时间组合
-    let setorder = ""; //序列组合
-    let MusicTime = 0;
-    let i = 0
-    let reg = /[-|+]*\d_*/g;
-    let xiaoxi = msg.replace(/#演奏[^\s\d+-]*/g, "").trim()
-    let notation = xiaoxi.split('|')
-    let currenttime = 0
-    let quantity = 0
-    let beattime = 0//每拍时间（毫秒）
-
-
-    //音频资源目录处理
-    let Yueqi = msg.match(/#演奏[^\s\d+-]*/g);
-    Yueqi = Yueqi.toString().replace(`#演奏`, "")
-
-    if (isNotNull(Yueqi)) {
-        Yueqi = Yueqi.toString()
-    } else {
-        Yueqi = "钢琴"
-    }
-    OutFormat = ".wav"
-
-    if (Yueqi == "八音盒") {
-        YUEQI_PATH = path.join(YANZOU_PATH, 'ba');
-    } else if (Yueqi == "钢琴") {
-        YUEQI_PATH = path.join(YANZOU_PATH, 'gangqin');
-    } else if (Yueqi == "古筝") {
-        YUEQI_PATH = path.join(YANZOU_PATH,'gu');
-    } else if (Yueqi == "吉他") {
-        YUEQI_PATH = path.join(YANZOU_PATH,  'jita');
-    } else if (Yueqi == "萨克斯") {
-        YUEQI_PATH = path.join(YANZOU_PATH,  'sa');
-    } else if (Yueqi == "小提琴") {
-        YUEQI_PATH = path.join(YANZOU_PATH,  'ti');
-    } else if (Yueqi == "箫") {
-        YUEQI_PATH = path.join(YANZOU_PATH,  'xiao');
-    } else if (Yueqi == "西域琴") {
-        YUEQI_PATH = path.join(YANZOU_PATH,  'xiyu');
-    } else {
-        YUEQI_PATH = path.join(YANZOU_PATH, 'gangqin');
-    }
-
-    //算出每分钟节拍数
-    if (notation.length > 1) {
-        beattime = 60000 / parseInt(notation[1])
-    } else { beattime = 60000 / 90 }
-
-    let MusicScore = notation[0].match(reg);
-    if (!isNotNull(MusicScore)) { return }
-    else if (MusicScore.length > 1) { } else {
-        return;
-    }
-
-    let result = []
-    result.push(`-y`);
-    result.push(`-threads`);
-    result.push(`4`);
-
-    for (i in MusicScore) {
-
-        Music = MusicScore[i];
-        //console.log(Music)
-
-        Beats = Music.match(/_/g);
-        File = Music.replace(/_*/g, "").trim()
-        //console.log(Beats)
-
-        //拼接ffmpeg参数
-        if (Number(File) != 0 && Music != undefined) {
-            result.push(`-i`)
-            result.push(`${File}${OutFormat}`)
-            settime += `[${quantity}]adelay=${Math.round(currenttime)}:all=1[${quantity}a];`;
-            setorder += `[${quantity}a]`;
-            quantity += 1
-
-            //计算时间
-            if (!isNotNull(MusicTime)) {
-                MusicTime = beattime
-            }
-
-            if (Music == '·') {
-                MusicTime = MusicTime * 0.5
-            } else {
-
-                if (Beats == null) {
-                    MusicTime = beattime
-                }
-                else if (Beats.length == 1) {
-                    MusicTime = beattime * 0.5
-                }
-                else if (Beats.length == 2) {
-                    MusicTime = beattime * 0.25
-                }
-                else if (Beats.length == 3) {
-                    MusicTime = beattime * 0.125
-                }
-                else {
-                    MusicTime = beattime
-                }
-            }
-        }
-
-        currenttime = currenttime + MusicTime;
-    }
-
-
-    if (quantity > 0) {
-
-        result.push(`-filter_complex`)
-        result.push(`${settime}${setorder}amix=inputs=${quantity}:dropout_transition=0:normalize=0[a]`)
-        result.push(`-map`)
-        result.push(`[a]`)
-
-        // result.push(`-ar`)
-        // result.push(`8000`)
-        // result.push(`-ab`)
-        // result.push(`12.2k`)
-        // result.push(`-ac`)
-        // result.push(`1`)
-        let fileName = path.join(OUTPUT_PATH, `output${OutFormat}`)
-        result.push(`${fileName}`)
-        //result = `${ setfile } -filter_complex ${ settime }${ setorder } amix = inputs = ${ quantity }: dropout_transition = 0: normalize = 0, dynaudnorm[a] - map[a] ${ output } `
-
-    } else {
-        result
-    }
-
-    clearInterval(progressInterval);
-    console.debug('[DEBUG] FFmpeg命令构建完成');
-    return result;
-
-}
-
-/**
- * 演奏帮助
- */
-function GetPlayHelp() {
-
+function getPlayHelpText() {
     let msg = ""
-    msg += "演奏指令分为3部分，1、乐器；2、简谱；3、节拍。\n\n"
-
-    msg += "举例说明：\n"
-    msg += "#演奏钢琴+6__+4+3+2_|82\n\n"
-
-    msg += "“#演奏钢琴” \n"
-    msg += "指定乐器为钢琴，可选乐器有\n"
-    msg += "1.钢琴2.八音盒3.古筝4.吉他5.萨克斯6.小提琴7.吹箫8.西域琴\n\n"
-
-    msg += "“+6__+4+3+2”\n"
-    msg += "这部分为简谱，其中的数字为音符\n"
-    msg += "音符前面的+表示高音，低音则是-\n"
-    msg += "音符后的_是半拍，__是四分之一拍，___是八分之一拍\n"
-    msg += "需要注意的是，正常简谱中的延音符-和休止符0，我们这里都用0来表示\n\n"
-
-    msg += "“|82”\n"
-    msg += "这里则是指定整首歌曲的节奏速度，82就是每分钟有82个节拍\n"
+    msg += "【止水插件·乐器演奏功能说明】\n"
+    msg += "本功能支持多种乐器自动演奏简谱，格式灵活，操作简单。\n\n"
+    msg += "【基础用法】\n"
+    msg += "发送：#演奏乐器名+简谱|节奏\n"
+    msg += "示例：#演奏钢琴+6__+4+3+2_|82\n\n"
+    msg += "【参数说明】\n"
+    msg += "1. 乐器名：支持以下乐器（任选其一）：\n"
+    msg += "   钢琴、八音盒、古筝、吉他、萨克斯、小提琴、吹箫、西域琴\n"
+    msg += "2. 简谱：用数字表示音符，+为高音，-为低音，0为休止符。\n"
+    msg += "   下划线 _ 表示延长音符时长：\n"
+    msg += "     - 1个_ ：半拍\n"
+    msg += "     - 2个__：四分之一拍\n"
+    msg += "     - 3个___：八分之一拍\n"
+    msg += "   多个音符用+号连接，如：+6__+4+3+2\n"
+    msg += "3. 节奏（可选）：用 |数字 表示每分钟节拍数（BPM），如 |82\n"
+    msg += "   不写则默认90BPM。\n\n"
+    msg += "【简单音乐片段示例】\n"
+    msg += "#演奏钢琴+1+2+3+6_+5+6_+5+6_+5+2__|95\n"
+    msg += "（上面例子是《起风了》副歌“我曾难自拔于世界之大”旋律片段）\n\n"
+    msg += "【更多示例】\n"
+    msg += "#演奏八音盒+1+2+3+4+5+6+7_|100\n"
+    msg += "#演奏古筝-6_+5_+4_+3_+2_+1_|60\n"
+    msg += "#演奏吉他+3+3+2+2+1+1+0+0_|120\n\n"
+    msg += "【特别说明】\n"
+    msg += "· 休止符用0表示，会自动插入空拍。\n"
+    msg += "· 支持高低音（+/-），支持多种乐器切换。\n"
+    msg += "· 如需帮助，发送“#演奏帮助”。\n"
     return msg
 }
 
-/**
- * 判断对象是否不为undefined且不为null、NaN
- * @param obj 对象
- * @returns obj==null/undefined,return false,other return true
- */
-/**
- * 检查对象有效性
- * @param {any} obj 待检查对象
- * @returns {boolean} 是否有效
- */
-function isNotNull(obj) {
-    if (obj == undefined || obj == null || obj != obj) { return false }
-    return true
+// segment 兼容处理（如全局未定义则引入）
+if (typeof segment === 'undefined' && global.segment) {
+    var segment = global.segment
 }
 
-/**
- * 合并音频文件
- * @param {string} inputString 输入字符串，包含文件名和节拍信息
- * @param {string} inputDirectory 输入目录，包含音频文件
- * @param {string} OUTPUT_PATH 输出目录，用于保存合成后的音频文件
- * @returns {Promise} 返回一个 Promise，在音频文件合并并保存到指定的输出目录时解析
- */
-async function mergeAudio(inputString, inputDirectory, OUTPUT_PATH) {
-    const ffmpeg = require('fluent-ffmpeg');
-    return new Promise((resolve, reject) => {
-        // 分割输入字符串，获取文件名和节拍信息
-        const parts = inputString.split('|');
-        // 获取每个音频文件的节奏速度，默认为 90
-        const standardDelay = parts.length > 1 ? parseInt(parts[1]) : 90;
-        console.log(standardDelay)
-        // 获取文件名和节拍信息
-        const files = parts[0].match(/([+\-]?)(\d)(_*)/g);
-        // 初始化 ffmpeg 命令
-        const command = ffmpeg();
-        // 初始化过滤器字符串
-        let filterStr = '';
-        // 初始化输入索引
-        let inputIndex = 0;
-        // 初始化总延迟时间
-        let totalDelay = 0;
 
-        // 遍历文件名和节拍信息
-        const regex = /([+\-]?)(\d)(_*)$/;
-        for (const str of files) {
-            const match = str.match(regex);
-            if (match) {
-                const result1 = match[3] + (match[2] >= 1 && match[2] <= 7 ? '' : match[2]);
-                const result2 = (match[2] >= 1 && match[2] <= 7 ? match[1] + match[2] : '');
-
-                if (result2) {
-                    // 添加输入文件
-                    const inputFile = path.join(inputDirectory, result2 + '.wav');
-                    console.log(inputFile)
-                    command.input(inputFile);
-                    // 构建 adelay 过滤器字符串
-                    filterStr += `[${inputIndex}]adelay=${totalDelay}:all=1[${inputIndex}a];`;
-                    inputIndex++;
-                }
-
-                let Delay
-                const underscoreCount = result1.split('_').length - 1;
-                Delay = 60000 / standardDelay / Math.pow(2, underscoreCount);
-                if (result1.match(/\d/)) {
-                    Delay += 60000 / standardDelay;
-                }
-                totalDelay += Delay
-                console.log(result1, Delay, totalDelay)
-            }
-
-
-        }
-
-
-        // 构建 amix 过滤器字符串
-        filterStr += `[0a]`;
-        for (let i = 1; i < inputIndex; i++) {
-            filterStr += `[${i}a]`;
-        }
-        filterStr += `amix=inputs=${inputIndex}:dropout_transition=0:normalize=0[a]`;
-        // 设置音频过滤器图并保存输出文件
-        command
-            .complexFilter(filterStr, 'a')
-            //.on('stderr', console.log)
-            .on('end', () => resolve())
-            .on('error', (err) => reject(err))
-            .save(path.join(OUTPUT_PATH, 'output.mp3'));
-    });
-}
