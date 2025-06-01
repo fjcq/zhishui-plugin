@@ -96,8 +96,11 @@ export class ChatHandler extends plugin {
                     reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)',
                     fnc: 'AddRole'
                 }, {
-                    reg: '^#?止水私聊回复(开启|关闭)$',
+                    reg: '^#?(止水)?私聊回复(开启|关闭)$',
                     fnc: 'SetPrivateChatEnable'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?查看对话(历史)?$`,
+                    fnc: 'ShowChatHistory'
                 }, {
                     reg: ``,
                     fnc: 'duihua',
@@ -165,7 +168,9 @@ export class ChatHandler extends plugin {
             }
         } else {
             // 群聊逻辑，保持原有判断
-            if (!(regex.test(msg) || (e.atBot && await Config.Chat.EnableAt))) {
+            const isAtBot = e.atBot && await Config.Chat.EnableAt;
+            const isNicknameMatch = regex.test(msg);
+            if (!isAtBot && !isNicknameMatch) {
                 return false;
             }
         }
@@ -187,19 +192,18 @@ export class ChatHandler extends plugin {
                     group_id: e.group_id || 0
                 }
             };
-            const MessageText = JSON.stringify(userMessage);
-            console.log("止水对话 -> " + MessageText);
 
-            // 发送消息到 openAi 进行对话，传递 e 以便群聊优先使用群专属角色
+            console.log(`[止水对话] -> 用户[${e.user_id}]说: ${msg}`);
+
+            const MessageText = JSON.stringify(userMessage);
             let response = await openAi(MessageText, e);
 
             if (response) {
-                console.log("止水对话 <- " + response);
-
                 // 严格JSON格式校验
                 let replyObj;
                 try {
                     replyObj = JSON.parse(response); // 这里用 response
+                    console.log(`[止水对话] <- AI回复: ${replyObj.message?.substring(0, 50)}...`);
                     if (typeof replyObj !== 'object' || !replyObj.message) {
                         replyObj = {
                             message: response,
@@ -207,6 +211,7 @@ export class ChatHandler extends plugin {
                         };
                     }
                 } catch (error) {
+                    console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`);
                     replyObj = {
                         message: response,
                         favor_changes: []
@@ -768,6 +773,50 @@ export class ChatHandler extends plugin {
         e.reply(`[止水私聊AI回复]已${enable ? '开启' : '关闭'}！`);
         return true;
     }
+
+    /**
+     * 查看对话历史
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ShowChatHistory(e) {
+        try {
+            const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+            const keyv = getSessionKeyv(sessionId);
+            const history = await keyv.get('chatMsg');
+
+            if (!history || !Array.isArray(history) || history.length === 0) {
+                e.reply('暂无对话历史记录');
+                return;
+            }
+
+            let historyMsg = ['*** 对话历史记录 ***'];
+            history.forEach((item, index) => {
+                // 处理对象和字符串两种情况
+                let message = typeof item === 'object' ?
+                    (item.message || JSON.stringify(item)) :
+                    item;
+
+                if (message) {
+                    historyMsg.push(`${index + 1}. ${message}`);
+                }
+            });
+
+            if (historyMsg.length <= 1) {
+                e.reply('暂无有效的对话历史记录');
+                return;
+            }
+
+            common.getforwardMsg(e, historyMsg, {
+                isxml: true,
+                xmlTitle: '对话历史记录',
+            });
+        } catch (err) {
+            console.error('查看对话历史出错:', err);
+            e.reply('获取对话历史失败: ' + err.message);
+        }
+    }
+
 }
 
 
@@ -912,9 +961,9 @@ async function openAi(msg, e) {
     }
 
     // 输出请求参数调试信息
-    console.log('[openAi] 请求地址:', apiUrl);
-    console.log('[openAi] 请求头:', headers);
-    console.log('[openAi] 请求数据:', JSON.stringify(requestData, null, 2));
+    // console.log('[openAi] 请求地址:', apiUrl);
+    // console.log('[openAi] 请求头:', headers);
+    // console.log('[openAi] 请求数据:', JSON.stringify(requestData, null, 2));
 
     let content;
     try {
@@ -949,7 +998,7 @@ async function openAi(msg, e) {
         // 解析响应
         try {
             const responseData = await response.json();
-            console.log('[openAi] 响应数据:', responseData);
+            // console.log('[openAi] 响应数据:', responseData);
             if (apiType === 'tencent') {
                 // 腾讯元器返回格式
                 let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
