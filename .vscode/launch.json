@@ -4,20 +4,15 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "WSL Debug",
-            "runtimeExecutable": "wsl",
-            "runtimeArgs": [
-                "run",
-                "app"
-            ],
+            "name": "Linux Debug",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/../../",
+            "cwd": "/root/TRSS_AllBot/TRSS-Yunzai/plugins/zhishui-plugin",
             "env": {
                 "NODE_ENV": "development",
-                "PATH": "C:/Program Files/nodejs;${env:PATH}" // 添加Node.js安装路径
+                "PATH": "/usr/bin:${env:PATH}"
             }
         }
     ]
