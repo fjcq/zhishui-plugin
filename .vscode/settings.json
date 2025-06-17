@@ -2,7 +2,7 @@
     "search.useParentIgnoreFiles": false,
     "search.useGlobalIgnoreFiles": false,
     "eslint.format.enable": false,
-    "terminal.integrated.cwd": "../../",
+    "terminal.integrated.cwd": "./",
     "eslint.validate": [
         "javascript",
         "javascriptreact",
