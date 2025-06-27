@@ -15,7 +15,7 @@ resources:
                   # 站点标题
                   title: 七星资源
                   # 站点链接
-                  url: http://zj.qxyys.com/api.php/provide/vod/
+                  url: https://zj.qxyys.com/api.php/provide/vod/
 
         - site:
                   # 是否显示海报
