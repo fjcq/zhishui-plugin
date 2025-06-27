@@ -30,7 +30,7 @@
 
 body {
   font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: url("bg.png") center/cover no-repeat, linear-gradient(135deg, rgba(245, 247, 250, 0.8) 0%, rgba(195, 207, 226, 0.8) 100%);
   margin: 0;
   padding: 20px 0;
   min-height: 100vh;
@@ -42,11 +42,15 @@ body {
   max-width: 800px;
   margin: 20px auto;
   padding: 30px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background-image: linear-gradient(to bottom right,
+      rgba(255, 255, 255, 0.2),
+      rgba(255, 255, 255, 0.05));
 }
 
 /* 组件层 */
@@ -55,20 +59,21 @@ body {
   justify-content: center;
   align-items: center;
   padding: 15px 30px;
-  background: linear-gradient(90deg, rgba(74,107,223,0.1) 0%, rgba(255,255,255,0.8) 50%, rgba(74,107,223,0.1) 100%);
+  background: linear-gradient(90deg, rgba(106, 17, 203, 0.8) 0%, rgba(37, 117, 252, 0.8) 100%);
   border-radius: 50px;
-  box-shadow: 0 4px 15px rgba(74, 107, 223, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   margin-bottom: 40px;
-  border: 1px solid rgba(74, 107, 223, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .header__title {
   font-size: 2.5em;
-  color: #4a6bdf;
+  color: #ffffff;
   margin: 0;
   padding: 5px 0;
   line-height: 1;
   letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* 剧集信息模块 */
@@ -120,6 +125,7 @@ body {
 .font-NZBZ {
   font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
+
 /* 线路选择模块 */
 .select-line {
   background-color: rgba(var(--primary-color-rgb), 0.1);
@@ -151,17 +157,17 @@ body {
 }
 
 .copyright {
-    font-size: 14px;
-    text-align: center;
-    color: #fff;
-    position: relative;
-    padding-left: 10px;
-    text-shadow: 1px 1px 1px #000;
-    margin: 10px 0;
+  font-size: 14px;
+  text-align: center;
+  color: #fff;
+  position: relative;
+  padding-left: 10px;
+  text-shadow: 1px 1px 1px #000;
+  margin: 10px 0;
 }
 
 .copyright .version {
-    color: #d3bc8e;
-    display: inline-block;
-    padding: 0 3px;
+  color: #d3bc8e;
+  display: inline-block;
+  padding: 0 3px;
 }

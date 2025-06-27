@@ -3,32 +3,33 @@
 
 /* 继承common.css字体 */
 .font-YS {
-  font-family: var(--font-YS);
+    font-family: var(--font-YS);
 }
+
 .font-NZBZ {
-  font-family: var(--font-NZBZ);
+    font-family: var(--font-NZBZ);
 }
 
 /* 应用CSS变量 */
 :root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --accent-color: #ff6b81;
-  --success-color: #28a745;
-  --bg-opacity: 0.5;
-  --font-YS: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-  --font-NZBZ: Number, "印品南征北战NZBZ体", NZBZ, var(--font-YS);
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --accent-color: #ff6b81;
+    --success-color: #28a745;
+    --bg-opacity: 0.5;
+    --font-YS: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+    --font-NZBZ: Number, "印品南征北战NZBZ体", NZBZ, var(--font-YS);
 }
 
 /* BEM规范改造 */
 .search-results__item {
-  width: 200px;
-  background: rgba(255, 255, 255, calc(var(--bg-opacity) + 0.1));
+    width: 200px;
+    background: rgba(255, 255, 255, calc(var(--bg-opacity) + 0.1));
 }
 
 .copyright {
-  font-family: var(--font-YS);
-  color: var(--secondary-color);
+    font-family: var(--font-YS);
+    color: var(--secondary-color);
 }
 
 @font-face {
@@ -54,6 +55,7 @@
 .font-YS {
     font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
+
 .font-NZBZ {
     font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
 }
@@ -61,7 +63,7 @@
 /* 页面基础样式 */
 body {
     font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    background: url("bg.png") center/cover no-repeat, linear-gradient(135deg, rgba(245, 247, 250, 0.8) 0%, rgba(195, 207, 226, 0.8) 100%);
     margin: 0;
     padding: 20px 0;
     min-height: 100vh;
@@ -73,11 +75,15 @@ body {
     max-width: 800px;
     margin: 20px auto;
     padding: 30px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 16px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-image: linear-gradient(to bottom right,
+            rgba(255, 255, 255, 0.2),
+            rgba(255, 255, 255, 0.05));
 }
 
 /* 头部容器样式 */
@@ -91,14 +97,14 @@ body {
 /* 头部标题样式 */
 .header .title {
     font-size: 2.5em;
-    color: #4a6bdf;
+    color: #ffffff;
     margin: 0;
     padding: 15px 30px;
-    background: linear-gradient(90deg, rgba(74,107,223,0.1) 0%, rgba(255,255,255,0.8) 50%, rgba(74,107,223,0.1) 100%);
+    background: linear-gradient(90deg, rgba(106, 17, 203, 0.8) 0%, rgba(37, 117, 252, 0.8) 100%);
     border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(74, 107, 223, 0.2);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(74, 107, 223, 0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     letter-spacing: 1px;
 }
 
@@ -139,11 +145,12 @@ body {
     width: 220px;
     margin: 10px;
     padding: 15px;
-    background: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.9);
     border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(5px);
 }
 
 .item:hover {
@@ -225,7 +232,7 @@ body {
     transform: translateX(-50%);
     width: 50px;
     height: 2px;
-    background: linear-gradient(90deg, rgba(74,107,223,0) 0%, #4a6bdf 50%, rgba(74,107,223,0) 100%);
+    background: linear-gradient(90deg, rgba(74, 107, 223, 0) 0%, #4a6bdf 50%, rgba(74, 107, 223, 0) 100%);
 }
 
 /* 页脚容器样式 */
