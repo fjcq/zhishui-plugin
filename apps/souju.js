@@ -64,13 +64,32 @@ export class souju extends plugin {
 
         // 获取接口
         const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
-        const site = await Config.SearchVideos.resources[idx]?.site;
 
-        // 检查接口是否存在
-        if (!site) {
-            e.reply('接口配置错误，请联系管理员修复！');
+        // 检查resources数组是否存在且有效
+        if (!Config.SearchVideos.resources || Config.SearchVideos.resources.length === 0) {
+            e.reply('搜剧接口未配置，请管理员先配置接口！');
             return false;
         }
+
+        // 检查索引是否有效
+        if (idx < 0 || idx >= Config.SearchVideos.resources.length) {
+            e.reply('当前接口索引无效，请使用#设置搜剧接口 选择有效接口');
+            return false;
+        }
+
+        const resource = Config.SearchVideos.resources[idx];
+        const site = resource?.site || {};
+
+        // 检查接口是否存在，兼容新旧格式
+        if (!resource || (!site.url && !resource.url)) {
+            e.reply('接口配置错误，请联系管理员修复！');
+            logger.error(`接口配置错误: 索引${idx}`, { resource });
+            return false;
+        }
+
+        // 统一接口URL和标题获取方式
+        const apiUrl = site.url || resource.url;
+        const apiTitle = site.title || resource.title || `未命名接口(${apiUrl || '无URL'})`;
 
         try {
             // 开始搜索过程，设置搜索状态
@@ -81,7 +100,7 @@ export class souju extends plugin {
             e.reply(`正在搜索 [${SearchName || '最新视频'}] ，请稍候…`);
 
             // 获取搜剧数据
-            let SearchResults = await getSearchResultsWithCache(e.user_id, SearchName, 1, site.url);
+            let SearchResults = await getSearchResultsWithCache(e.user_id, SearchName, 1, apiUrl);
 
             // 保存搜索结果至缓存
             await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
@@ -89,7 +108,7 @@ export class souju extends plugin {
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
 
             // 检查并展示搜索结果
-            handleAndDisplaySearchResults(e, SearchResults, site.showpic, SearchName);
+            handleAndDisplaySearchResults(e, SearchResults, site.showpic || resource.showpic, SearchName);
 
         } catch (error) {
             e.reply(`搜索过程中发生错误：${error.message}`);
@@ -174,6 +193,37 @@ export class souju extends plugin {
             Show_SearchInterface(e);
         }
         return true;
+    }
+
+    /** 显示搜剧接口 */
+    async Show_SearchInterface(e) {
+        try {
+            const resources = await Config.SearchVideos.resources;
+            if (!resources || resources.length === 0) {
+                e.reply('搜剧接口未配置，请联系管理员！');
+                return;
+            }
+
+            const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+            const currentInterface = resources[idx]?.site;
+
+            if (!currentInterface || !currentInterface.title) {
+                e.reply('当前接口配置错误，请联系管理员！');
+                return;
+            }
+
+            let msg = '*** 搜剧接口列表 ***\n';
+            resources.forEach((item, index) => {
+                const siteTitle = item?.site?.title || '未命名接口';
+                msg += `${index + 1}. ${siteTitle}`;
+                if (index === idx) msg += ' (当前使用)';
+                msg += '\n';
+            });
+
+            e.reply(msg);
+        } catch (error) {
+            e.reply(`显示接口时发生错误：${error.message}`);
+        }
     }
 
     /** 播放器接口 */
@@ -613,33 +663,55 @@ export class souju extends plugin {
 
 /** 显示搜剧接口 */
 async function Show_SearchInterface(e) {
+    if (!Config.SearchVideos?.resources || !Array.isArray(Config.SearchVideos.resources)) {
+        return e.reply('搜剧接口配置错误：resources数组未定义或格式不正确');
+    }
+
+    // 获取当前用户选择的接口索引
+    const currentIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+
+    // 处理所有资源站点，确保有title属性
+    const resources = Config.SearchVideos.resources.map((item, index) => {
+        const site = item?.site || {};
+        return {
+            ...item,
+            site: {
+                ...site,
+                title: site.title || `未命名接口(${site.url || '无URL'})`,
+                isCurrent: index === currentIdx
+            }
+        };
+    });
+
+    if (resources.length === 0) {
+        return e.reply('搜剧接口配置错误：没有有效的资源站点配置');
+    }
     try {
-        let msg = "***搜剧接口***\n\n";
-        let resources = await Config.SearchVideos.resources;
-        if (!Array.isArray(resources) || resources.length === 0) {
-            await e.reply("有可用的搜剧接口。");
+        const allResources = await Config.SearchVideos.resources;
+        if (!Array.isArray(allResources) || allResources.length === 0) {
+            await e.reply("没有可用的搜剧接口。");
             return false;
         }
 
-        const len = resources.length;
-        let routeIdx = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx'));
-        // 修复边界条件逻辑错误
-        if (routeIdx < 0 || routeIdx >= len) {
-            routeIdx = 0;
-        }
+        const currentIdx = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        const validIdx = currentIdx >= 0 && currentIdx < allResources.length ? currentIdx : 0;
 
-        // 提前计算索引加一，避免在map中重复计算
-        const indexes = Array.from({ length: len }, (_, i) => i + 1);
+        let msg = "***搜剧接口列表***\n\n";
+        const currentResource = allResources[validIdx];
+        const currentTitle = currentResource?.title || currentResource?.site?.title || `未命名接口(${currentResource?.url || currentResource?.site?.url || '无URL'})`;
+        msg += `当前使用接口: ${currentTitle}\n\n`;
+        msg += "可用接口:\n";
 
-        msg += indexes.map((index) => {
-            const title = resources[index - 1].site.title; // 调整索引回退一步以匹配resources数组
-            return `${index === routeIdx ? '>>' : ''} ${index}、${title} ${index === routeIdx ? '<<' : ''}`;
+        msg += allResources.map((resource, index) => {
+            const title = resource?.title || resource?.site?.title || `未命名接口(${resource?.url || resource?.site?.url || '无URL'})`;
+            return `${index === validIdx ? '>>' : ''} ${index + 1}、${title} ${index === validIdx ? '<<' : ''}`;
         }).join('\n') + "\n\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
 
-        await e.reply(msg); // 确保在异步操作完成后发送回复
+        await e.reply(msg);
         return true;
     } catch (error) {
-        await e.reply(`搜剧接口显示失败：${error.message}`);
+        logger.error(`搜剧接口显示失败: ${error.stack || error.message}`);
+        await e.reply('搜剧接口显示失败，请稍后再试');
         return false;
     }
 }
