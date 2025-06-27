@@ -61,20 +61,23 @@
 /* 页面基础样式 */
 body {
     font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-    background: url("bg.png") white center top no-repeat;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     margin: 0;
-    padding: 0;
-    text-align: center;
+    padding: 20px 0;
+    min-height: 100vh;
     transition: background 0.3s;
 }
 
 .container {
-    width: 740px;
-    margin: auto;
-    padding: 20px;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 20px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 30px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 /* 头部容器样式 */
@@ -87,16 +90,16 @@ body {
 
 /* 头部标题样式 */
 .header .title {
-    font-size: 2.7em;
-    color: #007bff;
-    /* 设置一个醒目的蓝色作为标题文本颜色 */
-    margin-bottom: 20px;
-    padding: 15px 20px;
-    background: rgba(255, 255, 255, 0.8);
-    border-radius: 15px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    font-size: 2.5em;
+    color: #4a6bdf;
+    margin: 0;
+    padding: 15px 30px;
+    background: linear-gradient(90deg, rgba(74,107,223,0.1) 0%, rgba(255,255,255,0.8) 50%, rgba(74,107,223,0.1) 100%);
+    border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(74, 107, 223, 0.2);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    /* 添加文本阴影以增强效果 */
+    border: 1px solid rgba(74, 107, 223, 0.2);
+    letter-spacing: 1px;
 }
 
 /* 提示文本样式 */
@@ -133,14 +136,20 @@ body {
 
 /* 项目样式 */
 .item {
-    width: 200px;
-    margin: 7px;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 10px;
-    box-shadow: 10px 10px 15px rgba(0, 0, 0, 0.1),
-        -10px -10px 15px rgba(255, 255, 255, 0.8);
-    transition: box-shadow 0.3s;
+    width: 220px;
+    margin: 10px;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 /* 图片容器样式 */
@@ -150,14 +159,20 @@ body {
     height: 300px;
     margin-bottom: 15px;
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
 }
 
 .tu img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 10px;
+    border-radius: 12px;
+    transition: transform 0.3s ease;
+}
+
+.tu:hover img {
+    transform: scale(1.05);
 }
 
 /* 图片上文本样式增强可见性 */
@@ -193,11 +208,24 @@ body {
 
 /* 项目标题样式 */
 .item_title {
-    font-size: 1.1em;
-    color: #28a745;
-    font-weight: bold;
+    font-size: 1.2em;
+    color: #333;
+    font-weight: 600;
     margin-top: 15px;
-    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+    padding: 8px 0;
+    text-align: center;
+    position: relative;
+}
+
+.item_title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(74,107,223,0) 0%, #4a6bdf 50%, rgba(74,107,223,0) 100%);
 }
 
 /* 页脚容器样式 */

@@ -30,20 +30,23 @@
 
 body {
   font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-  background: url("bg.png") white center top no-repeat;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   margin: 0;
-  padding: 0;
+  padding: 20px 0;
+  min-height: 100vh;
   transition: background 0.3s;
 }
 
-/* 布局层 */
 .container {
-  width: 740px;
-  margin: 0 auto;
-  padding: var(--spacing-unit);
-  background: rgba(255, 255, 255, var(--bg-opacity));
-  border-radius: 20px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  width: 90%;
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 30px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 /* 组件层 */
@@ -51,19 +54,21 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, calc(var(--bg-opacity) - 0.1));
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 15px 30px;
+  background: linear-gradient(90deg, rgba(74,107,223,0.1) 0%, rgba(255,255,255,0.8) 50%, rgba(74,107,223,0.1) 100%);
+  border-radius: 50px;
+  box-shadow: 0 4px 15px rgba(74, 107, 223, 0.2);
   margin-bottom: 40px;
+  border: 1px solid rgba(74, 107, 223, 0.2);
 }
 
 .header__title {
-  font-size: 2.7em;
-  color: var(--primary-color);
+  font-size: 2.5em;
+  color: #4a6bdf;
   margin: 0;
   padding: 5px 0;
   line-height: 1;
+  letter-spacing: 1px;
 }
 
 /* 剧集信息模块 */
@@ -76,17 +81,25 @@ body {
 .drama-info__poster {
   flex: 0 0 300px;
   height: 400px;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.drama-info__poster:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
 }
 
 .drama-info__details {
   flex: 1;
-  padding: var(--spacing-unit);
-  background: rgba(255, 255, 255, calc(var(--bg-opacity) - 0.1));
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 25px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* 工具类 */
