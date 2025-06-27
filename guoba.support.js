@@ -298,7 +298,7 @@ export function supportGuoba() {
                         // 新增：下拉框变化时自动更新 selectedRoleContent
                         onChange: async (value, formModel) => {
                             try {
-                                const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+                                const roleFile = Path.join(PluginPath, 'config', 'default_config', 'RoleProfile.json');
                                 const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
                                 console.log('角色选择变化:', value, roles[value]);
                                 formModel.selectedRoleContent = JSON.stringify(roles[value], null, 2);

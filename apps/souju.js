@@ -562,8 +562,20 @@ export class souju extends plugin {
             } = userSearchData;
             console.log(`搜索数据：${JSON.stringify(userSearchData)}`);
 
+            // 检查playData是否为空
+            if (!playDataStr) {
+                e.reply(`没有找到有效的搜剧记录`);
+                return false;
+            }
+
             // 解析JSON字符串
-            const playData = JSON.parse(playDataStr);
+            let playData;
+            try {
+                playData = JSON.parse(playDataStr);
+            } catch (error) {
+                e.reply(`搜剧记录数据格式错误，请重新搜索`);
+                return false;
+            }
 
             let Episode = initialEpisode;
             let msg = '';
