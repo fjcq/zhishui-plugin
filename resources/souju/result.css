@@ -135,17 +135,18 @@ body {
 .search-results {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
-    gap: 15px;
+    justify-content: space-around;
+    gap: 8px;
     margin-bottom: 20px;
+    max-width: 100%;
 }
 
 /* 项目样式 */
 .item {
-    width: 220px;
-    margin: 10px;
-    padding: 15px;
-    background: rgba(255, 255, 255, 0.9);
+    width: 180px;
+    margin: 8px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     transition: all 0.3s ease;
