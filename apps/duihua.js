@@ -167,28 +167,11 @@ export class ChatHandler extends plugin {
         chatActiveMap[sessionId] = 1;
 
         let msg = e.msg;
-        // 检查图片和文件
         let images = [];
         let files = [];
-        if (Array.isArray(e.message)) {
-            for (const seg of e.message) {
-                if (seg.type === 'image' && seg.url) {
-                    images.push(seg.url);
-                }
-                if (seg.type === 'file' && seg.file) {
-                    files.push(seg.file); // file对象结构可根据实际平台调整
-                }
-            }
-        }
-        if (images.length > 0) {
-            console.log(`[止水对话] 检测到图片:`, images);
-        }
-        if (files.length > 0) {
-            console.log(`[止水对话] 检测到文件:`, files);
-        }
         // 对昵称做正则转义，防止特殊字符影响
         function escapeRegExp(str) {
-            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return str.replace(/[.*+?^${}()|[\\]\\/g, '\\$&');
         }
         let nickname = await Config.Chat.NickName;
         let regex = new RegExp(`^#?${escapeRegExp(nickname)}`); // 只允许开头
@@ -203,6 +186,23 @@ export class ChatHandler extends plugin {
                     console.log(`[止水对话][触发] 私聊昵称前缀触发: ${msg}`);
                 } else {
                     console.log(`[止水对话][触发] 私聊EnablePrivateChat触发: ${msg}`);
+                }
+                // 检查图片和文件（只在触发时）
+                if (Array.isArray(e.message)) {
+                    for (const seg of e.message) {
+                        if (seg.type === 'image' && seg.url) {
+                            images.push(seg.url);
+                        }
+                        if (seg.type === 'file' && seg.file) {
+                            files.push(seg.file);
+                        }
+                    }
+                }
+                if (images.length > 0) {
+                    console.log(`[止水对话] 检测到图片:`, images);
+                }
+                if (files.length > 0) {
+                    console.log(`[止水对话] 检测到文件:`, files);
                 }
             } else {
                 // 不满足条件，不回复
@@ -222,6 +222,23 @@ export class ChatHandler extends plugin {
                     console.log(`[止水对话][触发] 群聊@机器人触发: ${msg}`);
                 } else if (isNicknameMatch) {
                     console.log(`[止水对话][触发] 群聊昵称前缀触发: ${msg}`);
+                }
+                // 检查图片和文件（只在触发时）
+                if (Array.isArray(e.message)) {
+                    for (const seg of e.message) {
+                        if (seg.type === 'image' && seg.url) {
+                            images.push(seg.url);
+                        }
+                        if (seg.type === 'file' && seg.file) {
+                            files.push(seg.file);
+                        }
+                    }
+                }
+                if (images.length > 0) {
+                    console.log(`[止水对话] 检测到图片:`, images);
+                }
+                if (files.length > 0) {
+                    console.log(`[止水对话] 检测到文件:`, files);
                 }
             }
         }
@@ -785,24 +802,7 @@ export class ChatHandler extends plugin {
         }
         try {
             const scene = JSON.parse(sceneJson);
-            let msg = '【当前场景设定】\n' + Object.entries(scene).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
-            e.reply(msg);
-        } catch {
-            e.reply('场景设定数据格式有误。');
-        }
-    }
-
-    /** 设置场景设定（仅私聊可用） */
-    async SetChatScene(e) {
-        if (e.group_id) {
-            e.reply('该指令只能在私聊中使用，请私聊机器人设置场景。');
-            return;
-        }
-        // 取指令后的内容
-        let jsonStr = e.msg.replace(/^#?(止水)?(插件|对话)?设置(对话)?场景/, '').trim();
-        if (!jsonStr) {
-            e.reply('请提供完整的场景JSON内容。例如：#设置场景 {"key":"value"}');
-            return;
+            let msg = '【当前场景设定】\n' + Object
         }
         try {
             JSON.parse(jsonStr); // 校验格式
