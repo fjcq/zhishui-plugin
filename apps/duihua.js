@@ -576,8 +576,23 @@ export class ChatHandler extends plugin {
             e.reply('未找到该角色，请检查角色标题或序号是否正确');
             return;
         }
-
         // 判断是否群聊，优先设置群专属，否则设置全局
+        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        const ApiList = await Config.Chat.ApiList || [];
+        const apiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+        const api = ApiList[apiIndex] || {};
+        const model = (api.ApiModel || '').toLowerCase();
+        const type = (api.ApiType || '').toLowerCase();
+        let lost = false;
+        let chatMsg = await loadChatMsg(sessionId);
+        if (Array.isArray(chatMsg) && chatMsg.length > 0) {
+            const { converted, lostContent } = convertChatContextForModel(chatMsg, type, type, model, model);
+            await saveChatMsg(sessionId, converted);
+            if (lostContent) lost = true;
+        }
+        await clearSessionContext(e); // 兜底清理
         if (e.group_id) {
             // 获取当前 GroupRoleIndex
             let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
@@ -590,12 +605,16 @@ export class ChatHandler extends plugin {
             }
             // 写入配置
             await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
-            await clearSessionContext(e);
-            e.reply(`本群已切换为角色：${roles[idx].角色标题}\n已自动清除上下文缓存，请重新开始对话。`);
+            let tip = `本群已切换为角色：${roles[idx].角色标题}`;
+            if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
+            else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
+            e.reply(tip);
         } else {
             await Config.modify('duihua', 'CurrentRoleIndex', idx);
-            await clearSessionContext(e);
-            e.reply(`全局已切换为角色：${roles[idx].角色标题}\n已自动清除上下文缓存，请重新开始对话。`);
+            let tip = `全局已切换为角色：${roles[idx].角色标题}`;
+            if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
+            else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
+            e.reply(tip);
         }
     }
 
@@ -670,9 +689,32 @@ export class ChatHandler extends plugin {
             e.reply(`请输入正确的API序号（1~${ApiList.length}），如：#切换API1`);
             return;
         }
+        // 获取切换前后的模型类型
+        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        const oldApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+        const oldApi = ApiList[oldApiIndex] || {};
+        const newApi = ApiList[idx] || {};
+        const oldModel = (oldApi.ApiModel || '').toLowerCase();
+        const newModel = (newApi.ApiModel || '').toLowerCase();
+        const oldType = (oldApi.ApiType || '').toLowerCase();
+        const newType = (newApi.ApiType || '').toLowerCase();
+        // 切换
         await Config.modify('duihua', 'CurrentApiIndex', idx);
-        await clearSessionContext(e);
-        e.reply(`已切换到API序号${idx + 1}，类型：${ApiList[idx].ApiType || '未知类型'}\n已自动清除上下文缓存，请重新开始对话。`);
+        // 自动兼容上下文
+        let lost = false;
+        let chatMsg = await loadChatMsg(sessionId);
+        if (Array.isArray(chatMsg) && chatMsg.length > 0) {
+            const { converted, lostContent } = convertChatContextForModel(chatMsg, oldType, newType, oldModel, newModel);
+            await saveChatMsg(sessionId, converted);
+            if (lostContent) lost = true;
+        }
+        await clearSessionContext(e); // 兜底清理
+        let tip = `已切换到API序号${idx + 1}，类型：${newApi.ApiType || '未知类型'}`;
+        if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
+        else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
+        e.reply(tip);
     }
 
     /** 查看API（显示当前API参数+API列表+指令引导） */
@@ -970,92 +1012,20 @@ async function openAi(msg, e) {
         };
     } else if (apiType === 'gemini') {
         // Gemini 需要 messages: [{role: 'user', parts: [{text: ...}]}]
-        requestData = {
-            contents: [
-                {
-                    role: 'user',
-                    parts: [{ text: msg }]
-                }
-            ]
-        };
-    } else if (isQwenVL) {
-        // 硅基流动Qwen/Qwen2.5-VL-72B-Instruct模型
-        requestData = {
-            model: aiModel,
-            messages: [], // 稍后填充
-            temperature: 0.7,
-            top_p: 0.8,
-            max_tokens: 2048,
-            stream: false,
-            // Qwen多模态支持，图片以base64方式传递
-        };
-    } else {
-        // deepseek-vl2 不支持 response_format: {type: 'json_object'}
-        const isDeepseekVL2 = (aiModel || '').toLowerCase().includes('deepseek-vl2');
-        requestData = {
-            model: aiModel,
-            messages: [], // 稍后填充
-            temperature: 0.7,
-            top_p: 0.8,
-            max_tokens: 2048,
-            presence_penalty: 0,
-            frequency_penalty: 0.5,
-            stream: false,
-            response_format: { type: 'json_object' }
-        };
-        // deepseek-vl2 兼容：不支持 response_format
-        if (
-            apiType === 'deepseek' ||
-            (aiModel && typeof aiModel === 'string' && aiModel.toLowerCase().includes('deepseek-vl2'))
-        ) {
-            delete requestData.response_format;
+        let systemPrompt = '';
+        try {
+            systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
+        } catch {
+            systemPrompt = '';
         }
-    }
-
-    // 3. 构建 system 消息
-    const systemMessage = await mergeSystemMessage(e);
-
-    // 4. 添加历史对话上下文
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-    let chatMsg = await loadChatMsg(sessionId);
-    if (!Array.isArray(chatMsg)) chatMsg = [];
-
-    // 5. 添加/更新 system 消消息
-    if (apiType !== 'tencent' && apiType !== 'gemini') {
-        // 非腾讯元器/非Gemini，首条为 system
-        if (chatMsg.length === 0 || chatMsg[0].role !== 'system') {
-            chatMsg.unshift({ role: 'system', content: JSON.stringify(systemMessage) });
-        } else {
-            chatMsg[0] = { role: 'system', content: JSON.stringify(systemMessage) };
-        }
-    }
-
-    // 6. 添加本次用户消息
-    if (chatMsg.length === 0 || chatMsg[chatMsg.length - 1].role !== 'user') {
-        chatMsg.push({ role: 'user', content: msg });
-    } else {
-        chatMsg[chatMsg.length - 1].content = msg;
-    }
-
-    // 7. 填充 messages
-    if (apiType === 'tencent') {
-        // 腾讯元器不传 system
-        requestData.messages = chatMsg
-            .filter(m => m.role !== 'system')
-            .map(m => ({
-                role: m.role,
-                content: [{ type: "text", text: m.content }]
-            }));
-    } else if (apiType === 'gemini') {
-        // Gemini 多模态图片支持
         let parts = [];
         let failedImages = [];
+        let userMsg = msg;
         try {
             // 尝试解析 msg 为对象，提取 message、images
             let msgObj = JSON.parse(msg);
-            if (msgObj.message) {
-                parts.push({ text: msgObj.message });
-            }
+            userMsg = msgObj.message || msg;
+            parts.push({ text: userMsg });
             if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
                 for (const imgUrl of msgObj.images) {
                     try {
@@ -1082,12 +1052,11 @@ async function openAi(msg, e) {
         if (failedImages.length > 0 && typeof e.reply === 'function') {
             await e.reply(`部分图片下载失败，未提交给AI：\n` + failedImages.join('\n'));
         }
+        // Gemini system prompt 以 role: 'model' 放在最前面
         requestData = {
             contents: [
-                {
-                    role: 'user',
-                    parts: parts
-                }
+                { role: 'model', parts: [{ text: systemPrompt }] },
+                { role: 'user', parts: parts }
             ]
         };
     } else if (isQwenVL) {
@@ -1504,4 +1473,47 @@ async function clearSessionContext(e) {
     const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
     const keyv = getSessionKeyv(sessionId);
     await keyv.delete('chatMsg');
+}
+
+/**
+ * 上下文兼容转换：只保留 user/assistant 的纯文本内容，丢弃特殊字段
+ * @param {Array} chatMsg 历史上下文
+ * @param {string} oldType 旧模型类型
+ * @param {string} newType 新模型类型
+ * @param {string} oldModel 旧模型名
+ * @param {string} newModel 新模型名
+ * @returns { converted, lostContent }
+ */
+function convertChatContextForModel(chatMsg, oldType, newType, oldModel, newModel) {
+    let lostContent = false;
+    const isGemini = newType === 'gemini' || newModel.includes('gemini');
+    const isQwenOrOpenAI = ['openai', 'qwen', 'siliconflow'].includes(newType) || /gpt|qwen|turbo|vl-72b/.test(newModel);
+    const converted = chatMsg.map(item => {
+        if (typeof item !== 'object') return null;
+        let role = item.role || '';
+        let content = item.content || item.message || '';
+        // system <-> model 兼容转换
+        if (role === 'system' && isGemini) {
+            // system 转 model（Gemini）
+            return { role: 'model', parts: [{ text: typeof content === 'string' ? content : JSON.stringify(content) }] };
+        }
+        if (role === 'model' && isQwenOrOpenAI) {
+            // model 转 system（OpenAI/Qwen）
+            let text = '';
+            if (Array.isArray(item.parts) && item.parts.length > 0) {
+                text = item.parts.map(p => p.text).join('\n');
+            } else if (typeof content === 'string') {
+                text = content;
+            }
+            return { role: 'system', content: text };
+        }
+        // 只保留 user/assistant 的纯文本内容
+        if ((role === 'user' || role === 'assistant') && typeof content === 'string') {
+            return { role, content };
+        }
+        lostContent = true;
+        return null;
+    }).filter(Boolean);
+    if (converted.length < chatMsg.length) lostContent = true;
+    return { converted, lostContent };
 }
