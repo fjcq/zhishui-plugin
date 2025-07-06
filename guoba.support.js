@@ -296,13 +296,14 @@ export function supportGuoba() {
                         })),
                         placeholder: '请选择要编辑的角色',
                         // 新增：下拉框变化时自动更新 selectedRoleContent
-                        onChange: async (value, formModel) => {
+                        onChange: async (value, formModel, { setConfigData }) => {
                             try {
-                                const roleFile = Path.join(PluginPath, 'config', 'default_config', 'RoleProfile.json');
+                                const roleFile = Path + '/config/default_config/RoleProfile.json';
                                 const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
-                                console.log('角色选择变化:', value, roles[value]);
                                 formModel.selectedRoleContent = JSON.stringify(roles[value], null, 2);
-                                this.$forceUpdate();
+                                if (typeof setConfigData === 'function') {
+                                    setConfigData({ selectedRoleContent: formModel.selectedRoleContent });
+                                }
                             } catch (err) {
                                 console.error('加载角色配置失败:', err);
                             }

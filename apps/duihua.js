@@ -63,7 +63,7 @@ export class ChatHandler extends plugin {
                     reg: '^#?(止水)?(插件|对话)?查看(好感|亲密)度$',
                     fnc: 'ShowFavor'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)??设置(好感|亲密)度(.*)$`,
+                    reg: `^#?(止水)?(插件|对话)?设置(好感|亲密)度(.*)$`,
                     fnc: 'updateUserFavor'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`,
@@ -167,7 +167,12 @@ export class ChatHandler extends plugin {
         chatActiveMap[sessionId] = 1;
 
         let msg = e.msg;
-        let regex = new RegExp(`^#?${chatNickname}`);
+        // 对昵称做正则转义，防止特殊字符影响
+        function escapeRegExp(str) {
+            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+        let nickname = await Config.Chat.NickName;
+        let regex = new RegExp(`^#?${escapeRegExp(nickname)}`); // 只允许开头
         const isPrivate = !e.group_id;
         const enablePrivate = await Config.Chat.EnablePrivateChat;
 
@@ -177,6 +182,7 @@ export class ChatHandler extends plugin {
                 // 满足任一条件，AI回复
             } else {
                 // 不满足条件，不回复
+                chatActiveMap[sessionId] = 0;
                 return false;
             }
         } else {
@@ -184,6 +190,7 @@ export class ChatHandler extends plugin {
             const isAtBot = e.atBot && await Config.Chat.EnableAt;
             const isNicknameMatch = regex.test(msg);
             if (!isAtBot && !isNicknameMatch) {
+                chatActiveMap[sessionId] = 0;
                 return false;
             }
         }
