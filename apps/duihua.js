@@ -199,6 +199,11 @@ export class ChatHandler extends plugin {
         if (isPrivate) {
             if (enablePrivate || regex.test(msg)) {
                 // 满足任一条件，AI回复
+                if (regex.test(msg)) {
+                    console.log(`[止水对话][触发] 私聊昵称前缀触发: ${msg}`);
+                } else {
+                    console.log(`[止水对话][触发] 私聊EnablePrivateChat触发: ${msg}`);
+                }
             } else {
                 // 不满足条件，不回复
                 chatActiveMap[sessionId] = 0;
@@ -209,8 +214,15 @@ export class ChatHandler extends plugin {
             const isAtBot = e.atBot && await Config.Chat.EnableAt;
             const isNicknameMatch = regex.test(msg);
             if (!isAtBot && !isNicknameMatch) {
+                // 严格：群聊未@且无前缀，不触发
                 chatActiveMap[sessionId] = 0;
                 return false;
+            } else {
+                if (isAtBot) {
+                    console.log(`[止水对话][触发] 群聊@机器人触发: ${msg}`);
+                } else if (isNicknameMatch) {
+                    console.log(`[止水对话][触发] 群聊昵称前缀触发: ${msg}`);
+                }
             }
         }
 
@@ -1149,59 +1161,64 @@ async function openAi(msg, e) {
  * @returns {string} 转换后的中文描述。
  */
 function parseErrorMessage(errorData) {
-    const errorMessage = errorData.error.message;
-    const errorType = errorData.error.type;
-    const errorCode = errorData.error.code;
-
-    let response;
-
-    switch (errorCode) {
-        case "account_deactivated":
-            response = "您的OpenAI账户已被停用。";
-            break;
-        case "invalid_request_error":
-            response = "请求无效：" + errorMessage + "，请检查您的请求参数。";
-            break;
-        case "rate_limit_exceeded":
-            response = "请求频率过高，请稍后重试。";
-            break;
-        case "quota_exceeded":
-            response = "您已超出当前配额，请检查您的计划和账单详情。";
-            break;
-        case "invalid_api_key":
-            response = "API密钥无效，请检查您的API密钥是否正确。";
-            break;
-        case "invalid_model":
-            response = "指定的模型无效，请检查模型名称是否正确。";
-            break;
-        case "invalid_parameter":
-            response = "请求参数无效：" + errorMessage + "，请检查您的参数设置。";
-            break;
-        case "missing_parameter":
-            response = "缺少必要参数：" + errorMessage + "，请补充缺失的参数。";
-            break;
-        case "service_unavailable":
-            response = "服务暂时不可用，请稍后再试。";
-            break;
-        case "internal_server_error":
-            response = "服务器内部错误：" + errorMessage + "，请稍后再试或联系支持人员。";
-            break;
-        case "content_too_long":
-            response = "内容过长，请缩短输入内容。";
-            break;
-        case "context_error":
-            response = "上下文错误：" + errorMessage + "，请检查您的上下文设置。";
-            break;
-        default:
-            response = "出现了一个问题：" + errorMessage + "，请稍后再试或联系支持人员。";
+    // 兼容 code/message 格式（如 deepseek）
+    if (errorData && typeof errorData === 'object') {
+        if (typeof errorData.message === 'string' && errorData.message) {
+            return errorData.message;
+        }
+        if (typeof errorData.error === 'object' && errorData.error && typeof errorData.error.message === 'string') {
+            // OpenAI 风格
+            const errorMessage = errorData.error.message;
+            const errorCode = errorData.error.code;
+            let response;
+            switch (errorCode) {
+                case "account_deactivated":
+                    response = "您的OpenAI账户已被停用。";
+                    break;
+                case "invalid_request_error":
+                    response = "请求无效：" + errorMessage + "，请检查您的请求参数。";
+                    break;
+                case "rate_limit_exceeded":
+                    response = "请求频率过高，请稍后重试。";
+                    break;
+                case "quota_exceeded":
+                    response = "您已超出当前配额，请检查您的计划和账单详情。";
+                    break;
+                case "invalid_api_key":
+                    response = "API密钥无效，请检查您的API密钥是否正确。";
+                    break;
+                case "invalid_model":
+                    response = "指定的模型无效，请检查模型名称是否正确。";
+                    break;
+                case "invalid_parameter":
+                    response = "请求参数无效：" + errorMessage + "，请检查您的参数设置。";
+                    break;
+                case "missing_parameter":
+                    response = "缺少必要参数：" + errorMessage + "，请补充缺失的参数。";
+                    break;
+                case "service_unavailable":
+                    response = "服务暂时不可用，请稍后再试。";
+                    break;
+                case "internal_server_error":
+                    response = "服务器内部错误：" + errorMessage + "，请稍后再试或联系支持人员。";
+                    break;
+                case "content_too_long":
+                    response = "内容过长，请缩短输入内容。";
+                    break;
+                case "context_error":
+                    response = "上下文错误：" + errorMessage + "，请检查您的上下文设置。";
+                    break;
+                default:
+                    response = "出现了一个问题：" + errorMessage + "，请稍后再试或联系支持人员。";
+            }
+            if (response.length > 100) {
+                response = "出现了一个问题：" + errorMessage.substring(0, 80) + "...，请稍后再试或联系支持人员。";
+            }
+            return response;
+        }
     }
-
-    // 如果错误信息过长，进行简化
-    if (response.length > 100) {
-        response = "出现了一个问题：" + errorMessage.substring(0, 80) + "...，请稍后再试或联系支持人员。";
-    }
-
-    return response;
+    // 兜底
+    return '与 AI 通信时发生错误，请稍后重试。';
 }
 
 /**
