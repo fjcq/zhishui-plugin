@@ -170,7 +170,8 @@ export function supportGuoba() {
                                     options: [
                                         { label: 'OpenAI', value: 'openai' },
                                         { label: '硅基流动', value: 'siliconflow' },
-                                        { label: '腾讯元器', value: 'tencent' }
+                                        { label: '腾讯元器', value: 'tencent' },
+                                        { label: 'Gemini', value: 'gemini' }
                                     ],
                                     placeholder: '请选择API类型'
                                 }
@@ -194,7 +195,8 @@ export function supportGuoba() {
                             {
                                 field: 'ApiModel',
                                 label: '模型',
-                                component: 'Input'
+                                component: 'Input',
+                                bottomHelpMessage: '如 deepseek-chat、siliconflow-chat、hunyuan-lite、gemini-pro、Qwen2.5-VL-72B-Instruct 等'
                             }
                         ]
                     }

@@ -167,11 +167,9 @@ export class ChatHandler extends plugin {
         chatActiveMap[sessionId] = 1;
 
         let msg = e.msg;
-        let images = [];
-        let files = [];
         // 对昵称做正则转义，防止特殊字符影响
         function escapeRegExp(str) {
-            return str.replace(/[.*+?^${}()|[\\]\\/g, '\\$&');
+            return str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
         }
         let nickname = await Config.Chat.NickName;
         let regex = new RegExp(`^#?${escapeRegExp(nickname)}`); // 只允许开头
@@ -186,23 +184,6 @@ export class ChatHandler extends plugin {
                     console.log(`[止水对话][触发] 私聊昵称前缀触发: ${msg}`);
                 } else {
                     console.log(`[止水对话][触发] 私聊EnablePrivateChat触发: ${msg}`);
-                }
-                // 检查图片和文件（只在触发时）
-                if (Array.isArray(e.message)) {
-                    for (const seg of e.message) {
-                        if (seg.type === 'image' && seg.url) {
-                            images.push(seg.url);
-                        }
-                        if (seg.type === 'file' && seg.file) {
-                            files.push(seg.file);
-                        }
-                    }
-                }
-                if (images.length > 0) {
-                    console.log(`[止水对话] 检测到图片:`, images);
-                }
-                if (files.length > 0) {
-                    console.log(`[止水对话] 检测到文件:`, files);
                 }
             } else {
                 // 不满足条件，不回复
@@ -223,24 +204,27 @@ export class ChatHandler extends plugin {
                 } else if (isNicknameMatch) {
                     console.log(`[止水对话][触发] 群聊昵称前缀触发: ${msg}`);
                 }
-                // 检查图片和文件（只在触发时）
-                if (Array.isArray(e.message)) {
-                    for (const seg of e.message) {
-                        if (seg.type === 'image' && seg.url) {
-                            images.push(seg.url);
-                        }
-                        if (seg.type === 'file' && seg.file) {
-                            files.push(seg.file);
-                        }
-                    }
+            }
+        }
+
+        // 只有对话机制被触发后，才检测图片和文件
+        let images = [];
+        let files = [];
+        if (Array.isArray(e.message)) {
+            for (const seg of e.message) {
+                if (seg.type === 'image' && seg.url) {
+                    images.push(seg.url);
                 }
-                if (images.length > 0) {
-                    console.log(`[止水对话] 检测到图片:`, images);
-                }
-                if (files.length > 0) {
-                    console.log(`[止水对话] 检测到文件:`, files);
+                if (seg.type === 'file' && seg.file) {
+                    files.push(seg.file); // file对象结构可根据实际平台调整
                 }
             }
+        }
+        if (images.length > 0) {
+            console.log(`[止水对话] 检测到图片:`, images);
+        }
+        if (files.length > 0) {
+            console.log(`[止水对话] 检测到文件:`, files);
         }
 
         try {
@@ -802,7 +786,24 @@ export class ChatHandler extends plugin {
         }
         try {
             const scene = JSON.parse(sceneJson);
-            let msg = '【当前场景设定】\n' + Object
+            let msg = '【当前场景设定】\n' + Object.entries(scene).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join('\n');
+            e.reply(msg);
+        } catch {
+            e.reply('场景设定数据格式有误。');
+        }
+    }
+
+    /** 设置场景设定（仅私聊可用） */
+    async SetChatScene(e) {
+        if (e.group_id) {
+            e.reply('该指令只能在私聊中使用，请私聊机器人设置场景。');
+            return;
+        }
+        // 取指令后的内容
+        let jsonStr = e.msg.replace(/^#?(止水)?(插件|对话)?设置(对话)?场景/, '').trim();
+        if (!jsonStr) {
+            e.reply('请提供完整的场景JSON内容。例如：#设置场景 {"key":"value"}');
+            return;
         }
         try {
             JSON.parse(jsonStr); // 校验格式
@@ -935,6 +936,9 @@ async function openAi(msg, e) {
     const apiUrl = apiConfig.ApiUrl || '';
     const tencentAssistantId = apiConfig.TencentAssistantId || '';
 
+    // 针对硅基流动Qwen/Qwen2.5-VL-72B-Instruct模型的特殊处理
+    const isQwenVL = (aiModel || '').toLowerCase().includes('qwen') || (aiModel || '').toLowerCase().includes('vl-72b');
+
     // 1. 先构建 headers
     let headers;
     if (apiType === 'tencent') {
@@ -973,6 +977,17 @@ async function openAi(msg, e) {
                     parts: [{ text: msg }]
                 }
             ]
+        };
+    } else if (isQwenVL) {
+        // 硅基流动Qwen/Qwen2.5-VL-72B-Instruct模型
+        requestData = {
+            model: aiModel,
+            messages: [], // 稍后填充
+            temperature: 0.7,
+            top_p: 0.8,
+            max_tokens: 2048,
+            stream: false,
+            // Qwen多模态支持，图片以base64方式传递
         };
     } else {
         // deepseek-vl2 不支持 response_format: {type: 'json_object'}
@@ -1075,6 +1090,38 @@ async function openAi(msg, e) {
                 }
             ]
         };
+    } else if (isQwenVL) {
+        // Qwen/Qwen2.5-VL-72B-Instruct多模态支持
+        let msgObj;
+        let userMsg = msg;
+        let images = [];
+        try {
+            msgObj = JSON.parse(msg);
+            userMsg = msgObj.message || msg;
+            if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
+                for (const imgUrl of msgObj.images) {
+                    try {
+                        const res = await fetch(imgUrl);
+                        const arrayBuffer = await res.arrayBuffer();
+                        const base64 = Buffer.from(arrayBuffer).toString('base64');
+                        let mime = 'image/jpeg';
+                        if (imgUrl.endsWith('.png')) mime = 'image/png';
+                        if (imgUrl.endsWith('.webp')) mime = 'image/webp';
+                        if (imgUrl.endsWith('.gif')) mime = 'image/gif';
+                        images.push({ type: 'image_url', image: { url: `data:${mime};base64,${base64}` } });
+                    } catch (err) {
+                        // 图片下载失败
+                    }
+                }
+            }
+        } catch (err) {
+            // msg 不是 JSON
+        }
+        // Qwen多模态格式：messages支持插入图片对象
+        requestData.messages = [
+            { role: 'system', content: JSON.stringify(systemMessage) },
+            ...(images.length > 0 ? [{ role: 'user', content: userMsg, images }] : [{ role: 'user', content: userMsg }])
+        ];
     } else {
         requestData.messages = chatMsg;
     }
