@@ -39,6 +39,11 @@ ApiList:
     ApiUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
     ApiKey: "你的腾讯元器key"
     ApiModel: hunyuan-lite
+  - ApiType: "gemini"
+    TencentAssistantId: ""
+    ApiUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+    ApiKey: "你的Gemini API Key"
+    ApiModel: gemini-pro
 
 # 全局默认API索引（对应ApiList的下标）
 CurrentApiIndex: 0

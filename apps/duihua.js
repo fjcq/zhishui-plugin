@@ -167,6 +167,25 @@ export class ChatHandler extends plugin {
         chatActiveMap[sessionId] = 1;
 
         let msg = e.msg;
+        // 检查图片和文件
+        let images = [];
+        let files = [];
+        if (Array.isArray(e.message)) {
+            for (const seg of e.message) {
+                if (seg.type === 'image' && seg.url) {
+                    images.push(seg.url);
+                }
+                if (seg.type === 'file' && seg.file) {
+                    files.push(seg.file); // file对象结构可根据实际平台调整
+                }
+            }
+        }
+        if (images.length > 0) {
+            console.log(`[止水对话] 检测到图片:`, images);
+        }
+        if (files.length > 0) {
+            console.log(`[止水对话] 检测到文件:`, files);
+        }
         // 对昵称做正则转义，防止特殊字符影响
         function escapeRegExp(str) {
             return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -203,6 +222,8 @@ export class ChatHandler extends plugin {
             const Favora = await getUserFavor(e.user_id);
             const userMessage = {
                 message: msg,
+                images: images,
+                files: files,
                 additional_info: {
                     name: e.sender.nickname,
                     user_id: e.user_id,
@@ -910,6 +931,11 @@ async function openAi(msg, e) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
         };
+    } else if (apiType === 'gemini') {
+        headers = {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+        };
     } else {
         headers = {
             'Content-Type': 'application/json',
@@ -926,7 +952,19 @@ async function openAi(msg, e) {
             stream: false,
             messages: [] // 稍后填充
         };
+    } else if (apiType === 'gemini') {
+        // Gemini 需要 messages: [{role: 'user', parts: [{text: ...}]}]
+        requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: [{ text: msg }]
+                }
+            ]
+        };
     } else {
+        // deepseek-vl2 不支持 response_format: {type: 'json_object'}
+        const isDeepseekVL2 = (aiModel || '').toLowerCase().includes('deepseek-vl2');
         requestData = {
             model: aiModel,
             messages: [], // 稍后填充
@@ -938,6 +976,13 @@ async function openAi(msg, e) {
             stream: false,
             response_format: { type: 'json_object' }
         };
+        // deepseek-vl2 兼容：不支持 response_format
+        if (
+            apiType === 'deepseek' ||
+            (aiModel && typeof aiModel === 'string' && aiModel.toLowerCase().includes('deepseek-vl2'))
+        ) {
+            delete requestData.response_format;
+        }
     }
 
     // 3. 构建 system 消息
@@ -949,8 +994,8 @@ async function openAi(msg, e) {
     if (!Array.isArray(chatMsg)) chatMsg = [];
 
     // 5. 添加/更新 system 消消息
-    if (apiType !== 'tencent') {
-        // 非腾讯元器，首条为 system
+    if (apiType !== 'tencent' && apiType !== 'gemini') {
+        // 非腾讯元器/非Gemini，首条为 system
         if (chatMsg.length === 0 || chatMsg[0].role !== 'system') {
             chatMsg.unshift({ role: 'system', content: JSON.stringify(systemMessage) });
         } else {
@@ -974,6 +1019,50 @@ async function openAi(msg, e) {
                 role: m.role,
                 content: [{ type: "text", text: m.content }]
             }));
+    } else if (apiType === 'gemini') {
+        // Gemini 多模态图片支持
+        let parts = [];
+        let failedImages = [];
+        try {
+            // 尝试解析 msg 为对象，提取 message、images
+            let msgObj = JSON.parse(msg);
+            if (msgObj.message) {
+                parts.push({ text: msgObj.message });
+            }
+            if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
+                for (const imgUrl of msgObj.images) {
+                    try {
+                        // 下载图片并转为 base64
+                        const res = await fetch(imgUrl);
+                        const arrayBuffer = await res.arrayBuffer();
+                        const base64 = Buffer.from(arrayBuffer).toString('base64');
+                        // 仅支持常见图片类型
+                        let mime = 'image/jpeg';
+                        if (imgUrl.endsWith('.png')) mime = 'image/png';
+                        if (imgUrl.endsWith('.webp')) mime = 'image/webp';
+                        if (imgUrl.endsWith('.gif')) mime = 'image/gif';
+                        parts.push({ inline_data: { data: base64, mime_type: mime } });
+                    } catch (err) {
+                        failedImages.push(imgUrl);
+                    }
+                }
+            }
+        } catch (err) {
+            // msg 不是 JSON，直接作为文本
+            parts.push({ text: msg });
+        }
+        // 如果有图片下载失败，主动告知用户
+        if (failedImages.length > 0 && typeof e.reply === 'function') {
+            await e.reply(`部分图片下载失败，未提交给AI：\n` + failedImages.join('\n'));
+        }
+        requestData = {
+            contents: [
+                {
+                    role: 'user',
+                    parts: parts
+                }
+            ]
+        };
     } else {
         requestData.messages = chatMsg;
     }
@@ -1022,6 +1111,17 @@ async function openAi(msg, e) {
                 let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
                 content = rawContent;
                 // 只有请求成功时，才将请求和回复加入缓存
+                await addMessage({ role: 'user', content: msg }, e);
+                await addMessage({ role: 'assistant', content }, e);
+            } else if (apiType === 'gemini') {
+                // Gemini 返回 candidates[0].content.parts[0].text
+                let rawContent = '';
+                if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0]) {
+                    rawContent = responseData.candidates[0].content.parts[0].text || '';
+                } else {
+                    rawContent = JSON.stringify(responseData);
+                }
+                content = rawContent;
                 await addMessage({ role: 'user', content: msg }, e);
                 await addMessage({ role: 'assistant', content }, e);
             } else {
