@@ -17,8 +17,8 @@ let chatNickname = await Config.Chat.NickName;
 /** 发音人列表 */
 const voiceList = await Data.readVoiceList();
 
-/** 工作状态 */
-let chatActive = 0;
+/** 工作状态（每群/私聊独立） */
+let chatActiveMap = {};
 
 /** 消息计数器 */
 let chatMessageCounter = 0;
@@ -120,7 +120,9 @@ export class ChatHandler extends plugin {
     /** 重置对话 */
     async ResetChat(e) {
         if (!e.isMaster) { return; }
-        chatActive = 0;
+        // 获取当前会话ID
+        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        chatActiveMap[sessionId] = 0;
 
         // 判断是否为“结束全部对话”
         if (/全部/.test(e.msg)) {
@@ -132,12 +134,13 @@ export class ChatHandler extends plugin {
                     fs.unlinkSync(filePath);
                 }
             }
+            // 清空所有会话的活跃状态
+            chatActiveMap = {};
             e.reply('已清除全部对话缓存！');
             return;
         }
 
         // 删除对应上下文缓存
-        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
         const keyv = getSessionKeyv(sessionId);
         await keyv.delete('chatMsg');
 
@@ -147,11 +150,21 @@ export class ChatHandler extends plugin {
 
     /** 对话 */
     async duihua(e) {
-        // 检查是否有请求正在处理中
-        if (chatActive === 1) {
-            e.reply('稍等哦，正在处理上一个请求~');
+        // 获取当前会话ID
+        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        // 检查是否有请求正在处理中（仅本会话）
+        if (chatActiveMap[sessionId] === 1) {
+            if (e.group_id) {
+                // 群聊中@触发者
+                await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
+            } else {
+                // 私聊原样
+                await e.reply('稍等哦，正在处理上一个请求~');
+            }
             return;
         }
+        // 标记本会话为处理中
+        chatActiveMap[sessionId] = 1;
 
         let msg = e.msg;
         let regex = new RegExp(`^#?${chatNickname}`);
@@ -176,8 +189,6 @@ export class ChatHandler extends plugin {
         }
 
         try {
-            // 标记对话状态为进行中      
-            chatActive = 1;
             // 提取用户消息内容，并去除对话昵称前缀
             msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
             msg = msg.replace(/{at:/g, '{@');
@@ -278,17 +289,17 @@ export class ChatHandler extends plugin {
                 }
 
                 // 标记对话状态为完成
-                chatActive = 0;
+                chatActiveMap[sessionId] = 0;
             } else {
                 // 如果没有获取到有效的回复，标记对话状态为未进行
-                chatActive = 0;
+                chatActiveMap[sessionId] = 0;
                 return false;
             }
         } catch (error) {
             // 捕获并处理异常，例如输出错误日志
             console.error('对话处理过程中发生错误:', error);
             e.reply('发生错误，无法进行对话。');
-            chatActive = 0;
+            chatActiveMap[sessionId] = 0;
             return false;
         }
 
