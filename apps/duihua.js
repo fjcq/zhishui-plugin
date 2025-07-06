@@ -1211,9 +1211,17 @@ function parseErrorMessage(errorData) {
     // 兼容 code/message 格式（如 deepseek）
     if (errorData && typeof errorData === 'object') {
         if (typeof errorData.message === 'string' && errorData.message) {
+            // Gemini 地区限制友好提示
+            if (errorData.message.includes('User location is not supported for the API use')) {
+                return '当前地区无法使用 Gemini API，请更换为支持的地区（如美国、日本等）或使用代理。';
+            }
             return errorData.message;
         }
         if (typeof errorData.error === 'object' && errorData.error && typeof errorData.error.message === 'string') {
+            // Gemini 地区限制友好提示
+            if (errorData.error.message.includes('User location is not supported for the API use')) {
+                return '当前地区无法使用 Gemini API，请更换为支持的地区（如美国、日本等）或使用代理。';
+            }
             // OpenAI 风格
             const errorMessage = errorData.error.message;
             const errorCode = errorData.error.code;
