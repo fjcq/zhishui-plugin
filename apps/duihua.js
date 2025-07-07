@@ -152,22 +152,7 @@ export class ChatHandler extends plugin {
     async duihua(e) {
         // 获取当前会话ID
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-        // 检查是否有请求正在处理中（仅本会话）
-        if (chatActiveMap[sessionId] === 1) {
-            if (e.group_id) {
-                // 群聊中@触发者
-                await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
-            } else {
-                // 私聊原样
-                await e.reply('稍等哦，正在处理上一个请求~');
-            }
-            return;
-        }
-        // 标记本会话为处理中
-        chatActiveMap[sessionId] = 1;
-
         let msg = e.msg;
-        // 对昵称做正则转义，防止特殊字符影响
         function escapeRegExp(str) {
             return str.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&');
         }
@@ -176,36 +161,61 @@ export class ChatHandler extends plugin {
         const isPrivate = !e.group_id;
         const enablePrivate = await Config.Chat.EnablePrivateChat;
 
+        // 详细触发追踪
+        let triggerDetail = '';
+        let triggered = false;
         // 私聊逻辑
         if (isPrivate) {
             if (enablePrivate || regex.test(msg)) {
-                // 满足任一条件，AI回复
+                triggered = true;
                 if (regex.test(msg)) {
-                    console.log(`[止水对话][触发] 私聊昵称前缀触发: ${msg}`);
+                    triggerDetail = '';
                 } else {
-                    console.log(`[止水对话][触发] 私聊EnablePrivateChat触发: ${msg}`);
+                    triggerDetail = '';
                 }
             } else {
-                // 不满足条件，不回复
                 chatActiveMap[sessionId] = 0;
                 return false;
             }
         } else {
-            // 群聊逻辑，保持原有判断
             const isAtBot = e.atBot && await Config.Chat.EnableAt;
             const isNicknameMatch = regex.test(msg);
             if (!isAtBot && !isNicknameMatch) {
-                // 严格：群聊未@且无前缀，不触发
                 chatActiveMap[sessionId] = 0;
                 return false;
             } else {
+                triggered = true;
                 if (isAtBot) {
-                    console.log(`[止水对话][触发] 群聊@机器人触发: ${msg}`);
+                    // 追踪被谁艾特
+                    let atWho = '';
+                    if (Array.isArray(e.message)) {
+                        for (const seg of e.message) {
+                            if (seg.type === 'at' && seg.qq) {
+                                atWho = seg.qq;
+                                break;
+                            }
+                        }
+                    }
+                    triggerDetail = '';
                 } else if (isNicknameMatch) {
-                    console.log(`[止水对话][触发] 群聊昵称前缀触发: ${msg}`);
+                    triggerDetail = '';
                 }
             }
         }
+        if (!triggered) {
+            chatActiveMap[sessionId] = 0;
+            return false;
+        }
+        // 只有真正触发后再判断是否有请求在处理中
+        if (chatActiveMap[sessionId] === 1) {
+            if (e.group_id) {
+                await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
+            } else {
+                await e.reply('稍等哦，正在处理上一个请求~');
+            }
+            return;
+        }
+        chatActiveMap[sessionId] = 1;
 
         // 只有对话机制被触发后，才检测图片和文件
         let images = [];
