@@ -1035,12 +1035,14 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             systemPrompt = '';
         }
         contents.push({ role: 'model', parts: [{ text: systemPrompt }] });
-        // 2. 拼接历史 user/assistant 消息
+        // 2. 拼接历史 user/assistant 消息，assistant 需转为 model
         if (Array.isArray(chatMsg)) {
             for (const item of chatMsg) {
                 if (!item || !item.role || !item.content) continue;
-                if (item.role === 'user' || item.role === 'assistant') {
-                    contents.push({ role: item.role, parts: [{ text: item.content }] });
+                if (item.role === 'user') {
+                    contents.push({ role: 'user', parts: [{ text: item.content }] });
+                } else if (item.role === 'assistant') {
+                    contents.push({ role: 'model', parts: [{ text: item.content }] });
                 }
             }
         }
