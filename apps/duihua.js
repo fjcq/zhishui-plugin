@@ -258,7 +258,10 @@ export class ChatHandler extends plugin {
             console.log(`[止水对话] -> 用户[${e.user_id}]说: ${msg}`);
 
             const MessageText = JSON.stringify(userMessage);
-            let response = await openAi(MessageText, e);
+            // 新增：获取 systemMessage 和历史上下文
+            const systemMessage = await mergeSystemMessage(e);
+            const chatMsg = await loadChatMsg(sessionId);
+            let response = await openAi(MessageText, e, systemMessage, chatMsg);
 
             if (response) {
                 // 严格JSON格式校验
@@ -961,7 +964,7 @@ async function mergeSystemMessage(e) {
     return merged;
 }
 
-async function openAi(msg, e) {
+async function openAi(msg, e, systemMessage, chatMsg) {
     // 1. 获取 ApiList、CurrentApiIndex、GroupRoleIndex
     const ApiList = await Config.Chat.ApiList || [];
     const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
@@ -1021,29 +1024,40 @@ async function openAi(msg, e) {
             messages: [] // 稍后填充
         };
     } else if (apiType === 'gemini') {
-        // Gemini 需要 messages: [{role: 'user', parts: [{text: ...}]}]
+        // Gemini 需要 contents: [{role:..., parts:...}, ...]
+        // 1. 组装历史上下文（含 system prompt）
+        let contents = [];
+        // system prompt
         let systemPrompt = '';
         try {
             systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
         } catch {
             systemPrompt = '';
         }
+        contents.push({ role: 'model', parts: [{ text: systemPrompt }] });
+        // 2. 拼接历史 user/assistant 消息
+        if (Array.isArray(chatMsg)) {
+            for (const item of chatMsg) {
+                if (!item || !item.role || !item.content) continue;
+                if (item.role === 'user' || item.role === 'assistant') {
+                    contents.push({ role: item.role, parts: [{ text: item.content }] });
+                }
+            }
+        }
+        // 3. 当前用户消息（带图片）
         let parts = [];
         let failedImages = [];
         let userMsg = msg;
         try {
-            // 尝试解析 msg 为对象，提取 message、images
             let msgObj = JSON.parse(msg);
             userMsg = msgObj.message || msg;
             parts.push({ text: userMsg });
             if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
                 for (const imgUrl of msgObj.images) {
                     try {
-                        // 下载图片并转为 base64
                         const res = await fetch(imgUrl);
                         const arrayBuffer = await res.arrayBuffer();
                         const base64 = Buffer.from(arrayBuffer).toString('base64');
-                        // 仅支持常见图片类型
                         let mime = 'image/jpeg';
                         if (imgUrl.endsWith('.png')) mime = 'image/png';
                         if (imgUrl.endsWith('.webp')) mime = 'image/webp';
@@ -1055,20 +1069,13 @@ async function openAi(msg, e) {
                 }
             }
         } catch (err) {
-            // msg 不是 JSON，直接作为文本
             parts.push({ text: msg });
         }
-        // 如果有图片下载失败，主动告知用户
         if (failedImages.length > 0 && typeof e.reply === 'function') {
             await e.reply(`部分图片下载失败，未提交给AI：\n` + failedImages.join('\n'));
         }
-        // Gemini system prompt 以 role: 'model' 放在最前面
-        requestData = {
-            contents: [
-                { role: 'model', parts: [{ text: systemPrompt }] },
-                { role: 'user', parts: parts }
-            ]
-        };
+        contents.push({ role: 'user', parts });
+        requestData = { contents };
     } else if (isQwenVL) {
         // Qwen/Qwen2.5-VL-72B-Instruct多模态支持
         let msgObj;
