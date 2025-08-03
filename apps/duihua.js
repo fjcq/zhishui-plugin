@@ -863,7 +863,7 @@ export class ChatHandler extends plugin {
         try {
             JSON.parse(jsonStr); // 校验格式
             await WriteScene(jsonStr);
-            e.reply('场景设定已保存！');
+            e.reply('场景设定已成功保存！');
         } catch (err) {
             e.reply('场景JSON格式有误：' + err.message);
         }
@@ -929,6 +929,7 @@ export class ChatHandler extends plugin {
 
 /**
  * 组建 system 消息
+ * @param {object} e - 用户对象，包含用户ID等信息
  * @returns {string} 返回组建完成的 system 消息
  */
 async function mergeSystemMessage(e) {
@@ -951,8 +952,10 @@ async function mergeSystemMessage(e) {
         console.error('配置解析失败:', error);
         // merged 保持空对象，后面统一兜底
     }
-    // 无论是否异常，都补充基础身份和主人信息
+    // 无论是否异常，都补充基础身份、主人信息和用户信息
     const { NickName, Master, MasterQQ } = await Config.Chat;
+    // 获取用户好感度
+    const userFavor = await getUserFavor(e.user_id);
     merged.基础身份 = {
         ...(merged.基础身份 || {}),
         名称: NickName
@@ -960,6 +963,11 @@ async function mergeSystemMessage(e) {
     merged.主人信息 = {
         master_name: Master,
         master_qq: MasterQQ
+    };
+    // 添加用户信息
+    merged.用户信息 = {
+        user_id: e.user_id,
+        favor: userFavor
     };
     return merged;
 }
