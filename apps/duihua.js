@@ -1242,9 +1242,7 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         };
     } else if (apiType === 'gemini') {
         // Gemini 需要 contents: [{role:..., parts:...}, ...]
-        // 1. 组装历史上下文（含 system prompt）
         let contents = [];
-        // system prompt
         let systemPrompt = '';
         try {
             systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
@@ -1252,7 +1250,6 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             systemPrompt = '';
         }
         contents.push({ role: 'model', parts: [{ text: systemPrompt }] });
-        // 2. 拼接历史 user/assistant 消息，assistant 需转为 model
         if (Array.isArray(chatMsg)) {
             for (const item of chatMsg) {
                 if (!item || !item.role || !item.content) continue;
@@ -1263,7 +1260,6 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 }
             }
         }
-        // 3. 当前用户消息（带图片）
         let parts = [];
         let failedImages = [];
         let userMsg = msg;
@@ -1298,10 +1294,9 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         // 构建基础请求数据
         requestData = { contents };
 
-        // 只有在使用支持搜索的模型时才添加搜索工具
-        // Gemini 1.5 系列（包括 pro 和 flash）都支持 grounding
-        const supportsGrounding = (aiModel || '').toLowerCase().includes('gemini-1.5') ||
-            (apiUrl || '').includes('gemini-1.5');
+        // Gemini 2.5 系列支持在线检索
+        const supportsGrounding = (aiModel || '').toLowerCase().includes('gemini-2.5') ||
+            (apiUrl || '').includes('gemini-2.5');
 
         if (supportsGrounding) {
             requestData.tools = [{
