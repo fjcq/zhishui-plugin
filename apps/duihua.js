@@ -20,8 +20,23 @@ const voiceList = await Data.readVoiceList();
 /** 工作状态（每群/私聊独立） */
 let chatActiveMap = {};
 
+/** 最后请求时间记录（防止429错误） */
+let lastRequestTime = {};
+
 /** 消息计数器 */
 let chatMessageCounter = 0;
+
+/** 最小请求间隔（毫秒），防止429错误 */
+const MIN_REQUEST_INTERVAL = 2000; // 2秒间隔
+
+/** 不同API类型的请求间隔配置 */
+const API_INTERVALS = {
+    'openai': 1000,    // OpenAI系列 1秒
+    'gemini': 2000,    // Gemini 2秒
+    'siliconflow': 1500, // 硅基流动 1.5秒
+    'tencent': 1000,   // 腾讯元器 1秒
+    'default': 2000    // 默认 2秒
+};
 
 
 export class ChatHandler extends plugin {
@@ -124,6 +139,11 @@ export class ChatHandler extends plugin {
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
         chatActiveMap[sessionId] = 0;
 
+        // 同时清除请求时间记录，允许立即请求
+        if (lastRequestTime[sessionId]) {
+            delete lastRequestTime[sessionId];
+        }
+
         // 判断是否为“结束全部对话”
         if (/全部/.test(e.msg)) {
             // 删除所有对话上下文缓存文件
@@ -136,6 +156,8 @@ export class ChatHandler extends plugin {
             }
             // 清空所有会话的活跃状态
             chatActiveMap = {};
+            // 清空所有请求时间记录
+            lastRequestTime = {};
             e.reply('已清除全部对话缓存！');
             return;
         }
@@ -217,6 +239,32 @@ export class ChatHandler extends plugin {
         }
         chatActiveMap[sessionId] = 1;
 
+        // 检查请求间隔，防止429错误
+        const now = Date.now();
+        const lastTime = lastRequestTime[sessionId] || 0;
+
+        // 获取当前API类型以确定间隔时间
+        const ApiList = await Config.Chat.ApiList || [];
+        const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+        const apiConfig = ApiList[CurrentApiIndex] || ApiList[0] || {};
+        const apiType = apiConfig.ApiType || 'default';
+        const requiredInterval = API_INTERVALS[apiType] || API_INTERVALS['default'];
+
+        const timeDiff = now - lastTime;
+
+        if (timeDiff < requiredInterval) {
+            const waitTime = requiredInterval - timeDiff;
+            chatActiveMap[sessionId] = 0;
+            const waitSeconds = Math.ceil(waitTime / 1000);
+            await e.reply(`请稍等 ${waitSeconds} 秒后再试，避免请求过于频繁~`);
+            return;
+        }
+
+        // 记录本次请求时间
+        lastRequestTime[sessionId] = now;
+
         // 只有对话机制被触发后，才检测图片和文件
         let images = [];
         let files = [];
@@ -261,21 +309,89 @@ export class ChatHandler extends plugin {
             // 新增：获取 systemMessage 和历史上下文
             const systemMessage = await mergeSystemMessage(e);
             const chatMsg = await loadChatMsg(sessionId);
-            let response = await openAi(MessageText, e, systemMessage, chatMsg);
+
+            let response;
+            let retryCount = 0;
+            const maxRetries = 3;
+
+            while (retryCount <= maxRetries) {
+                try {
+                    response = await openAi(MessageText, e, systemMessage, chatMsg);
+                    break; // 成功则退出循环
+                } catch (apiError) {
+                    console.error(`[止水对话] API调用失败 (重试${retryCount}/${maxRetries}):`, apiError.message);
+
+                    // 根据错误类型决定是否重试
+                    if (apiError.message.includes('请求过于频繁') && retryCount < maxRetries) {
+                        retryCount++;
+                        const waitTime = Math.min(3000 * retryCount, 12000); // 3秒、6秒、9秒，最多12秒
+                        console.log(`[止水对话] 请求频繁，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+
+                        // 告知用户正在重试
+                        if (retryCount === 1) {
+                            await e.reply(`请求繁忙，正在自动重试中，请稍等...`);
+                        }
+
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        continue;
+                    } else if (apiError.shouldRetry && (apiError.type === '连接超时' || apiError.type === '连接重置') && retryCount < maxRetries) {
+                        // 网络相关的可重试错误
+                        retryCount++;
+                        const waitTime = 2000 * retryCount; // 2秒、4秒、6秒
+                        console.log(`[止水对话] ${apiError.type}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+
+                        if (retryCount === 1) {
+                            await e.reply(`网络不稳定，正在重试连接...`);
+                        }
+
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                        continue;
+                    } else {
+                        // 不可重试的错误或重试次数用完
+                        chatActiveMap[sessionId] = 0;
+
+                        // 根据错误类型提供不同的用户提示
+                        let userMessage = apiError.message;
+                        if (apiError.type === 'API密钥错误') {
+                            userMessage = `API配置有误，请联系管理员检查API密钥设置\n当前使用API: ${apiError.apiType || 'unknown'}`;
+                        } else if (apiError.type === '地区限制') {
+                            userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
+                        } else if (apiError.type === 'DNS解析失败' || apiError.type === '连接被拒绝') {
+                            userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
+                        } else if (apiError.type === 'API配额不足') {
+                            userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
+                        }
+
+                        await e.reply(userMessage);
+                        return false;
+                    }
+                }
+            }
+
+            // 如果重试次数用完仍未成功
+            if (!response && retryCount > maxRetries) {
+                chatActiveMap[sessionId] = 0;
+                await e.reply('服务器繁忙，请稍后再试');
+                return false;
+            }
 
             if (response) {
                 // 严格JSON格式校验
                 let replyObj;
                 try {
+                    console.log(`[止水对话] 收到原始回复: ${response.substring(0, 200)}...`);
                     replyObj = JSON.parse(response); // 这里用 response
-                    console.log(`[止水对话] <- AI回复: ${replyObj.message?.substring(0, 50)}...`);
+                    console.log(`[止水对话] JSON解析成功，消息内容: ${replyObj.message?.substring(0, 50)}...`);
+                    console.log(`[止水对话] 解析后的对象类型: ${typeof replyObj}, 是否有message: ${!!replyObj.message}`);
                     if (typeof replyObj !== 'object' || !replyObj.message) {
+                        console.log(`[止水对话] JSON对象无效，使用原始回复`);
                         replyObj = {
                             message: response,
                             favor_changes: []
                         };
                     }
                 } catch (error) {
+                    console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
                     console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`);
                     replyObj = {
                         message: response,
@@ -303,6 +419,8 @@ export class ChatHandler extends plugin {
 
                 // 拼接 message 和 code_example 字段
                 let finalReply = replyObj.message ?? '';
+                console.log(`[止水对话] 最终回复内容: ${finalReply.substring(0, 100)}...`);
+                console.log(`[止水对话] 回复对象结构:`, JSON.stringify(replyObj, null, 2).substring(0, 300));
                 let codeText = '';
 
                 // 优先提取 message 里的代码块
@@ -326,8 +444,26 @@ export class ChatHandler extends plugin {
 
                 // 先回复普通文本（支持@），如果有
                 if (msgWithoutCode) {
+                    console.log(`[止水对话] 准备发送消息: ${msgWithoutCode.substring(0, 100)}...`);
+
+                    // 额外检查：确保不会发送JSON格式的消息
+                    if (msgWithoutCode.trim().startsWith('{') && msgWithoutCode.trim().endsWith('}')) {
+                        console.log(`[止水对话] 检测到JSON格式回复，尝试重新解析`);
+                        try {
+                            const jsonObj = JSON.parse(msgWithoutCode);
+                            if (jsonObj.message) {
+                                msgWithoutCode = jsonObj.message;
+                                console.log(`[止水对话] 重新解析成功，使用消息: ${msgWithoutCode}`);
+                            }
+                        } catch (e) {
+                            console.log(`[止水对话] 重新解析失败，使用原消息`);
+                        }
+                    }
+
                     const remsg = await msgToAt(msgWithoutCode);
                     await e.reply(remsg, true);
+                } else {
+                    console.log(`[止水对话] 消息为空，不发送`);
                 }
 
                 // 再转发代码（只发代码内容），如果有
@@ -345,15 +481,21 @@ export class ChatHandler extends plugin {
                 // 标记对话状态为完成
                 chatActiveMap[sessionId] = 0;
             } else {
-                // 如果没有获取到有效的回复，标记对话状态为未进行
+                // 如果没有获取到有效的回复或请求失败，返回错误信息并重置状态
                 chatActiveMap[sessionId] = 0;
+                if (response) {
+                    // 如果有错误信息，回复给用户
+                    await e.reply(response);
+                } else {
+                    await e.reply('抱歉，AI暂时无法回复，请稍后再试。');
+                }
                 return false;
             }
         } catch (error) {
             // 捕获并处理异常，例如输出错误日志
             console.error('对话处理过程中发生错误:', error);
-            e.reply('发生错误，无法进行对话。');
             chatActiveMap[sessionId] = 0;
+            await e.reply('发生错误，无法进行对话。请稍后再试。');
             return false;
         }
 
@@ -1030,11 +1172,77 @@ async function openAi(msg, e, systemMessage, chatMsg) {
     // 2. 构建请求参数（不含 messages）
     let requestData;
     if (apiType === 'tencent') {
+        // 腾讯元器API - 根据官方文档构建请求参数
+        let messages = [];
+
+        // 系统消息处理：腾讯元器不支持system角色，需要融入到用户消息中
+        let systemPrompt = '';
+        try {
+            systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
+        } catch {
+            systemPrompt = '';
+        }
+
+        // 处理历史消息：确保user与assistant交替
+        if (Array.isArray(chatMsg) && chatMsg.length > 0) {
+            let lastRole = '';
+            for (const item of chatMsg) {
+                if (!item || !item.role || !item.content) continue;
+                // 确保交替对话格式
+                if (item.role === 'user' && lastRole !== 'user') {
+                    messages.push({ role: 'user', content: item.content });
+                    lastRole = 'user';
+                } else if (item.role === 'assistant' && lastRole === 'user') {
+                    messages.push({ role: 'assistant', content: item.content });
+                    lastRole = 'assistant';
+                }
+            }
+        }
+
+        // 处理当前用户消息
+        let userMsg = msg;
+        try {
+            let msgObj = JSON.parse(msg);
+            userMsg = msgObj.message || msg;
+        } catch (err) {
+            // msg 不是 JSON，直接使用
+        }
+
+        // 如果是第一条消息，将系统设定简化后融入用户消息
+        if (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') {
+            if (systemPrompt && messages.length === 0) {
+                // 简化系统提示，避免过长
+                let simplifiedPrompt = "你是小七，一个可爱的AI助手。请用温柔可爱的语气回答问题。";
+                try {
+                    const systemObj = JSON.parse(systemPrompt);
+                    if (systemObj.基础身份?.名称) {
+                        simplifiedPrompt = `你是${systemObj.基础身份.名称}，请用可爱的语气回答问题。`;
+                    }
+                } catch (e) {
+                    // 使用默认简化提示
+                }
+                userMsg = `${simplifiedPrompt}\n\n${userMsg}`;
+            }
+            messages.push({ role: 'user', content: userMsg });
+        }
+
+        // 确保消息数组不为空且格式正确
+        if (messages.length === 0) {
+            messages.push({ role: 'user', content: userMsg });
+        }
+
+        // 确定用户ID：使用真实QQ号，如果无效则使用主人QQ号
+        let userId = e.user_id;
+        if (!userId || isNaN(userId) || String(userId).length < 5) {
+            const masterQQ = await Config.Chat.MasterQQ;
+            userId = masterQQ || "172679743";
+        }
+
         requestData = {
             assistant_id: tencentAssistantId,
-            user_id: String(e.user_id),
+            user_id: String(userId),
             stream: false,
-            messages: [] // 稍后填充
+            messages: messages
         };
     } else if (apiType === 'gemini') {
         // Gemini 需要 contents: [{role:..., parts:...}, ...]
@@ -1090,17 +1298,25 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             await e.reply(`部分图片下载失败，未提交给AI：\n` + failedImages.join('\n'));
         }
         contents.push({ role: 'user', parts });
-        requestData = {
-            contents,
-            tools: [{
+
+        // 构建基础请求数据
+        requestData = { contents };
+
+        // 只有在使用支持搜索的模型时才添加搜索工具
+        // Gemini 1.5 系列（包括 pro 和 flash）都支持 grounding
+        const supportsGrounding = (aiModel || '').toLowerCase().includes('gemini-1.5') ||
+            (apiUrl || '').includes('gemini-1.5');
+
+        if (supportsGrounding) {
+            requestData.tools = [{
                 googleSearchRetrieval: {
                     dynamicRetrievalConfig: {
                         mode: "MODE_DYNAMIC",
                         dynamicThreshold: 0.7
                     }
                 }
-            }]
-        };
+            }];
+        }
     } else if (isQwenVL) {
         // Qwen/Qwen2.5-VL-72B-Instruct多模态支持
         let msgObj;
@@ -1129,15 +1345,61 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             // msg 不是 JSON
         }
         // Qwen多模态格式：messages支持插入图片对象
-        requestData.messages = [
-            { role: 'system', content: JSON.stringify(systemMessage) },
-            ...(images.length > 0 ? [{ role: 'user', content: userMsg, images }] : [{ role: 'user', content: userMsg }])
-        ];
+        requestData = {
+            model: aiModel,
+            messages: [
+                { role: 'system', content: JSON.stringify(systemMessage) },
+                ...(images.length > 0 ? [{ role: 'user', content: userMsg, images }] : [{ role: 'user', content: userMsg }])
+            ]
+        };
     } else {
-        requestData.messages = chatMsg;
+        // 其他API（如OpenAI、SiliconFlow等）
+        // 构建标准的 OpenAI 格式消息
+        let messages = [];
+
+        // 添加 system 消息
+        let systemPrompt = '';
+        try {
+            systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
+        } catch {
+            systemPrompt = '';
+        }
+        if (systemPrompt) {
+            messages.push({ role: 'system', content: systemPrompt });
+        }
+
+        // 添加历史消息
+        if (Array.isArray(chatMsg)) {
+            for (const item of chatMsg) {
+                if (!item || !item.role || !item.content) continue;
+                if (item.role === 'user' || item.role === 'assistant') {
+                    messages.push({ role: item.role, content: item.content });
+                }
+            }
+        }
+
+        // 添加当前用户消息
+        let userMsg = msg;
+        try {
+            let msgObj = JSON.parse(msg);
+            userMsg = msgObj.message || msg;
+        } catch (err) {
+            // msg 不是 JSON，直接使用
+        }
+        messages.push({ role: 'user', content: userMsg });
+
+        requestData = {
+            model: aiModel,
+            messages: messages
+        };
     }
 
     // 输出请求参数调试信息
+    if (apiType === 'tencent') {
+        console.log('[openAi] 腾讯API请求地址:', apiUrl);
+        console.log('[openAi] 腾讯API请求头:', headers);
+        console.log('[openAi] 腾讯API请求数据:', JSON.stringify(requestData, null, 2));
+    }
     // console.log('[openAi] 请求地址:', apiUrl);
     // console.log('[openAi] 请求头:', headers);
     // console.log('[openAi] 请求数据:', JSON.stringify(requestData, null, 2));
@@ -1154,11 +1416,18 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         // 错误码处理
         if (response.status === 401) {
             console.error('[openAi] API密钥无效，状态码401');
-            return 'API密钥无效，请检查 Key 配置';
+            throw new Error('API密钥无效，请检查 Key 配置');
         }
         if (response.status === 429) {
             console.error('[openAi] 请求过于频繁，状态码429');
-            return '请求过于频繁，请稍后再试';
+            throw new Error('请求过于频繁，请稍后再试');
+        }
+        if (response.status === 403) {
+            console.error('[openAi] 访问被拒绝，状态码403');
+            if (apiType === 'gemini') {
+                throw new Error('当前地区无法使用 Gemini API，请更换为支持的地区（如美国、日本等）或使用代理。');
+            }
+            throw new Error('访问被拒绝，请检查API配置');
         }
         if (!response.ok) {
             let text = await response.text();
@@ -1169,7 +1438,7 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 errorData = { error: { message: text, code: response.status } };
             }
             console.error('[openAi] 请求失败，响应内容:', errorData);
-            return parseErrorMessage(errorData);
+            throw new Error(parseErrorMessage(errorData));
         }
 
         // 解析响应
@@ -1186,10 +1455,30 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             } else if (apiType === 'gemini') {
                 // Gemini 返回 candidates[0].content.parts[0].text
                 let rawContent = '';
+
+                // 检查 Gemini 响应是否有错误
+                if (responseData.error) {
+                    console.error('[Gemini] API返回错误:', responseData.error);
+                    throw new Error(parseErrorMessage(responseData));
+                }
+
+                // 检查是否被安全过滤器阻止
+                if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].finishReason === 'SAFETY') {
+                    console.error('[Gemini] 内容被安全过滤器阻止');
+                    throw new Error('内容被安全过滤器阻止，请尝试其他表达方式');
+                }
+
                 if (responseData.candidates && responseData.candidates[0] && responseData.candidates[0].content && responseData.candidates[0].content.parts && responseData.candidates[0].content.parts[0]) {
                     rawContent = responseData.candidates[0].content.parts[0].text || '';
                 } else {
-                    rawContent = JSON.stringify(responseData);
+                    console.error('[Gemini] 响应格式异常:', responseData);
+                    throw new Error('Gemini API响应格式异常，请稍后重试');
+                }
+
+                // 检查是否为空响应
+                if (!rawContent || rawContent.trim() === '') {
+                    console.error('[Gemini] 返回空内容');
+                    throw new Error('AI返回了空内容，请稍后重试');
                 }
 
                 // 尝试解析 Gemini 返回的 JSON 格式内容
@@ -1232,7 +1521,59 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         }
     } catch (error) {
         console.error('[openAi] 与 AI 通信时发生错误:', error.message);
-        return '与 AI 通信时发生错误，请稍后重试。';
+
+        // 详细分析错误类型并提供对应解决方案
+        let errorType = '未知错误';
+        let errorMessage = '与 AI 通信时发生错误，请稍后重试。';
+        let shouldRetry = true;
+
+        if (error.message.includes('API密钥无效') || error.message.includes('invalid_api_key') || error.message.includes('Unauthorized')) {
+            errorType = 'API密钥错误';
+            errorMessage = `【${apiType.toUpperCase()} API密钥无效】请检查配置文件中的API密钥是否正确`;
+            shouldRetry = false;
+        } else if (error.message.includes('地区无法使用') || error.message.includes('User location is not supported')) {
+            errorType = '地区限制';
+            errorMessage = `【地区限制】当前地区无法访问${apiType.toUpperCase()} API，建议：1.使用VPN/代理 2.切换到其他API`;
+            shouldRetry = false;
+        } else if (error.message.includes('请求过于频繁') || error.message.includes('rate_limit_exceeded')) {
+            errorType = '频率限制';
+            errorMessage = `【请求频繁】${apiType.toUpperCase()} API请求过于频繁，请稍后重试`;
+            shouldRetry = true;
+        } else if (error.code === 'ENOTFOUND') {
+            errorType = 'DNS解析失败';
+            errorMessage = `【网络错误】无法解析${apiType.toUpperCase()} API域名，请检查：1.网络连接 2.DNS设置 3.API地址是否正确`;
+            shouldRetry = false;
+        } else if (error.code === 'ECONNREFUSED') {
+            errorType = '连接被拒绝';
+            errorMessage = `【网络错误】连接${apiType.toUpperCase()} API被拒绝，请检查：1.网络连接 2.防火墙设置 3.代理配置`;
+            shouldRetry = false;
+        } else if (error.code === 'ETIMEDOUT') {
+            errorType = '连接超时';
+            errorMessage = `【网络超时】连接${apiType.toUpperCase()} API超时，可能原因：1.网络较慢 2.服务器繁忙 3.需要代理`;
+            shouldRetry = true;
+        } else if (error.code === 'ECONNRESET') {
+            errorType = '连接重置';
+            errorMessage = `【网络错误】与${apiType.toUpperCase()} API连接被重置，建议：1.检查网络稳定性 2.尝试使用代理`;
+            shouldRetry = true;
+        } else if (error.message.includes('quota_exceeded') || error.message.includes('配额')) {
+            errorType = 'API配额不足';
+            errorMessage = `【配额用完】${apiType.toUpperCase()} API配额已用完，请：1.充值续费 2.等待配额重置 3.切换其他API`;
+            shouldRetry = false;
+        } else if (error.message.includes('model') && error.message.includes('invalid')) {
+            errorType = '模型无效';
+            errorMessage = `【模型错误】${apiType.toUpperCase()} API不支持当前模型，请检查模型名称是否正确`;
+            shouldRetry = false;
+        }
+
+        // 输出详细错误信息到控制台
+        console.error(`[错误分析] 类型: ${errorType}, API: ${apiType}, 错误: ${error.message}`);
+
+        // 根据错误类型决定是否抛出异常
+        const detailedError = new Error(errorMessage);
+        detailedError.type = errorType;
+        detailedError.shouldRetry = shouldRetry;
+        detailedError.apiType = apiType;
+        throw detailedError;
     }
 
     return content;
