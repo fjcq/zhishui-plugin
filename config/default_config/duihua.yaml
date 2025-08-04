@@ -41,9 +41,9 @@ ApiList:
     ApiModel: hunyuan-lite
   - ApiType: "gemini"
     TencentAssistantId: ""
-    ApiUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    ApiUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
     ApiKey: "你的Gemini API Key"
-    ApiModel: gemini-pro
+    ApiModel: "gemini-1.5-pro"
 
 # 全局默认API索引（对应ApiList的下标）
 CurrentApiIndex: 0
