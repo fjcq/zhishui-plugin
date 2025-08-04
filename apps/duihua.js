@@ -748,11 +748,13 @@ export class ChatHandler extends plugin {
 
         // 判断是否群专属API
         let idx = currentIdx;
+        let isGroupSpecific = false;
         if (e.group_id && Array.isArray(await Config.Chat.GroupRoleIndex)) {
             const groupRoleList = await Config.Chat.GroupRoleIndex;
             const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
             if (found && typeof found.apiIndex === 'number') {
                 idx = found.apiIndex;
+                isGroupSpecific = true;
             }
         }
 
@@ -769,7 +771,10 @@ export class ChatHandler extends plugin {
             ApiModel: '模型',
             TencentAssistantId: '助手ID'
         };
-        let msg = `【当前API参数】\n${Object.entries(api).map(([k, v]) => `${nameMap[k] || k}: ${v}`).join('\n')}`;
+
+        // 显示API类型（全局/群专属）
+        const apiTypeLabel = isGroupSpecific ? '群专属API' : '全局API';
+        let msg = `【当前API参数】（${apiTypeLabel}）\n${Object.entries(api).map(([k, v]) => `${nameMap[k] || k}: ${v}`).join('\n')}`;
 
         // 列出所有API
         msg += `\n\n【API列表】\n`;
@@ -1085,7 +1090,17 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             await e.reply(`部分图片下载失败，未提交给AI：\n` + failedImages.join('\n'));
         }
         contents.push({ role: 'user', parts });
-        requestData = { contents };
+        requestData = {
+            contents,
+            tools: [{
+                googleSearchRetrieval: {
+                    dynamicRetrievalConfig: {
+                        mode: "MODE_DYNAMIC",
+                        dynamicThreshold: 0.7
+                    }
+                }
+            }]
+        };
     } else if (isQwenVL) {
         // Qwen/Qwen2.5-VL-72B-Instruct多模态支持
         let msgObj;
@@ -1176,7 +1191,32 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 } else {
                     rawContent = JSON.stringify(responseData);
                 }
-                content = rawContent;
+
+                // 尝试解析 Gemini 返回的 JSON 格式内容
+                let finalContent = rawContent;
+                try {
+                    // 如果返回的是 JSON 格式，尝试解析
+                    const jsonMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```/);
+                    if (jsonMatch) {
+                        // 提取 JSON 代码块中的内容
+                        const jsonContent = JSON.parse(jsonMatch[1]);
+                        if (jsonContent.message) {
+                            finalContent = jsonContent.message;
+                        }
+                    } else if (rawContent.trim().startsWith('{') && rawContent.trim().endsWith('}')) {
+                        // 直接是 JSON 格式
+                        const jsonContent = JSON.parse(rawContent);
+                        if (jsonContent.message) {
+                            finalContent = jsonContent.message;
+                        }
+                    }
+                } catch (parseError) {
+                    // JSON 解析失败，使用原始内容
+                    console.log('[Gemini] JSON解析失败，使用原始回复:', parseError.message);
+                    finalContent = rawContent;
+                }
+
+                content = finalContent;
                 await addMessage({ role: 'user', content: msg }, e);
                 await addMessage({ role: 'assistant', content }, e);
             } else {
