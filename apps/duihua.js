@@ -444,23 +444,19 @@ export class ChatHandler extends plugin {
 
                 // 先回复普通文本（支持@），如果有
                 if (msgWithoutCode) {
-                    console.log(`[止水对话] 准备发送消息: ${msgWithoutCode.substring(0, 100)}...`);
-
-                    // 额外检查：确保不会发送JSON格式的消息
-                    if (msgWithoutCode.trim().startsWith('{') && msgWithoutCode.trim().endsWith('}')) {
-                        console.log(`[止水对话] 检测到JSON格式回复，尝试重新解析`);
+                    // 如果AI回复内容是JSON字符串，则再次解析，提取message字段
+                    let finalMsg = msgWithoutCode;
+                    if (finalMsg.trim().startsWith('{') && finalMsg.trim().endsWith('}')) {
                         try {
-                            const jsonObj = JSON.parse(msgWithoutCode);
+                            const jsonObj = JSON.parse(finalMsg);
                             if (jsonObj.message) {
-                                msgWithoutCode = jsonObj.message;
-                                console.log(`[止水对话] 重新解析成功，使用消息: ${msgWithoutCode}`);
+                                finalMsg = jsonObj.message;
                             }
                         } catch (e) {
-                            console.log(`[止水对话] 重新解析失败，使用原消息`);
+                            // 解析失败则原样回复
                         }
                     }
-
-                    const remsg = await msgToAt(msgWithoutCode);
+                    const remsg = await msgToAt(finalMsg);
                     await e.reply(remsg, true);
                 } else {
                     console.log(`[止水对话] 消息为空，不发送`);
