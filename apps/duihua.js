@@ -279,10 +279,10 @@ export class ChatHandler extends plugin {
             }
         }
         if (images.length > 0) {
-            console.log(`[止水对话] 检测到图片:`, images);
+            // console.log(`[止水对话] 检测到图片:`, images); // 精简：隐藏图片检测日志
         }
         if (files.length > 0) {
-            console.log(`[止水对话] 检测到文件:`, files);
+            // console.log(`[止水对话] 检测到文件:`, files); // 精简：隐藏文件检测日志
         }
 
         try {
@@ -303,7 +303,7 @@ export class ChatHandler extends plugin {
                 }
             };
 
-            console.log(`[止水对话] -> 用户[${e.user_id}]说: ${msg}`);
+            // console.log(`[止水对话] -> 用户[${e.user_id}]说: ${msg}`); // 精简：隐藏用户输入日志
 
             const MessageText = JSON.stringify(userMessage);
             // 新增：获取 systemMessage 和历史上下文
@@ -320,12 +320,20 @@ export class ChatHandler extends plugin {
                     break; // 成功则退出循环
                 } catch (apiError) {
                     console.error(`[止水对话] API调用失败 (重试${retryCount}/${maxRetries}):`, apiError.message);
+                    // console.log(`[止水对话] 请求频繁，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+                    // console.log(`[止水对话] ${apiError.type}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+                    // console.log(`[止水对话] 收到原始回复: ${response.substring(0, 200)}...`);
+                    // console.log(`[止水对话] JSON解析成功，消息内容: ${replyObj.message?.substring(0, 50)}...`);
+                    // console.log(`[止水对话] 解析后的对象类型: ${typeof replyObj}, 是否有message: ${!!replyObj.message}`);
+                    // console.log(`[止水对话] JSON对象无效，使用原始回复`);
+                    // console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
 
                     // 根据错误类型决定是否重试
                     if (apiError.message.includes('请求过于频繁') && retryCount < maxRetries) {
                         retryCount++;
                         const waitTime = Math.min(3000 * retryCount, 12000); // 3秒、6秒、9秒，最多12秒
                         console.log(`[止水对话] 请求频繁，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+                        // ...existing code...
 
                         // 告知用户正在重试
                         if (retryCount === 1) {
@@ -339,6 +347,7 @@ export class ChatHandler extends plugin {
                         retryCount++;
                         const waitTime = 2000 * retryCount; // 2秒、4秒、6秒
                         console.log(`[止水对话] ${apiError.type}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+                        // ...existing code...
 
                         if (retryCount === 1) {
                             await e.reply(`网络不稳定，正在重试连接...`);
@@ -379,12 +388,12 @@ export class ChatHandler extends plugin {
                 // 严格JSON格式校验
                 let replyObj;
                 try {
-                    console.log(`[止水对话] 收到原始回复: ${response.substring(0, 200)}...`);
-                    replyObj = JSON.parse(response); // 这里用 response
-                    console.log(`[止水对话] JSON解析成功，消息内容: ${replyObj.message?.substring(0, 50)}...`);
-                    console.log(`[止水对话] 解析后的对象类型: ${typeof replyObj}, 是否有message: ${!!replyObj.message}`);
+                    // console.log(`[止水对话] 收到原始回复: ${response.substring(0, 200)}...`); // 精简：隐藏原始回复
+                    replyObj = JSON.parse(response);
+                    // console.log(`[止水对话] JSON解析成功，消息内容: ${replyObj.message?.substring(0, 50)}...`); // 精简：隐藏解析详情
+                    // console.log(`[止水对话] 解析后的对象类型: ${typeof replyObj}, 是否有message: ${!!replyObj.message}`); // 精简：隐藏对象详情
                     if (typeof replyObj !== 'object' || !replyObj.message) {
-                        console.log(`[止水对话] JSON对象无效，使用原始回复`);
+                        // console.log(`[止水对话] JSON对象无效，使用原始回复`); // 精简：隐藏无效对象日志
                         replyObj = {
                             message: response,
                             favor_changes: []
@@ -392,7 +401,10 @@ export class ChatHandler extends plugin {
                     }
                 } catch (error) {
                     console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
-                    console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`);
+                    // console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`); // 精简：隐藏重复回复日志
+                    // console.log(`[止水对话] <- AI回复: ${response}`); // 精简：隐藏完整回复日志
+                    // console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`); // 精简：隐藏重复回复日志
+                    // console.log('[好感度变更]', favorLogs.join(' | ')); // 精简：移到后面统一处理
                     replyObj = {
                         message: response,
                         favor_changes: []
@@ -415,12 +427,19 @@ export class ChatHandler extends plugin {
                 }
                 if (favorLogs.length > 0) {
                     console.log('[好感度变更]', favorLogs.join(' | '));
+                    // ...existing code...
                 }
 
                 // 拼接 message 和 code_example 字段
                 let finalReply = replyObj.message ?? '';
-                console.log(`[止水对话] 最终回复内容: ${finalReply.substring(0, 100)}...`);
-                console.log(`[止水对话] 回复对象结构:`, JSON.stringify(replyObj, null, 2).substring(0, 300));
+                console.log(`[止水对话] <- AI回复: ${finalReply}`); // 精简：只保留一条简洁的回复日志
+                // console.log(`[止水对话] 最终回复内容: ${finalReply.substring(0, 100)}...`); // 精简：隐藏重复日志
+                // console.log(`[止水对话] 最终回复内容: ${finalReply}`); // 精简：隐藏重复日志
+                // console.log(`[止水对话] 最终回复内容: ${finalReply.substring(0, 100)}...`); // 精简：隐藏重复日志
+                // console.log(`[止水对话] 回复对象结构:`, JSON.stringify(replyObj, null, 2).substring(0, 300)); // 精简：隐藏对象结构
+                // console.log(`[止水对话] 消息为空，不发送`); // 精简：这个日志位置不对，应该在后面
+                // console.log(`[止水对话] 回复对象结构:`, JSON.stringify(replyObj, null, 2).substring(0, 300)); // 精简：隐藏重复日志
+                // ...existing code...
                 let codeText = '';
 
                 // 优先提取 message 里的代码块
@@ -460,6 +479,7 @@ export class ChatHandler extends plugin {
                     await e.reply(remsg, true);
                 } else {
                     console.log(`[止水对话] 消息为空，不发送`);
+                    // ...existing code...
                 }
 
                 // 再转发代码（只发代码内容），如果有
@@ -1204,20 +1224,11 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             // msg 不是 JSON，直接使用
         }
 
-        // 如果是第一条消息，将系统设定简化后融入用户消息
+        // 如果是第一条消息，将完整的系统设定融入用户消息
         if (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') {
             if (systemPrompt && messages.length === 0) {
-                // 简化系统提示，避免过长
-                let simplifiedPrompt = "你是小七，一个可爱的AI助手。请用温柔可爱的语气回答问题。";
-                try {
-                    const systemObj = JSON.parse(systemPrompt);
-                    if (systemObj.基础身份?.名称) {
-                        simplifiedPrompt = `你是${systemObj.基础身份.名称}，请用可爱的语气回答问题。`;
-                    }
-                } catch (e) {
-                    // 使用默认简化提示
-                }
-                userMsg = `${simplifiedPrompt}\n\n${userMsg}`;
+                // 使用完整的系统设定，而不是简化版本
+                userMsg = `${systemPrompt}\n\n用户：${userMsg}`;
             }
             messages.push({ role: 'user', content: userMsg });
         }
@@ -1241,7 +1252,7 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             messages: messages
         };
     } else if (apiType === 'gemini') {
-        // Gemini 需要 contents: [{role:..., parts:...}, ...]
+        // Gemini 不支持 system 角色，需要将系统消息合并到用户消息中
         let contents = [];
         let systemPrompt = '';
         try {
@@ -1249,10 +1260,13 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         } catch {
             systemPrompt = '';
         }
-        contents.push({ role: 'model', parts: [{ text: systemPrompt }] });
+
+        // 添加历史对话记录（不包含system消息）
         if (Array.isArray(chatMsg)) {
             for (const item of chatMsg) {
                 if (!item || !item.role || !item.content) continue;
+                // 跳过 system 角色的消息，Gemini 不支持
+                if (item.role === 'system') continue;
                 if (item.role === 'user') {
                     contents.push({ role: 'user', parts: [{ text: item.content }] });
                 } else if (item.role === 'assistant') {
@@ -1260,13 +1274,18 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 }
             }
         }
+
+        // 处理当前用户消息
         let parts = [];
         let failedImages = [];
         let userMsg = msg;
         try {
             let msgObj = JSON.parse(msg);
             userMsg = msgObj.message || msg;
+
+            // 直接使用用户消息，系统消息通过 systemInstruction 字段处理
             parts.push({ text: userMsg });
+
             if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
                 for (const imgUrl of msgObj.images) {
                     try {
@@ -1284,6 +1303,7 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 }
             }
         } catch (err) {
+            // 当消息不是JSON格式时，直接使用原始消息
             parts.push({ text: msg });
         }
         if (failedImages.length > 0 && typeof e.reply === 'function') {
@@ -1294,18 +1314,21 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         // 构建基础请求数据
         requestData = { contents };
 
-        // Gemini 2.5 系列支持在线检索
+        // 使用 systemInstruction 字段来处理系统消息（Gemini 推荐方式）
+        if (systemPrompt.trim()) {
+            requestData.systemInstruction = {
+                parts: [{ text: systemPrompt }]
+            };
+        }
+
+        // Gemini 联网搜索功能
         const supportsGrounding = (aiModel || '').toLowerCase().includes('gemini-2.5') ||
             (apiUrl || '').includes('gemini-2.5');
 
         if (supportsGrounding) {
+            // 添加 Google 搜索工具
             requestData.tools = [{
-                googleSearchRetrieval: {
-                    dynamicRetrievalConfig: {
-                        mode: "MODE_DYNAMIC",
-                        dynamicThreshold: 0.7
-                    }
-                }
+                google_search: {}
             }];
         }
     } else if (isQwenVL) {
@@ -1891,10 +1914,10 @@ function convertChatContextForModel(chatMsg, oldType, newType, oldModel, newMode
         if (typeof item !== 'object') return null;
         let role = item.role || '';
         let content = item.content || item.message || '';
-        // system <-> model 兼容转换
+        // Gemini 不支持 system 角色，应该跳过或合并到用户消息中
         if (role === 'system' && isGemini) {
-            // system 转 model（Gemini）
-            return { role: 'model', parts: [{ text: typeof content === 'string' ? content : JSON.stringify(content) }] };
+            // 对于 Gemini，跳过 system 消息，因为它们会在用户消息中合并处理
+            return null;
         }
         if (role === 'model' && isQwenOrOpenAI) {
             // model 转 system（OpenAI/Qwen）
