@@ -290,14 +290,20 @@ export class ChatHandler extends plugin {
             msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
             msg = msg.replace(/{at:/g, '{@');
 
-            const Favora = await getUserFavor(e.user_id);
+            // 处理特殊用户 stdin，使用主人QQ号码
+            let actualUserId = e.user_id;
+            if (e.user_id === 'stdin') {
+                    actualUserId = await Config.Chat.MasterQQ;
+            }
+
+            const Favora = await getUserFavor(actualUserId);
             const userMessage = {
                 message: msg,
                 images: images,
                 files: files,
                 additional_info: {
                     name: e.sender.nickname,
-                    user_id: e.user_id,
+                    user_id: actualUserId,
                     favor: Favora,
                     group_id: e.group_id || 0
                 }
@@ -416,13 +422,19 @@ export class ChatHandler extends plugin {
                 let favorLogs = [];
                 if (Array.isArray(replyObj.favor_changes)) {
                     for (const item of replyObj.favor_changes) {
-                        const user_id = item.user_id || e.user_id;
+                        // 使用与用户消息相同的用户ID处理逻辑
+                        let targetUserId = item.user_id || e.user_id;
+                        if (targetUserId === 'stdin') {
+                            const masterQQ = await Config.Chat.MasterQQ;
+                            targetUserId = masterQQ || "172679743";
+                        }
+
                         const change = Number(item.change);
                         if (isNaN(change)) continue; // 跳过无效变更
-                        const oldFavor = await getUserFavor(user_id);
+                        const oldFavor = await getUserFavor(targetUserId);
                         const newFavor = Math.max(-100, oldFavor + change); // 最小-100
-                        await setUserFavor(user_id, newFavor);
-                        favorLogs.push(`用户${user_id} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
+                        await setUserFavor(targetUserId, newFavor);
+                        favorLogs.push(`用户${targetUserId} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
                     }
                 }
                 if (favorLogs.length > 0) {
@@ -1117,8 +1129,15 @@ async function mergeSystemMessage(e) {
     }
     // 无论是否异常，都补充基础身份、主人信息和用户信息
     const { NickName, Master, MasterQQ } = await Config.Chat;
+
+    // 处理特殊用户 stdin，使用主人QQ号码
+    let actualUserId = e.user_id;
+    if (e.user_id === 'stdin') {
+        actualUserId = MasterQQ || "172679743";
+    }
+
     // 获取用户好感度
-    const userFavor = await getUserFavor(e.user_id);
+    const userFavor = await getUserFavor(actualUserId);
     merged.基础身份 = {
         ...(merged.基础身份 || {}),
         名称: NickName
@@ -1129,7 +1148,7 @@ async function mergeSystemMessage(e) {
     };
     // 添加用户信息
     merged.用户信息 = {
-        user_id: e.user_id,
+        user_id: actualUserId,
         favor: userFavor
     };
     return merged;
@@ -1238,9 +1257,9 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             messages.push({ role: 'user', content: userMsg });
         }
 
-        // 确定用户ID：使用真实QQ号，如果无效则使用主人QQ号
+        // 确定用户ID：处理特殊用户 stdin 和无效ID
         let userId = e.user_id;
-        if (!userId || isNaN(userId) || String(userId).length < 5) {
+        if (userId === 'stdin' || !userId || isNaN(userId) || String(userId).length < 5) {
             const masterQQ = await Config.Chat.MasterQQ;
             userId = masterQQ || "172679743";
         }
@@ -1279,12 +1298,22 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         let parts = [];
         let failedImages = [];
         let userMsg = msg;
+        let userInfo = null;
+
         try {
             let msgObj = JSON.parse(msg);
             userMsg = msgObj.message || msg;
+            userInfo = msgObj.additional_info || null;
 
-            // 直接使用用户消息，系统消息通过 systemInstruction 字段处理
-            parts.push({ text: userMsg });
+            // 构建包含用户信息的消息文本
+            let fullUserMsg = userMsg;
+            if (userInfo) {
+                const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
+                fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
+            }
+
+            // 直接使用包含用户信息的消息，系统消息通过 systemInstruction 字段处理
+            parts.push({ text: fullUserMsg });
 
             if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
                 for (const imgUrl of msgObj.images) {
@@ -1303,7 +1332,7 @@ async function openAi(msg, e, systemMessage, chatMsg) {
                 }
             }
         } catch (err) {
-            // 当消息不是JSON格式时，直接使用原始消息
+            // 当消息不是JSON格式时，直接使用原始消息（这种情况不应该发生，因为外部已经构建了JSON）
             parts.push({ text: msg });
         }
         if (failedImages.length > 0 && typeof e.reply === 'function') {
