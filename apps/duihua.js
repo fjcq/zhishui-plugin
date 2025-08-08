@@ -666,10 +666,9 @@ export class ChatHandler extends plugin {
     /** 查看对话身份（角色） */
     async ShowContext(e) {
         let currentRoleIndex = await getCurrentRoleIndex(e);
-        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         try {
-            const data = fs.readFileSync(roleFile, 'utf8');
-            const roles = JSON.parse(data);
+            const roleJson = Config.getJsonConfig('RoleProfile');
+            const roles = JSON.parse(roleJson);
             const found = roles[currentRoleIndex];
             if (found) {
                 e.reply(JSON.stringify(found, null, 2));
@@ -691,15 +690,15 @@ export class ChatHandler extends plugin {
         }
         try {
             const newRole = JSON.parse(jsonStr);
-            const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
+            const roleJson = Config.getJsonConfig('RoleProfile');
             let roles = [];
-            if (fs.existsSync(roleFile)) {
-                roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
+            if (roleJson) {
+                roles = JSON.parse(roleJson);
             }
             let currentRoleIndex = await getCurrentRoleIndex(e);
             if (roles[currentRoleIndex]) {
                 roles[currentRoleIndex] = newRole;
-                fs.writeFileSync(roleFile, JSON.stringify(roles, null, 2), 'utf8');
+                Config.setJsonConfig('RoleProfile', JSON.stringify(roles, null, 2));
                 await clearSessionContext(e);
                 e.reply("当前角色身份已修改！\n已自动清除上下文缓存，请重新开始对话。");
             } else {
@@ -712,12 +711,11 @@ export class ChatHandler extends plugin {
 
     /** 枚举角色列表（高亮当前群或全局角色） */
     async ShowRoleList(e) {
-        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         let roles = [];
         let currentRoleIndex = await getCurrentRoleIndex(e);
         try {
-            const data = fs.readFileSync(roleFile, 'utf8');
-            roles = JSON.parse(data).map(r => r.角色标题 || r.基础身份?.名称 || '未知角色');
+            const roleJson = Config.getJsonConfig('RoleProfile');
+            roles = JSON.parse(roleJson).map(r => r.角色标题 || r.基础身份?.名称 || '未知角色');
         } catch (err) {
             e.reply('读取角色列表失败');
             return;
@@ -740,11 +738,10 @@ export class ChatHandler extends plugin {
             e.reply('请指定要切换的角色标题或序号');
             return;
         }
-        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
         let roles = [];
         try {
-            const data = fs.readFileSync(roleFile, 'utf8');
-            roles = JSON.parse(data);
+            const roleJson = Config.getJsonConfig('RoleProfile');
+            roles = JSON.parse(roleJson);
         } catch (err) {
             e.reply('读取角色配置失败');
             return;
@@ -798,6 +795,76 @@ export class ChatHandler extends plugin {
             if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
             else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
             e.reply(tip);
+        }
+    }
+
+    /** 添加对话角色 */
+    async AddRole(e) {
+        if (!e.isMaster) return;
+        let jsonStr = e.msg.replace(/^#?(止水)?(插件|对话)?添加(对话)?角色/, '').trim();
+        if (!jsonStr) {
+            e.reply("请提供完整的角色JSON内容。");
+            return;
+        }
+        try {
+            const newRole = JSON.parse(jsonStr);
+            // 验证角色格式
+            if (!newRole.角色标题) {
+                e.reply("角色格式错误：缺少'角色标题'字段");
+                return;
+            }
+            const roleJson = Config.getJsonConfig('RoleProfile');
+            let roles = [];
+            if (roleJson) {
+                roles = JSON.parse(roleJson);
+            }
+            // 检查是否已存在相同标题的角色
+            const existingIndex = roles.findIndex(r => r.角色标题 === newRole.角色标题);
+            if (existingIndex >= 0) {
+                e.reply(`角色"${newRole.角色标题}"已存在，请使用不同的角色标题`);
+                return;
+            }
+            // 添加新角色
+            roles.push(newRole);
+            Config.setJsonConfig('RoleProfile', JSON.stringify(roles, null, 2));
+            e.reply(`新角色"${newRole.角色标题}"已成功添加！\n当前总共有 ${roles.length} 个角色。`);
+        } catch (err) {
+            e.reply("角色JSON格式有误：" + err.message);
+        }
+    }
+
+    /** 添加对话角色 */
+    async AddRole(e) {
+        if (!e.isMaster) return;
+        let jsonStr = e.msg.replace(/^#?(止水)?(插件|对话)?添加(对话)?角色/, '').trim();
+        if (!jsonStr) {
+            e.reply("请提供完整的角色JSON内容。");
+            return;
+        }
+        try {
+            const newRole = JSON.parse(jsonStr);
+            // 验证角色格式
+            if (!newRole.角色标题) {
+                e.reply("角色格式错误：缺少'角色标题'字段");
+                return;
+            }
+            const roleJson = await readJsonConfig('RoleProfile.json');
+            let roles = [];
+            if (roleJson) {
+                roles = JSON.parse(roleJson);
+            }
+            // 检查是否已存在相同标题的角色
+            const existingIndex = roles.findIndex(r => r.角色标题 === newRole.角色标题);
+            if (existingIndex >= 0) {
+                e.reply(`角色"${newRole.角色标题}"已存在，请使用不同的角色标题`);
+                return;
+            }
+            // 添加新角色
+            roles.push(newRole);
+            await writeJsonConfig('RoleProfile.json', JSON.stringify(roles, null, 2));
+            e.reply(`新角色"${newRole.角色标题}"已成功添加！\n当前总共有 ${roles.length} 个角色。`);
+        } catch (err) {
+            e.reply("角色JSON格式有误：" + err.message);
         }
     }
 
@@ -1112,8 +1179,8 @@ async function mergeSystemMessage(e) {
     try {
         const sceneJson = await ReadScene();
         const sceneSetting = JSON.parse(sceneJson);
-        const roleFile = path.join(Plugin_Path, 'config', 'default_config', 'RoleProfile.json');
-        const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
+        const roleJson = Config.getJsonConfig('RoleProfile');
+        const roles = JSON.parse(roleJson);
         const currentRoleIndex = await getCurrentRoleIndex(e);
         // 深拷贝角色设定，避免污染原数据
         const identitySetting = JSON.parse(JSON.stringify(roles[currentRoleIndex] || {}));
@@ -1813,38 +1880,14 @@ function isNotNull(obj) {
  * 读场景设定
  */
 async function ReadScene() {
-    try {
-        const fileName = 'SystemConfig.json'; // 修正
-        const userConfigPath = path.join(Plugin_Path, 'config', 'config', fileName);
-        const defaultConfigPath = path.join(Plugin_Path, 'config', 'default_config', fileName);
-
-        const [userScene, defaultScene] = await Promise.all([
-            fs.promises.readFile(userConfigPath, 'utf8').catch(() => ''),
-            fs.promises.readFile(defaultConfigPath, 'utf8').catch(() => ''),
-        ]);
-        return userScene || defaultScene;
-    } catch (error) {
-        console.error('读取场景配置文件时发生错误:', error);
-        return '';
-    }
+    return Config.getJsonConfig('SystemConfig');
 }
 
 /**
  * 写场景设定
  */
 async function WriteScene(Context) {
-    try {
-        const sceneFilePath = path.join(Plugin_Path, 'config', 'config', 'SystemConfig.json');
-        // 使用 fs.promises.writeFile 来异步写入文件，并处理可能的异常
-        await fs.promises.writeFile(sceneFilePath, Context, 'utf8');
-        console.log('场景配置已成功保存。');
-    } catch (error) {
-        // 处理可能的错误，例如记录日志
-        console.error('写入场景配置文件时发生错误:', error);
-        // 在发生错误时返回 false 表示写入失败
-        return false;
-    }
-    return true; // 写入成功返回 true
+    return Config.setJsonConfig('SystemConfig', Context);
 }
 
 /**

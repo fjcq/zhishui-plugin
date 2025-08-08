@@ -111,6 +111,50 @@ class Config {
         return this.config[key];
     }
 
+    /**
+     * 读取JSON配置文件（优先config目录，不存在则使用default_config目录）
+     * @param {string} name - 文件名（不含扩展名，如 'RoleProfile' 或 'SystemConfig'）
+     * @returns {string} 返回文件内容字符串
+     */
+    getJsonConfig(name) {
+        try {
+            const userConfigPath = `${Plugin_Path}/config/config/${name}.json`;
+            const defaultConfigPath = `${Plugin_Path}/config/default_config/${name}.json`;
+
+            if (fs.existsSync(userConfigPath)) {
+                return fs.readFileSync(userConfigPath, 'utf8');
+            } else if (fs.existsSync(defaultConfigPath)) {
+                return fs.readFileSync(defaultConfigPath, 'utf8');
+            }
+            return '';
+        } catch (error) {
+            console.error(`读取JSON配置文件 ${name} 时发生错误:`, error);
+            return '';
+        }
+    }
+
+    /**
+     * 写入JSON配置文件（写入到config目录）
+     * @param {string} name - 文件名（不含扩展名，如 'RoleProfile' 或 'SystemConfig'）
+     * @param {string} content - 文件内容
+     * @returns {boolean} 返回是否写入成功
+     */
+    setJsonConfig(name, content) {
+        try {
+            const configDir = `${Plugin_Path}/config/config`;
+            if (!fs.existsSync(configDir)) {
+                fs.mkdirSync(configDir, { recursive: true });
+            }
+            const configPath = `${configDir}/${name}.json`;
+            fs.writeFileSync(configPath, content, 'utf8');
+            console.log(`JSON配置文件 ${name} 已成功保存到 config 目录。`);
+            return true;
+        } catch (error) {
+            console.error(`写入JSON配置文件 ${name} 时发生错误:`, error);
+            return false;
+        }
+    }
+
     /** 监听配置文件 */
     watch(file, name, type = 'default_config') {
         let key = `${type}.${name}`;
@@ -197,7 +241,7 @@ class Config {
             const path = `zhishui:SearchVideos:${qq.toString()}:${keys}`;
             const value = await redis.get(path);
             return value !== null && value !== undefined ? value : '';
-        } else { 
+        } else {
             try {
                 let promises = keys.map(async (key) => {
                     const path = `zhishui:SearchVideos:${qq.toString()}:${key}`;
