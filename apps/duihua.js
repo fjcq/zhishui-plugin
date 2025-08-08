@@ -293,7 +293,7 @@ export class ChatHandler extends plugin {
             // 处理特殊用户 stdin，使用主人QQ号码
             let actualUserId = e.user_id;
             if (e.user_id === 'stdin') {
-                    actualUserId = await Config.Chat.MasterQQ;
+                actualUserId = await Config.Chat.MasterQQ;
             }
 
             const Favora = await getUserFavor(actualUserId);
@@ -1127,6 +1127,70 @@ async function mergeSystemMessage(e) {
         console.error('配置解析失败:', error);
         // merged 保持空对象，后面统一兜底
     }
+
+    // 检查当前API是否支持联网搜索，如果支持则添加搜索提示词
+    try {
+        const ApiList = await Config.Chat.ApiList || [];
+        const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+            ? await Config.Chat.CurrentApiIndex
+            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+        const GroupRoleIndex = await Config.Chat.GroupRoleIndex || [];
+
+        // 判断是否有群专属API
+        let apiIndex = CurrentApiIndex;
+        if (e.group_id && Array.isArray(GroupRoleIndex)) {
+            const found = GroupRoleIndex.find(item => String(item.group) === String(e.group_id));
+            if (found && typeof found.apiIndex === 'number') {
+                apiIndex = found.apiIndex;
+            }
+        }
+
+        const apiConfig = ApiList[apiIndex] || ApiList[0] || {};
+        const apiType = apiConfig.ApiType || '';
+        const aiModel = apiConfig.ApiModel || '';
+        const apiUrl = apiConfig.ApiUrl || '';
+
+        // 检查是否支持联网搜索
+        let supportsSearch = false;
+        if (apiType === 'gemini') {
+            // Gemini 2.5 系列支持联网搜索
+            supportsSearch = (aiModel || '').toLowerCase().includes('gemini-2.5') ||
+                (apiUrl || '').includes('gemini-2.5');
+        } else if (apiType === 'openai') {
+            // OpenAI 的一些模型可能支持联网搜索（如果有相关工具配置）
+            // 这里可以根据实际情况添加判断逻辑
+            // supportsSearch = (aiModel || '').toLowerCase().includes('gpt-4');
+        }
+        // 未来可以根据需要扩展其他支持联网搜索的模型
+        // else if (apiType === 'claude') {
+        //     supportsSearch = true; // Claude 如果支持工具调用
+        // }
+
+        if (supportsSearch) {
+            merged.联网搜索指引 = {
+                搜索原则: "当用户询问实时信息、最新新闻、当前事件、实时数据等内容时，你应该自动进行网络搜索获取最新信息来回答用户的问题",
+                搜索触发场景: [
+                    "时间敏感信息：今天的新闻、最近发生的事件、当前时间、今天是什么日子",
+                    "实时数据查询：股价、汇率、天气预报、体育比分、彩票开奖结果",
+                    "最新发布内容：新电影上映、新游戏发布、新产品发布、最新版本更新",
+                    "当前状态查询：网站运行状态、服务器状态、实时交通状况",
+                    "热门话题讨论：当前热搜、流行趋势、病毒视频、网络梗",
+                    "官方最新公告：政策更新、公司公告、活动通知"
+                ],
+                搜索关键词: [
+                    "今天、现在、最新、最近、当前、实时",
+                    "刚刚、刚才、目前、此刻、正在",
+                    "2024年、2025年等当前年份",
+                    "热门、流行、趋势、排行榜"
+                ],
+                回答要求: "基于搜索到的最新信息回答用户问题，确保信息的时效性和准确性。如果搜索到多个相关结果，可以进行综合分析。回答时可以适当提及信息来源的时间"
+            };
+        }
+    } catch (error) {
+        console.error('检查联网搜索支持时出错:', error);
+        // 忽略错误，继续正常流程
+    }
+
     // 无论是否异常，都补充基础身份、主人信息和用户信息
     const { NickName, Master, MasterQQ } = await Config.Chat;
 
