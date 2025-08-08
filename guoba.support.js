@@ -1,9 +1,12 @@
 import { Config } from './components/index.js'
 import Data from './components/Data.js'
 import fs from 'fs'
+
 const Path = process.cwd()
 const PluginPath = `${Path}/plugins/zhishui-plugin`
-const RoleList = JSON.parse(fs.readFileSync(`${PluginPath}/config/default_config/RoleProfile.json`, 'utf8'))
+
+const roleContent = Config.getJsonConfig('RoleProfile');
+const RoleList = roleContent ? JSON.parse(roleContent) : [];
 const VoiceList = await Data.readVoiceList()
 
 export function supportGuoba() {
@@ -300,8 +303,8 @@ export function supportGuoba() {
                         // 新增：下拉框变化时自动更新 selectedRoleContent
                         onChange: async (value, formModel, { setConfigData }) => {
                             try {
-                                const roleFile = Path + '/config/default_config/RoleProfile.json';
-                                const roles = JSON.parse(fs.readFileSync(roleFile, 'utf8'));
+                                const roleContent = Config.getJsonConfig('RoleProfile');
+                                const roles = JSON.parse(roleContent);
                                 formModel.selectedRoleContent = JSON.stringify(roles[value], null, 2);
                                 if (typeof setConfigData === 'function') {
                                     setConfigData({ selectedRoleContent: formModel.selectedRoleContent });
@@ -346,11 +349,12 @@ export function supportGuoba() {
                 if (Array.isArray(souju.resources)) {
                     souju.resources = souju.resources.map(item => item.site ? item.site : item)
                 }
+                const roleContent = Config.getJsonConfig('RoleProfile');
                 return {
                     souju,
                     duihua: Config.Chat,
                     proxy: Config.proxy,
-                    roleProfileContent: fs.readFileSync(`${PluginPath}/config/default_config/RoleProfile.json`, 'utf8'),
+                    roleProfileContent: roleContent,
                     selectedRoleIndex: currentRoleIndex,
                     selectedRoleContent: JSON.stringify(RoleList[currentRoleIndex], null, 2)
                 }
@@ -359,7 +363,7 @@ export function supportGuoba() {
             setConfigData(data, { Result }) {
                 for (let key in data) {
                     if (key === 'roleProfileContent') {
-                        fs.writeFileSync(`${PluginPath}/config/default_config/RoleProfile.json`, data[key], 'utf8')
+                        Config.setJsonConfig('RoleProfile', data[key])
                     } else if (key === 'selectedRoleIndex') {
                         data.selectedRoleContent = JSON.stringify(RoleList[data.selectedRoleIndex], null, 2)
                     } else if (key === 'selectedRoleContent') {
