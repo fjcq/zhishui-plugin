@@ -1,5 +1,10 @@
 [
     {
+        "RouteId": "1334",
+        "RouteCode": "dyttm3u8",
+        "RouteName": "电影天堂"
+    },
+    {
         "RouteId": "1333",
         "RouteCode": "snm3u8",
         "RouteName": "索尼资源"
@@ -287,7 +292,7 @@
     {
         "RouteId": "1000",
         "RouteCode": "hhm3u8",
-        "RouteName": "火狐资源2"
+        "RouteName": "豪华资源"
     },
     {
         "RouteId": "1000",
