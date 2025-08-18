@@ -1,35 +1,15 @@
 /* 删除重复字体定义 */
 @charset "UTF-8";
 
-/* 继承common.css字体 */
-.font-YS {
-    font-family: var(--font-YS);
-}
-
-.font-NZBZ {
-    font-family: var(--font-NZBZ);
-}
-
 /* 应用CSS变量 */
 :root {
-    --primary-color: #007bff;
-    --secondary-color: #6c757d;
-    --accent-color: #ff6b81;
-    --success-color: #28a745;
+    --primary-color: #a78bfa;
+    --secondary-color: #cbd5e1;
+    --accent-color: #f472b6;
+    --success-color: #10b981;
     --bg-opacity: 0.5;
     --font-YS: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
     --font-NZBZ: Number, "印品南征北战NZBZ体", NZBZ, var(--font-YS);
-}
-
-/* BEM规范改造 */
-.search-results__item {
-    width: 200px;
-    background: rgba(255, 255, 255, calc(var(--bg-opacity) + 0.1));
-}
-
-.copyright {
-    font-family: var(--font-YS);
-    color: var(--secondary-color);
 }
 
 @font-face {
@@ -53,17 +33,17 @@
 }
 
 .font-YS {
-    font-family: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+    font-family: var(--font-YS);
 }
 
 .font-NZBZ {
-    font-family: Number, "印品南征北战NZBZ体", NZBZ, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+    font-family: var(--font-NZBZ);
 }
 
 /* 页面基础样式 */
 body {
     font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
-    background: url("bg.png") center/cover no-repeat, linear-gradient(135deg, rgba(245, 247, 250, 0.8) 0%, rgba(195, 207, 226, 0.8) 100%);
+    background: url("bg.png") center/cover no-repeat, linear-gradient(135deg, rgba(15, 32, 58, 0.95) 0%, rgba(32, 58, 67, 0.95) 50%, rgba(44, 62, 80, 0.95) 100%);
     margin: 0;
     padding: 20px 0;
     min-height: 100vh;
@@ -75,60 +55,87 @@ body {
     max-width: 800px;
     margin: 20px auto;
     padding: 30px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(12px) saturate(180%);
-    -webkit-backdrop-filter: blur(12px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background-image: linear-gradient(to bottom right,
-            rgba(255, 255, 255, 0.2),
-            rgba(255, 255, 255, 0.05));
+    background: linear-gradient(135deg, rgba(23, 42, 69, 0.85) 0%, rgba(40, 53, 88, 0.85) 100%);
+    border-radius: 20px;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(15px) saturate(180%);
+    -webkit-backdrop-filter: blur(15px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* 头部容器样式 */
 .header {
     text-align: center;
-    /* 确保标题在头部中居中 */
-    margin-bottom: 40px;
-    /* 与内容区域保持一定间隔 */
+    margin-bottom: 35px;
 }
 
 /* 头部标题样式 */
 .header .title {
-    font-size: 2.5em;
+    font-size: 2.6em;
     color: #ffffff;
     margin: 0;
-    padding: 15px 30px;
-    background: linear-gradient(90deg, rgba(106, 17, 203, 0.8) 0%, rgba(37, 117, 252, 0.8) 100%);
-    border-radius: 50px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    letter-spacing: 1px;
+    padding: 18px 35px;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.9) 0%, rgba(30, 144, 255, 0.9) 50%, rgba(255, 20, 147, 0.9) 100%);
+    border-radius: 25px;
+    box-shadow: 0 8px 25px rgba(138, 43, 226, 0.4);
+    text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    letter-spacing: 1.5px;
+    position: relative;
+    overflow: hidden;
+}
+
+.header .title::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
 }
 
 /* 提示文本样式 */
 .search-results-hint {
-    text-align: left;
-    margin: 10px 0;
-    /* 上下边距 */
+    text-align: center;
+    margin: 20px 0;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, rgba(30, 39, 56, 0.9) 0%, rgba(44, 54, 84, 0.9) 100%);
+    border-radius: 15px;
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    backdrop-filter: blur(10px);
 }
 
 /* 提示文本中普通文本的样式 */
 .text-muted {
-    color: #6c757d;
-    /* 温和的灰色 */
-    font-size: 0.9em;
-    /* 字体大小略小于正常 */
+    color: #e2e8f0;
+    font-size: 1em;
+    font-weight: 500;
 }
 
 /* 提示文本中强调文本的样式 */
 .text-now {
-    color: #ff6b81;
-    /* 醒目的颜色，如粉色系 */
+    color: #a78bfa;
     font-weight: bold;
-    /* 加粗 */
+    background: linear-gradient(90deg, #a78bfa 0%, #60a5fa 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: rgba(138, 43, 226, 0.15);
+    -webkit-text-fill-color: #a78bfa;
 }
 
 /* 搜索结果样式 */
@@ -144,20 +151,33 @@ body {
 /* 项目样式 */
 .item {
     width: 180px;
-    margin: 8px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    margin: 10px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(30, 39, 56, 0.9) 0%, rgba(44, 54, 84, 0.9) 100%);
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     transition: all 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    backdrop-filter: blur(5px);
+    border: 1px solid rgba(138, 43, 226, 0.3);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(138, 43, 226, 0.6) 0%, rgba(30, 144, 255, 0.6) 50%, rgba(255, 20, 147, 0.6) 100%);
+    border-radius: 16px 16px 0 0;
 }
 
 .item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-    background: rgba(255, 255, 255, 0.95);
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 35px rgba(138, 43, 226, 0.4);
+    border-color: rgba(138, 43, 226, 0.6);
 }
 
 /* 图片容器样式 */
@@ -167,8 +187,25 @@ body {
     height: 300px;
     margin-bottom: 15px;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: 14px;
     transition: all 0.3s ease;
+    border: 2px solid rgba(138, 43, 226, 0.2);
+}
+
+.tu::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(138, 43, 226, 0.1) 0%, rgba(30, 144, 255, 0.1) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.tu:hover::after {
+    opacity: 1;
 }
 
 .tu img {
@@ -180,7 +217,11 @@ body {
 }
 
 .tu:hover img {
-    transform: scale(1.05);
+    transform: scale(1.08);
+}
+
+.tu:hover {
+    border-color: rgba(138, 43, 226, 0.5);
 }
 
 /* 图片上文本样式增强可见性 */
@@ -188,41 +229,47 @@ body {
 .pic-text {
     position: absolute;
     color: #ffffff;
-    padding: 5px 10px;
-    border-radius: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
     font-size: 1.1em;
-    background-color: rgba(0, 0, 0, 0.7);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5);
-    text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    z-index: 2;
 }
 
 .tu .num {
-    top: 10px;
-    left: 10px;
-    background-color: rgba(0, 123, 255, 0.7);
+    top: 12px;
+    left: 12px;
+    background: linear-gradient(135deg, rgba(138, 43, 226, 0.9) 0%, rgba(30, 144, 255, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .pic-text.text-up.text-right {
-    top: 10px;
-    right: 10px;
-    background-color: rgba(255, 193, 7, 0.7);
+    top: 12px;
+    right: 12px;
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.9) 0%, rgba(255, 20, 147, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .pic-text.text-down.text-left {
-    bottom: 10px;
-    left: 10px;
-    background-color: rgba(108, 117, 125, 0.7);
+    bottom: 12px;
+    left: 12px;
+    background: linear-gradient(135deg, rgba(30, 39, 56, 0.9) 0%, rgba(44, 54, 84, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 /* 项目标题样式 */
 .item_title {
     font-size: 1.2em;
-    color: #333;
+    color: #e2e8f0;
     font-weight: 600;
     margin-top: 15px;
-    padding: 8px 0;
+    padding: 10px 0;
     text-align: center;
     position: relative;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .item_title::after {
@@ -231,58 +278,49 @@ body {
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 50px;
+    width: 60px;
     height: 2px;
-    background: linear-gradient(90deg, rgba(74, 107, 223, 0) 0%, #4a6bdf 50%, rgba(74, 107, 223, 0) 100%);
+    background: linear-gradient(90deg, rgba(138, 43, 226, 0) 0%, #a78bfa 50%, rgba(138, 43, 226, 0) 100%);
 }
 
 /* 页脚容器样式 */
 .footer {
     text-align: center;
-    /* 确保文本在页脚中居中 */
-    margin-top: 40px;
-    /* 与内容区域保持一定间隔 */
+    margin-top: 35px;
+    padding-top: 25px;
+    border-top: 1px solid rgba(138, 43, 226, 0.3);
 }
 
 .footer p {
     font-size: 0.9em;
-    color: #6c757d;
-    /* 温和的灰色，适合版权文本 */
-    background: rgba(255, 255, 255, 0.6);
-    /* 半透明白色背景 */
-    border-radius: 10px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 10px 20px;
+    color: #cbd5e1;
+    background: linear-gradient(135deg, rgba(30, 39, 56, 0.6) 0%, rgba(44, 54, 84, 0.6) 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    padding: 15px 25px;
     margin-bottom: 0;
-    /* 移除默认的底部外边距 */
+    border: 1px solid rgba(138, 43, 226, 0.2);
+    backdrop-filter: blur(10px);
 }
 
 /* 版权文本样式 */
 .footer p .text-now {
-    color: #ff6b81;
-    /* 醒目的颜色 */
+    color: #a78bfa;
     font-weight: bold;
-}
-
-/* 如果您希望header和footer有相似的设计风格，可以考虑添加一些统一的效果，例如： */
-.header .title,
-.footer p {
-    transition: box-shadow 0.3s, background 0.3s;
-    /* 平滑过渡阴影和背景色变化 */
 }
 
 .copyright {
     font-size: 14px;
     text-align: center;
-    color: #fff;
+    color: #cbd5e1;
     position: relative;
     padding-left: 10px;
-    text-shadow: 1px 1px 1px #000;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     margin: 10px 0;
 }
 
 .copyright .version {
-    color: #d3bc8e;
+    color: #a78bfa;
     display: inline-block;
     padding: 0 3px;
 }
