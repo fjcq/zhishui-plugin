@@ -176,7 +176,9 @@ export class souju extends plugin {
             let path = `${Plugin_Path}/config/config/souju.yaml`;
             let yaml = new YamlReader(path);
             let resources = yaml.jsonData['resources'];
-            let title = resources[index - 1].site.title;
+            const resource = resources[index - 1];
+            const site = resource?.site || resource; // 兼容新旧格式
+            let title = site?.title || '未命名接口';
 
             if (index < 0 && index >= resources.length) {
                 e.reply(`接口编号错误！`);
@@ -343,7 +345,8 @@ export class souju extends plugin {
         await Config.SetUserSearchVideos(e.user_id, 'playData', JSON.stringify(playData));
 
         // 获取渲染所需数据
-        const site = await Config.SearchVideos.resources[siteIdx]?.site;
+        const resource = await Config.SearchVideos.resources[siteIdx];
+        const site = resource?.site || resource; // 兼容新旧格式
 
         // 渲染选剧页面，传递相关数据
         await puppeteer.render("souju/select", {
@@ -508,7 +511,9 @@ export class souju extends plugin {
         e.reply(`开始跳转到 [${keyword || '最新视频'}] - 第${page}页`);
 
         /** 搜剧结果 */
-        const domain = await Config.SearchVideos.resources[idx].site.url;
+        const resource = await Config.SearchVideos.resources[idx];
+        const site = resource?.site || resource; // 兼容新旧格式
+        const domain = site?.url;
         SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
         let IDs = [];
 
@@ -522,11 +527,14 @@ export class souju extends plugin {
         if (isNotNull(SearchResults.list)) {
             // 写到缓存
             await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+            // 获取资源配置，兼容新旧格式
+            const resource = await Config.SearchVideos.resources[idx];
+            const site = resource?.site || resource;
             // 发送图片
             await puppeteer.render("souju/result", {
                 list: SearchResults.list,
                 keyword: keyword || '最新视频',
-                showpic: await Config.SearchVideos.resources[idx].site.showpic
+                showpic: site?.showpic || false
             }, {
                 e,
                 scale: 1.6,
@@ -631,7 +639,9 @@ export class souju extends plugin {
             let msg = '';
 
             // 资源接口站名
-            const InterfaceName = Config.SearchVideos.resources[idx]?.site.title || '错误';
+            const resource = Config.SearchVideos.resources[idx];
+            const site = resource?.site || resource; // 兼容新旧格式
+            const InterfaceName = site?.title || '错误';
 
             msg += '*** 搜索记录 ***\n';
             msg += `接口：${InterfaceName}\n`;

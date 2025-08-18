@@ -11,7 +11,7 @@
 <body>
     <main class="container">
         <header class="header">
-            <h1 class="title font-NZBZ">{{list.vod_name}}</h1>
+            <h1 class="header__title font-NZBZ">{{list.vod_name}}</h1>
         </header>
 
         <section class="drama-info">
@@ -22,7 +22,7 @@
                 <img src="{{_res_path}}/souju/load.png" alt="" />
                 {{/if}}
 
-            </div>
+            </figure>
             <article class="info-details">
                 <div class="details">
                     <div class="detail-item">
@@ -57,8 +57,8 @@
                         <span class="detail-data">{{list.vod_content}}</span>
                     </div>
                 </div>
-            </div>
-        </div>
+            </article>
+        </section>
 
         <aside class="select-line">
             <p class="select-text">
@@ -70,8 +70,7 @@
                 <font class="text-now">#{{i+1}}</font>&ensp;{{value.RouteName}}
             </div>
             {{/each}}
-
-        </div>
+        </aside>
 
         <aside class="select-episode">
             <p class="select-text">你可以发送<font class="text-now">#看剧+数字</font>来选择集数，例如<font class="text-now">#看剧1</font>
@@ -82,8 +81,7 @@
                 <font class="text-now">#{{i+1}}</font>&ensp;{{value}}
             </div>
             {{/each}}
-
-        </div>
+        </aside>
 
         <footer class="footer">
             <p class="copyright font-YS">{{@sys.copyright}}</p>
