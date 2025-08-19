@@ -42,7 +42,7 @@ export class zhishuiUpdate extends plugin {
 
     async update_log() {
         // eslint-disable-next-line new-cap
-        let Update_Plugin = new Update()
+        let Update_Plugin = new update()
         Update_Plugin.e = this.e
         Update_Plugin.reply = this.reply
 
