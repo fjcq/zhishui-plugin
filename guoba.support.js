@@ -578,6 +578,38 @@ export function supportGuoba() {
                         component: 'Switch'
                     },
 
+                    // 用户个人配置管理
+                    {
+                        label: '用户个人配置管理',
+                        component: 'SOFT_GROUP_BEGIN'
+                    },
+                    {
+                        field: 'userConfigInfo',
+                        label: '用户配置说明',
+                        component: 'InputTextArea',
+                        bottomHelpMessage: '用户可以在私聊中使用指令来设置个人专属的API和角色配置',
+                        componentProps: {
+                            disabled: true,
+                            autoSize: { minRows: 6, maxRows: 6 },
+                            value: `用户个人配置功能说明：
+                            
+1. 私聊权限：用户在私聊中可以设置自己的专属配置
+2. 群聊权限：群聊中只有主人可以设置群配置
+
+用户可用指令：
+• #切换API1 - 切换个人专属API
+• #设置API类型 openai - 设置个人API类型
+• #设置API密钥 sk-xxx - 设置个人API密钥
+• #切换角色1 - 切换个人专属角色
+• #查看个人配置 - 查看当前个人配置
+• #重置个人配置 - 重置为全局默认配置
+
+配置优先级：
+私聊：个人配置 > 全局配置
+群聊：群配置 > 全局配置`
+                        }
+                    },
+
                     // 代理设置
                     {
                         label: '代理设置',
@@ -653,7 +685,8 @@ export function supportGuoba() {
                         souju: Config.getDefOrConfig('souju') || {},
                         duihua: Config.getDefOrConfig('duihua') || {},
                         proxy: Config.getDefOrConfig('proxy') || {},
-                        roleList: roles || []
+                        roleList: roles || [],
+                        userConfigInfo: '' // 这个字段在锅巴中只用于显示说明，不需要数据
                     };
 
                     return result;
@@ -663,13 +696,19 @@ export function supportGuoba() {
                         souju: {},
                         duihua: {},
                         proxy: {},
-                        roleList: []
+                        roleList: [],
+                        userConfigInfo: ''
                     }
                 }
-            }, setConfigData(data, { Result }) {
+            },
+
+            async setConfigData(data, { Result }) {
                 try {
                     for (let key in data) {
-                        if (key === 'roleList') {
+                        if (key === 'userConfigInfo') {
+                            // 用户配置说明字段，跳过处理
+                            continue;
+                        } else if (key === 'roleList') {
                             // 处理角色列表配置
                             try {
                                 const roleData = data[key] || [];

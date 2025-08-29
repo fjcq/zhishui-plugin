@@ -123,6 +123,15 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)?查看个人配置$`,
                     fnc: 'ShowUserConfig'
                 }, {
+                    reg: `^#?(止水)?(插件|对话)?查看用户配置\\s*(\\d+)?$`,
+                    fnc: 'ShowOtherUserConfig'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?重置用户配置\\s*(\\d+)$`,
+                    fnc: 'ResetOtherUserConfig'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?用户配置统计$`,
+                    fnc: 'ShowUserConfigStats'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
@@ -1368,6 +1377,149 @@ export class ChatHandler extends plugin {
         } catch (error) {
             console.error('[ShowUserConfig] 获取用户配置失败:', error);
             e.reply('获取个人配置失败，请稍后重试。');
+        }
+    }
+
+    /**
+     * 查看其他用户配置（仅主人）
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ShowOtherUserConfig(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以查看其他用户的配置。');
+            return;
+        }
+
+        // 提取用户QQ号
+        const match = e.msg.match(/查看用户配置\s*(\d+)?$/);
+        const targetUserId = match?.[1];
+
+        if (!targetUserId) {
+            e.reply('请指定要查看的用户QQ号，例如：#查看用户配置 123456789');
+            return;
+        }
+
+        try {
+            const ApiList = await Config.Chat.ApiList || [];
+
+            // 模拟事件对象以获取该用户的配置
+            const fakeEvent = { user_id: targetUserId, group_id: null };
+            const { apiIndex, apiConfig } = await getCurrentApiConfig(fakeEvent);
+            const currentRoleIndex = await getCurrentRoleIndex(fakeEvent);
+
+            // 检查是否有个人配置
+            let hasUserApiConfig = false;
+            let hasUserRoleConfig = false;
+
+            try {
+                const userApiIndex = await Config.GetUserChatConfig(targetUserId, 'ApiIndex');
+                if (typeof userApiIndex === 'number') hasUserApiConfig = true;
+            } catch (error) { }
+
+            try {
+                const userRoleIndex = await Config.GetUserChatConfig(targetUserId, 'RoleIndex');
+                if (typeof userRoleIndex === 'number') hasUserRoleConfig = true;
+            } catch (error) { }
+
+            let msg = `【用户 ${targetUserId} 的配置】\n\n`;
+
+            // API配置
+            msg += `【API配置】${hasUserApiConfig ? '（个人专属）' : '（使用全局默认）'}\n`;
+            msg += `序号：${apiIndex + 1}\n`;
+            msg += `类型：${apiConfig.ApiType || '未知'}\n`;
+            msg += `模型：${apiConfig.ApiModel || '未知'}\n\n`;
+
+            // 角色配置
+            msg += `【角色配置】${hasUserRoleConfig ? '（个人专属）' : '（使用全局默认）'}\n`;
+            try {
+                const roleJson = Config.getJsonConfig('RoleProfile');
+                const roles = JSON.parse(roleJson);
+                const currentRole = roles[currentRoleIndex];
+                msg += `序号：${currentRoleIndex + 1}\n`;
+                msg += `角色：${currentRole?.角色标题 || currentRole?.基础身份?.名称 || '未知角色'}\n\n`;
+            } catch (error) {
+                msg += `角色：获取失败\n\n`;
+            }
+
+            // 管理操作提示
+            msg += `【管理操作】\n`;
+            msg += `• 重置该用户配置：#重置用户配置 ${targetUserId}`;
+
+            e.reply(msg);
+        } catch (error) {
+            console.error('[ShowOtherUserConfig] 获取用户配置失败:', error);
+            e.reply('获取用户配置失败，请稍后重试。');
+        }
+    }
+
+    /**
+     * 重置其他用户配置（仅主人）
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ResetOtherUserConfig(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以重置其他用户的配置。');
+            return;
+        }
+
+        // 提取用户QQ号
+        const match = e.msg.match(/重置用户配置\s*(\d+)$/);
+        const targetUserId = match?.[1];
+
+        if (!targetUserId) {
+            e.reply('请指定要重置的用户QQ号，例如：#重置用户配置 123456789');
+            return;
+        }
+
+        try {
+            // 删除用户的API和角色配置
+            await Config.DeleteUserChatConfig(targetUserId, 'ApiIndex');
+            await Config.DeleteUserChatConfig(targetUserId, 'RoleIndex');
+
+            // 清除该用户的上下文缓存
+            const sessionId = `user_${targetUserId}`;
+            const keyv = getSessionKeyv(sessionId);
+            await keyv.delete('chatMsg');
+
+            e.reply(`已重置用户 ${targetUserId} 的个人配置，该用户将使用全局默认配置。\n已自动清除该用户的上下文缓存。`);
+        } catch (error) {
+            console.error('[ResetOtherUserConfig] 重置用户配置失败:', error);
+            e.reply('重置用户配置失败，请稍后重试。');
+        }
+    }
+
+    /**
+     * 显示用户配置统计（仅主人）
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ShowUserConfigStats(e) {
+        if (!e.isMaster) {
+            e.reply('只有主人可以查看用户配置统计。');
+            return;
+        }
+
+        try {
+            // 这里需要遍历Redis中的所有用户配置
+            // 由于Redis操作的复杂性，我们提供一个简化的统计信息
+
+            let msg = `【用户配置统计】\n\n`;
+            msg += `系统当前支持用户个人配置功能：\n`;
+            msg += `• 用户可在私聊中设置专属API和角色\n`;
+            msg += `• 配置存储在Redis中，键格式：zhishui:ChatConfig:QQ号:配置项\n`;
+            msg += `• 支持的配置项：ApiIndex、RoleIndex\n\n`;
+            msg += `【管理指令】\n`;
+            msg += `• #查看用户配置 QQ号 - 查看指定用户配置\n`;
+            msg += `• #重置用户配置 QQ号 - 重置指定用户配置\n`;
+            msg += `• #用户配置统计 - 查看此统计信息\n\n`;
+            msg += `注：详细的用户配置数据需要通过Redis管理工具查看`;
+
+            e.reply(msg);
+        } catch (error) {
+            console.error('[ShowUserConfigStats] 获取用户配置统计失败:', error);
+            e.reply('获取用户配置统计失败，请稍后重试。');
         }
     }
 
