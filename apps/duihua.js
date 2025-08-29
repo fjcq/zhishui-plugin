@@ -117,6 +117,12 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)?查看对话(历史)?$`,
                     fnc: 'ShowChatHistory'
                 }, {
+                    reg: `^#?(止水)?(插件|对话)?重置个人配置$`,
+                    fnc: 'ResetUserConfig'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?查看个人配置$`,
+                    fnc: 'ShowUserConfig'
+                }, {
                     reg: ``,
                     fnc: 'duihua',
                     log: false
@@ -709,7 +715,7 @@ export class ChatHandler extends plugin {
         }
     }
 
-    /** 枚举角色列表（高亮当前群或全局角色） */
+    /** 枚举角色列表（高亮当前角色） */
     async ShowRoleList(e) {
         let roles = [];
         let currentRoleIndex = await getCurrentRoleIndex(e);
@@ -720,6 +726,28 @@ export class ChatHandler extends plugin {
             e.reply('读取角色列表失败');
             return;
         }
+
+        // 确定角色类型
+        let roleTypeLabel = '全局角色';
+        if (!e.group_id) {
+            // 私聊：检查是否有用户个人角色配置
+            try {
+                const userRoleIndex = await Config.GetUserChatConfig(e.user_id, 'RoleIndex');
+                if (typeof userRoleIndex === 'number') {
+                    roleTypeLabel = '个人专属角色';
+                }
+            } catch (error) {
+                // 使用全局角色
+            }
+        } else {
+            // 群聊：检查是否有群专属角色配置
+            const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+            const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
+            if (found && typeof found.index === 'number') {
+                roleTypeLabel = '群专属角色';
+            }
+        }
+
         const list = roles.map((r, i) => {
             if (i === currentRoleIndex) {
                 return `${i + 1}. ${r} ✅`;
@@ -727,17 +755,24 @@ export class ChatHandler extends plugin {
                 return `${i + 1}. ${r}`;
             }
         }).join('\n');
-        e.reply('可用角色列表：\n' + list);
+
+        e.reply(`【当前使用：${roleTypeLabel}】\n可用角色列表：\n${list}`);
     }
 
-    /** 切换角色（支持群专属和全局） */
+    /** 切换角色（支持群专属、用户专属和全局） */
     async SwitchRole(e) {
-        if (!e.isMaster) return;
+        // 权限控制：群聊只有主人可以切换，私聊用户可以切换自己的角色
+        if (e.group_id && !e.isMaster) {
+            e.reply('群聊中只有主人可以切换角色。');
+            return;
+        }
+
         const roleArg = e.msg.replace(/^#?(止水)?(插件|对话)?切换角色/, '').trim();
         if (!roleArg) {
             e.reply('请指定要切换的角色标题或序号');
             return;
         }
+
         let roles = [];
         try {
             const roleJson = Config.getJsonConfig('RoleProfile');
@@ -746,25 +781,26 @@ export class ChatHandler extends plugin {
             e.reply('读取角色配置失败');
             return;
         }
+
         let idx = -1;
         if (/^\d+$/.test(roleArg)) {
             idx = parseInt(roleArg, 10) - 1;
         } else {
             idx = roles.findIndex(r => r.角色标题 === roleArg);
         }
+
         if (idx < 0 || idx >= roles.length) {
             e.reply('未找到该角色，请检查角色标题或序号是否正确');
             return;
         }
-        // 判断是否群聊，优先设置群专属，否则设置全局
+
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-        const ApiList = await Config.Chat.ApiList || [];
-        const apiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
-            ? await Config.Chat.CurrentApiIndex
-            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
-        const api = ApiList[apiIndex] || {};
-        const model = (api.ApiModel || '').toLowerCase();
-        const type = (api.ApiType || '').toLowerCase();
+
+        // 获取当前API配置用于上下文兼容
+        const { apiConfig } = await getCurrentApiConfig(e);
+        const model = (apiConfig.ApiModel || '').toLowerCase();
+        const type = (apiConfig.ApiType || '').toLowerCase();
+
         let lost = false;
         let chatMsg = await loadChatMsg(sessionId);
         if (Array.isArray(chatMsg) && chatMsg.length > 0) {
@@ -772,30 +808,32 @@ export class ChatHandler extends plugin {
             await saveChatMsg(sessionId, converted);
             if (lostContent) lost = true;
         }
-        await clearSessionContext(e); // 兜底清理
-        if (e.group_id) {
-            // 获取当前 GroupRoleIndex
-            let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
-            // 查找当前群是否已存在
-            const existIdx = groupRoleList.findIndex(item => String(item.group) === String(e.group_id));
-            if (existIdx >= 0) {
-                groupRoleList[existIdx].index = idx;
-            } else {
-                groupRoleList.push({ group: String(e.group_id), index: idx });
-            }
-            // 写入配置
-            await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
-            let tip = `本群已切换为角色：${roles[idx].角色标题}`;
+        await clearSessionContext(e);
+
+        // 私聊：设置用户个人角色配置
+        if (!e.group_id) {
+            await Config.SetUserChatConfig(e.user_id, 'RoleIndex', idx);
+            let tip = `你的个人角色已切换为：${roles[idx].角色标题}`;
             if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
             else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
             e.reply(tip);
-        } else {
-            await Config.modify('duihua', 'CurrentRoleIndex', idx);
-            let tip = `全局已切换为角色：${roles[idx].角色标题}`;
-            if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
-            else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
-            e.reply(tip);
+            return;
         }
+
+        // 群聊：设置群专属角色配置（仅主人）
+        let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+        const existIdx = groupRoleList.findIndex(item => String(item.group) === String(e.group_id));
+        if (existIdx >= 0) {
+            groupRoleList[existIdx].index = idx;
+        } else {
+            groupRoleList.push({ group: String(e.group_id), index: idx });
+        }
+
+        await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
+        let tip = `本群已切换为角色：${roles[idx].角色标题}`;
+        if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
+        else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
+        e.reply(tip);
     }
 
     /** 添加对话角色 */
@@ -870,23 +908,21 @@ export class ChatHandler extends plugin {
 
     /** 设置API（支持切换API序号） */
     async SetApi(e) {
-        if (!e.isMaster) {
-            e.reply('只有主人可以设置API。');
+        // 权限控制：群聊只有主人可以设置，私聊用户可以设置自己的
+        if (e.group_id && !e.isMaster) {
+            e.reply('群聊中只有主人可以设置API。');
             return;
         }
 
         // 检查敏感参数，禁止群内设置
-        if (e.group_id && sensitiveFields.includes(field)) {
-            e.reply('该参数（如密钥、助手ID）只能在私聊中设置，请私聊机器人操作。');
-            return;
-        }
-
+        const sensitiveFields = ['ApiKey', 'TencentAssistantId'];
         // 匹配如 #设置API类型 openai
         const match = e.msg.match(/^#?设置API(类型|地址|密钥|模型|助手ID)\s+(.+)$/i);
         if (!match) {
             e.reply('格式错误，请用如 #设置API类型 openai');
             return;
         }
+
         const keyMap = {
             '类型': 'ApiType',
             '地址': 'ApiUrl',
@@ -894,10 +930,50 @@ export class ChatHandler extends plugin {
             '模型': 'ApiModel',
             '助手ID': 'TencentAssistantId'
         };
-        const sensitiveFields = ['ApiKey', 'TencentAssistantId'];
         const field = keyMap[match[1]];
         const value = match[2].trim();
+
+        if (e.group_id && sensitiveFields.includes(field)) {
+            e.reply('该参数（如密钥、助手ID）只能在私聊中设置，请私聊机器人操作。');
+            return;
+        }
+
         const ApiList = await Config.Chat.ApiList || [];
+
+        // 私聊：操作用户个人API配置
+        if (!e.group_id) {
+            let userApiIndex = await Config.GetUserChatConfig(e.user_id, 'ApiIndex');
+            if (typeof userApiIndex !== 'number' || userApiIndex < 0 || userApiIndex >= ApiList.length) {
+                // 用户没有个人API配置，创建一个基于全局配置的副本
+                const globalIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+                    ? await Config.Chat.CurrentApiIndex
+                    : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+                userApiIndex = globalIndex;
+
+                // 创建用户个人API配置（基于全局配置的副本）
+                const globalApi = ApiList[globalIndex] || ApiList[0] || {};
+                const userApiConfig = { ...globalApi };
+
+                // 扩展ApiList为用户添加个人配置
+                ApiList.push(userApiConfig);
+                await Config.modify('duihua', 'ApiList', ApiList);
+                userApiIndex = ApiList.length - 1;
+                await Config.SetUserChatConfig(e.user_id, 'ApiIndex', userApiIndex);
+            }
+
+            if (!field) {
+                e.reply('不支持设置该参数');
+                return;
+            }
+
+            ApiList[userApiIndex][field] = value;
+            await Config.modify('duihua', 'ApiList', ApiList);
+            await clearSessionContext(e);
+            e.reply(`你的个人API配置中的${field}已设置为：${value}\n已自动清除上下文缓存，请重新开始对话。`);
+            return;
+        }
+
+        // 群聊：操作群配置或全局配置（仅主人）
         let idx = typeof (await Config.Chat.CurrentApiIndex) === 'number'
             ? await Config.Chat.CurrentApiIndex
             : parseInt(await Config.Chat.CurrentApiIndex) || 0;
@@ -927,10 +1003,12 @@ export class ChatHandler extends plugin {
 
     /** 切换API（支持切换API序号） */
     async SwitchApi(e) {
-        if (!e.isMaster) {
-            e.reply('只有主人可以切换API。');
+        // 权限控制：群聊只有主人可以切换，私聊用户可以切换自己的
+        if (e.group_id && !e.isMaster) {
+            e.reply('群聊中只有主人可以切换API。');
             return;
         }
+
         // 解析序号
         const apiIndexStr = e.msg.replace(/^#?(止水)?(插件|对话)?切换(对话)?(API|api)/, '').trim();
         const ApiList = await Config.Chat.ApiList || [];
@@ -939,19 +1017,41 @@ export class ChatHandler extends plugin {
             e.reply(`请输入正确的API序号（1~${ApiList.length}），如：#切换API1`);
             return;
         }
-        // 获取切换前后的模型类型
+
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-        const oldApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
-            ? await Config.Chat.CurrentApiIndex
-            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
-        const oldApi = ApiList[oldApiIndex] || {};
+
+        // 获取切换前的API配置
+        const { apiIndex: oldApiIndex, apiConfig: oldApi } = await getCurrentApiConfig(e);
         const newApi = ApiList[idx] || {};
         const oldModel = (oldApi.ApiModel || '').toLowerCase();
         const newModel = (newApi.ApiModel || '').toLowerCase();
         const oldType = (oldApi.ApiType || '').toLowerCase();
         const newType = (newApi.ApiType || '').toLowerCase();
-        // 切换
+
+        // 私聊：设置用户个人API配置
+        if (!e.group_id) {
+            await Config.SetUserChatConfig(e.user_id, 'ApiIndex', idx);
+
+            // 自动兼容上下文
+            let lost = false;
+            let chatMsg = await loadChatMsg(sessionId);
+            if (Array.isArray(chatMsg) && chatMsg.length > 0) {
+                const { converted, lostContent } = convertChatContextForModel(chatMsg, oldType, newType, oldModel, newModel);
+                await saveChatMsg(sessionId, converted);
+                if (lostContent) lost = true;
+            }
+            await clearSessionContext(e);
+
+            let tip = `你的个人API已切换到序号${idx + 1}，类型：${newApi.ApiType || '未知类型'}`;
+            if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
+            else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
+            e.reply(tip);
+            return;
+        }
+
+        // 群聊：设置全局API配置（仅主人）
         await Config.modify('duihua', 'CurrentApiIndex', idx);
+
         // 自动兼容上下文
         let lost = false;
         let chatMsg = await loadChatMsg(sessionId);
@@ -960,7 +1060,8 @@ export class ChatHandler extends plugin {
             await saveChatMsg(sessionId, converted);
             if (lostContent) lost = true;
         }
-        await clearSessionContext(e); // 兜底清理
+        await clearSessionContext(e);
+
         let tip = `已切换到API序号${idx + 1}，类型：${newApi.ApiType || '未知类型'}`;
         if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
         else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
@@ -974,24 +1075,39 @@ export class ChatHandler extends plugin {
             e.reply('该指令只能在私聊中使用，请私聊机器人查看API参数。');
             return;
         }
+
         const ApiList = await Config.Chat.ApiList || [];
         if (!ApiList.length) {
             e.reply('未配置任何API。');
             return;
         }
-        const currentIdx = typeof (await Config.Chat.CurrentApiIndex) === 'number'
-            ? await Config.Chat.CurrentApiIndex
-            : parseInt(await Config.Chat.CurrentApiIndex) || 0;
 
-        // 判断是否群专属API
-        let idx = currentIdx;
-        let isGroupSpecific = false;
-        if (e.group_id && Array.isArray(await Config.Chat.GroupRoleIndex)) {
-            const groupRoleList = await Config.Chat.GroupRoleIndex;
-            const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
-            if (found && typeof found.apiIndex === 'number') {
-                idx = found.apiIndex;
-                isGroupSpecific = true;
+        // 获取当前使用的API配置
+        const { apiIndex: idx, apiConfig: api } = await getCurrentApiConfig(e);
+
+        // 判断API类型
+        let apiTypeLabel = '全局API';
+        let isUserSpecific = false;
+
+        // 私聊：检查是否有用户个人配置
+        if (!e.group_id) {
+            try {
+                const userApiIndex = await Config.GetUserChatConfig(e.user_id, 'ApiIndex');
+                if (typeof userApiIndex === 'number') {
+                    apiTypeLabel = '个人专属API';
+                    isUserSpecific = true;
+                }
+            } catch (error) {
+                // 使用全局配置
+            }
+        } else {
+            // 群聊逻辑（原有的群专属API检查）
+            if (Array.isArray(await Config.Chat.GroupRoleIndex)) {
+                const groupRoleList = await Config.Chat.GroupRoleIndex;
+                const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
+                if (found && typeof found.apiIndex === 'number') {
+                    apiTypeLabel = '群专属API';
+                }
             }
         }
 
@@ -999,7 +1115,7 @@ export class ChatHandler extends plugin {
             e.reply('当前API索引无效。');
             return;
         }
-        const api = ApiList[idx];
+
         // 参数名中英文映射
         const nameMap = {
             ApiType: '类型',
@@ -1009,8 +1125,7 @@ export class ChatHandler extends plugin {
             TencentAssistantId: '助手ID'
         };
 
-        // 显示API类型（全局/群专属）
-        const apiTypeLabel = isGroupSpecific ? '群专属API' : '全局API';
+        // 显示API类型
         let msg = `【当前API参数】（${apiTypeLabel}）\n${Object.entries(api).map(([k, v]) => `${nameMap[k] || k}: ${v}`).join('\n')}`;
 
         // 列出所有API
@@ -1163,6 +1278,96 @@ export class ChatHandler extends plugin {
         } catch (err) {
             console.error('查看对话历史出错:', err);
             e.reply('获取对话历史失败: ' + err.message);
+        }
+    }
+
+    /**
+     * 重置个人配置
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ResetUserConfig(e) {
+        if (e.group_id) {
+            e.reply('该功能只能在私聊中使用。');
+            return;
+        }
+
+        try {
+            // 删除用户的API和角色配置
+            await Config.DeleteUserChatConfig(e.user_id, 'ApiIndex');
+            await Config.DeleteUserChatConfig(e.user_id, 'RoleIndex');
+
+            // 清除上下文缓存
+            await clearSessionContext(e);
+
+            e.reply('已重置你的个人配置，将使用全局默认配置。\n已自动清除上下文缓存，请重新开始对话。');
+        } catch (error) {
+            console.error('[ResetUserConfig] 重置用户配置失败:', error);
+            e.reply('重置个人配置失败，请稍后重试。');
+        }
+    }
+
+    /**
+     * 查看个人配置
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ShowUserConfig(e) {
+        if (e.group_id) {
+            e.reply('该功能只能在私聊中使用。');
+            return;
+        }
+
+        try {
+            const ApiList = await Config.Chat.ApiList || [];
+            const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
+            const currentRoleIndex = await getCurrentRoleIndex(e);
+
+            // 检查是否有个人配置
+            let hasUserApiConfig = false;
+            let hasUserRoleConfig = false;
+
+            try {
+                const userApiIndex = await Config.GetUserChatConfig(e.user_id, 'ApiIndex');
+                if (typeof userApiIndex === 'number') hasUserApiConfig = true;
+            } catch (error) { }
+
+            try {
+                const userRoleIndex = await Config.GetUserChatConfig(e.user_id, 'RoleIndex');
+                if (typeof userRoleIndex === 'number') hasUserRoleConfig = true;
+            } catch (error) { }
+
+            let msg = `【你的当前配置】\n\n`;
+
+            // API配置
+            msg += `【API配置】${hasUserApiConfig ? '（个人专属）' : '（使用全局默认）'}\n`;
+            msg += `序号：${apiIndex + 1}\n`;
+            msg += `类型：${apiConfig.ApiType || '未知'}\n`;
+            msg += `模型：${apiConfig.ApiModel || '未知'}\n\n`;
+
+            // 角色配置
+            msg += `【角色配置】${hasUserRoleConfig ? '（个人专属）' : '（使用全局默认）'}\n`;
+            try {
+                const roleJson = Config.getJsonConfig('RoleProfile');
+                const roles = JSON.parse(roleJson);
+                const currentRole = roles[currentRoleIndex];
+                msg += `序号：${currentRoleIndex + 1}\n`;
+                msg += `角色：${currentRole?.角色标题 || currentRole?.基础身份?.名称 || '未知角色'}\n\n`;
+            } catch (error) {
+                msg += `角色：获取失败\n\n`;
+            }
+
+            // 操作提示
+            msg += `【操作提示】\n`;
+            msg += `• 私聊切换API：#切换API序号\n`;
+            msg += `• 私聊切换角色：#切换角色序号\n`;
+            msg += `• 重置个人配置：#重置个人配置\n`;
+            msg += `• 设置API参数：#设置API类型/地址/密钥/模型 值`;
+
+            e.reply(msg);
+        } catch (error) {
+            console.error('[ShowUserConfig] 获取用户配置失败:', error);
+            e.reply('获取个人配置失败，请稍后重试。');
         }
     }
 
@@ -1326,26 +1531,10 @@ function checkJsonFormatSupport(apiType, aiModel) {
 }
 
 async function openAi(msg, e, systemMessage, chatMsg) {
-    // 1. 获取 ApiList、CurrentApiIndex、GroupRoleIndex
-    const ApiList = await Config.Chat.ApiList || [];
-    const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
-        ? await Config.Chat.CurrentApiIndex
-        : parseInt(await Config.Chat.CurrentApiIndex) || 0;
-    const GroupRoleIndex = await Config.Chat.GroupRoleIndex || [];
+    // 使用新的API配置获取方法
+    const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
 
-    // 2. 判断是否有群专属API
-    let apiIndex = CurrentApiIndex;
-    if (e.group_id && Array.isArray(GroupRoleIndex)) {
-        const found = GroupRoleIndex.find(item => String(item.group) === String(e.group_id));
-        if (found && typeof found.apiIndex === 'number') {
-            apiIndex = found.apiIndex;
-        }
-    }
-
-    // 3. 获取当前要用的API配置
-    const apiConfig = ApiList[apiIndex] || ApiList[0] || {};
-
-    // 4. 取出各项参数
+    // 取出各项参数
     const apiType = apiConfig.ApiType || 'siliconflow';
     const apiKey = apiConfig.ApiKey || '';
     const aiModel = apiConfig.ApiModel || 'gpt-3.5-turbo';
@@ -2033,6 +2222,19 @@ async function msgToAt(msg) {
  * @returns {number} 角色索引
  */
 async function getCurrentRoleIndex(e) {
+    // 私聊：优先使用用户个人角色配置
+    if (!e.group_id && e.user_id) {
+        try {
+            const userRoleIndex = await Config.GetUserChatConfig(e.user_id, 'RoleIndex');
+            if (typeof userRoleIndex === 'number') {
+                return userRoleIndex;
+            }
+        } catch (error) {
+            console.log('[getCurrentRoleIndex] 获取用户角色配置失败:', error.message);
+        }
+    }
+
+    // 群聊：使用群专属角色配置
     const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
     const groupId = e && e.group_id ? String(e.group_id) : null;
     if (groupId && Array.isArray(groupRoleList)) {
@@ -2043,6 +2245,44 @@ async function getCurrentRoleIndex(e) {
     }
     // 默认全局角色索引
     return parseInt(await Config.Chat.CurrentRoleIndex) || 0;
+}
+
+/**
+ * 获取当前会话应使用的API配置
+ * @param {object} e - 事件对象
+ * @returns {Promise<{apiIndex: number, apiConfig: object}>} API索引和配置
+ */
+async function getCurrentApiConfig(e) {
+    const ApiList = await Config.Chat.ApiList || [];
+    let apiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
+        ? await Config.Chat.CurrentApiIndex
+        : parseInt(await Config.Chat.CurrentApiIndex) || 0;
+
+    // 私聊：优先使用用户个人API配置
+    if (!e.group_id && e.user_id) {
+        try {
+            const userApiIndex = await Config.GetUserChatConfig(e.user_id, 'ApiIndex');
+            if (typeof userApiIndex === 'number' && userApiIndex >= 0 && userApiIndex < ApiList.length) {
+                apiIndex = userApiIndex;
+            }
+        } catch (error) {
+            console.log('[getCurrentApiConfig] 获取用户API配置失败:', error.message);
+        }
+    }
+
+    // 群聊：使用群专属API配置
+    if (e.group_id) {
+        const GroupRoleIndex = await Config.Chat.GroupRoleIndex || [];
+        if (Array.isArray(GroupRoleIndex)) {
+            const found = GroupRoleIndex.find(item => String(item.group) === String(e.group_id));
+            if (found && typeof found.apiIndex === 'number') {
+                apiIndex = found.apiIndex;
+            }
+        }
+    }
+
+    const apiConfig = ApiList[apiIndex] || ApiList[0] || {};
+    return { apiIndex, apiConfig };
 }
 
 /**
