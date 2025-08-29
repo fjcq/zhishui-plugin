@@ -121,6 +121,11 @@ class Config {
             const userConfigPath = `${Plugin_Path}/config/config/${name}.json`;
             const defaultConfigPath = `${Plugin_Path}/config/default_config/${name}.json`;
 
+            // 特殊处理角色配置：合并两个目录的内容
+            if (name === 'RoleProfile') {
+                return this.getMergedRoleConfig(userConfigPath, defaultConfigPath);
+            }
+
             if (fs.existsSync(userConfigPath)) {
                 return fs.readFileSync(userConfigPath, 'utf8');
             } else if (fs.existsSync(defaultConfigPath)) {
@@ -130,6 +135,67 @@ class Config {
         } catch (error) {
             console.error(`读取JSON配置文件 ${name} 时发生错误:`, error);
             return '';
+        }
+    }
+
+    /**
+     * 合并角色配置：同时载入默认配置和用户自定义配置
+     * @param {string} userConfigPath - 用户配置文件路径
+     * @param {string} defaultConfigPath - 默认配置文件路径
+     * @returns {string} 返回合并后的JSON字符串
+     */
+    getMergedRoleConfig(userConfigPath, defaultConfigPath) {
+        try {
+            let mergedRoles = [];
+            let userRoleCount = 0;
+            let defaultRoleCount = 0;
+
+            // 先载入用户自定义配置（放在前面）
+            if (fs.existsSync(userConfigPath)) {
+                try {
+                    const userContent = fs.readFileSync(userConfigPath, 'utf8');
+                    const userRoles = JSON.parse(userContent);
+                    if (Array.isArray(userRoles)) {
+                        mergedRoles = [...userRoles];
+                        userRoleCount = userRoles.length;
+                        console.log(`[角色配置] 已载入 ${userRoles.length} 个用户自定义角色`);
+                    }
+                } catch (error) {
+                    console.error('载入用户角色配置失败:', error);
+                }
+            }
+
+            // 再载入默认配置（放在后面，并标记为默认角色）
+            if (fs.existsSync(defaultConfigPath)) {
+                try {
+                    const defaultContent = fs.readFileSync(defaultConfigPath, 'utf8');
+                    const defaultRoles = JSON.parse(defaultContent);
+                    if (Array.isArray(defaultRoles)) {
+                        // 为默认角色添加标记
+                        const markedDefaultRoles = defaultRoles.map(role => ({
+                            ...role,
+                            _isDefault: true  // 添加内部标记
+                        }));
+                        mergedRoles = [...mergedRoles, ...markedDefaultRoles];
+                        defaultRoleCount = defaultRoles.length;
+                        console.log(`[角色配置] 已载入 ${defaultRoles.length} 个默认角色`);
+                    }
+                } catch (error) {
+                    console.error('载入默认角色配置失败:', error);
+                }
+            }
+
+            console.log(`[角色配置] 总共载入 ${mergedRoles.length} 个角色（${userRoleCount} 个自定义 + ${defaultRoleCount} 个默认）`);
+            return JSON.stringify(mergedRoles);
+        } catch (error) {
+            console.error('合并角色配置时发生错误:', error);
+            // 发生错误时，尝试返回任一可用的配置
+            if (fs.existsSync(userConfigPath)) {
+                return fs.readFileSync(userConfigPath, 'utf8');
+            } else if (fs.existsSync(defaultConfigPath)) {
+                return fs.readFileSync(defaultConfigPath, 'utf8');
+            }
+            return '[]';
         }
     }
 
@@ -145,12 +211,67 @@ class Config {
             if (!fs.existsSync(configDir)) {
                 fs.mkdirSync(configDir, { recursive: true });
             }
+
+            // 特殊处理角色配置：只保存用户新增的角色到用户配置目录
+            if (name === 'RoleProfile') {
+                return this.setUserRoleConfig(content);
+            }
+
             const configPath = `${configDir}/${name}.json`;
             fs.writeFileSync(configPath, content, 'utf8');
             console.log(`JSON配置文件 ${name} 已成功保存到 config 目录。`);
             return true;
         } catch (error) {
             console.error(`写入JSON配置文件 ${name} 时发生错误:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * 保存用户角色配置：从合并后的角色列表中提取用户新增的角色
+     * @param {string} mergedContent - 合并后的角色配置JSON字符串
+     * @returns {boolean} 返回是否写入成功
+     */
+    setUserRoleConfig(mergedContent) {
+        try {
+            const userConfigPath = `${Plugin_Path}/config/config/RoleProfile.json`;
+            const defaultConfigPath = `${Plugin_Path}/config/default_config/RoleProfile.json`;
+
+            // 解析合并后的角色列表
+            const mergedRoles = JSON.parse(mergedContent);
+            if (!Array.isArray(mergedRoles)) {
+                throw new Error('角色配置格式错误：应为数组');
+            }
+
+            // 获取默认角色数量
+            let defaultRoleCount = 0;
+            if (fs.existsSync(defaultConfigPath)) {
+                try {
+                    const defaultContent = fs.readFileSync(defaultConfigPath, 'utf8');
+                    const defaultRoles = JSON.parse(defaultContent);
+                    if (Array.isArray(defaultRoles)) {
+                        defaultRoleCount = defaultRoles.length;
+                    }
+                } catch (error) {
+                    console.warn('读取默认角色配置失败，将保存全部非默认角色:', error.message);
+                }
+            }
+
+            // 提取用户自定义角色（排除标记为默认的角色）
+            const userRoles = mergedRoles.filter(role => !role._isDefault);
+
+            // 清理内部标记字段
+            const cleanUserRoles = userRoles.map(role => {
+                const { _isDefault, ...cleanRole } = role;
+                return cleanRole;
+            });
+
+            // 写入用户配置文件
+            fs.writeFileSync(userConfigPath, JSON.stringify(cleanUserRoles, null, 2), 'utf8');
+            console.log(`[角色配置] 已保存 ${cleanUserRoles.length} 个用户自定义角色到 config 目录`);
+            return true;
+        } catch (error) {
+            console.error('保存用户角色配置时发生错误:', error);
             return false;
         }
     }
