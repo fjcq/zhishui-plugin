@@ -1285,6 +1285,46 @@ async function mergeSystemMessage(e) {
     return merged;
 }
 
+/**
+ * 检查模型是否支持JSON格式输出
+ * @param {string} apiType - API类型
+ * @param {string} aiModel - 模型名称
+ * @returns {boolean} 是否支持JSON格式输出
+ */
+function checkJsonFormatSupport(apiType, aiModel) {
+    const model = (aiModel || '').toLowerCase();
+
+    // OpenAI API系列支持JSON格式的模型
+    if (apiType === 'openai') {
+        return model.includes('gpt-4') ||
+            model.includes('gpt-3.5-turbo') ||
+            model.includes('gpt-4o') ||
+            model.includes('gpt-4-turbo');
+    }
+
+    // SiliconFlow等兼容OpenAI格式的API
+    if (apiType === 'siliconflow' || apiType === 'deepseek' || apiType === 'zhipu') {
+        return model.includes('gpt') ||
+            model.includes('deepseek') ||
+            model.includes('qwen') ||
+            model.includes('glm') ||
+            model.includes('yi-') ||
+            model.includes('internlm');
+    }
+
+    // Gemini 原生不支持response_format，但支持JSON指令
+    if (apiType === 'gemini') {
+        return false; // Gemini通过系统指令处理JSON
+    }
+
+    // 腾讯元器等其他API
+    if (apiType === 'tencent') {
+        return false; // 腾讯元器通过系统指令处理JSON
+    }
+
+    return false;
+}
+
 async function openAi(msg, e, systemMessage, chatMsg) {
     // 1. 获取 ApiList、CurrentApiIndex、GroupRoleIndex
     const ApiList = await Config.Chat.ApiList || [];
@@ -1311,6 +1351,26 @@ async function openAi(msg, e, systemMessage, chatMsg) {
     const aiModel = apiConfig.ApiModel || 'gpt-3.5-turbo';
     const apiUrl = apiConfig.ApiUrl || '';
     const tencentAssistantId = apiConfig.TencentAssistantId || '';
+
+    // 5. 获取当前角色的请求参数
+    let roleRequestParams = {};
+    try {
+        const roleJson = Config.getJsonConfig('RoleProfile');
+        const roles = JSON.parse(roleJson);
+        const currentRoleIndex = await getCurrentRoleIndex(e);
+        const currentRole = roles[currentRoleIndex] || {};
+        roleRequestParams = currentRole['请求参数'] || {};
+    } catch (error) {
+        console.log('[openAi] 获取角色请求参数失败:', error.message);
+        // 使用默认参数
+        roleRequestParams = {
+            temperature: 0.7,
+            top_p: 0.95,
+            max_tokens: 2048,
+            presence_penalty: 0.2,
+            frequency_penalty: 0.3
+        };
+    }
 
     // 针对硅基流动Qwen/Qwen2.5-VL-72B-Instruct模型的特殊处理
     const isQwenVL = (aiModel || '').toLowerCase().includes('qwen') || (aiModel || '').toLowerCase().includes('vl-72b');
@@ -1399,7 +1459,11 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             assistant_id: tencentAssistantId,
             user_id: String(userId),
             stream: false,
-            messages: messages
+            messages: messages,
+            // 应用角色请求参数（腾讯元器支持的参数）
+            ...(roleRequestParams.temperature !== undefined && { temperature: roleRequestParams.temperature }),
+            ...(roleRequestParams.top_p !== undefined && { top_p: roleRequestParams.top_p }),
+            ...(roleRequestParams.max_tokens !== undefined && { max_tokens: roleRequestParams.max_tokens })
         };
     } else if (apiType === 'gemini') {
         // Gemini 不支持 system 角色，需要将系统消息合并到用户消息中
@@ -1472,7 +1536,15 @@ async function openAi(msg, e, systemMessage, chatMsg) {
         contents.push({ role: 'user', parts });
 
         // 构建基础请求数据
-        requestData = { contents };
+        requestData = {
+            contents,
+            // 应用角色请求参数（Gemini支持的参数）
+            generationConfig: {
+                ...(roleRequestParams.temperature !== undefined && { temperature: roleRequestParams.temperature }),
+                ...(roleRequestParams.top_p !== undefined && { topP: roleRequestParams.top_p }),
+                ...(roleRequestParams.max_tokens !== undefined && { maxOutputTokens: roleRequestParams.max_tokens })
+            }
+        };
 
         // 使用 systemInstruction 字段来处理系统消息（Gemini 推荐方式）
         if (systemPrompt.trim()) {
@@ -1524,7 +1596,13 @@ async function openAi(msg, e, systemMessage, chatMsg) {
             messages: [
                 { role: 'system', content: JSON.stringify(systemMessage) },
                 ...(images.length > 0 ? [{ role: 'user', content: userMsg, images }] : [{ role: 'user', content: userMsg }])
-            ]
+            ],
+            // 应用角色请求参数
+            ...(roleRequestParams.temperature !== undefined && { temperature: roleRequestParams.temperature }),
+            ...(roleRequestParams.top_p !== undefined && { top_p: roleRequestParams.top_p }),
+            ...(roleRequestParams.max_tokens !== undefined && { max_tokens: roleRequestParams.max_tokens }),
+            ...(roleRequestParams.presence_penalty !== undefined && { presence_penalty: roleRequestParams.presence_penalty }),
+            ...(roleRequestParams.frequency_penalty !== undefined && { frequency_penalty: roleRequestParams.frequency_penalty })
         };
     } else {
         // 其他API（如OpenAI、SiliconFlow等）
@@ -1564,8 +1642,21 @@ async function openAi(msg, e, systemMessage, chatMsg) {
 
         requestData = {
             model: aiModel,
-            messages: messages
+            messages: messages,
+            // 应用角色请求参数
+            ...(roleRequestParams.temperature !== undefined && { temperature: roleRequestParams.temperature }),
+            ...(roleRequestParams.top_p !== undefined && { top_p: roleRequestParams.top_p }),
+            ...(roleRequestParams.max_tokens !== undefined && { max_tokens: roleRequestParams.max_tokens }),
+            ...(roleRequestParams.presence_penalty !== undefined && { presence_penalty: roleRequestParams.presence_penalty }),
+            ...(roleRequestParams.frequency_penalty !== undefined && { frequency_penalty: roleRequestParams.frequency_penalty })
         };
+
+        // 检查是否支持JSON格式输出
+        const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
+        if (supportsJsonFormat) {
+            requestData.response_format = { type: 'json_object' };
+            console.log('[openAi] 已启用JSON格式输出');
+        }
     }
 
     // 输出请求参数调试信息
