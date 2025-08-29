@@ -281,5 +281,71 @@ class Config {
         }
     }
 
+    /**
+     * 获取用户对话配置
+     * @description: 获取用户私聊对话配置
+     * @param {String} qq 用户QQ号码
+     * @param {String} keys key值，支持数组
+     */
+    async GetUserChatConfig(qq, keys) {
+        if (typeof keys === 'string') {
+            // 单个键查询，直接返回结果
+            const path = `zhishui:ChatConfig:${qq.toString()}:${keys}`;
+            const value = await redis.get(path);
+            return value !== null && value !== undefined ? JSON.parse(value) : null;
+        } else {
+            try {
+                let promises = keys.map(async (key) => {
+                    const path = `zhishui:ChatConfig:${qq.toString()}:${key}`;
+                    const value = await redis.get(path);
+                    return value !== null && value !== undefined ? JSON.parse(value) : null;
+                });
+
+                const results = await Promise.all(promises);
+
+                return keys.reduce((acc, key, index) => {
+                    acc[key] = results[index];
+                    return acc;
+                }, {});
+            } catch (error) {
+                logger.error(`获取 [${qq}] 对话配置 时发生错误：${error.message}`);
+                throw error;
+            }
+        }
+    }
+
+    /**
+     * @description: 写入用户对话配置
+     * @param {String} qq 用户QQ号码
+     * @param {String} key key值
+     * @param {String|Number|Object} value value
+     */
+    async SetUserChatConfig(qq, key, value) {
+        try {
+            const path = `zhishui:ChatConfig:${qq.toString()}:${key}`;
+            const ret = await redis.set(path, JSON.stringify(value));
+            return ret;
+        } catch (error) {
+            logger.error(`为 [${qq}] 设置对话配置 ${key} : ${value} 时，发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * @description: 删除用户对话配置
+     * @param {String} qq 用户QQ号码
+     * @param {String} key key值
+     */
+    async DeleteUserChatConfig(qq, key) {
+        try {
+            const path = `zhishui:ChatConfig:${qq.toString()}:${key}`;
+            const ret = await redis.del(path);
+            return ret;
+        } catch (error) {
+            logger.error(`删除 [${qq}] 对话配置 ${key} 时，发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
 }
 export default new Config();
