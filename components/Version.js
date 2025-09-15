@@ -31,7 +31,8 @@ try {
             if (versionCount <= -1) {
                 return false
             }
-            let versionRet = /^#\s*([0-9a-zA-Z\\.~\s]+?)\s*$/.exec(line.trim())
+            // 支持 '## 1.2.9' 格式
+            let versionRet = /^##\s*([0-9a-zA-Z\\.~\s]+?)\s*$/.exec(line.trim())
             if (versionRet && versionRet[1]) {
                 let v = versionRet[1].trim()
                 if (!currentVersion) {
@@ -39,7 +40,6 @@ try {
                 } else {
                     changelogs.push(temp)
                     if (/0\s*$/.test(v) && versionCount > 0) {
-                        // versionCount = 0
                         versionCount--
                     } else {
                         versionCount--
