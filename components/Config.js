@@ -257,7 +257,7 @@ class Config {
                 }
             }
 
-            // 提取用户自定义角色（排除标记为默认的角色）
+            // 提取用户自定义角色（排除标记为预设的角色）
             const userRoles = mergedRoles.filter(role => !role._isDefault);
 
             // 清理内部标记字段

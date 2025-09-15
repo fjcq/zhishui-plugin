@@ -764,7 +764,7 @@ export class ChatHandler extends plugin {
         const list = roles.map((r, i) => {
             let displayText = `${i + 1}. ${r.title}`;
             if (r.isDefault) {
-                displayText += ' [默认]';
+                displayText += ' [预设]';
             }
             if (i === currentRoleIndex) {
                 displayText += ' ✅';
