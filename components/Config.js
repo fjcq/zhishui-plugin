@@ -158,7 +158,7 @@ class Config {
                     if (Array.isArray(userRoles)) {
                         mergedRoles = [...userRoles];
                         userRoleCount = userRoles.length;
-                        console.log(`[角色配置] 已载入 ${userRoles.length} 个用户自定义角色`);
+                        // console.log(`[角色配置] 已载入 ${userRoles.length} 个用户自定义角色`); // 只在出错时输出日志
                     }
                 } catch (error) {
                     console.error('载入用户角色配置失败:', error);
@@ -178,14 +178,14 @@ class Config {
                         }));
                         mergedRoles = [...mergedRoles, ...markedDefaultRoles];
                         defaultRoleCount = defaultRoles.length;
-                        console.log(`[角色配置] 已载入 ${defaultRoles.length} 个默认角色`);
+                        // console.log(`[角色配置] 已载入 ${defaultRoles.length} 个默认角色`); // 只在出错时输出日志
                     }
                 } catch (error) {
                     console.error('载入默认角色配置失败:', error);
                 }
             }
 
-            console.log(`[角色配置] 总共载入 ${mergedRoles.length} 个角色（${userRoleCount} 个自定义 + ${defaultRoleCount} 个默认）`);
+            // console.log(`[角色配置] 总共载入 ${mergedRoles.length} 个角色（${userRoleCount} 个自定义 + ${defaultRoleCount} 个默认）`); // 只在出错时输出日志
             return JSON.stringify(mergedRoles);
         } catch (error) {
             console.error('合并角色配置时发生错误:', error);
