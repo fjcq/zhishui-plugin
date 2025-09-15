@@ -144,3 +144,5 @@ plugins/zhishui-plugin/resources/Cache/ChatContext/*
 
 # 忽略 resources/Cache 目录下的所有内容
 resources/Cache/
+
+/.github/copilot-instructions.md
