@@ -297,15 +297,15 @@ export function supportGuoba() {
                     },
                     {
                         field: 'duihua.CurrentRoleIndex',
-                        label: '全局默认角色',
-                        bottomHelpMessage: '设置全局默认角色，优先级低于群专属角色',
+                        label: '全局预设角色',
+                        bottomHelpMessage: '设置全局预设角色，优先级低于群专属角色',
                         component: 'Select',
                         componentProps: {
                             options: currentRoles.map((role, idx) => ({
                                 label: role.角色标题 || `角色${idx + 1}`,
                                 value: idx
                             })),
-                            placeholder: '请选择全局默认角色'
+                            placeholder: '请选择全局预设角色'
                         }
                     },
                     {
@@ -333,7 +333,7 @@ export function supportGuoba() {
                                     label: '角色',
                                     component: 'Select',
                                     required: true,
-                                    bottomHelpMessage: '为该群指定专属角色，优先级高于全局默认角色',
+                                    bottomHelpMessage: '为该群指定专属角色，优先级高于全局预设角色',
                                     componentProps: {
                                         options: currentRoles.map((role, idx) => ({
                                             label: role.角色标题 || `角色${idx + 1}`,

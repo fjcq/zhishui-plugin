@@ -1218,7 +1218,7 @@ export class ChatHandler extends plugin {
             // 清除上下文缓存
             await clearSessionContext(e);
 
-            e.reply('已重置你的个人角色配置，将使用全局默认角色。\n已自动清除上下文缓存，请重新开始对话。');
+            e.reply('已重置你的个人角色配置，将使用全局预设角色。\n已自动清除上下文缓存，请重新开始对话。');
         } catch (error) {
             console.error('[ResetUserConfig] 重置用户配置失败:', error);
             e.reply('重置个人配置失败，请稍后重试。');
@@ -1360,7 +1360,7 @@ export class ChatHandler extends plugin {
             const keyv = getSessionKeyv(sessionId);
             await keyv.delete('chatMsg');
 
-            e.reply(`已重置用户 ${targetUserId} 的个人角色配置，该用户将使用全局默认角色。\n已自动清除该用户的上下文缓存。`);
+            e.reply(`已重置用户 ${targetUserId} 的个人角色配置，该用户将使用全局预设角色。\n已自动清除该用户的上下文缓存。`);
         } catch (error) {
             console.error('[ResetOtherUserConfig] 重置用户配置失败:', error);
             e.reply('重置用户配置失败，请稍后重试。');
