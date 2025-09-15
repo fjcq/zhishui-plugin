@@ -165,23 +165,23 @@ class Config {
                 }
             }
 
-            // 再载入默认配置（放在后面，并标记为默认角色）
+            // 再载入默认配置（放在后面，并标记为预设角色）
             if (fs.existsSync(defaultConfigPath)) {
                 try {
                     const defaultContent = fs.readFileSync(defaultConfigPath, 'utf8');
                     const defaultRoles = JSON.parse(defaultContent);
                     if (Array.isArray(defaultRoles)) {
-                        // 为默认角色添加标记
+                        // 为预设角色添加标记
                         const markedDefaultRoles = defaultRoles.map(role => ({
                             ...role,
                             _isDefault: true  // 添加内部标记
                         }));
                         mergedRoles = [...mergedRoles, ...markedDefaultRoles];
                         defaultRoleCount = defaultRoles.length;
-                        // console.log(`[角色配置] 已载入 ${defaultRoles.length} 个默认角色`); // 只在出错时输出日志
+                        // console.log(`[角色配置] 已载入 ${defaultRoles.length} 个预设角色`); // 只在出错时输出日志
                     }
                 } catch (error) {
-                    console.error('载入默认角色配置失败:', error);
+                    console.error('载入预设角色配置失败:', error);
                 }
             }
 
@@ -243,7 +243,7 @@ class Config {
                 throw new Error('角色配置格式错误：应为数组');
             }
 
-            // 获取默认角色数量
+            // 获取预设角色数量
             let defaultRoleCount = 0;
             if (fs.existsSync(defaultConfigPath)) {
                 try {
@@ -253,7 +253,7 @@ class Config {
                         defaultRoleCount = defaultRoles.length;
                     }
                 } catch (error) {
-                    console.warn('读取默认角色配置失败，将保存全部非默认角色:', error.message);
+                    console.warn('读取预设角色配置失败，将保存全部非预设角色:', error.message);
                 }
             }
 
