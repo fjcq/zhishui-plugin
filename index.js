@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import chalk from 'chalk'
 
-logger.info(chalk.yellow(`止水插件${Ver.ver} 正在加载...`))
+logger.info(chalk.yellow(`止水插件 v${Ver.ver} 正在加载...`))
 
 // 检查依赖
 import { checkPackage } from './components/check.js'
