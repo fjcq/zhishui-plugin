@@ -768,13 +768,43 @@ async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = 
 
         const url = `${domain}?${params.toString()}`;
 
-        let res = await request.post(url)
-            .then(res => res.json())
-            .catch(async (err) => {
-                logger.error(err);
-                // 适当地处理错误，比如可以返回一个特定的错误对象或消息
-                throw new Error('post过程中发生错误。');
-            });
+        let res;
+        try {
+            // 兼容不同 request.post 返回值（可能是 fetch Response 或已解析的对象）
+            const response = await request.post(url);
+            if (response && typeof response.json === 'function') {
+                res = await response.json();
+            } else {
+                res = response;
+            }
+        } catch (err) {
+            // 记录原始错误
+            logger.error(err);
+
+            // 常见的 HTTPS / 证书错误关键字和错误码
+            const certErrorPatterns = [
+                'CERT_HAS_EXPIRED',
+                'SELF_SIGNED_CERT_IN_CHAIN',
+                'DEPTH_ZERO_SELF_SIGNED_CERT',
+                'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+                'ERR_OSSL_EVP_UNSUPPORTED',
+                'certificate',
+                'SSL',
+                'tls',
+                'unable to verify the first certificate'
+            ];
+
+            const errText = `${err.code || ''} ${err.message || ''} ${err.toString ? err.toString() : ''}`.toLowerCase();
+            const isCertError = certErrorPatterns.some(p => errText.includes(p.toLowerCase()));
+
+            if (isCertError) {
+                // 返回更友好的提示，便于用户或管理员诊断问题
+                throw new Error(`搜剧接口的 HTTPS 证书异常，可能已过期或为自签名证书，导致无法建立安全连接。请联系管理员修复证书或切换到可用的接口。错误详情：${err.message}`);
+            }
+
+            // 非证书类错误，返回更明确的请求错误信息
+            throw new Error(`请求搜剧接口时发生网络或响应错误：${err.message}`);
+        }
 
         return res;
     } catch (error) {
