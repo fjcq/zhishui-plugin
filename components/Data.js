@@ -61,7 +61,6 @@ let Data = {
     return temp;
   },
 
-
   /** 读取json */
   readJSON(file = '', root = '') {
     root = getRoot(root);
@@ -70,7 +69,7 @@ let Data = {
       try {
         return JSON.parse(fs.readFileSync(filepath, 'utf8'));
       } catch (e) {
-        console.log(e);
+        logger.error(e);
       }
     }
     return {};
@@ -98,7 +97,7 @@ let Data = {
         return JSON.parse(txt);
       }
     } catch (e) {
-      console.log(e);
+      logger.error(e);
     }
     return {};
   },
@@ -117,7 +116,7 @@ let Data = {
         let data = await import(`file://${root}/${file}?t=${new Date() * 1}`);
         return data || {};
       } catch (e) {
-        console.log(e);
+        logger.error(e);
       }
     }
     return {};
@@ -136,8 +135,8 @@ let Data = {
     let sysCfg = await Data.importModule(`config/system/${key}_system.js`);
     let diyCfg = await Data.importModule(`config/${key}.js`);
     if (diyCfg.isSys) {
-      console.error(`zhishui-plugin: config/${key}.js无效，已忽略`);
-      console.error(`如需配置请复制config/${key}_default.js为config/${key}.js，请勿复制config/system下的系统文件`);
+      logger.error(`zhishui-plugin: config/${key}.js无效，已忽略`);
+      logger.error(`如需配置请复制config/${key}_default.js为config/${key}.js，请勿复制config/system下的系统文件`);
       diyCfg = {};
     }
     return {
@@ -155,7 +154,7 @@ let Data = {
   * defaultData: 当某个字段为空时会选取defaultData的对应内容
   * toKeyPrefix：返回数据的字段前缀，默认为空。defaultData中的键值无需包含toKeyPrefix
   *
-  * */
+  */
 
   getData(target, keyList = '', cfg = {}) {
     target = target || {};
