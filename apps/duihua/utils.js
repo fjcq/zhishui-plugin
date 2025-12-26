@@ -1,12 +1,8 @@
 /**
- * 判断对象是否不为undefined且不为null、NaN
- * @param obj 对象
- * @returns obj==null/undefined,return false,other return true
+ * 对话模块工具函数
  */
-export function isNotNull(obj) {
-    if (obj == undefined || obj == null || obj != obj) { return false; }
-    return true;
-}
+// 引入公共工具函数
+import { ForwardMsg, msgToAt } from '../../lib/common/utils.js';
 
 /**
  * 将OpenAI错误消息转换为简洁易懂的中文描述。
@@ -83,21 +79,6 @@ export function parseErrorMessage(errorData) {
 }
 
 /**
- * 发送转发消息
- * @param data 输入一个数组,元素是字符串,每一个元素都是一条消息.
-*/
-export async function ForwardMsg(e, data) {
-    // use map method to create msgList
-    const msgList = data.map(i => ({
-        message: i,
-        NickName: Bot.NickName,
-        user_id: Bot.uin
-    }));
-    // use ternary operator to simplify if...else statement
-    await e.reply(msgList.length == 1 ? msgList[0].message : await Bot.makeForwardMsg(msgList));
-}
-
-/**
  * 发送转发图片消息
  * @param data 输入一个数组,元素是字符串,每一个元素都是一个图片链接.
 */
@@ -122,17 +103,6 @@ export async function ForwardImageMsg(e, data) {
 }
 
 /**
- * 将msg中的号码转成@
- */
-export async function msgToAt(msg) {
-    let arr = msg.toString()
-        .split(/(\[@\d+\])/)
-        .filter(Boolean)
-        .map((s) => s.startsWith('[@') ? segment.at(parseInt(s.match(/\d+/)[0])) : s);
-    return arr;
-}
-
-/**
  * 发送代码作为转发消息
  * @param {Object} e - 事件对象
  * @param {string} codeText - 代码文本
@@ -142,3 +112,6 @@ export async function sendCodeAsForwardMsg(e, codeText) {
     // 例如：
     await ForwardMsg(e, [codeText]);
 }
+
+// 重新导出公共函数
+export { ForwardMsg, msgToAt };

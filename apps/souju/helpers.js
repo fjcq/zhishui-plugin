@@ -1,6 +1,6 @@
 import request from '../../lib/request/request.js';
 import { Config } from '../../components/index.js';
-import puppeteer from '../../model/index.js';
+import { puppeteer } from '../../model/index.js';
 
 /**
  * 关键词搜索视频
@@ -55,16 +55,28 @@ export async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, do
                 'unable to verify the first certificate'
             ];
 
+            // 常见的服务器错误状态码
+            const serverErrorPatterns = [
+                '500 internal server error',
+                '502 bad gateway',
+                '503 service unavailable',
+                '504 gateway timeout'
+            ];
+
             const errText = `${err.code || ''} ${err.message || ''} ${err.toString ? err.toString() : ''}`.toLowerCase();
             const isCertError = certErrorPatterns.some(p => errText.includes(p.toLowerCase()));
+            const isServerError = serverErrorPatterns.some(p => errText.includes(p.toLowerCase()));
 
             if (isCertError) {
                 // 返回更友好的提示，便于用户或管理员诊断问题
                 throw new Error(`搜剧接口的 HTTPS 证书异常，可能已过期或为自签名证书，导致无法建立安全连接。请联系管理员修复证书或切换到可用的接口。错误详情：${err.message}`);
+            } else if (isServerError) {
+                // 服务器内部错误，提示用户切换接口
+                throw new Error(`当前搜剧接口服务器繁忙或发生内部错误(${err.message})，建议切换到其他接口再试。`);
+            } else {
+                // 非证书类错误，返回更明确的请求错误信息
+                throw new Error(`请求搜剧接口时发生网络或响应错误：${err.message}`);
             }
-
-            // 非证书类错误，返回更明确的请求错误信息
-            throw new Error(`请求搜剧接口时发生网络或响应错误：${err.message}`);
         }
 
         return res;
