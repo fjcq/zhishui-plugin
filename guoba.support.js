@@ -552,33 +552,68 @@ export function supportGuoba() {
 
             async setConfigData(data, { Result, action }) {
                 try {
-                    // 处理复制角色操作
+                    const configInfo = this;
+                    const getLatestConfigData = () => {
+                        try {
+                            const latestRoleContent = Config.getJsonConfig('RoleProfile');
+                            let roleList = [];
+                            if (latestRoleContent) {
+                                try {
+                                    const rawRoles = JSON.parse(latestRoleContent);
+                                    roleList = rawRoles.map(role => {
+                                        const { _isDefault, ...roleWithoutInternalMarks } = role;
+                                        const isDefault = _isDefault || false;
+                                        return {
+                                            title: role['角色标题'] || '',
+                                            jsonEditor: JSON.stringify(roleWithoutInternalMarks, null, 2),
+                                            _isDefault: isDefault,
+                                            roleType: isDefault ? '预设角色' : '自定义角色'
+                                        };
+                                    });
+                                } catch (parseErr) {
+                                    console.error('解析角色配置JSON失败:', parseErr);
+                                    roleList = [];
+                                }
+                            }
+
+                            return {
+                                souju: Config.getDefOrConfig('souju') || {},
+                                duihua: Config.getDefOrConfig('duihua') || {},
+                                proxy: Config.getDefOrConfig('proxy') || {},
+                                roleList: roleList || []
+                            };
+                        } catch (err) {
+                            console.error('止水插件-获取配置数据失败:', err);
+                            return {
+                                souju: {},
+                                duihua: {},
+                                proxy: {},
+                                roleList: []
+                            };
+                        }
+                    };
+
                     if (action?.key === 'copy' && action?.formData) {
                         try {
                             const copyRole = action.formData;
-                            // 动态获取最新角色配置
                             const latestRoleContent = Config.getJsonConfig('RoleProfile');
                             let roles = latestRoleContent ? JSON.parse(latestRoleContent) : [];
 
-                            // 解析要复制的角色数据
                             const parsedRole = JSON.parse(copyRole.jsonEditor);
 
-                            // 创建新角色，修改标题并移除预设标记
                             const newRole = {
                                 ...parsedRole,
                                 '角色标题': `${parsedRole['角色标题']} (副本)`,
-                                _isDefault: false // 复制的角色不是预设角色
+                                _isDefault: false
                             };
 
-                            // 添加到角色列表
                             roles.push(newRole);
 
-                            // 保存更新后的角色列表
                             const roleListJson = JSON.stringify(roles, null, 2);
                             Config.setJsonConfig('RoleProfile', roleListJson);
 
                             return Result.ok({
-                                refreshData: { ...data, roleList: this.getConfigData().roleList }
+                                refreshData: { ...data, roleList: getLatestConfigData().roleList }
                             });
                         } catch (err) {
                             console.error('复制角色失败:', err);
@@ -696,7 +731,7 @@ export function supportGuoba() {
                         }
                     }
                     return Result.ok({
-                        refreshData: this.getConfigData()
+                        refreshData: getLatestConfigData()
                     });
                 } catch (err) {
                     console.error('止水插件-保存配置失败:', err);
