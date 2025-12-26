@@ -35,6 +35,7 @@ bld/
 # Visual Studio 2015/2017 缓存/选项目录
 .vs/
 .vscode/
+# Trae AI 相关配置文件，不应提交到版本控制
 .trae/
 
 # 静态文件输出目录（如有任务生成 wwwroot 可取消注释）
