@@ -150,22 +150,7 @@ class Config {
             let userRoleCount = 0;
             let defaultRoleCount = 0;
 
-            // 先载入用户自定义配置（放在前面）
-            if (fs.existsSync(userConfigPath)) {
-                try {
-                    const userContent = fs.readFileSync(userConfigPath, 'utf8');
-                    const userRoles = JSON.parse(userContent);
-                    if (Array.isArray(userRoles)) {
-                        mergedRoles = [...userRoles];
-                        userRoleCount = userRoles.length;
-                        // console.log(`[角色配置] 已载入 ${userRoles.length} 个用户自定义角色`); // 只在出错时输出日志
-                    }
-                } catch (error) {
-                    console.error('载入用户角色配置失败:', error);
-                }
-            }
-
-            // 再载入默认配置（放在后面，并标记为预设角色）
+            // 先载入默认配置（放在前面，并标记为预设角色）
             if (fs.existsSync(defaultConfigPath)) {
                 try {
                     const defaultContent = fs.readFileSync(defaultConfigPath, 'utf8');
@@ -176,7 +161,7 @@ class Config {
                             ...role,
                             _isDefault: true  // 添加内部标记
                         }));
-                        mergedRoles = [...mergedRoles, ...markedDefaultRoles];
+                        mergedRoles = [...markedDefaultRoles];
                         defaultRoleCount = defaultRoles.length;
                         // console.log(`[角色配置] 已载入 ${defaultRoles.length} 个预设角色`); // 只在出错时输出日志
                     }
@@ -185,7 +170,22 @@ class Config {
                 }
             }
 
-            // console.log(`[角色配置] 总共载入 ${mergedRoles.length} 个角色（${userRoleCount} 个自定义 + ${defaultRoleCount} 个默认）`); // 只在出错时输出日志
+            // 再载入用户自定义配置（放在后面）
+            if (fs.existsSync(userConfigPath)) {
+                try {
+                    const userContent = fs.readFileSync(userConfigPath, 'utf8');
+                    const userRoles = JSON.parse(userContent);
+                    if (Array.isArray(userRoles)) {
+                        mergedRoles = [...mergedRoles, ...userRoles];
+                        userRoleCount = userRoles.length;
+                        // console.log(`[角色配置] 已载入 ${userRoles.length} 个用户自定义角色`); // 只在出错时输出日志
+                    }
+                } catch (error) {
+                    console.error('载入用户角色配置失败:', error);
+                }
+            }
+
+            // console.log(`[角色配置] 总共载入 ${mergedRoles.length} 个角色（${defaultRoleCount} 个默认 + ${userRoleCount} 个自定义）`); // 只在出错时输出日志
             return JSON.stringify(mergedRoles);
         } catch (error) {
             console.error('合并角色配置时发生错误:', error);
