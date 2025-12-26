@@ -14,6 +14,9 @@ import {
     ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel
 } from './duihua/helpers.js';
 
+/** 存储每个会话的原始返回数据 */
+const lastRawResponseMap = {};
+
 /** 发音人列表 */
 const voiceList = await Data.readVoiceList();
 
@@ -114,8 +117,11 @@ export class ChatHandler extends plugin {
                     reg: `^#?(止水)?(插件|对话)?重置用户配置\s*(\d+)$`,
                     fnc: 'ResetOtherUserConfig'
                 }, {
-                    reg: `^#?(止水)?(插件|对话)?用户配置统计$`,
+                    reg: `^#?(止水)?(插件|对话)?查看用户配置统计$`,
                     fnc: 'ShowUserConfigStats'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?查看(对话)?原始(数据|返回)$`,
+                    fnc: 'ShowRawResponse'
                 }, {
                     reg: ``,
                     fnc: 'duihua',
@@ -387,6 +393,7 @@ export class ChatHandler extends plugin {
             }
 
             if (response) {
+                lastRawResponseMap[sessionId] = response;
                 // 严格JSON格式校验
                 let replyObj;
                 try {
@@ -1342,13 +1349,50 @@ export class ChatHandler extends plugin {
             msg += `【管理指令】\n`;
             msg += `• #查看用户配置 QQ号 - 查看指定用户配置\n`;
             msg += `• #重置用户配置 QQ号 - 重置指定用户配置\n`;
-            msg += `• #用户配置统计 - 查看此统计信息\n\n`;
+            msg += `• #查看用户配置统计 - 查看此统计信息\n\n`;
             msg += `注：详细的用户配置数据需要通过Redis管理工具查看`;
 
             e.reply(msg);
         } catch (error) {
             console.error('[ShowUserConfigStats] 获取用户配置统计失败:', error);
             e.reply('获取用户配置统计失败，请稍后重试。');
+        }
+    }
+
+    /**
+     * 查看上次对话的原始返回数据
+     * @param {Object} e 事件对象
+     * @returns {Promise<void>}
+     */
+    async ShowRawResponse(e) {
+        try {
+            const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+            const rawResponse = lastRawResponseMap[sessionId];
+
+            if (!rawResponse) {
+                e.reply('暂无原始返回数据记录，请先进行一次对话。');
+                return;
+            }
+
+            // 格式化JSON以便阅读
+            let formattedResponse;
+            try {
+                const parsed = JSON.parse(rawResponse);
+                formattedResponse = JSON.stringify(parsed, null, 2);
+            } catch (error) {
+                formattedResponse = rawResponse;
+            }
+
+            // 如果数据太长，进行截断
+            const maxLength = 4000;
+            if (formattedResponse.length > maxLength) {
+                e.reply(`原始返回数据过长（${formattedResponse.length}字符），已截断显示前${maxLength}字符：\n\n${formattedResponse.substring(0, maxLength)}\n\n...（数据已截断）`);
+            } else {
+                e.reply(`上次对话的原始返回数据：\n\n${formattedResponse}`);
+            }
+        } catch (error) {
+            console.error('[ShowRawResponse] 查看原始返回数据失败:', error);
+            e.reply('获取原始返回数据失败，请稍后重试。');
         }
     }
 }
