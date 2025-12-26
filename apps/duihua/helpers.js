@@ -79,7 +79,7 @@ export async function getCurrentRoleIndex(e) {
                 return userRoleIndex;
             }
         } catch (error) {
-            console.log('[getCurrentRoleIndex] 获取用户角色配置失败:', error.message);
+            logger.error('[getCurrentRoleIndex] 获取用户角色配置失败:', error);
         }
     }
 
