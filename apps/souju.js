@@ -6,9 +6,12 @@ import request from '../lib/request/request.js';
 import YamlReader from '../components/YamlReader.js';
 
 // 引入拆分后的模块
-import { CachePath, SearchName, IDs, zzss } from './souju/config.js';
+import { CachePath, SearchName, IDs } from './souju/config.js';
 import { isNotNull, chineseToNumber, findRouteIndex, extractSearchKeyword } from './souju/utils.js';
 import { SearchVideo, linkLongToShort, getSearchResultsWithCache, saveUserSearchCache, handleAndDisplaySearchResults } from './souju/helpers.js';
+
+// 本地搜索状态变量
+let zzss = 0;
 
 export class souju extends plugin {
     constructor() {
@@ -193,36 +196,7 @@ export class souju extends plugin {
         return true;
     }
 
-    /** 显示搜剧接口 */
-    async Show_SearchInterface(e) {
-        try {
-            const resources = await Config.SearchVideos.resources;
-            if (!resources || resources.length === 0) {
-                e.reply('搜剧接口未配置，请联系管理员！');
-                return;
-            }
 
-            const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
-            const currentInterface = resources[idx]?.site;
-
-            if (!currentInterface || !currentInterface.title) {
-                e.reply('当前接口配置错误，请联系管理员！');
-                return;
-            }
-
-            let msg = '*** 搜剧接口列表 ***\n';
-            resources.forEach((item, index) => {
-                const siteTitle = item?.site?.title || '未命名接口';
-                msg += `${index + 1}. ${siteTitle}`;
-                if (index === idx) msg += ' (当前使用)';
-                msg += '\n';
-            });
-
-            e.reply(msg);
-        } catch (error) {
-            e.reply(`显示接口时发生错误：${error.message}`);
-        }
-    }
 
     /** 播放器接口 */
     async PlayerInterface(e) {

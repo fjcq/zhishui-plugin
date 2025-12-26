@@ -126,11 +126,7 @@ export class ChatHandler extends plugin {
     }
 
 
-    /** 对话测试 */
-    async taklTest(e) {
-        if (!e.isMaster) { return; }
-        return;
-    };
+
 
     /** 重置对话 */
     async ResetChat(e) {
