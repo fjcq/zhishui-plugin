@@ -2,6 +2,7 @@ import { Config } from './components/index.js'
 import Data from './components/Data.js'
 import fs from 'fs'
 import path from 'path'
+import { getApiTypeOptions } from './apps/chat/api-types.js'
 
 const Path = process.cwd()
 const PluginPath = `${Path}/plugins/zhishui-plugin`
@@ -145,12 +146,13 @@ export function supportGuoba() {
                                     component: 'Select',
                                     required: true,
                                     componentProps: {
-                                        options: [
-                                            { label: 'OpenAI', value: 'openai' },
-                                            { label: '硅基流动', value: 'siliconflow' },
-                                            { label: '腾讯元器', value: 'tencent' },
-                                            { label: 'Gemini', value: 'gemini' }
-                                        ]
+                                        options: getApiTypeOptions().map(option => ({
+                                            label: option.features && option.features.length > 0
+                                                ? `${option.label} (${option.features.join('、')})`
+                                                : option.label,
+                                            value: option.value
+                                        })),
+                                        placeholder: '请选择API类型'
                                     }
                                 },
                                 {
