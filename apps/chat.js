@@ -6,13 +6,13 @@ import { Plugin_Path, Config } from '../components/index.js';
 import Data from '../components/Data.js';
 
 // 引入拆分后的模块
-import { chatActiveMap, lastRequestTime, API_INTERVALS, CHAT_CONTEXT_PATH } from './duihua/config.js';
-import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './duihua/utils.js';
+import { chatActiveMap, lastRequestTime, API_INTERVALS, CHAT_CONTEXT_PATH } from './chat/config.js';
+import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './chat/utils.js';
 import {
     mergeSystemMessage, openAi, loadChatMsg, saveChatMsg,
     clearSessionContext, getCurrentRoleIndex, getSessionKeyv,
     ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel
-} from './duihua/helpers.js';
+} from './chat/helpers.js';
 
 /** 存储每个会话的原始返回数据 */
 const lastRawResponseMap = {};
@@ -88,7 +88,7 @@ export class ChatHandler extends plugin {
                     fnc: 'ShowApi'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?测试(.*)$`,
-                    fnc: 'taklTest'
+                    fnc: 'talkTest'
                 }, {
                     reg: '^#?(止水)?(插件|对话)?角色列表$',
                     fnc: 'ShowRoleList'
@@ -124,7 +124,7 @@ export class ChatHandler extends plugin {
                     fnc: 'ShowRawResponse'
                 }, {
                     reg: ``,
-                    fnc: 'duihua',
+                    fnc: 'chat',
                     log: false
                 }
             ]
@@ -173,7 +173,7 @@ export class ChatHandler extends plugin {
     }
 
     /** 对话 */
-    async duihua(e) {
+    async chat(e) {
         // 获取当前会话ID
         const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
         let msg = e.msg;
@@ -298,7 +298,7 @@ export class ChatHandler extends plugin {
                 actualUserId = await Config.Chat.MasterQQ;
             }
 
-            const Favora = await getUserFavor(actualUserId);
+            const favor = await getUserFavor(actualUserId);
             const userMessage = {
                 message: msg,
                 images: images,
@@ -306,7 +306,7 @@ export class ChatHandler extends plugin {
                 additional_info: {
                     name: e.sender.nickname,
                     user_id: actualUserId,
-                    favor: Favora,
+                    favor: favor,
                     group_id: e.group_id || 0
                 }
             };
@@ -543,7 +543,7 @@ export class ChatHandler extends plugin {
         let nickname = e.msg.replace(/^.*修改(对话)?昵称/g, '').trim();
         if (nickname.length > 0 && nickname != await Config.Chat.NickName) {
             chatNickname = nickname;
-            Config.modify('duihua', 'NickName', nickname);
+            Config.modify('chat', 'NickName', nickname);
             e.reply("对话昵称修改为:" + nickname);
             return true;
         }
@@ -558,7 +558,7 @@ export class ChatHandler extends plugin {
 
         let Enable = e.msg.search('开启') != -1;
 
-        Config.modify('duihua', 'EnableAt', Enable);
+        Config.modify('chat', 'EnableAt', Enable);
 
         if (Enable) {
             e.reply("[对话艾特]已开启！");
@@ -576,7 +576,7 @@ export class ChatHandler extends plugin {
 
         let Enable = e.msg.search('开启') != -1;
 
-        Config.modify('duihua', 'EnableVoice', Enable);
+        Config.modify('chat', 'EnableVoice', Enable);
 
         if (Enable) {
             e.reply("[对话语音]已开启！");
@@ -597,7 +597,7 @@ export class ChatHandler extends plugin {
         console.log(VoiceIndex);
         if (VoiceIndex < voiceList.length && VoiceIndex > 0) {
             VoiceIndex = VoiceIndex - 1;
-            Config.modify('duihua', 'VoiceIndex', VoiceIndex);
+            Config.modify('chat', 'VoiceIndex', VoiceIndex);
             let name = voiceList[VoiceIndex].name;
             e.reply("[对话发音人]:" + name);
 
@@ -804,7 +804,7 @@ export class ChatHandler extends plugin {
             groupRoleList.push({ group: String(e.group_id), index: idx });
         }
 
-        await Config.modify('duihua', 'GroupRoleIndex', groupRoleList);
+        await Config.modify('chat', 'GroupRoleIndex', groupRoleList);
         let tip = `本群已切换为角色：${roles[idx].角色标题}`;
         if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
         else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
@@ -903,7 +903,7 @@ export class ChatHandler extends plugin {
             return;
         }
         ApiList[idx][field] = value;
-        await Config.modify('duihua', 'ApiList', ApiList);
+        await Config.modify('chat', 'ApiList', ApiList);
         await clearSessionContext(e);
         e.reply(`当前API的${field}已设置为：${value}\n已自动清除上下文缓存，请重新开始对话。`);
     }
@@ -936,7 +936,7 @@ export class ChatHandler extends plugin {
         const newType = (newApi.ApiType || '').toLowerCase();
 
         // 设置全局API配置
-        await Config.modify('duihua', 'CurrentApiIndex', idx);
+        await Config.modify('chat', 'CurrentApiIndex', idx);
 
         // 自动兼容上下文
         let lost = false;
@@ -1111,7 +1111,7 @@ export class ChatHandler extends plugin {
             return false;
         }
         let enable = e.msg.includes('开启');
-        await Config.modify('duihua', 'EnablePrivateChat', enable);
+        await Config.modify('chat', 'EnablePrivateChat', enable);
         e.reply(`[止水私聊AI回复]已${enable ? '开启' : '关闭'}！`);
         return true;
     }

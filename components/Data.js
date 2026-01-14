@@ -41,7 +41,7 @@ let Data = {
   async ReadRouteList() {
     let temp = {};
     const DataPath = path.join(getRoot(), 'resources', 'data');
-    const fileName = 'RouteDate.json';
+    const fileName = 'RouteData.json';
     if (fs.existsSync(path.join(DataPath, fileName))) {
       temp = await Data.readJSON(fileName, DataPath);
     }

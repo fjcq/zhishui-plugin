@@ -55,17 +55,17 @@ class Config {
 
     /** 获取搜剧设置 */
     get SearchVideos() {
-        return this.getDefOrConfig('souju');
+        return this.getDefOrConfig('videoSearch');
     }
 
     /** 获取对话设置 */
     get Chat() {
-        return this.getDefOrConfig('duihua');
+        return this.getDefOrConfig('chat');
     }
 
     /** 获取演奏设置 */
-    get YanZou() {
-        return this.getDefOrConfig('yanzou');
+    get InstrumentPlay() {
+        return this.getDefOrConfig('instrumentPlay');
     }
 
 

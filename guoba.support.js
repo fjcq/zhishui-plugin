@@ -58,7 +58,7 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'duihua.NickName',
+                        field: 'chat.NickName',
                         label: '对话昵称',
                         bottomHelpMessage: '对话触发昵称，如"小止水"',
                         component: 'Input',
@@ -67,13 +67,13 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'duihua.EnableAt',
+                        field: 'chat.EnableAt',
                         label: '艾特触发',
                         bottomHelpMessage: '机器人被艾特时也能触发对话',
                         component: 'Switch'
                     },
                     {
-                        field: 'duihua.EnablePrivateChat',
+                        field: 'chat.EnablePrivateChat',
                         label: '私聊AI回复',
                         bottomHelpMessage: '开启后，私聊消息将由AI自动回复',
                         component: 'Switch'
@@ -85,7 +85,7 @@ export function supportGuoba() {
                         component: 'Switch'
                     },
                     {
-                        field: 'duihua.Master',
+                        field: 'chat.Master',
                         label: '主人名字',
                         bottomHelpMessage: '场景对话中机器人的主人名字',
                         component: 'Input',
@@ -94,7 +94,7 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'duihua.MasterQQ',
+                        field: 'chat.MasterQQ',
                         label: '主人QQ',
                         bottomHelpMessage: '场景对话中机器人的主人QQ号码',
                         component: 'Input',
@@ -107,13 +107,13 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'duihua.EnableVoice',
+                        field: 'chat.EnableVoice',
                         label: '启用语音回复',
                         bottomHelpMessage: '是否开启对话语音回复功能',
                         component: 'Switch'
                     },
                     {
-                        field: 'duihua.VoiceIndex',
+                        field: 'chat.VoiceIndex',
                         label: '语音发音人',
                         bottomHelpMessage: '选择语音回复的发音人',
                         component: 'Select',
@@ -130,7 +130,7 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'duihua.ApiList',
+                        field: 'chat.ApiList',
                         label: 'API配置列表',
                         bottomHelpMessage: '可配置多个API，每个API包含类型、地址、密钥、模型等信息',
                         component: 'GSubForm',
@@ -183,7 +183,7 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'duihua.CurrentApiIndex',
+                        field: 'chat.CurrentApiIndex',
                         label: '当前使用的API',
                         bottomHelpMessage: '选择当前使用的API配置（对应上方API列表的索引）',
                         component: 'Select',
@@ -203,7 +203,7 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'duihua.CurrentRoleIndex',
+                        field: 'chat.CurrentRoleIndex',
                         label: '全局预设角色',
                         bottomHelpMessage: '设置全局预设角色，优先级低于群专属角色',
                         component: 'Select',
@@ -215,7 +215,7 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'duihua.GroupRoleIndex',
+                        field: 'chat.GroupRoleIndex',
                         label: '群专属角色与API',
                         bottomHelpMessage: '为不同群设置专属角色和API，优先级高于全局预设',
                         component: 'GSubForm',
@@ -261,7 +261,7 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'duihua.MaxHistory',
+                        field: 'chat.MaxHistory',
                         label: '最大历史记录',
                         bottomHelpMessage: '最多保存几条对话记录（不含system设定）',
                         component: 'InputNumber',
@@ -271,13 +271,13 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'duihua.ShowReasoning',
+                        field: 'chat.ShowReasoning',
                         label: '显示推理过程',
                         bottomHelpMessage: '是否在回复中显示AI的推理过程',
                         component: 'Switch'
                     },
                     {
-                        field: 'duihua.LinkMode',
+                        field: 'chat.LinkMode',
                         label: '链接模式',
                         bottomHelpMessage: '是否开启对话链接模式',
                         component: 'Switch'
@@ -287,19 +287,19 @@ export function supportGuoba() {
                         component: 'SOFT_GROUP_BEGIN'
                     },
                     {
-                        field: 'souju.analysis',
+                        field: 'videoSearch.analysis',
                         label: '解析接口',
                         bottomHelpMessage: '用于解析视频播放地址的接口',
                         component: 'Input'
                     },
                     {
-                        field: 'souju.player',
+                        field: 'videoSearch.player',
                         label: '播放器链接',
                         bottomHelpMessage: '用于在线播放的播放器页面地址',
                         component: 'Input'
                     },
                     {
-                        field: 'souju.cfTLSVersion',
+                        field: 'videoSearch.cfTLSVersion',
                         label: 'Cloudflare TLS版本',
                         bottomHelpMessage: '绕过 Cloudflare Challenge 所使用的 TLS 版本',
                         component: 'Select',
@@ -311,7 +311,7 @@ export function supportGuoba() {
                         }
                     },
                     {
-                        field: 'souju.resources',
+                        field: 'videoSearch.resources',
                         label: '资源站点配置',
                         bottomHelpMessage: '配置多个资源站点，每个站点包含标题、链接等信息',
                         component: 'GSubForm',
@@ -534,16 +534,16 @@ export function supportGuoba() {
                     }
 
                     return {
-                        souju: Config.getDefOrConfig('souju') || {},
-                        duihua: Config.getDefOrConfig('duihua') || {},
+                        videoSearch: Config.getDefOrConfig('videoSearch') || {},
+                        chat: Config.getDefOrConfig('chat') || {},
                         proxy: Config.getDefOrConfig('proxy') || {},
                         roleList: roleList || []
                     };
                 } catch (err) {
                     console.error('止水插件-获取配置数据失败:', err);
                     return {
-                        souju: {},
-                        duihua: {},
+                        videoSearch: {},
+                        chat: {},
                         proxy: {},
                         roleList: []
                     };
@@ -577,16 +577,16 @@ export function supportGuoba() {
                             }
 
                             return {
-                                souju: Config.getDefOrConfig('souju') || {},
-                                duihua: Config.getDefOrConfig('duihua') || {},
+                                videoSearch: Config.getDefOrConfig('videoSearch') || {},
+                                chat: Config.getDefOrConfig('chat') || {},
                                 proxy: Config.getDefOrConfig('proxy') || {},
                                 roleList: roleList || []
                             };
                         } catch (err) {
                             console.error('止水插件-获取配置数据失败:', err);
                             return {
-                                souju: {},
-                                duihua: {},
+                                videoSearch: {},
+                                chat: {},
                                 proxy: {},
                                 roleList: []
                             };
@@ -712,12 +712,12 @@ export function supportGuoba() {
                                 console.error('复制角色失败:', err);
                                 return Result.error('复制角色失败: ' + err.message);
                             }
-                        } else if (key === 'souju') {
-                            let souju = { ...data.souju };
-                            if (Array.isArray(souju.resources)) {
-                                souju.resources = souju.resources.map(site => ({ site }));
+                        } else if (key === 'videoSearch') {
+                            let videoSearch = { ...data.videoSearch };
+                            if (Array.isArray(videoSearch.resources)) {
+                                videoSearch.resources = videoSearch.resources.map(site => ({ site }));
                             }
-                            Config.modify('souju', '', souju, 'config');
+                            Config.modify('videoSearch', '', videoSearch, 'config');
                         } else {
                             const pathArr = key.split('.');
                             const fileName = pathArr[0];

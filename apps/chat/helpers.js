@@ -803,8 +803,8 @@ export async function WriteScene(Context) {
  * 写主人设定
  */
 export async function WriteMaster(Master, MasterQQ) {
-    Config.modify('duihua', 'Master', Master);
-    Config.modify('duihua', 'MasterQQ', MasterQQ);
+    Config.modify('chat', 'Master', Master);
+    Config.modify('chat', 'MasterQQ', MasterQQ);
 }
 
 /**
