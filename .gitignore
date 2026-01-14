@@ -146,4 +146,7 @@ plugins/zhishui-plugin/resources/Cache/ChatContext/*
 # 忽略 resources/Cache 目录下的所有内容
 resources/Cache/
 
+# 忽略用户对话数据（包含敏感信息，勿提交）
+resources/data/chat/
+
 /.github/copilot-instructions.md

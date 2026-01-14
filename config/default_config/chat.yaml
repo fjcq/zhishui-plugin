@@ -23,22 +23,33 @@ Master: 止水
 MasterQQ: 172679743
 
 # API配置数组，每个API为一个对象，包含类型、地址、密钥、模型等
+# 支持的API类型：openai, siliconflow, deepseek, zhipu, tencent, gemini
 ApiList:
   - ApiType: "openai"
     TencentAssistantId: ""
-    ApiUrl: "https://api.deepseek.com/v1/chat/completions"
-    ApiKey: "sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-    ApiModel: deepseek-chat
+    ApiUrl: "https://api.openai.com/v1/chat/completions"
+    ApiKey: "你的OpenAI API Key"
+    ApiModel: "gpt-3.5-turbo"
   - ApiType: "siliconflow"
     TencentAssistantId: ""
     ApiUrl: "https://api.siliconflow.cn/v1/chat/completions"
     ApiKey: "你的siliconflow key"
-    ApiModel: siliconflow-chat
+    ApiModel: "Qwen/Qwen2.5-7B-Instruct"
+  - ApiType: "deepseek"
+    TencentAssistantId: ""
+    ApiUrl: "https://api.deepseek.com/v1/chat/completions"
+    ApiKey: "你的DeepSeek API Key"
+    ApiModel: "deepseek-chat"
+  - ApiType: "zhipu"
+    TencentAssistantId: ""
+    ApiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+    ApiKey: "你的智谱AI API Key"
+    ApiModel: "glm-4"
   - ApiType: "tencent"
     TencentAssistantId: "你的腾讯助手ID"
     ApiUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
     ApiKey: "你的腾讯元器key"
-    ApiModel: hunyuan-lite
+    ApiModel: "hunyuan-lite"
   - ApiType: "gemini"
     TencentAssistantId: ""
     ApiUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
@@ -62,4 +73,3 @@ GroupRoleIndex:
   - group: 987654321
     index: 2
     apiIndex: 1
-  
