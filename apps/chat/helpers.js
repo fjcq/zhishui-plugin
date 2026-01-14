@@ -286,6 +286,14 @@ export async function mergeSystemMessage(e) {
  * @param {Array} chatMsg - 聊天历史
  * @returns {Promise<string>} AI回复
  */
+/**
+ * 调用 AI API 进行对话
+ * @param {string} msg - 用户消息
+ * @param {Object} e - 事件对象
+ * @param {string} systemMessage - 系统消息
+ * @param {Array} chatMsg - 聊天历史
+ * @returns {Promise<Object>} 返回对象包含 { content: string, rawResponse: string }
+ */
 export async function openAi(msg, e, systemMessage, chatMsg) {
     // 使用新的API配置获取方法
     const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
@@ -612,6 +620,7 @@ export async function openAi(msg, e, systemMessage, chatMsg) {
     }
 
     let content;
+    let rawResponse = '';
     try {
         // 发送 POST 请求
         const response = await fetch(apiUrl, {
@@ -651,6 +660,8 @@ export async function openAi(msg, e, systemMessage, chatMsg) {
         // 解析响应
         try {
             const responseData = await response.json();
+            rawResponse = JSON.stringify(responseData, null, 2);
+
             if (apiType === 'tencent') {
                 // 腾讯元器返回格式
                 let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
@@ -782,7 +793,7 @@ export async function openAi(msg, e, systemMessage, chatMsg) {
         throw detailedError;
     }
 
-    return content;
+    return { content, rawResponse };
 }
 
 /**
