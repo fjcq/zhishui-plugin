@@ -8,7 +8,7 @@ const { spawn } = require('child_process')
 const fs = require('fs')
 
 /** 乐器音频根目录 */
-const INSTRUMENTS_ROOT = path.join(Plugin_Path, 'resources', 'yanzou')
+const INSTRUMENTS_ROOT = path.join(Plugin_Path, 'resources', 'instrumentPlay')
 /** 当前乐器目录 */
 let currentInstrumentDir = ""
 /** 输出目录 */
@@ -33,7 +33,7 @@ const INSTRUMENT_MAP = {
     "西域琴": "xiyu"
 }
 
-export class YanzouPlayer extends plugin {
+export class InstrumentPlayer extends plugin {
     _isPlaying = false
     _isProcessing = false
 
@@ -156,7 +156,7 @@ export class YanzouPlayer extends plugin {
     async toggleQualityMode(e) {
         if (!e.isMaster) return false
         const enable = e.msg.includes('开启')
-        Config.modify('yanzou', 'Quality', enable)
+        Config.modify('instrumentPlay', 'Quality', enable)
         e.reply(`[高品质演奏] 已${enable ? '开启' : '关闭'}！`)
         return true
     }

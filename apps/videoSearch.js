@@ -6,14 +6,14 @@ import request from '../lib/request/request.js';
 import YamlReader from '../components/YamlReader.js';
 
 // 引入拆分后的模块
-import { CachePath, SearchName, IDs } from './souju/config.js';
-import { isNotNull, chineseToNumber, findRouteIndex, extractSearchKeyword } from './souju/utils.js';
-import { SearchVideo, linkLongToShort, getSearchResultsWithCache, saveUserSearchCache, handleAndDisplaySearchResults } from './souju/helpers.js';
+import { CachePath, SearchName, IDs } from './videoSearch/config.js';
+import { isNotNull, chineseToNumber, findRouteIndex, extractSearchKeyword } from './videoSearch/utils.js';
+import { SearchVideo, linkLongToShort, getSearchResultsWithCache, saveUserSearchCache, handleAndDisplaySearchResults } from './videoSearch/helpers.js';
 
 // 本地搜索状态变量
-let zzss = 0;
+let isSearching = false;
 
-export class souju extends plugin {
+export class VideoSearch extends plugin {
     constructor() {
         super({
             name: '[止水插件]搜剧',
@@ -56,7 +56,7 @@ export class souju extends plugin {
     /** 搜剧 */
     async SearchVideos(e) {
         // 检查是否有正在进行的搜索
-        if (zzss === 1) {
+        if (isSearching) {
             e.reply('前方有搜索任务正在进行，请稍候再试！');
             return false;
         }
@@ -92,7 +92,7 @@ export class souju extends plugin {
 
         try {
             // 开始搜索过程，设置搜索状态
-            zzss = 1;
+            isSearching = true;
 
             // 获取搜索关键词
             const SearchName = extractSearchKeyword(e.msg);
@@ -112,7 +112,7 @@ export class souju extends plugin {
         } catch (error) {
             e.reply(`搜索过程中发生错误：${error.message}`);
         }
-        zzss = 0;
+        isSearching = false;
         return true;
     }
 
@@ -140,7 +140,7 @@ export class souju extends plugin {
 
             //写入搜剧接口设置
             await Config.SetUserSearchVideos(e.user_id, 'idx', index - 1);
-            Show_SearchInterface(e);
+            await this.ShowSearchInterface(e);
 
         }
         else if (type == "增加") {
@@ -158,8 +158,8 @@ export class souju extends plugin {
                     }
                 };
 
-                await Config.modifyarr('souju', `resources`, site, 'add');
-                Show_SearchInterface(e);
+                await Config.modifyarr('videoSearch', `resources`, site, 'add');
+                await this.ShowSearchInterface(e);
             }
 
         }
@@ -172,7 +172,7 @@ export class souju extends plugin {
                 return false;
             }
 
-            let path = `${Plugin_Path}/config/config/souju.yaml`;
+            let path = `${Plugin_Path}/config/config/videoSearch.yaml`;
             let yaml = new YamlReader(path);
             let resources = yaml.jsonData['resources'];
             const resource = resources[index - 1];
@@ -191,7 +191,7 @@ export class souju extends plugin {
         }
 
         else if (type == "查看") {
-            Show_SearchInterface(e);
+            await this.ShowSearchInterface(e);
         }
         return true;
     }
@@ -208,7 +208,7 @@ export class souju extends plugin {
         let msg, Interface = ""
         if (type == "设置") {
             Interface = e.msg.replace(/^.*播放器/, '').trim();
-            await Config.modify('souju', 'player', Interface)
+            await Config.modify('videoSearch', 'player', Interface)
             msg = '设置成功，当前播放器：\n';
         } else {
             msg = '当前播放器：\n';
@@ -224,7 +224,7 @@ export class souju extends plugin {
         const SearchName = await Config.GetUserSearchVideos(e.user_id, 'keyword');
 
         //重置搜剧设置
-        zzss = 0;
+        isSearching = false;
         await Config.SetUserSearchVideos(e.user_id, 'SearchResults', '');
         await Config.SetUserSearchVideos(e.user_id, 'keyword', '');
         await Config.SetUserSearchVideos(e.user_id, 'page', 1);
@@ -282,7 +282,7 @@ export class souju extends plugin {
         const siteIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
         const selectedEpisodeDetails = userSearchResult.list[selectedEpisodeIndex - 1];
         const playbackRoutes = selectedEpisodeDetails.vod_play_from.split('$$$');
-        const playRoutes = await RouteToNameMap(playbackRoutes);
+        const playRoutes = await this.RouteToNameMap(playbackRoutes);
         await Config.SetUserSearchVideos(e.user_id, 'playRoutes', JSON.stringify(playRoutes));
 
         // 获取当前播放路线索引（currentPlaybackRoute），并确保其有效性
@@ -319,7 +319,7 @@ export class souju extends plugin {
         const site = resource?.site || resource; // 兼容新旧格式
 
         // 渲染选剧页面，传递相关数据
-        await puppeteer.render("souju/select", {
+        await puppeteer.render("videoSearch/select", {
             list: selectedEpisodeDetails,
             episodeNames: episodeNames,
             playRoutes: playRoutes,
@@ -471,7 +471,7 @@ export class souju extends plugin {
                 page = SearchResults.pagecount || 99999;
                 break;
             default:
-                page = chineseToArabic(msg.replace(/#|到|第|页/g, "")) || 1;
+                page = this.chineseToArabic(msg.replace(/#|到|第|页/g, "")) || 1;
                 break;
         }
 
@@ -501,7 +501,7 @@ export class souju extends plugin {
             const resource = await Config.SearchVideos.resources[idx];
             const site = resource?.site || resource;
             // 发送图片
-            await puppeteer.render("souju/result", {
+            await puppeteer.render("videoSearch/result", {
                 list: SearchResults.list,
                 keyword: keyword || '最新视频',
                 showpic: site?.showpic || false
@@ -639,4 +639,96 @@ export class souju extends plugin {
         }
     }
 
+    /**
+     * 显示搜剧接口列表
+     * @param {Object} e - 事件对象
+     */
+    async ShowSearchInterface(e) {
+        const resources = Config.SearchVideos.resources || [];
+        if (resources.length === 0) {
+            e.reply('当前没有配置搜剧接口');
+            return;
+        }
+
+        let msg = '*** 搜剧接口列表 ***\n';
+        const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+
+        resources.forEach((resource, index) => {
+            const site = resource?.site || resource;
+            const title = site?.title || resource?.title || `未命名接口${index + 1}`;
+            const url = site?.url || resource?.url || '无URL';
+            const isCurrent = index === idx ? ' [当前]' : '';
+            msg += `${index + 1}. ${title}${isCurrent}\n`;
+            msg += `   URL: ${url}\n`;
+        });
+
+        e.reply(msg);
+    }
+
+    /**
+     * 将线路代码数组转换为线路名称映射数组
+     * @param {string[]} routeCodes - 线路代码数组
+     * @returns {Promise<Array<{RouteName: string, RouteCode: string}>>} - 线路名称映射数组
+     */
+    async RouteToNameMap(routeCodes) {
+        const routeData = await Data.ReadRouteList();
+        const routeMap = {};
+
+        // 构建线路代码到线路信息的映射
+        if (Array.isArray(routeData)) {
+            routeData.forEach(route => {
+                routeMap[route.RouteCode] = route;
+            });
+        }
+
+        // 将线路代码数组转换为线路名称映射数组
+        return routeCodes.map(code => {
+            const routeInfo = routeMap[code] || { RouteName: code, RouteCode: code };
+            return {
+                RouteName: routeInfo.RouteName,
+                RouteCode: routeInfo.RouteCode
+            };
+        });
+    }
+
+    /**
+     * 将中文数字转换为阿拉伯数字
+     * @param {string} chineseNum - 中文数字字符串
+     * @returns {number} - 阿拉伯数字
+     */
+    chineseToArabic(chineseNum) {
+        const chineseNumMap = {
+            '零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
+            '五': 5, '六': 6, '七': 7, '八': 8, '九': 9,
+            '十': 10, '百': 100, '千': 1000, '万': 10000
+        };
+
+        let result = 0;
+        let temp = 0;
+
+        for (let i = 0; i < chineseNum.length; i++) {
+            const char = chineseNum[i];
+            const num = chineseNumMap[char];
+
+            if (num === undefined) {
+                continue;
+            }
+
+            if (num === 10) {
+                if (temp === 0) {
+                    temp = 1;
+                }
+                result += temp * num;
+                temp = 0;
+            } else if (num >= 100) {
+                result += temp * num;
+                temp = 0;
+            } else {
+                temp = num;
+            }
+        }
+
+        result += temp;
+        return result;
+    }
 }

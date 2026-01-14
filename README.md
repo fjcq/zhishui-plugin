@@ -93,9 +93,9 @@ pnpm install --filter=zhishui-plugin
 
 配置文件位于 `plugins/zhishui-plugin/config/config/` 目录：
 
-- `souju.yaml` - 搜剧功能配置
-- `duihua.yaml` - AI对话功能配置
-- `yanzou.yaml` - 演奏功能配置
+- `videoSearch.yaml` - 搜剧功能配置
+- `chat.yaml` - AI对话功能配置
+- `instrumentPlay.yaml` - 演奏功能配置
 - `whole.yaml` - 全局设置
 - `proxy.yaml` - 代理设置
 
@@ -288,7 +288,7 @@ ffmpeg -version
 #### 配置步骤
 
 1. **申请 API Key**: 前往对应官网注册并获取密钥
-2. **填写配置**: 在 `config/config/duihua.yaml` 中填写相关信息
+2. **填写配置**: 在 `config/config/chat.yaml` 中填写相关信息
 3. **测试连接**: 发送 `#止水查看API` 验证配置
 
 #### 安全建议

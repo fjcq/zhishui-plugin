@@ -200,7 +200,7 @@ export async function handleAndDisplaySearchResults(e, searchResults, showPic, k
     if (searchResults.list) {
         const IDs = searchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`);
-        await puppeteer.render("souju/result", {
+        await puppeteer.render("videoSearch/result", {
             list: searchResults.list,
             keyword: keyword || '最新视频',
             showpic: showPic,
