@@ -393,29 +393,32 @@ export class ChatHandler extends plugin {
             }
 
             if (response) {
-                lastRawResponseMap[sessionId] = response;
+                // 保存原始 API 响应数据
+                const { content, rawResponse } = response;
+                lastRawResponseMap[sessionId] = rawResponse;
+                
                 // 严格JSON格式校验
                 let replyObj;
                 try {
-                    // console.log(`[止水对话] 收到原始回复: ${response.substring(0, 200)}...`); // 精简：隐藏原始回复
-                    replyObj = JSON.parse(response);
+                    // console.log(`[止水对话] 收到原始回复: ${content.substring(0, 200)}...`); // 精简：隐藏原始回复
+                    replyObj = JSON.parse(content);
                     // console.log(`[止水对话] JSON解析成功，消息内容: ${replyObj.message?.substring(0, 50)}...`); // 精简：隐藏解析详情
                     // console.log(`[止水对话] 解析后的对象类型: ${typeof replyObj}, 是否有message: ${!!replyObj.message}`); // 精简：隐藏对象详情
                     if (typeof replyObj !== 'object' || !replyObj.message) {
                         // console.log(`[止水对话] JSON对象无效，使用原始回复`); // 精简：隐藏无效对象日志
                         replyObj = {
-                            message: response,
+                            message: content,
                             favor_changes: []
                         };
                     }
                 } catch (error) {
                     console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
-                    // console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`); // 精简：隐藏重复回复日志
-                    // console.log(`[止水对话] <- AI回复: ${response}`); // 精简：隐藏完整回复日志
-                    // console.log(`[止水对话] <- AI回复: ${response.substring(0, 50)}...`); // 精简：隐藏重复回复日志
+                    // console.log(`[止水对话] <- AI回复: ${content.substring(0, 50)}...`); // 精简：隐藏重复回复日志
+                    // console.log(`[止水对话] <- AI回复: ${content}`); // 精简：隐藏完整回复日志
+                    // console.log(`[止水对话] <- AI回复: ${content.substring(0, 50)}...`); // 精简：隐藏重复回复日志
                     // console.log('[好感度变更]', favorLogs.join(' | ')); // 精简：移到后面统一处理
                     replyObj = {
-                        message: response,
+                        message: content,
                         favor_changes: []
                     };
                 }
@@ -1360,7 +1363,7 @@ export class ChatHandler extends plugin {
     }
 
     /**
-     * 查看上次对话的原始返回数据
+     * 查看上次对话的API原始返回数据
      * @param {Object} e 事件对象
      * @returns {Promise<void>}
      */
@@ -1370,15 +1373,17 @@ export class ChatHandler extends plugin {
             const rawResponse = lastRawResponseMap[sessionId];
 
             if (!rawResponse) {
-                e.reply('暂无原始返回数据记录，请先进行一次对话。');
+                e.reply('暂无API原始返回数据记录，请先进行一次对话。');
                 return;
             }
 
-            // 格式化JSON以便阅读
+            // 尝试解析并格式化JSON以便阅读
             let formattedResponse;
+            let isJson = false;
             try {
                 const parsed = JSON.parse(rawResponse);
                 formattedResponse = JSON.stringify(parsed, null, 2);
+                isJson = true;
             } catch (error) {
                 formattedResponse = rawResponse;
             }
@@ -1386,13 +1391,13 @@ export class ChatHandler extends plugin {
             // 如果数据太长，进行截断
             const maxLength = 4000;
             if (formattedResponse.length > maxLength) {
-                e.reply(`原始返回数据过长（${formattedResponse.length}字符），已截断显示前${maxLength}字符：\n\n${formattedResponse.substring(0, maxLength)}\n\n...（数据已截断）`);
+                e.reply(`【API原始返回数据】\n数据过长（${formattedResponse.length}字符），已截断显示前${maxLength}字符：\n\n${formattedResponse.substring(0, maxLength)}\n\n...（数据已截断）`);
             } else {
-                e.reply(`上次对话的原始返回数据：\n\n${formattedResponse}`);
+                e.reply(`【API原始返回数据】\n\n${formattedResponse}`);
             }
         } catch (error) {
-            console.error('[ShowRawResponse] 查看原始返回数据失败:', error);
-            e.reply('获取原始返回数据失败，请稍后重试。');
+            console.error('[ShowRawResponse] 查看API原始返回数据失败:', error);
+            e.reply('获取API原始返回数据失败，请稍后重试。');
         }
     }
 }
