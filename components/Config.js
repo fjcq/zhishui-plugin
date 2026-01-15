@@ -469,6 +469,23 @@ class Config {
     }
 
     /**
+     * 删除用户搜剧配置
+     * @description: 删除用户的个人搜剧配置
+     * @param {String} qq - 用户QQ号码
+     * @param {String} key - 要删除的键名
+     */
+    async DeleteUserSearchVideos(qq, key) {
+        try {
+            const path = `zhishui:SearchVideos:${qq.toString()}:${key}`;
+            const ret = await redis.del(path);
+            return ret;
+        } catch (error) {
+            logger.error(`删除 [${qq}] 搜剧配置 ${key} 时，发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
      * 获取所有用户角色配置
      * @description: 获取所有设置了个人角色的用户列表
      * @returns {Promise<Array>} 返回用户角色配置数组 [{qq, roleIndex, roleName}]
@@ -501,6 +518,42 @@ class Config {
             return results;
         } catch (error) {
             logger.error(`获取所有用户角色配置时发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取所有用户个人资源站配置
+     * @description: 获取所有设置了个人专属资源站的用户列表
+     * @returns {Promise<Array>} 返回用户个人资源站配置数组 [{qq, resourceIndex}]
+     */
+    async GetAllUserResourceConfigs() {
+        try {
+            const pattern = `zhishui:SearchVideos:*:idx`;
+            const keys = await redis.keys(pattern);
+            
+            if (!keys || keys.length === 0) {
+                return [];
+            }
+
+            const results = [];
+            for (const key of keys) {
+                const match = key.match(/zhishui:SearchVideos:(\d+):idx/);
+                if (match) {
+                    const qq = match[1];
+                    const resourceIndex = await redis.get(key);
+                    if (resourceIndex !== null && resourceIndex !== undefined) {
+                        results.push({
+                            qq: qq,
+                            resourceIndex: parseInt(resourceIndex)
+                        });
+                    }
+                }
+            }
+
+            return results;
+        } catch (error) {
+            logger.error(`获取所有用户个人资源站配置时发生错误：${error.message}`);
             throw error;
         }
     }

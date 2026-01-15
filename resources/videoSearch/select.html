@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="{{_res_path}}souju/select.css" />
+    <link rel="stylesheet" type="text/css" href="{{_res_path}}videoSearch/select.css" />
     <title>选剧结果</title>
 </head>
 
@@ -15,49 +15,56 @@
         </header>
 
         <section class="drama-info">
-            <figure class="poster">
-                {{if showPic == true}}
-                <img src="{{list.vod_pic}}" alt="" />
-                {{else}}
-                <img src="{{_res_path}}/souju/load.png" alt="" />
-                {{/if}}
-
-            </figure>
-            <article class="info-details">
-                <div class="details">
-                    <div class="detail-item">
-                        <span class="detail-label">分类：</span>
-                        <span class="detail-data">{{list.type_name}}</span>
+            <!-- 上部区域：海报 + 剧集信息 -->
+            <div class="drama-info__top">
+                <figure class="poster">
+                    {{if showPic == true}}
+                    <img src="{{list.vod_pic}}" alt="" />
+                    {{else}}
+                    <img src="{{_res_path}}/souju/load.png" alt="" />
+                    {{/if}}
+                </figure>
+                <article class="info-details">
+                    <div class="details">
+                        <div class="detail-item">
+                            <span class="detail-label">分类：</span>
+                            <span class="detail-data">{{list.type_name}}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">地区：</span>
+                            <span class="detail-data">{{list.vod_area}}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">年份：</span>
+                            <span class="detail-data">{{list.vod_year}}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">更新：</span>
+                            <span class="detail-data">{{list.vod_remarks}}/{{list.vod_time}}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">主演：</span>
+                            <span class="detail-data">{{list.vod_actor}}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">导演：</span>
+                            <span class="detail-data">{{list.vod_director}}</span>
+                        </div>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-label">地区：</span>
-                        <span class="detail-data">{{list.vod_area}}</span>
+                </article>
+            </div>
+            
+            <!-- 下部区域：简介 -->
+            <div class="drama-info__bottom">
+                <article class="synopsis">
+                    <div class="synopsis-header">
+                        <h2 class="synopsis-title">简介</h2>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-label">年份：</span>
-                        <span class="detail-data">{{list.vod_year}}</span>
+                    <div class="synopsis-content">
+                        <p>{{list.vod_content}}</p>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-label">更新：</span>
-                        <span class="detail-data">{{list.vod_remarks}}/{{list.vod_time}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">主演：</span>
-                        <span class="detail-data">{{list.vod_actor}}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">导演：</span>
-                        <span class="detail-data">{{list.vod_director}}</span>
-                    </div>
-                </div>
-
-                <div class="synopsis">
-                    <div class="detail-item">
-                        <span class="detail-label">简介：</span>
-                        <span class="detail-data">{{list.vod_content}}</span>
-                    </div>
-                </div>
-            </article>
+                </article>
+            </div>
         </section>
 
         <aside class="select-line">

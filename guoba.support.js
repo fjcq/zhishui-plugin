@@ -80,7 +80,7 @@ export function supportGuoba() {
                         component: 'Switch'
                     },
                     {
-                        field: 'duihua.OnlyMaster',
+                        field: 'chat.OnlyMaster',
                         label: '仅限主人使用',
                         bottomHelpMessage: '限制对话功能，仅限主人可用',
                         component: 'Switch'
@@ -373,6 +373,88 @@ export function supportGuoba() {
                         }
                     },
                     {
+                        field: 'videoSearch.CurrentResourceIndex',
+                        label: '全局默认资源站',
+                        bottomHelpMessage: '设置全局默认使用的资源站，优先级低于群专属设置',
+                        component: 'Select',
+                        componentProps: {
+                            options: (Config.SearchVideos?.resources || []).map((item, idx) => {
+                                const site = item?.site || item;
+                                const title = site?.title || `资源站${idx + 1}`;
+                                return { label: title, value: idx };
+                            }),
+                            placeholder: '请选择全局默认资源站'
+                        }
+                    },
+                    {
+                        field: 'videoSearch.GroupResourceIndex',
+                        label: '群专属资源站',
+                        bottomHelpMessage: '为不同群设置专属资源站，优先级高于全局默认',
+                        component: 'GSubForm',
+                        componentProps: {
+                            multiple: true,
+                            addButtonText: '添加群专属配置',
+                            schemas: [
+                                {
+                                    field: 'group',
+                                    label: '群号',
+                                    component: 'Input',
+                                    required: true
+                                },
+                                {
+                                    field: 'index',
+                                    label: '资源站索引',
+                                    component: 'Select',
+                                    required: true,
+                                    componentProps: {
+                                        options: (Config.SearchVideos?.resources || []).map((item, idx) => {
+                                            const site = item?.site || item;
+                                            const title = site?.title || `资源站${idx + 1}`;
+                                            return { label: title, value: idx };
+                                        }),
+                                        placeholder: '请选择资源站'
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        label: '个人专属资源站',
+                        component: 'GSubForm',
+                        bottomHelpMessage: '显示所有设置了个人专属资源站的用户，可删除用户个人配置使其使用群专属或全局默认设置',
+                        componentProps: {
+                            multiple: true,
+                            addButtonText: '刷新列表',
+                            modalTitle: '用户个人专属资源站列表',
+                            schemas: [
+                                {
+                                    field: 'qq',
+                                    label: '用户QQ',
+                                    component: 'Input',
+                                    componentProps: {
+                                        disabled: true
+                                    }
+                                },
+                                {
+                                    field: 'resourceIndex',
+                                    label: '资源站索引',
+                                    component: 'Input',
+                                    componentProps: {
+                                        disabled: true
+                                    }
+                                },
+                                {
+                                    field: 'resourceName',
+                                    label: '当前资源站',
+                                    component: 'Input',
+                                    componentProps: {
+                                        disabled: true
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
                         label: '代理设置',
                         component: 'SOFT_GROUP_BEGIN'
                     },
@@ -580,12 +662,46 @@ export function supportGuoba() {
                         userRoleList = [];
                     }
 
+                    // 获取用户个人资源站列表
+                    let userResourceList = [];
+                    try {
+                        const userResourceConfigs = await Config.GetAllUserResourceConfigs();
+                        // 处理resources配置格式转换
+                        const videoSearchConfig = Config.getDefOrConfig('videoSearch') || {};
+                        const resources = videoSearchConfig.resources || [];
+                        userResourceList = userResourceConfigs.map(config => {
+                            const resource = resources[config.resourceIndex];
+                            const site = resource?.site || resource;
+                            return {
+                                qq: config.qq,
+                                resourceIndex: config.resourceIndex,
+                                resourceName: site?.title || `资源站${config.resourceIndex + 1}`
+                            };
+                        });
+                    } catch (err) {
+                        console.error('获取用户个人资源站列表失败:', err);
+                        userResourceList = [];
+                    }
+
+                    // 处理resources配置格式转换
+                    const videoSearchConfig = Config.getDefOrConfig('videoSearch') || {};
+                    if (Array.isArray(videoSearchConfig.resources)) {
+                        videoSearchConfig.resources = videoSearchConfig.resources.map(item => {
+                            // 将 { site: { title, url, showpic } } 转换为 { title, url, showpic }
+                            if (item.site) {
+                                return item.site;
+                            }
+                            return item;
+                        });
+                    }
+
                     return {
-                        videoSearch: Config.getDefOrConfig('videoSearch') || {},
+                        videoSearch: videoSearchConfig,
                         chat: Config.getDefOrConfig('chat') || {},
                         proxy: Config.getDefOrConfig('proxy') || {},
                         roleList: roleList || [],
-                        userRoleList: userRoleList || []
+                        userRoleList: userRoleList || [],
+                        userResourceList: userResourceList || []
                     };
                 } catch (err) {
                     console.error('止水插件-获取配置数据失败:', err);
@@ -624,8 +740,20 @@ export function supportGuoba() {
                                 }
                             }
 
+                            // 处理resources配置格式转换
+                            const videoSearchConfig = Config.getDefOrConfig('videoSearch') || {};
+                            if (Array.isArray(videoSearchConfig.resources)) {
+                                videoSearchConfig.resources = videoSearchConfig.resources.map(item => {
+                                    // 将 { site: { title, url, showpic } } 转换为 { title, url, showpic }
+                                    if (item.site) {
+                                        return item.site;
+                                    }
+                                    return item;
+                                });
+                            }
+
                             return {
-                                videoSearch: Config.getDefOrConfig('videoSearch') || {},
+                                videoSearch: videoSearchConfig,
                                 chat: Config.getDefOrConfig('chat') || {},
                                 proxy: Config.getDefOrConfig('proxy') || {},
                                 roleList: roleList || []
@@ -781,6 +909,28 @@ export function supportGuoba() {
                             } catch (err) {
                                 console.error('处理用户个人角色列表失败:', err);
                                 return Result.error('用户个人角色列表处理失败: ' + err.message);
+                            }
+                        } else if (key === 'userResourceList') {
+                            // 处理用户个人资源站列表的删除操作
+                            try {
+                                const userResourceData = data[key] || [];
+
+                                // 获取当前所有用户的资源站配置
+                                const currentUserResourceConfigs = await Config.GetAllUserResourceConfigs();
+
+                                // 找出被删除的用户配置（在原列表中但不在新列表中的）
+                                const deletedUserConfigs = currentUserResourceConfigs.filter(config => {
+                                    return !userResourceData.some(user => user.qq === config.qq);
+                                });
+
+                                // 删除这些用户的资源站配置
+                                for (const deletedConfig of deletedUserConfigs) {
+                                    await Config.DeleteUserSearchVideos(deletedConfig.qq, 'idx');
+                                    console.log(`[用户资源站] 已删除用户 ${deletedConfig.qq} 的个人资源站配置`);
+                                }
+                            } catch (err) {
+                                console.error('处理用户个人资源站列表失败:', err);
+                                return Result.error('用户个人资源站列表处理失败: ' + err.message);
                             }
                         } else if (key === 'videoSearch') {
                             let videoSearch = { ...data.videoSearch };
