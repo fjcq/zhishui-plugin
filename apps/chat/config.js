@@ -60,7 +60,7 @@ export async function getCurrentRoleIndex(e) {
     }
 
     // 默认：使用全局角色配置
-    const globalRoleIndex = await Config.Chat.RoleIndex;
+    const globalRoleIndex = await Config.Chat.CurrentRoleIndex;
     return typeof globalRoleIndex === 'number' ? globalRoleIndex : 0;
 }
 
@@ -118,6 +118,11 @@ export async function mergeSystemMessage(e) {
         if (merged['主人信息']) {
             merged['主人信息'].master_name = await Config.Chat.Master || '默认主人昵称';
             merged['主人信息'].master_qq = await Config.Chat.MasterQQ || '10001';
+        }
+
+        // 动态更新角色名称，使用用户配置的昵称
+        if (merged['基础身份']) {
+            merged['基础身份'].名称 = await Config.Chat.NickName || '默认角色名';
         }
     } catch (error) {
         console.error('[mergeSystemMessage] 合并系统消息失败:', error);

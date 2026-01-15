@@ -1,0 +1,58 @@
+{{extend defaultLayout}}
+
+{{block 'css'}}
+<style>
+  .container {
+    background: #f8f9fa;
+    padding: 20px;
+  }
+  .content-box {
+    background: white;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .content {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #555;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .content p {
+    margin-bottom: 15px;
+  }
+  .content p:last-child {
+    margin-bottom: 0;
+  }
+  .footer {
+    margin-top: 25px;
+    text-align: center;
+    font-size: 14px;
+    color: #999;
+  }
+</style>
+{{/block}}
+
+{{block 'main'}}
+
+<div class="content-box">
+  {{if title}}
+  <div class="title">{{title}}</div>
+  {{/if}}
+  <div class="content">{{content}}</div>
+  {{if showFooter}}
+  <div class="footer">{{sys.copyright}}</div>
+  {{/if}}
+</div>
+
+{{/block}}
