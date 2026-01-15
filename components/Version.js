@@ -9,10 +9,10 @@ const yunzai_ver = `v${cfg.package.version}`
 let logs = {}
 let changelogs = []
 let currentVersion
-let versionCount = 2
+let versionCount = 5
 
 const getLine = function (line) {
-    line = line.replace(/(^\s*\*|\r)/g, "")
+    line = line.replace(/(^\s*[-*]|\r)/g, "")
     line = line.replace(/\s*`([^`]+`)/g, "<span class=\"cmd\">$1")
     line = line.replace(/`\s*/g, "</span>")
     line = line.replace(/\s*\*\*([^*]+\*\*)/g, "<span class=\"strong\">$1")
@@ -53,7 +53,7 @@ try {
                 if (!line.trim()) {
                     return
                 }
-                if (/^\*/.test(line)) {
+                if (/^[-*]/.test(line)) {
                     lastLine = {
                         title: getLine(line),
                         logs: []
@@ -65,7 +65,7 @@ try {
                         }
                     }
                     temp.logs.push(lastLine)
-                } else if (/^\s{2,}\*/.test(line)) {
+                } else if (/^\s{2,}[-*]/.test(line)) {
                     lastLine.logs.push(getLine(line))
                 }
             }
