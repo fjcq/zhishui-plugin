@@ -61,8 +61,8 @@ export class VideoSearch extends plugin {
             return false;
         }
 
-        // 获取接口
-        const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        // 获取接口索引（优先级：用户个人设置 > 群专属设置 > 全局默认设置）
+        const idx = await this.getSiteIndex(e);
 
         // 检查resources数组是否存在且有效
         if (!Config.SearchVideos.resources || Config.SearchVideos.resources.length === 0) {
@@ -110,7 +110,30 @@ export class VideoSearch extends plugin {
             handleAndDisplaySearchResults(e, SearchResults, site.showpic || resource.showpic, SearchName);
 
         } catch (error) {
-            e.reply(`搜索过程中发生错误：${error.message}`);
+            // 检查是否是服务器错误
+            const serverErrorPatterns = [
+                '500 internal server error',
+                '502 bad gateway',
+                '503 service unavailable',
+                '504 gateway timeout',
+                '内部错误'
+            ];
+
+            const errText = `${error.message || ''}`.toLowerCase();
+            const isServerError = serverErrorPatterns.some(p => errText.includes(p.toLowerCase()));
+
+            if (isServerError) {
+                // 资源站服务器错误，返回友好提示
+                e.reply(`当前资源站服务器繁忙或发生内部错误，建议切换到其他资源站再试。`);
+            } else if (error.message.includes('HTTPS 证书异常')) {
+                // 证书错误，返回友好提示
+                e.reply(error.message);
+            } else {
+                // 其他错误，返回简化的错误信息
+                e.reply(`搜索失败：${error.message}`);
+            }
+            // 记录完整错误信息用于调试
+            logger.error(`搜剧错误:`, error);
         }
         isSearching = false;
         return true;
@@ -236,6 +259,34 @@ export class VideoSearch extends plugin {
 
     }
 
+    /**
+     * 获取资源站索引，优先级：用户个人设置 > 群专属设置 > 全局默认设置
+     * @param {Object} e - 事件对象
+     * @returns {Number} 资源站索引
+     */
+    async getSiteIndex(e) {
+        // 1. 优先使用用户个人设置
+        const idxStr = await Config.GetUserSearchVideos(e.user_id, 'idx');
+        let idx = Number(idxStr);
+        // 只有当idxStr不是空字符串且转换后的数字有效时，才使用用户个人设置
+        if (idxStr !== '' && !isNaN(idx) && idx >= 0) {
+            return idx;
+        }
+
+        // 2. 检查是否有群专属设置
+        if (e.group_id && Config.SearchVideos.GroupResourceIndex) {
+            const groupConfig = Config.SearchVideos.GroupResourceIndex.find(item =>
+                item.group == e.group_id
+            );
+            if (groupConfig && !isNaN(groupConfig.index) && groupConfig.index >= 0) {
+                return groupConfig.index;
+            }
+        }
+
+        // 3. 使用全局默认设置
+        return Config.SearchVideos.CurrentResourceIndex || 0;
+    }
+
     /** 选剧 */
     async SelectVideo(e) {
         // 获取用户搜索结果
@@ -279,7 +330,7 @@ export class VideoSearch extends plugin {
         }
 
         // 获取用户已选择的播放路线（Route）及搜索结果索引
-        const siteIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        const siteIdx = await this.getSiteIndex(e);
         const selectedEpisodeDetails = userSearchResult.list[selectedEpisodeIndex - 1];
         const playbackRoutes = selectedEpisodeDetails.vod_play_from.split('$$$');
         const playRoutes = await this.RouteToNameMap(playbackRoutes);
@@ -651,7 +702,7 @@ export class VideoSearch extends plugin {
         }
 
         let msg = '*** 搜剧接口列表 ***\n';
-        const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        const idx = await this.getSiteIndex(e);
 
         resources.forEach((resource, index) => {
             const site = resource?.site || resource;

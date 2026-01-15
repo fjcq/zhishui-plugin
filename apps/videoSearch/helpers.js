@@ -200,12 +200,20 @@ export async function handleAndDisplaySearchResults(e, searchResults, showPic, k
     if (searchResults.list) {
         const IDs = searchResults.list.map(item => item.vod_id);
         console.log(`获取数组：${IDs}`);
-        await puppeteer.render("videoSearch/result", {
-            list: searchResults.list,
-            keyword: keyword || '最新视频',
-            showpic: showPic,
-            // 其他渲染所需参数...
-        });
-        // 这里应该还有更多处理逻辑，完整实现需要查看原函数的全部内容
+
+        try {
+            // 渲染搜索结果图片，render方法内部会自动发送图片给用户
+            await puppeteer.render("videoSearch/result", {
+                list: searchResults.list,
+                keyword: keyword || '最新视频',
+                showpic: showPic,
+            }, { e });
+        } catch (error) {
+            console.error("渲染搜索结果时出错:", error);
+            e.reply(`渲染搜索结果时发生错误：${error.message}`);
+        }
+    } else {
+        // 没有搜索结果的情况
+        e.reply(`未找到与 "${keyword}" 相关的视频资源`);
     }
 }

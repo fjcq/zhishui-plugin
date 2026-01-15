@@ -3,8 +3,8 @@
  */
 
 export const helpType = {
-  搜剧: 'souju',
-  对话: 'duihua'
+  搜剧: 'videoSearch',
+  对话: 'chat'
 };
 
 export const helpReg = new RegExp(

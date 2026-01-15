@@ -10,26 +10,30 @@
     --bg-opacity: 0.5;
     --font-YS: Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
     --font-NZBZ: Number, "印品南征北战NZBZ体", NZBZ, var(--font-YS);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --shadow-light: rgba(255, 255, 255, 0.1);
+    --shadow-dark: rgba(0, 0, 0, 0.3);
 }
 
 @font-face {
     font-family: "Number";
-    src: url("./font/tttgbnumber.woff") format("woff"), url("./font/tttgbnumber.ttf") format("truetype");
-}
-
-@font-face {
-    font-family: "FZB";
-    src: url("./font/FZB.woff") format("woff"), url("./font/FZB.ttf") format("truetype");
+    src: url("./zk.ttf") format("truetype");
 }
 
 @font-face {
     font-family: "NZBZ";
-    src: url("./font/NZBZ.woff") format("woff"), url("./font/NZBZ.ttf") format("truetype");
+    src: url("./NZBZ.TTF") format("truetype");
 }
 
 @font-face {
     font-family: "YS";
-    src: url("./font/HYWH-65W.woff") format("woff"), url("./font/HYWH-65W.ttf") format("truetype");
+    src: url("./jty.OTF") format("opentype");
+}
+
+@font-face {
+    font-family: "JT";
+    src: url("./jt.OTF") format("opentype");
 }
 
 .font-YS {
@@ -42,12 +46,11 @@
 
 /* 页面基础样式 */
 body {
-    font-family: "FZB", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
+    font-family: "JT", Number, "汉仪文黑-65W", YS, PingFangSC-Medium, "PingFang SC", sans-serif;
     background: url("bg.png") center/cover no-repeat, linear-gradient(135deg, rgba(15, 32, 58, 0.95) 0%, rgba(32, 58, 67, 0.95) 50%, rgba(44, 62, 80, 0.95) 100%);
     margin: 0;
     padding: 20px 0;
     min-height: 100vh;
-    transition: background 0.3s;
 }
 
 .container {
@@ -55,12 +58,14 @@ body {
     max-width: 800px;
     margin: 20px auto;
     padding: 30px;
-    background: linear-gradient(135deg, rgba(23, 42, 69, 0.85) 0%, rgba(40, 53, 88, 0.85) 100%);
+    background: var(--glass-bg);
     border-radius: 20px;
-    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(15px) saturate(180%);
-    -webkit-backdrop-filter: blur(15px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+        0 8px 25px var(--shadow-dark),
+        inset 0 1px 0 var(--shadow-light);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
 }
 
 /* 头部容器样式 */
@@ -89,32 +94,27 @@ body {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
+    left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-    animation: shimmer 3s infinite;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border-radius: 25px;
 }
 
-@keyframes shimmer {
-    0% {
-        left: -100%;
-    }
 
-    100% {
-        left: 100%;
-    }
-}
 
 /* 提示文本样式 */
 .search-results-hint {
     text-align: center;
     margin: 20px 0;
     padding: 15px 20px;
-    background: linear-gradient(135deg, rgba(30, 39, 56, 0.9) 0%, rgba(44, 54, 84, 0.9) 100%);
+    background: var(--glass-bg);
     border-radius: 15px;
-    border: 1px solid rgba(138, 43, 226, 0.3);
-    backdrop-filter: blur(10px);
+    box-shadow: 
+        0 4px 12px var(--shadow-dark),
+        inset 0 1px 0 var(--shadow-light);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
 }
 
 /* 提示文本中普通文本的样式 */
@@ -153,12 +153,13 @@ body {
     width: 180px;
     margin: 10px;
     padding: 15px;
-    background: linear-gradient(135deg, rgba(30, 39, 56, 0.9) 0%, rgba(44, 54, 84, 0.9) 100%);
+    background: var(--glass-bg);
     border-radius: 16px;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-    border: 1px solid rgba(138, 43, 226, 0.3);
-    backdrop-filter: blur(10px);
+    box-shadow: 
+        0 8px 25px var(--shadow-dark),
+        inset 0 1px 0 var(--shadow-light);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
     position: relative;
     overflow: hidden;
 }
@@ -174,12 +175,6 @@ body {
     border-radius: 16px 16px 0 0;
 }
 
-.item:hover {
-    transform: translateY(-8px) scale(1.02);
-    box-shadow: 0 15px 35px rgba(138, 43, 226, 0.4);
-    border-color: rgba(138, 43, 226, 0.6);
-}
-
 /* 图片容器样式 */
 .tu {
     position: relative;
@@ -188,8 +183,10 @@ body {
     margin-bottom: 15px;
     overflow: hidden;
     border-radius: 14px;
-    transition: all 0.3s ease;
     border: 2px solid rgba(138, 43, 226, 0.2);
+    box-shadow: 
+        0 8px 25px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .tu::after {
@@ -199,13 +196,23 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(45deg, rgba(138, 43, 226, 0.1) 0%, rgba(30, 144, 255, 0.1) 100%);
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    background: 
+        linear-gradient(45deg, rgba(138, 43, 226, 0.1) 0%, rgba(30, 144, 255, 0.1) 100%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.3) 100%);
+    opacity: 1;
+    pointer-events: none;
 }
 
-.tu:hover::after {
-    opacity: 1;
+.tu::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, rgba(138, 43, 226, 0.6) 0%, rgba(30, 144, 255, 0.6) 50%, rgba(255, 20, 147, 0.6) 100%);
+    border-radius: 14px 14px 0 0;
+    z-index: 2;
 }
 
 .tu img {
@@ -213,15 +220,6 @@ body {
     height: 100%;
     object-fit: cover;
     border-radius: 12px;
-    transition: transform 0.3s ease;
-}
-
-.tu:hover img {
-    transform: scale(1.08);
-}
-
-.tu:hover {
-    border-color: rgba(138, 43, 226, 0.5);
 }
 
 /* 图片上文本样式增强可见性 */
@@ -288,19 +286,21 @@ body {
     text-align: center;
     margin-top: 35px;
     padding-top: 25px;
-    border-top: 1px solid rgba(138, 43, 226, 0.3);
+    border-top: 1px solid var(--glass-border);
 }
 
 .footer p {
     font-size: 0.9em;
     color: #cbd5e1;
-    background: linear-gradient(135deg, rgba(30, 39, 56, 0.6) 0%, rgba(44, 54, 84, 0.6) 100%);
+    background: var(--glass-bg);
     border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 
+        0 4px 12px var(--shadow-dark),
+        inset 0 1px 0 var(--shadow-light);
     padding: 15px 25px;
     margin-bottom: 0;
-    border: 1px solid rgba(138, 43, 226, 0.2);
-    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
 }
 
 /* 版权文本样式 */

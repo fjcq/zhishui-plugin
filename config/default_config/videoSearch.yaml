@@ -24,3 +24,9 @@ resources:
                   title: 皇冠资源
                   # 站点链接
                   url: https://www.partnersky-horoskop.com/api.php/provide/vod/
+
+# 全局默认资源站索引（对应resources的下标）
+CurrentResourceIndex: 0
+
+# 指定群聊使用的资源站索引，格式：[ { group: 群号, index: 资源站索引 }, ... ]
+GroupResourceIndex:
