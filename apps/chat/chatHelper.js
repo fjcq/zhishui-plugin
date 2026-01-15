@@ -14,7 +14,7 @@ export async function textToImage(e, text, options = {}) {
   try {
     // 确保文本不为空
     if (!text || typeof text !== 'string') {
-      console.error('[文本转图片] 无效的文本内容');
+      logger.error('[文本转图片] 无效的文本内容');
       return false;
     }
 
@@ -36,7 +36,7 @@ export async function textToImage(e, text, options = {}) {
     const result = await puppeteer.render('chat/text_to_image', params, cfg);
     return result;
   } catch (error) {
-    console.error('[文本转图片] 渲染失败:', error);
+    logger.error('[文本转图片] 渲染失败:', error);
     return false;
   }
 }
