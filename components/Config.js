@@ -468,5 +468,42 @@ class Config {
         }
     }
 
+    /**
+     * 获取所有用户角色配置
+     * @description: 获取所有设置了个人角色的用户列表
+     * @returns {Promise<Array>} 返回用户角色配置数组 [{qq, roleIndex, roleName}]
+     */
+    async GetAllUserRoleConfigs() {
+        try {
+            const pattern = `zhishui:ChatConfig:*:RoleIndex`;
+            const keys = await redis.keys(pattern);
+            
+            if (!keys || keys.length === 0) {
+                return [];
+            }
+
+            const results = [];
+            for (const key of keys) {
+                const match = key.match(/zhishui:ChatConfig:(\d+):RoleIndex/);
+                if (match) {
+                    const qq = match[1];
+                    const roleIndex = await redis.get(key);
+                    if (roleIndex !== null && roleIndex !== undefined) {
+                        const parsedIndex = JSON.parse(roleIndex);
+                        results.push({
+                            qq: qq,
+                            roleIndex: parsedIndex
+                        });
+                    }
+                }
+            }
+
+            return results;
+        } catch (error) {
+            logger.error(`获取所有用户角色配置时发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
 }
 export default new Config();

@@ -259,6 +259,35 @@ export function supportGuoba() {
                         }
                     },
                     {
+                        field: 'userRoleList',
+                        label: '用户个人角色',
+                        bottomHelpMessage: '显示所有设置了个人角色的用户，可删除用户个人角色配置使其使用全局默认角色',
+                        component: 'GSubForm',
+                        componentProps: {
+                            multiple: true,
+                            addButtonText: '刷新列表',
+                            modalTitle: '用户个人角色列表',
+                            schemas: [
+                                {
+                                    field: 'qq',
+                                    label: '用户QQ',
+                                    component: 'Input',
+                                    componentProps: {
+                                        disabled: true
+                                    }
+                                },
+                                {
+                                    field: 'roleName',
+                                    label: '当前角色',
+                                    component: 'Input',
+                                    componentProps: {
+                                        disabled: true
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
                         label: '对话高级设置',
                         component: 'SOFT_GROUP_BEGIN'
                     },
@@ -511,7 +540,7 @@ export function supportGuoba() {
                 return schemas;
             },
 
-            getConfigData() {
+            async getConfigData() {
                 try {
                     const latestRoleContent = Config.getJsonConfig('RoleProfile');
                     let roleList = [];
@@ -535,11 +564,28 @@ export function supportGuoba() {
                         }
                     }
 
+                    // 获取用户个人角色列表
+                    let userRoleList = [];
+                    try {
+                        const userRoleConfigs = await Config.GetAllUserRoleConfigs();
+                        userRoleList = userRoleConfigs.map(config => {
+                            const role = roleList[config.roleIndex];
+                            return {
+                                qq: config.qq,
+                                roleName: role ? role.title : `角色${config.roleIndex + 1}`
+                            };
+                        });
+                    } catch (err) {
+                        console.error('获取用户个人角色列表失败:', err);
+                        userRoleList = [];
+                    }
+
                     return {
                         videoSearch: Config.getDefOrConfig('videoSearch') || {},
                         chat: Config.getDefOrConfig('chat') || {},
                         proxy: Config.getDefOrConfig('proxy') || {},
-                        roleList: roleList || []
+                        roleList: roleList || [],
+                        userRoleList: userRoleList || []
                     };
                 } catch (err) {
                     console.error('止水插件-获取配置数据失败:', err);
@@ -713,6 +759,28 @@ export function supportGuoba() {
                             } catch (err) {
                                 console.error('复制角色失败:', err);
                                 return Result.error('复制角色失败: ' + err.message);
+                            }
+                        } else if (key === 'userRoleList') {
+                            // 处理用户个人角色列表的删除操作
+                            try {
+                                const userRoleData = data[key] || [];
+
+                                // 获取当前所有用户的角色配置
+                                const currentUserRoleConfigs = await Config.GetAllUserRoleConfigs();
+
+                                // 找出被删除的用户配置（在原列表中但不在新列表中的）
+                                const deletedUserConfigs = currentUserRoleConfigs.filter(config => {
+                                    return !userRoleData.some(user => user.qq === config.qq);
+                                });
+
+                                // 删除这些用户的角色配置
+                                for (const deletedConfig of deletedUserConfigs) {
+                                    await Config.DeleteUserChatConfig(deletedConfig.qq, 'RoleIndex');
+                                    console.log(`[用户角色] 已删除用户 ${deletedConfig.qq} 的个人角色配置`);
+                                }
+                            } catch (err) {
+                                console.error('处理用户个人角色列表失败:', err);
+                                return Result.error('用户个人角色列表处理失败: ' + err.message);
                             }
                         } else if (key === 'videoSearch') {
                             let videoSearch = { ...data.videoSearch };

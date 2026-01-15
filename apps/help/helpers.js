@@ -45,7 +45,8 @@ export async function help(e) {
   let helpList = diyCfg.helpList || custom.helpList || sysCfg.helpList;
   let helpGroup = [];
 
-  _.chain(helpList)
+  // 使用标准数组方法替换 _.chain
+  helpList
     .filter(group => !(group.auth === 'master' && !e.isMaster))
     .forEach(group => {
       _.forEach(group.list, help => {
@@ -56,10 +57,10 @@ export async function help(e) {
           const y = (help.icon - x - 1) / 10;
           help.css = `background-position:-${x * 50}px -${y * 50}px`;
         }
-      })
+      });
       helpGroup.push(group);
-    })
-    .value();
+    });
+
   return await puppeteer.render('help/index', {
     helpCfg: helpConfig,
     helpGroup,

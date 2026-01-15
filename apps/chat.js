@@ -11,8 +11,10 @@ import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './chat/utils.js';
 import {
     mergeSystemMessage, openAi, loadChatMsg, saveChatMsg,
     clearSessionContext, getCurrentRoleIndex, getSessionKeyv,
-    ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel
+    ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel,
+    checkRateLimit, addFavorHistory
 } from './chat/helpers.js';
+import { textToImage, shouldResponseAsImage } from './chat/chatHelper.js';
 
 /** 存储每个会话的原始返回数据 */
 const lastRawResponseMap = {};
@@ -298,6 +300,13 @@ export class ChatHandler extends plugin {
                 actualUserId = await Config.Chat.MasterQQ;
             }
 
+            // 检查频率限制
+            const rateCheck = await checkRateLimit(actualUserId);
+            if (!rateCheck.allowed) {
+                await e.reply(rateCheck.message);
+                return;
+            }
+
             const favor = await getUserFavor(actualUserId);
             const userMessage = {
                 message: msg,
@@ -437,10 +446,19 @@ export class ChatHandler extends plugin {
 
                         const change = Number(item.change);
                         if (isNaN(change)) continue; // 跳过无效变更
+                        
+                        // 限制单次变化在 ±10 之间
+                        const MAX_SINGLE_CHANGE = 10;
+                        const clampedChange = Math.max(-MAX_SINGLE_CHANGE, Math.min(MAX_SINGLE_CHANGE, change));
+                        
                         const oldFavor = await getUserFavor(targetUserId);
-                        const newFavor = Math.max(-100, oldFavor + change); // 最小-100
+                        const newFavor = Math.max(-100, Math.min(100, oldFavor + clampedChange));
                         await setUserFavor(targetUserId, newFavor);
-                        favorLogs.push(`用户${targetUserId} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${change})`);
+                        
+                        // 记录好感度变化历史
+                        await addFavorHistory(targetUserId, clampedChange, item.reason || '未说明', oldFavor, newFavor);
+                        
+                        favorLogs.push(`用户${targetUserId} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${clampedChange}, 原因: ${item.reason || '未说明'})`);
                     }
                 }
                 if (favorLogs.length > 0) {
@@ -493,8 +511,25 @@ export class ChatHandler extends plugin {
                             // 解析失败则原样回复
                         }
                     }
+                    
+                    // 将@转换为实际的@格式
                     const remsg = await msgToAt(finalMsg);
-                    await e.reply(remsg, true);
+                    
+                    // 判断是否应该将回复转换为图片
+                    if (shouldResponseAsImage(e.msg)) {
+                        // 转换为图片回复
+                        const imageSuccess = await textToImage(e, remsg, {
+                            showFooter: true
+                        });
+                        
+                        // 如果图片转换失败，回退到文本回复
+                        if (!imageSuccess) {
+                            await e.reply(remsg, true);
+                        }
+                    } else {
+                        // 保持文本回复
+                        await e.reply(remsg, true);
+                    }
                 } else {
                     console.log(`[止水对话] 消息为空，不发送`);
                     // ...existing code...
@@ -519,9 +554,28 @@ export class ChatHandler extends plugin {
                 chatActiveMap[sessionId] = 0;
                 if (response) {
                     // 如果有错误信息，回复给用户
-                    await e.reply(response);
+                    if (shouldResponseAsImage(e.msg)) {
+                        const imageSuccess = await textToImage(e, response, {
+                            showFooter: true
+                        });
+                        if (!imageSuccess) {
+                            await e.reply(response);
+                        }
+                    } else {
+                        await e.reply(response);
+                    }
                 } else {
-                    await e.reply('抱歉，AI暂时无法回复，请稍后再试。');
+                    const errorMsg = '抱歉，AI暂时无法回复，请稍后再试。';
+                    if (shouldResponseAsImage(e.msg)) {
+                        const imageSuccess = await textToImage(e, errorMsg, {
+                            showFooter: true
+                        });
+                        if (!imageSuccess) {
+                            await e.reply(errorMsg);
+                        }
+                    } else {
+                        await e.reply(errorMsg);
+                    }
                 }
                 return false;
             }
@@ -529,7 +583,17 @@ export class ChatHandler extends plugin {
             // 捕获并处理异常，例如输出错误日志
             console.error('对话处理过程中发生错误:', error);
             chatActiveMap[sessionId] = 0;
-            await e.reply('发生错误，无法进行对话。请稍后再试。');
+            const errorMsg = '发生错误，无法进行对话。请稍后再试。';
+            if (shouldResponseAsImage(e.msg)) {
+                const imageSuccess = await textToImage(e, errorMsg, {
+                    showFooter: true
+                });
+                if (!imageSuccess) {
+                    await e.reply(errorMsg);
+                }
+            } else {
+                await e.reply(errorMsg);
+            }
             return false;
         }
 
