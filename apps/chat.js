@@ -296,7 +296,7 @@ export class ChatHandler extends plugin {
 
             // 处理特殊用户 stdin，使用主人QQ号码
             let actualUserId = e.user_id;
-            if (e.user_id === 'stdin') {
+            if (e.user_id === 'stdin' || !e.user_id || isNaN(e.user_id) || String(e.user_id).length < 5) {
                 actualUserId = await Config.Chat.MasterQQ;
             }
 
@@ -439,7 +439,7 @@ export class ChatHandler extends plugin {
                     for (const item of replyObj.favor_changes) {
                         // 使用与用户消息相同的用户ID处理逻辑
                         let targetUserId = item.user_id || e.user_id;
-                        if (targetUserId === 'stdin') {
+                        if (targetUserId === 'stdin' || !targetUserId || isNaN(targetUserId) || String(targetUserId).length < 5) {
                             const masterQQ = await Config.Chat.MasterQQ;
                             targetUserId = masterQQ || "172679743";
                         }

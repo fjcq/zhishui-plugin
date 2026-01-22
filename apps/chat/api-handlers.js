@@ -6,6 +6,20 @@ import { getUserFavor, setUserFavor } from './user.js';
 import { ApiTypes } from './api-types.js';
 
 /**
+ * 获取有效的用户ID
+ * @param {string|number} userId - 原始用户ID
+ * @returns {string} 处理后的有效用户ID
+ */
+async function getValidUserId(userId) {
+    // 处理特殊用户 stdin 和无效ID
+    if (userId === 'stdin' || !userId || isNaN(userId) || String(userId).length < 5) {
+        const masterQQ = await Config.Chat.MasterQQ;
+        return masterQQ || "172679743";
+    }
+    return String(userId);
+}
+
+/**
  * 调用 AI API 进行对话
  * @param {string} msg - 用户消息
  * @param {Object} e - 事件对象
@@ -166,32 +180,37 @@ async function buildTencentRequest(tencentAssistantId, systemMessage, chatMsg, m
 
     // 处理当前用户消息
     let userMsg = msg;
+    let userInfo = null;
     try {
         let msgObj = JSON.parse(msg);
         userMsg = msgObj.message || msg;
+        userInfo = msgObj.additional_info || null;
     } catch (err) {
         // msg 不是 JSON，直接使用
+    }
+
+    // 构建包含用户信息的完整消息
+    let fullUserMsg = userMsg;
+    if (userInfo) {
+        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
+        fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
     }
 
     // 如果是第一条消息，将完整的系统设定融入用户消息
     if (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') {
         if (systemPrompt && messages.length === 0) {
-            userMsg = `${systemPrompt}\n\n用户：${userMsg}`;
+            fullUserMsg = `${systemPrompt}\n\n${fullUserMsg}`;
         }
-        messages.push({ role: 'user', content: userMsg });
+        messages.push({ role: 'user', content: fullUserMsg });
     }
 
     // 确保消息数组不为空且格式正确
     if (messages.length === 0) {
-        messages.push({ role: 'user', content: userMsg });
+        messages.push({ role: 'user', content: fullUserMsg });
     }
 
     // 确定用户ID：处理特殊用户 stdin 和无效ID
-    let userId = e.user_id;
-    if (userId === 'stdin' || !userId || isNaN(userId) || String(userId).length < 5) {
-        const masterQQ = await Config.Chat.MasterQQ;
-        userId = masterQQ || "172679743";
-    }
+    const userId = await getValidUserId(e.user_id);
 
     // 验证腾讯元器必填参数
     if (!tencentAssistantId || tencentAssistantId.trim() === '') {
@@ -366,18 +385,26 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
         await e.reply(errorMsg);
     }
 
+    // 构建包含用户信息的完整消息
+    let fullUserMsg = userMsg;
+    if (msgObj.additional_info) {
+        const userInfo = msgObj.additional_info;
+        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
+        fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
+    }
+
     // 构建符合OpenAI标准的多模态消息格式
     let userMessage;
     if (images.length > 0) {
         userMessage = {
             role: 'user',
             content: [
-                { type: 'text', text: userMsg },
+                { type: 'text', text: fullUserMsg },
                 ...images.map(img => ({ type: 'image_url', image_url: img.image_url }))
             ]
         };
     } else {
-        userMessage = { role: 'user', content: userMsg };
+        userMessage = { role: 'user', content: fullUserMsg };
     }
 
     return {
@@ -423,13 +450,23 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
 
     // 添加当前用户消息
     let userMsg = msg;
+    let userInfo = null;
     try {
         let msgObj = JSON.parse(msg);
         userMsg = msgObj.message || msg;
+        userInfo = msgObj.additional_info || null;
     } catch (err) {
         // msg 不是 JSON，直接使用
     }
-    messages.push({ role: 'user', content: userMsg });
+
+    // 构建包含用户信息的完整消息
+    let fullUserMsg = userMsg;
+    if (userInfo) {
+        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
+        fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
+    }
+
+    messages.push({ role: 'user', content: fullUserMsg });
 
     let requestData = {
         model: aiModel,
