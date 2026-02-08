@@ -7,14 +7,8 @@ EnablePrivateChat: true
 # 对话仅限主人可用
 OnlyMaster: false
 
-# 语音开关
-EnableVoice: false
-
 # 艾特开关
 EnableAt: false
-
-# 发音人
-VoiceIndex: 23
 
 # 主人名字
 Master: 止水

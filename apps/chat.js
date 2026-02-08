@@ -15,6 +15,7 @@ import {
     checkRateLimit, addFavorHistory
 } from './chat/helpers.js';
 import { textToImage, shouldResponseAsImage } from './chat/chatHelper.js';
+import voiceManager from './voice/voiceManager.js';
 
 /** 存储每个会话的原始返回数据 */
 const lastRawResponseMap = {};
@@ -515,20 +516,29 @@ export class ChatHandler extends plugin {
                     // 将@转换为实际的@格式
                     const remsg = await msgToAt(finalMsg);
                     
+                    // 确保remsg是有效的字符串
+                    const validMsg = remsg && typeof remsg === 'string' ? remsg : '';
+                    
                     // 判断是否应该将回复转换为图片
                     if (shouldResponseAsImage(e.msg)) {
-                        // 转换为图片回复
-                        const imageSuccess = await textToImage(e, remsg, {
-                            showFooter: true
-                        });
-                        
-                        // 如果图片转换失败，回退到文本回复
-                        if (!imageSuccess) {
-                            await e.reply(remsg, true);
+                        // 只有当文本内容有效时才尝试转换为图片
+                        if (validMsg) {
+                            // 转换为图片回复
+                            const imageSuccess = await textToImage(e, validMsg, {
+                                showFooter: true
+                            });
+                            
+                            // 如果图片转换失败，回退到文本回复
+                            if (!imageSuccess) {
+                                await e.reply(validMsg, true);
+                            }
+                        } else {
+                            // 文本内容为空，直接跳过图片转换，不发送消息
+                            console.log(`[止水对话] AI回复内容为空，跳过图片转换`);
                         }
                     } else {
                         // 保持文本回复
-                        await e.reply(remsg, true);
+                        await e.reply(validMsg, true);
                     }
                 } else {
                     console.log(`[止水对话] 消息为空，不发送`);
@@ -541,10 +551,27 @@ export class ChatHandler extends plugin {
                 }
 
                 // 语音合成（如有需要）
-                if (await Config.Chat.EnableVoice) {
-                    const voiceId = voiceList[await Config.Chat.VoiceIndex].voiceId;
-                    const voiceUrl = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=${encodeURIComponent(finalReply)}&speed=0.8&volume=150&audioType=wav`;
-                    e.reply([segment.record(voiceUrl)]);
+                const voiceResult = await voiceManager.synthesize(e, finalReply);
+                if (voiceResult) {
+                    if (typeof voiceResult === 'string') {
+                        // 原来的语音系统，返回的是URL
+                        e.reply([segment.record(voiceResult)]);
+                    } else if (Buffer.isBuffer(voiceResult)) {
+                        // 腾讯语音，返回的是Buffer
+                        e.reply([segment.record(voiceResult)]);
+                    }
+                } else {
+                    // 语音处理失败，返回文字回复
+                    if (shouldResponseAsImage(e.msg)) {
+                        const imageSuccess = await textToImage(e, finalReply, {
+                            showFooter: true
+                        });
+                        if (!imageSuccess) {
+                            await e.reply(finalReply);
+                        }
+                    } else {
+                        await e.reply(finalReply);
+                    }
                 }
 
                 // 标记对话状态为完成
@@ -643,11 +670,11 @@ export class ChatHandler extends plugin {
 
         let Enable = e.msg.search('开启') != -1;
 
-        Config.modify('chat', 'EnableVoice', Enable);
-
         if (Enable) {
-            e.reply("[对话语音]已开启！");
+            Config.modify('voice', 'VoiceSystem', 1);
+            e.reply("[对话语音]已开启，使用原来的语音系统！");
         } else {
+            Config.modify('voice', 'VoiceSystem', 0);
             e.reply("[对话语音]已关闭！");
         }
 
@@ -664,7 +691,7 @@ export class ChatHandler extends plugin {
         console.log(VoiceIndex);
         if (VoiceIndex < voiceList.length && VoiceIndex > 0) {
             VoiceIndex = VoiceIndex - 1;
-            Config.modify('chat', 'VoiceIndex', VoiceIndex);
+            Config.modify('voice', 'VoiceIndex', VoiceIndex);
             let name = voiceList[VoiceIndex].name;
             e.reply("[对话发音人]:" + name);
 
@@ -684,7 +711,7 @@ export class ChatHandler extends plugin {
     /** 查看对话发音人 */
     async ShowVoiceId(e) {
         let msg = [];
-        let nowindex = await Config.Chat.VoiceIndex;
+        let nowindex = await Config.Voice.VoiceIndex;
         msg.push(`当前发音人：${(nowindex + 1)} 、${voiceList[nowindex].name}`);
         msg.push(`#止水对话设置发音人${(nowindex + 1)}`);
         let list = `*** 发音人列表 ***\n`;

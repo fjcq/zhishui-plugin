@@ -1,4 +1,5 @@
 import { puppeteer } from '../../model/index.js';
+import Config from '../../components/Config.js';
 
 /**
  * 将文本转换为图片
@@ -63,4 +64,27 @@ export function shouldResponseAsImage(command) {
 
   // 检查命令是否在文字命令列表中
   return !textOnlyCommands.some(cmd => command.startsWith(cmd));
+}
+
+/**
+ * 发送语音消息
+ * @param {Object} e - 事件对象
+ * @param {Buffer} audioBuffer - 音频数据缓冲区
+ * @returns {Promise<boolean>} - 返回是否发送成功
+ */
+export async function sendVoiceMessage(e, audioBuffer) {
+  try {
+    if (!audioBuffer || !Buffer.isBuffer(audioBuffer)) {
+      logger.error('[发送语音] 无效的音频数据');
+      return false;
+    }
+
+    // 使用segment发送语音
+    const voiceSegment = segment.record(audioBuffer);
+    await e.reply(voiceSegment);
+    return true;
+  } catch (error) {
+    logger.error('[发送语音] 发送失败:', error);
+    return false;
+  }
 }

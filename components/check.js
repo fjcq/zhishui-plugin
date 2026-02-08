@@ -6,6 +6,7 @@ export const needPackage = [
     'fetch-undici',
     'keyv-file',
     'undici',
+    'tencentcloud-sdk-nodejs',
 ];
 
 /** 检查依赖库 */
