@@ -334,23 +334,24 @@ ffmpeg -version
    - 记录生成的 **SecretId** 和 **SecretKey**（请妥善保管，不要分享给他人）
 
 3. **配置语音服务**:
-   - 在 `config/config/voice.yaml` 文件中填写腾讯云TTS配置
+   - 在 `config/config/voice.yaml` 文件中填写语音服务配置
    - 主要配置项包括：
-     - `Enable`: 是否启用腾讯云TTS
-     - `Region`: 服务地域（如 ap-guangzhou）
-     - `SecretId`: 腾讯云API密钥SecretId
-     - `SecretKey`: 腾讯云API密钥SecretKey
-     - `VoiceType`: 语音类型
-     - `Speed`: 语速 (0.5-2.0)
-     - `Volume`: 音量 (0-10)
-     - `VoiceId`: 音色ID
-     - `SampleRate`: 采样率
-     - `Codec`: 音频格式
-     - `Language`: 语言
+     - `VoiceSystem`: 语音系统设置，0（关闭）、1（DUI平台语音系统）、2（腾讯语音）
+     - `VoiceIndex`: 语音发音人索引（仅DUI平台语音系统有效）
+     - `TencentCloudTTS`: 腾讯云文字转语音配置
+       - `Region`: 服务地域（如 ap-guangzhou）
+       - `SecretId`: 腾讯云API密钥SecretId
+       - `SecretKey`: 腾讯云API密钥SecretKey
+       - `VoiceType`: 语音类型（音色 ID）
+       - `Speed`: 语速，范围：[-2，6]，分别对应不同语速：-2代表0.6倍，-1代表0.8倍，0代表1.0倍（默认）
+       - `Volume`: 音量大小，范围[-10，10]，对应音量大小。默认为2，代表稍高音量
+       - `SampleRate`: 采样率，可取值：24000（推荐）、16000、8000
+       - `Codec`: 返回音频格式，可取值：wav，mp3（推荐），pcm
 
 4. **验证配置**:
-   - 发送 `#止水语音开启` 命令开启语音功能
-   - 发送 `#止水查看发音人` 查看语音选项
+   - 发送 `对话语音开启` 命令开启DUI平台语音系统
+   - 发送 `对话语音开启腾讯` 命令开启腾讯云语音系统
+   - 发送 `对话语音发音人列表` 查看语音选项
    - 发送对话内容测试语音回复效果
 
 #### 注意事项
@@ -401,7 +402,7 @@ ffmpeg -version
 
 ## 版本信息
 
-[![version](https://img.shields.io/badge/version-1.3.1-brightgreen.svg?style=flat-square)](CHANGELOG.md)
+[![version](https://img.shields.io/badge/version-1.3.2-brightgreen.svg?style=flat-square)](CHANGELOG.md)
 ![last commit](https://img.shields.io/badge/last%20commit-2025.01-blue.svg?style=flat-square)
 
 ### 最新更新
