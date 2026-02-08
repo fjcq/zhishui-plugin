@@ -1,0 +1,422 @@
+{
+  "super_natural_models": [
+    {
+      "id": 502007,
+      "name": "智小虎",
+      "scene": "聊天",
+      "type": "童声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 502006,
+      "name": "智小悟",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 502005,
+      "name": "智小解",
+      "scene": "解说",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 502004,
+      "name": "智小满",
+      "scene": "营销",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 502003,
+      "name": "智小敏",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 502001,
+      "name": "智小柔",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 602004,
+      "name": "暖心阿灿",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 602005,
+      "name": "专业梓欣",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603000,
+      "name": "懂事少年",
+      "scene": "特色",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603001,
+      "name": "潇湘妹妹",
+      "scene": "特色",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603002,
+      "name": "软萌心心",
+      "scene": "特色",
+      "type": "男童声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603003,
+      "name": "随和老李",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603004,
+      "name": "温柔小柠",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 603005,
+      "name": "知心大林",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 602003,
+      "name": "爱小悠",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    }
+  ],
+  "large_models": [
+    {
+      "id": 501000,
+      "name": "智斌",
+      "scene": "阅读",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501001,
+      "name": "智兰",
+      "scene": "资讯",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501002,
+      "name": "智菊",
+      "scene": "阅读",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501003,
+      "name": "智宇",
+      "scene": "阅读",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501004,
+      "name": "月华",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501005,
+      "name": "飞镜",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501006,
+      "name": "千嶂",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501007,
+      "name": "浅草",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501008,
+      "name": "WeJames",
+      "scene": "外语",
+      "type": "男声",
+      "languages": "英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 501009,
+      "name": "WeWinny",
+      "scene": "外语",
+      "type": "女声",
+      "languages": "英文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 601008,
+      "name": "爱小豪",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性、悲伤、高兴、生气、恐惧、撒娇、震惊、厌恶、平静"
+    },
+    {
+      "id": 601009,
+      "name": "爱小芊",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性、悲伤、高兴、生气、恐惧、撒娇、震惊、厌恶、平静"
+    },
+    {
+      "id": 601010,
+      "name": "爱小娇",
+      "scene": "聊天",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性、悲伤、高兴、生气、恐惧、撒娇、震惊、厌恶、平静"
+    },
+    {
+      "id": 601011,
+      "name": "爱小川",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 601012,
+      "name": "爱小璟",
+      "scene": "特色",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 601013,
+      "name": "爱小伊",
+      "scene": "阅读",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    },
+    {
+      "id": 601014,
+      "name": "爱小简",
+      "scene": "聊天",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k/24k",
+      "emotion": "中性"
+    }
+  ],
+  "premium_voices": [
+    {
+      "id": 101050,
+      "name": "WeJack",
+      "scene": "英文",
+      "type": "男声",
+      "languages": "英文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101055,
+      "name": "智付",
+      "scene": "通用",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101013,
+      "name": "智辉",
+      "scene": "新闻",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101019,
+      "name": "智彤",
+      "scene": "粤语",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101030,
+      "name": "智柯",
+      "scene": "通用",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101054,
+      "name": "智友",
+      "scene": "通用",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101027,
+      "name": "智梅",
+      "scene": "通用",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101026,
+      "name": "智希",
+      "scene": "通用",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101004,
+      "name": "智云",
+      "scene": "通用",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101015,
+      "name": "智萌",
+      "scene": "男童声",
+      "type": "男童声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101011,
+      "name": "智燕",
+      "scene": "新闻",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101001,
+      "name": "智瑜",
+      "scene": "情感",
+      "type": "女声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101021,
+      "name": "智瑞",
+      "scene": "新闻",
+      "type": "男声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    },
+    {
+      "id": 101016,
+      "name": "智甜",
+      "scene": "女童声",
+      "type": "女童声",
+      "languages": "中文",
+      "sample_rate": "8k/16k",
+      "emotion": "中性"
+    }
+  ]
+}

@@ -143,6 +143,47 @@ export async function incrementChatCount(userId) {
  */
 export async function addFavorHistory(userId, change, reason, favorBefore, favorAfter) {
     try {
+        // 检查redis对象是否支持列表操作
+        if (typeof redis.lpush !== 'function') {
+            // 如果不支持列表操作，使用简单的get/set操作存储最近的记录
+            const key = `zhishui:chat:history:${userId}`;
+            let history = [];
+            
+            // 获取现有历史记录
+            const existing = await redis.get(key);
+            if (existing) {
+                try {
+                    history = JSON.parse(existing);
+                    // 确保是数组
+                    if (!Array.isArray(history)) {
+                        history = [];
+                    }
+                } catch (e) {
+                    history = [];
+                }
+            }
+            
+            // 添加新记录到开头
+            const record = {
+                time: Date.now(),
+                change,
+                reason,
+                favorBefore,
+                favorAfter
+            };
+            history.unshift(record);
+            
+            // 只保留最近100条记录
+            if (history.length > 100) {
+                history = history.slice(0, 100);
+            }
+            
+            // 保存回Redis
+            await redis.set(key, JSON.stringify(history), { EX: 604800 });
+            return true;
+        }
+        
+        // 如果支持列表操作，使用原有的实现
         const key = `zhishui:chat:history:${userId}`;
         const record = {
             time: Date.now(),

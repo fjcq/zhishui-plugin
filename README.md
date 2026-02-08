@@ -95,6 +95,7 @@ pnpm install --filter=zhishui-plugin
 
 - `videoSearch.yaml` - 搜剧功能配置
 - `chat.yaml` - AI对话功能配置
+- `voice.yaml` - 语音功能配置
 - `instrumentPlay.yaml` - 演奏功能配置
 - `whole.yaml` - 全局设置
 - `proxy.yaml` - 代理设置
@@ -318,6 +319,45 @@ ffmpeg -version
 - 不要将 API Key 分享给他人
 - 定期检查 API 使用量和余额
 - 设置合理的速率限制避免滥用
+
+### 腾讯云API配置
+
+#### 申请腾讯云SecretId和SecretKey
+
+1. **注册腾讯云账号**: 前往 [腾讯云官网](https://cloud.tencent.com/) 注册账号并完成实名认证
+
+2. **创建API密钥**:
+   - 登录腾讯云控制台
+   - 进入 [访问管理](https://console.cloud.tencent.com/cam/overview) 页面
+   - 左侧导航栏选择 **API密钥管理**
+   - 点击 **新建密钥** 按钮
+   - 记录生成的 **SecretId** 和 **SecretKey**（请妥善保管，不要分享给他人）
+
+3. **配置语音服务**:
+   - 在 `config/config/voice.yaml` 文件中填写腾讯云TTS配置
+   - 主要配置项包括：
+     - `Enable`: 是否启用腾讯云TTS
+     - `Region`: 服务地域（如 ap-guangzhou）
+     - `SecretId`: 腾讯云API密钥SecretId
+     - `SecretKey`: 腾讯云API密钥SecretKey
+     - `VoiceType`: 语音类型
+     - `Speed`: 语速 (0.5-2.0)
+     - `Volume`: 音量 (0-10)
+     - `VoiceId`: 音色ID
+     - `SampleRate`: 采样率
+     - `Codec`: 音频格式
+     - `Language`: 语言
+
+4. **验证配置**:
+   - 发送 `#止水语音开启` 命令开启语音功能
+   - 发送 `#止水查看发音人` 查看语音选项
+   - 发送对话内容测试语音回复效果
+
+#### 注意事项
+
+- 腾讯云API密钥具有较高权限，请妥善保管
+- 腾讯云文字转语音服务可能产生费用，请参考 [腾讯云TTS pricing](https://cloud.tencent.com/product/tts/pricing)
+- 建议为API密钥设置合理的权限范围，遵循最小权限原则
 
 ---
 

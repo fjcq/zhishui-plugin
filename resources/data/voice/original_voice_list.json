@@ -1,0 +1,415 @@
+[
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiafv6",
+        "type": "超自然",
+        "name": "超自然女声悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "janev6",
+        "type": "超自然",
+        "name": "超自然女声Jane",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ymingfv6",
+        "type": "超自然",
+        "name": "超自然女声娅明",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zininfv6",
+        "type": "超自然",
+        "name": "超自然女声思凝",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyuanfv6",
+        "type": "超自然",
+        "name": "超自然女声媛媛",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhhuamv6",
+        "type": "超自然",
+        "name": "超自然男声濯华",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "cheyumv6",
+        "type": "超自然",
+        "name": "超自然男声驰宇",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "mariov6",
+        "type": "超自然",
+        "name": "超自然男声Mario",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "feyinfv5",
+        "type": "臻品",
+        "name": "臻品女老师风吟",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ppangfv5_csn",
+        "type": "臻品",
+        "name": "臻品四川话胖胖",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lunaifv5_ctn",
+        "type": "臻品",
+        "name": "臻品粤语晓健",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "wqingfv5_csn",
+        "type": "臻品",
+        "name": "臻品四川话文卿",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hqqiaf",
+        "type": "臻品",
+        "name": "臻品女声芊芊",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hqqiaf_csn",
+        "type": "臻品",
+        "name": "臻品四川话芊芊",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "hqqiaf_ctn",
+        "type": "臻品",
+        "name": "臻品粤语芊芊",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif",
+        "type": "臻品",
+        "name": "臻品女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_csn",
+        "type": "臻品",
+        "name": "臻品四川话楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_ctn",
+        "type": "臻品",
+        "name": "臻品粤语楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_csz",
+        "type": "臻品",
+        "name": "臻品苏州话楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_cyu",
+        "type": "臻品",
+        "name": "臻品河南话楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_csd",
+        "type": "臻品",
+        "name": "臻品山东话楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_tha",
+        "type": "臻品",
+        "name": "臻品泰语女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "chuxif_fre",
+        "type": "臻品",
+        "name": "臻品法语女声楚楚",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "janev5",
+        "type": "臻品",
+        "name": "臻品英文女声Jane",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf",
+        "type": "臻品",
+        "name": "臻品女声悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_csn",
+        "type": "臻品",
+        "name": "臻品四川话悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_ctn",
+        "type": "臻品",
+        "name": "臻品粤语悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_csz",
+        "type": "臻品",
+        "name": "臻品苏州话悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_luoli",
+        "type": "臻品",
+        "name": "臻品萝莉悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "yyqiaf_fre",
+        "type": "臻品",
+        "name": "臻品法语女声悦悦",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ymingfv5_ctn",
+        "type": "臻品",
+        "name": "臻品粤语娅明",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ymingfv5_csn",
+        "type": "臻品",
+        "name": "臻品四川话娅明",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "ymingfv5_cyu",
+        "type": "臻品",
+        "name": "臻品河南话娅明",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanf_natongv5",
+        "type": "臻品",
+        "name": "臻品男童方方",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "boyv5",
+        "type": "臻品",
+        "name": "臻品男童堂堂",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "lzliafv5",
+        "type": "臻品",
+        "name": "臻品可爱男童连连",
+        "sexy": "男童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xbekefv5",
+        "type": "臻品",
+        "name": "臻品女童贝壳",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "qianranfv5",
+        "type": "臻品",
+        "name": "臻品可爱女童然然",
+        "sexy": "女童"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xmamifv5",
+        "type": "臻品",
+        "name": "臻品甜美女声小咪",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "brettmv5",
+        "type": "臻品",
+        "name": "臻品英文男声brett",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zxcmv5",
+        "type": "臻品",
+        "name": "臻品风趣幽默星哥",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanfv4",
+        "type": "臻品",
+        "name": "臻品女声小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanfv4_csn",
+        "type": "臻品",
+        "name": "臻品四川话小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gqlanfv4_ctn",
+        "type": "臻品",
+        "name": "臻品粤语小兰",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "gdfanfv4",
+        "type": "臻品",
+        "name": "臻品女声芳芳",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhilingfv5",
+        "type": "臻品",
+        "name": "臻品甜美女神小玲",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "madoufv5_yubo",
+        "type": "臻品",
+        "name": "臻品娱播女声麻豆",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "jlshimv5",
+        "type": "臻品",
+        "name": "臻品男声季老师",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunmv4",
+        "type": "臻品",
+        "name": "臻品男声小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunmv4_csn",
+        "type": "臻品",
+        "name": "臻品四川话小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunmv4_ctn",
+        "type": "臻品",
+        "name": "臻品粤语小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunm_csd",
+        "type": "臻品",
+        "name": "臻品山东话小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xijunm_cyu",
+        "type": "臻品",
+        "name": "臻品河南话小军",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhhuamv5_csn",
+        "type": "臻品",
+        "name": "臻品四川话濯华",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhhuamv5_ctn",
+        "type": "臻品",
+        "name": "臻品粤语濯华",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "zhhuamv5_cyu",
+        "type": "臻品",
+        "name": "臻品河南话濯华",
+        "sexy": "男声"
+    },
+    {
+        "SSML": "不支持",
+        "voiceId": "tasnef_fre",
+        "type": "臻品",
+        "name": "臻品法语女声tasne",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "xmguofv5",
+        "type": "臻品",
+        "name": "臻品甜美女声婷婷",
+        "sexy": "女声"
+    },
+    {
+        "SSML": "支持",
+        "voiceId": "smjiefv5",
+        "type": "臻品",
+        "name": "臻品清亮女声小洁",
+        "sexy": "女声"
+    }
+]

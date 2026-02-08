@@ -53,8 +53,8 @@ let Data = {
   */
   async readVoiceList() {
     let temp = {};
-    const DataPath = path.join(getRoot(), 'resources', 'data');
-    const fileName = 'VoiceList.json';
+    const DataPath = path.join(getRoot(), 'resources', 'data', 'voice');
+    const fileName = 'original_voice_list.json';
     if (fs.existsSync(path.join(DataPath, fileName))) {
       temp = await Data.readJSON(fileName, DataPath);
     }

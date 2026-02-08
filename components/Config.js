@@ -68,6 +68,10 @@ class Config {
         return this.getDefOrConfig('instrumentPlay');
     }
 
+    /** 获取语音设置 */
+    get Voice() {
+        return this.getDefOrConfig('voice');
+    }
 
     /** 代理 */
     get proxy() {
