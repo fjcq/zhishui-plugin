@@ -406,7 +406,7 @@ export class ChatHandler extends plugin {
                 // 保存原始 API 响应数据
                 const { content, rawResponse } = response;
                 lastRawResponseMap[sessionId] = rawResponse;
-                
+
                 // 严格JSON格式校验
                 let replyObj;
                 try {
@@ -447,18 +447,18 @@ export class ChatHandler extends plugin {
 
                         const change = Number(item.change);
                         if (isNaN(change)) continue; // 跳过无效变更
-                        
+
                         // 限制单次变化在 ±10 之间
                         const MAX_SINGLE_CHANGE = 10;
                         const clampedChange = Math.max(-MAX_SINGLE_CHANGE, Math.min(MAX_SINGLE_CHANGE, change));
-                        
+
                         const oldFavor = await getUserFavor(targetUserId);
                         const newFavor = Math.max(-100, Math.min(100, oldFavor + clampedChange));
                         await setUserFavor(targetUserId, newFavor);
-                        
+
                         // 记录好感度变化历史
                         await addFavorHistory(targetUserId, clampedChange, item.reason || '未说明', oldFavor, newFavor);
-                        
+
                         favorLogs.push(`用户${targetUserId} 好感度变化: ${oldFavor} → ${newFavor} (变更: ${clampedChange}, 原因: ${item.reason || '未说明'})`);
                     }
                 }
@@ -512,13 +512,13 @@ export class ChatHandler extends plugin {
                             // 解析失败则原样回复
                         }
                     }
-                    
+
                     // 将@转换为实际的@格式
                     const remsg = await msgToAt(finalMsg);
-                    
+
                     // 确保remsg是有效的字符串
                     const validMsg = remsg && typeof remsg === 'string' ? remsg : '';
-                    
+
                     // 判断是否应该将回复转换为图片
                     if (shouldResponseAsImage(e.msg)) {
                         // 只有当文本内容有效时才尝试转换为图片
@@ -527,7 +527,7 @@ export class ChatHandler extends plugin {
                             const imageSuccess = await textToImage(e, validMsg, {
                                 showFooter: true
                             });
-                            
+
                             // 如果图片转换失败，回退到文本回复
                             if (!imageSuccess) {
                                 await e.reply(validMsg, true);
@@ -668,12 +668,21 @@ export class ChatHandler extends plugin {
             return false; //不是主人
         };
 
-        let Enable = e.msg.search('开启') != -1;
+        let msg = e.msg;
+        let Enable = msg.search('开启') != -1;
 
         if (Enable) {
-            Config.modify('voice', 'VoiceSystem', 1);
-            e.reply("[对话语音]已开启，使用原来的语音系统！");
+            if (msg.search('腾讯') != -1) {
+                // 开启腾讯云语音系统
+                Config.modify('voice', 'VoiceSystem', 2);
+                e.reply("[对话语音]已开启，使用腾讯云语音系统！");
+            } else {
+                // 开启DUI平台语音系统
+                Config.modify('voice', 'VoiceSystem', 1);
+                e.reply("[对话语音]已开启，使用DUI平台语音系统！");
+            }
         } else {
+            // 关闭语音系统
             Config.modify('voice', 'VoiceSystem', 0);
             e.reply("[对话语音]已关闭！");
         }
@@ -687,22 +696,37 @@ export class ChatHandler extends plugin {
             return false; //不是主人
         };
 
+        // 检查当前语音系统状态
+        const voiceSystem = Config.Voice.VoiceSystem;
+        if (!voiceSystem) {
+            e.reply("[对话语音]请先开启语音系统，可使用以下指令：\n对话语音开启 - 开启DUI平台语音系统\n对话语音开启腾讯 - 开启腾讯云语音系统");
+            return true;
+        }
+
         let VoiceIndex = parseInt(e.msg.replace(/\D+/, '').trim());
-        console.log(VoiceIndex);
-        if (VoiceIndex < voiceList.length && VoiceIndex > 0) {
-            VoiceIndex = VoiceIndex - 1;
-            Config.modify('voice', 'VoiceIndex', VoiceIndex);
-            let name = voiceList[VoiceIndex].name;
-            e.reply("[对话发音人]:" + name);
 
-            let voiceId = voiceList[VoiceIndex].voiceId;
-            let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`;
-            e.reply([segment.record(url)]);
+        if (voiceSystem === 1) {
+            // DUI平台语音系统
+            if (VoiceIndex < voiceList.length && VoiceIndex > 0) {
+                VoiceIndex = VoiceIndex - 1;
+                Config.modify('voice', 'VoiceIndex', VoiceIndex);
+                let name = voiceList[VoiceIndex].name;
+                e.reply("[对话发音人]:" + name);
 
-
-
-        } else {
-            e.reply("[对话发音人]错误！");
+                let voiceId = voiceList[VoiceIndex].voiceId;
+                let url = `https://dds.dui.ai/runtime/v1/synthesize?voiceId=${voiceId}&text=你喜欢我这个声音吗？&speed=0.8&volume=150&audioType=wav`;
+                e.reply([segment.record(url)]);
+            } else {
+                e.reply("[对话发音人]错误！");
+            }
+        } else if (voiceSystem === 2) {
+            // 腾讯云语音系统
+            if (VoiceIndex > 0) {
+                Config.modify('voice', 'TencentCloudTTS.VoiceType', VoiceIndex);
+                e.reply(`[对话发音人]:腾讯云语音系统发音人ID：${VoiceIndex}`);
+            } else {
+                e.reply("[对话发音人]错误！");
+            }
         }
 
         return true;
@@ -710,28 +734,43 @@ export class ChatHandler extends plugin {
 
     /** 查看对话发音人 */
     async ShowVoiceId(e) {
-        let msg = [];
-        let nowindex = await Config.Voice.VoiceIndex;
-        msg.push(`当前发音人：${(nowindex + 1)} 、${voiceList[nowindex].name}`);
-        msg.push(`#止水对话设置发音人${(nowindex + 1)}`);
-        let list = `*** 发音人列表 ***\n`;
-        for (let i = 0; i < voiceList.length; i++) {
-            let obj = voiceList[i];
-            let name = obj.name;
-            let type = obj.type;
-            let sexy = obj.sexy;
-            if (nowindex == i) {
-                list += `>>>${(i + 1)} 、${name}，分类：${type}，性别：${sexy}<<<\n`;
-            } else {
-                list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`;
-            }
-
+        // 检查当前语音系统状态
+        const voiceSystem = Config.Voice.VoiceSystem;
+        if (!voiceSystem) {
+            e.reply("[对话语音]请先开启语音系统，可使用以下指令：\n对话语音开启 - 开启DUI平台语音系统\n对话语音开启腾讯 - 开启腾讯云语音系统");
+            return;
         }
-        msg.push(list);
-        common.getforwardMsg(e, msg, {
-            isxml: true,
-            xmlTitle: '发音人列表',
-        })
+
+        if (voiceSystem === 1) {
+            // DUI平台语音系统
+            let msg = [];
+            let nowindex = Config.Voice.VoiceIndex;
+            msg.push(`当前DUI平台语音系统发音人：${(nowindex + 1)} 、${voiceList[nowindex].name}`);
+            msg.push(`#止水对话设置发音人${(nowindex + 1)}`);
+            let list = `*** DUI平台发音人列表 ***\n`;
+            for (let i = 0; i < voiceList.length; i++) {
+                let obj = voiceList[i];
+                let name = obj.name;
+                let type = obj.type;
+                let sexy = obj.sexy;
+                if (nowindex == i) {
+                    list += `>>>${(i + 1)} 、${name}，分类：${type}，性别：${sexy}<<<\n`;
+                } else {
+                    list += `${(i + 1)} 、${name}，分类：${type}，性别：${sexy}\n`;
+                }
+
+            }
+            msg.push(list);
+            common.getforwardMsg(e, msg, {
+                isxml: true,
+                xmlTitle: 'DUI平台发音人列表',
+            });
+        } else if (voiceSystem === 2) {
+            // 腾讯云语音系统
+            const currentVoiceType = Config.Voice.TencentCloudTTS.VoiceType;
+            e.reply(`[对话语音]当前腾讯云语音系统发音人ID：${currentVoiceType}\n请参考腾讯云官方文档获取完整的发音人列表`);
+        }
+
         return;
 
     }
