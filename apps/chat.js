@@ -520,7 +520,8 @@ export class ChatHandler extends plugin {
                     const validMsg = remsg && typeof remsg === 'string' ? remsg : '';
 
                     // 判断是否应该将回复转换为图片
-                    if (shouldResponseAsImage(e.msg)) {
+                    // 当回复中包含代码时，保持文本形式方便用户复制代码
+                    if (shouldResponseAsImage(e.msg) && !codeText) {
                         // 只有当文本内容有效时才尝试转换为图片
                         if (validMsg) {
                             // 转换为图片回复

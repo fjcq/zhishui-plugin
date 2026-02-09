@@ -482,7 +482,6 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
     const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
     if (supportsJsonFormat) {
         requestData.response_format = { type: 'json_object' };
-        console.log('[openAi] 已启用JSON格式输出');
     }
 
     return requestData;
