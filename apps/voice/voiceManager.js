@@ -231,21 +231,32 @@ class VoiceManager {
         const punctuation = /[。！？.!?]/g;
         let match;
         let lastIndex = 0;
+        let currentSegment = '';
 
         while ((match = punctuation.exec(text)) !== null) {
             const endIndex = match.index + match[0].length;
-            const segment = text.substring(lastIndex, endIndex);
+            const sentence = text.substring(lastIndex, endIndex);
 
-            if (segment.length > maxLength) {
-                // 如果单个句子超过限制，按长度分段
+            if (sentence.length > maxLength) {
+                // 如果单个句子超过限制，先处理当前累积的分段
+                if (currentSegment) {
+                    segments.push(currentSegment);
+                    currentSegment = '';
+                }
+                // 然后按长度分段这个长句子
                 let start = lastIndex;
                 while (start < endIndex) {
                     const segmentEnd = Math.min(start + maxLength, endIndex);
                     segments.push(text.substring(start, segmentEnd));
                     start = segmentEnd;
                 }
+            } else if (currentSegment.length + sentence.length > maxLength) {
+                // 如果当前累积的分段加上这个句子会超过限制，就先添加当前分段
+                segments.push(currentSegment);
+                currentSegment = sentence;
             } else {
-                segments.push(segment);
+                // 否则将这个句子添加到当前分段
+                currentSegment += sentence;
             }
 
             lastIndex = endIndex;
@@ -253,18 +264,32 @@ class VoiceManager {
 
         // 处理最后一段
         if (lastIndex < text.length) {
-            const lastSegment = text.substring(lastIndex);
-            if (lastSegment.length > maxLength) {
-                // 如果最后一段超过限制，按长度分段
+            const lastSentence = text.substring(lastIndex);
+            if (lastSentence.length > maxLength) {
+                // 如果最后一段超过限制，先处理当前累积的分段
+                if (currentSegment) {
+                    segments.push(currentSegment);
+                    currentSegment = '';
+                }
+                // 然后按长度分段
                 let start = lastIndex;
                 while (start < text.length) {
                     const segmentEnd = Math.min(start + maxLength, text.length);
                     segments.push(text.substring(start, segmentEnd));
                     start = segmentEnd;
                 }
+            } else if (currentSegment.length + lastSentence.length > maxLength) {
+                // 如果当前累积的分段加上最后一段会超过限制，就分别添加
+                segments.push(currentSegment);
+                segments.push(lastSentence);
             } else {
-                segments.push(lastSegment);
+                // 否则将最后一段添加到当前分段
+                currentSegment += lastSentence;
+                segments.push(currentSegment);
             }
+        } else if (currentSegment) {
+            // 如果没有最后一段，但当前有累积的分段，就添加它
+            segments.push(currentSegment);
         }
 
         return segments;
