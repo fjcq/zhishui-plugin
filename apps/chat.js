@@ -559,6 +559,18 @@ export class ChatHandler extends plugin {
                     } else if (Buffer.isBuffer(voiceResult)) {
                         // 腾讯语音，返回的是Buffer
                         e.reply([segment.record(voiceResult)]);
+                    } else if (Array.isArray(voiceResult)) {
+                        // 腾讯语音，返回的是Buffer数组（分段处理）
+                        for (let i = 0; i < voiceResult.length; i++) {
+                            const buffer = voiceResult[i];
+                            if (Buffer.isBuffer(buffer)) {
+                                e.reply([segment.record(buffer)]);
+                                // 避免消息发送过快
+                                if (i < voiceResult.length - 1) {
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                }
+                            }
+                        }
                     }
                 } else {
                     // 语音处理失败，返回文字回复
