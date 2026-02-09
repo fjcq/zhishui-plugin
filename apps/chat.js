@@ -498,61 +498,13 @@ export class ChatHandler extends plugin {
                     codeText = replyObj.code_example.trim();
                 }
 
-                // 先回复普通文本（支持@），如果有
-                if (msgWithoutCode) {
-                    // 如果AI回复内容是JSON字符串，则再次解析，提取message字段
-                    let finalMsg = msgWithoutCode;
-                    if (finalMsg.trim().startsWith('{') && finalMsg.trim().endsWith('}')) {
-                        try {
-                            const jsonObj = JSON.parse(finalMsg);
-                            if (jsonObj.message) {
-                                finalMsg = jsonObj.message;
-                            }
-                        } catch (e) {
-                            // 解析失败则原样回复
-                        }
-                    }
-
-                    // 将@转换为实际的@格式
-                    const remsg = await msgToAt(finalMsg);
-
-                    // 确保remsg是有效的字符串
-                    const validMsg = remsg && typeof remsg === 'string' ? remsg : '';
-
-                    // 判断是否应该将回复转换为图片
-                    // 当回复中包含代码时，保持文本形式方便用户复制代码
-                    if (shouldResponseAsImage(e.msg) && !codeText) {
-                        // 只有当文本内容有效时才尝试转换为图片
-                        if (validMsg) {
-                            // 转换为图片回复
-                            const imageSuccess = await textToImage(e, validMsg, {
-                                showFooter: true
-                            });
-
-                            // 如果图片转换失败，回退到文本回复
-                            if (!imageSuccess) {
-                                await e.reply(validMsg, true);
-                            }
-                        } else {
-                            // 文本内容为空，直接跳过图片转换，不发送消息
-                            console.log(`[止水对话] AI回复内容为空，跳过图片转换`);
-                        }
-                    } else {
-                        // 保持文本回复
-                        await e.reply(validMsg, true);
-                    }
-                } else {
-                    console.log(`[止水对话] 消息为空，不发送`);
-                    // ...existing code...
-                }
-
-                // 再转发代码（只发代码内容），如果有
+                // 先回复代码部分（以文字形式），如果有
                 if (codeText) {
-                    await sendCodeAsForwardMsg(e, codeText);
+                    await e.reply(codeText, true);
                 }
 
-                // 语音合成（如有需要）
-                const voiceResult = await voiceManager.synthesize(e, finalReply);
+                // 语音合成（使用非代码部分作为语音内容）
+                const voiceResult = await voiceManager.synthesize(e, msgWithoutCode);
                 if (voiceResult) {
                     if (typeof voiceResult === 'string') {
                         // 原来的语音系统，返回的是URL
@@ -575,15 +527,17 @@ export class ChatHandler extends plugin {
                     }
                 } else {
                     // 语音处理失败，返回文字回复
-                    if (shouldResponseAsImage(e.msg)) {
-                        const imageSuccess = await textToImage(e, finalReply, {
-                            showFooter: true
-                        });
-                        if (!imageSuccess) {
-                            await e.reply(finalReply);
+                    if (msgWithoutCode) {
+                        if (shouldResponseAsImage(e.msg)) {
+                            const imageSuccess = await textToImage(e, msgWithoutCode, {
+                                showFooter: true
+                            });
+                            if (!imageSuccess) {
+                                await e.reply(msgWithoutCode);
+                            }
+                        } else {
+                            await e.reply(msgWithoutCode);
                         }
-                    } else {
-                        await e.reply(finalReply);
                     }
                 }
 
