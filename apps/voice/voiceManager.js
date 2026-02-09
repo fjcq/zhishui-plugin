@@ -42,7 +42,7 @@ class VoiceManager {
      * @param {Object} e - 事件对象
      * @param {string} text - 要转换的文本内容
      * @param {Object} options - 可选配置
-     * @returns {Promise<Buffer|null>} - 返回语音数据缓冲区或null
+     * @returns {Promise<string|Buffer|Array<Buffer>|null>} - 返回语音URL、语音数据缓冲区、语音数据缓冲区数组或null
      */
     async synthesize(e, text, options = {}) {
         try {
@@ -112,7 +112,7 @@ class VoiceManager {
      * @param {Object} e - 事件对象
      * @param {string} text - 要转换的文本内容
      * @param {Object} options - 可选配置
-     * @returns {Promise<Buffer|null>} - 返回语音数据缓冲区或null
+     * @returns {Promise<Array<Buffer>|null>} - 返回语音数据缓冲区数组或null
      */
     async synthesizeWithTencent(e, text, options = {}) {
         try {
@@ -130,6 +130,13 @@ class VoiceManager {
             // 确保文本不为空
             if (!text || typeof text !== 'string') {
                 logger.error('[语音合成] 无效的文本内容');
+                return null;
+            }
+
+            // 文本分段处理
+            const textSegments = this.splitText(text);
+            if (textSegments.length === 0) {
+                logger.error('[语音合成] 文本分段失败');
                 return null;
             }
 
@@ -151,34 +158,47 @@ class VoiceManager {
                 },
             });
 
-            // 构建请求参数
-            const params = {
-                Text: text,
-                SessionId: `zhishui-${Date.now()}`,
-                ModelType: 1,
-                VoiceType: Number(options.VoiceType || ttsConfig.VoiceType || 502001),
-                Speed: Number(options.Speed || ttsConfig.Speed || 0),
-                Volume: Number(options.Volume || ttsConfig.Volume || 2),
-                SampleRate: Number(ttsConfig.SampleRate || 24000),
-                Codec: ttsConfig.Codec || 'mp3',
-                PrimaryLanguage: 1,
-                ProjectId: 0,
-                EnableSubtitle: false,
-                SegmentRate: 0,
-            };
+            const audioBuffers = [];
 
-            // 调用API
-            const result = await client.TextToVoice(params);
+            // 逐段合成语音
+            for (let i = 0; i < textSegments.length; i++) {
+                const segment = textSegments[i];
 
-            // 处理返回结果
-            if (result && result.Audio) {
-                // 将base64编码的音频转换为Buffer
-                const audioBuffer = Buffer.from(result.Audio, 'base64');
-                return audioBuffer;
-            } else {
-                logger.error('[语音合成] 腾讯云API返回结果不完整');
-                return null;
+                // 构建请求参数
+                const params = {
+                    Text: segment,
+                    SessionId: `zhishui-${Date.now()}-${i}`,
+                    ModelType: 1,
+                    VoiceType: Number(options.VoiceType || ttsConfig.VoiceType || 502001),
+                    Speed: Number(options.Speed || ttsConfig.Speed || 0),
+                    Volume: Number(options.Volume || ttsConfig.Volume || 2),
+                    SampleRate: Number(ttsConfig.SampleRate || 24000),
+                    Codec: ttsConfig.Codec || 'mp3',
+                    PrimaryLanguage: 1,
+                    ProjectId: 0,
+                    EnableSubtitle: false,
+                    SegmentRate: 0,
+                };
+
+                // 调用API
+                const result = await client.TextToVoice(params);
+
+                // 处理返回结果
+                if (result && result.Audio) {
+                    // 将base64编码的音频转换为Buffer
+                    const audioBuffer = Buffer.from(result.Audio, 'base64');
+                    audioBuffers.push(audioBuffer);
+                } else {
+                    logger.error(`[语音合成] 腾讯云API返回结果不完整（第${i + 1}段）`);
+                }
+
+                // 避免请求频率过快
+                if (i < textSegments.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
             }
+
+            return audioBuffers.length > 0 ? audioBuffers : null;
         } catch (error) {
             logger.error('[语音合成] 腾讯语音合成失败:', error);
             // 友好的错误提示
@@ -191,6 +211,63 @@ class VoiceManager {
             }
             return null;
         }
+    }
+
+    /**
+     * 文本分段处理
+     * @param {string} text - 要分段的文本
+     * @returns {Array<string>} - 分段后的文本数组
+     */
+    splitText(text) {
+        const segments = [];
+        const maxLength = 300; // 腾讯云TTS API文本长度限制
+
+        if (text.length <= maxLength) {
+            segments.push(text);
+            return segments;
+        }
+
+        // 按标点符号分段
+        const punctuation = /[。！？.!?]/g;
+        let match;
+        let lastIndex = 0;
+
+        while ((match = punctuation.exec(text)) !== null) {
+            const endIndex = match.index + match[0].length;
+            const segment = text.substring(lastIndex, endIndex);
+
+            if (segment.length > maxLength) {
+                // 如果单个句子超过限制，按长度分段
+                let start = lastIndex;
+                while (start < endIndex) {
+                    const segmentEnd = Math.min(start + maxLength, endIndex);
+                    segments.push(text.substring(start, segmentEnd));
+                    start = segmentEnd;
+                }
+            } else {
+                segments.push(segment);
+            }
+
+            lastIndex = endIndex;
+        }
+
+        // 处理最后一段
+        if (lastIndex < text.length) {
+            const lastSegment = text.substring(lastIndex);
+            if (lastSegment.length > maxLength) {
+                // 如果最后一段超过限制，按长度分段
+                let start = lastIndex;
+                while (start < text.length) {
+                    const segmentEnd = Math.min(start + maxLength, text.length);
+                    segments.push(text.substring(start, segmentEnd));
+                    start = segmentEnd;
+                }
+            } else {
+                segments.push(lastSegment);
+            }
+        }
+
+        return segments;
     }
 
     /**
