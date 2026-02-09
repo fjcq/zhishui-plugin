@@ -213,7 +213,7 @@ export function supportGuoba() {
                         component: 'Select',
                         componentProps: {
                             options: TencentVoiceList.length > 0 ? TencentVoiceList.map(voice => ({
-                                label: `${voice.name} (${voice.id})`,
+                                label: `${voice.name} (${voice.id}) - ${voice.type} | ${voice.scene} | ${voice.languages}`,
                                 value: voice.id
                             })) : [],
                             placeholder: '请选择语音类型'
