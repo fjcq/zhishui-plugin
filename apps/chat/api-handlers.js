@@ -407,12 +407,36 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
         userMessage = { role: 'user', content: fullUserMsg };
     }
 
+    // 构建消息数组
+    let messages = [];
+
+    // 添加系统消息
+    let systemPrompt = '';
+    try {
+        systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
+    } catch {
+        systemPrompt = '';
+    }
+    if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+    }
+
+    // 添加历史消息
+    if (Array.isArray(chatMsg)) {
+        for (const item of chatMsg) {
+            if (!item || !item.role || !item.content) continue;
+            if (item.role === 'user' || item.role === 'assistant') {
+                messages.push({ role: item.role, content: item.content });
+            }
+        }
+    }
+
+    // 添加当前用户消息
+    messages.push(userMessage);
+
     return {
         model: aiModel,
-        messages: [
-            { role: 'system', content: JSON.stringify(systemMessage) },
-            userMessage
-        ],
+        messages: messages,
         ...(validatedParams.temperature !== undefined && { temperature: validatedParams.temperature }),
         ...(validatedParams.top_p !== undefined && { top_p: validatedParams.top_p }),
         ...(validatedParams.max_tokens !== undefined && { max_tokens: validatedParams.max_tokens }),
@@ -515,9 +539,27 @@ function handleHttpErrors(response, apiType) {
  * 处理API响应
  */
 async function handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData) {
+    // 解析用户消息，提取实际内容
+    let userMessageContent = msg;
+    let userInfo = null;
+    try {
+        let msgObj = JSON.parse(msg);
+        userMessageContent = msgObj.message || msg;
+        userInfo = msgObj.additional_info || null;
+    } catch (err) {
+        // msg 不是 JSON，直接使用
+    }
+
+    // 构建包含用户信息的完整消息
+    let fullUserMsg = userMessageContent;
+    if (userInfo) {
+        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
+        fullUserMsg = `${userContext}\n用户说: ${userMessageContent}`;
+    }
+
     if (apiType === 'tencent') {
         let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
-        await addMessage({ role: 'user', content: msg }, e);
+        await addMessage({ role: 'user', content: fullUserMsg }, e);
         await addMessage({ role: 'assistant', content: rawContent }, e);
         return rawContent;
     }
@@ -549,6 +591,10 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
             throw new Error('AI返回了空内容，请稍后重试');
         }
 
+        // 保存消息到会话
+        await addMessage({ role: 'user', content: fullUserMsg }, e);
+        await addMessage({ role: 'assistant', content: rawContent }, e);
+
         // 尝试解析 Gemini 返回的 JSON 格式内容
         const parseResult = parseJsonResponse(rawContent, 'Gemini');
 
@@ -572,7 +618,7 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
     // 其他API格式
     let rawContent = responseData.choices[0].message.content.trim();
     const content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
-    await addMessage({ role: 'user', content: msg }, e);
+    await addMessage({ role: 'user', content: fullUserMsg }, e);
     await addMessage({ role: 'assistant', content }, e);
     return content;
 }
