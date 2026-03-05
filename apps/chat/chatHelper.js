@@ -1,6 +1,9 @@
 import { puppeteer } from '../../model/index.js';
 import Config from '../../components/Config.js';
 
+// 确保 logger 可用
+const logger = global.logger || console;
+
 /**
  * 将文本转换为图片
  * @param {Object} e - 事件对象
@@ -48,22 +51,18 @@ export async function textToImage(e, text, options = {}) {
  * @returns {boolean} - 返回是否应该转换为图片
  */
 export function shouldResponseAsImage(command) {
-  // 需要保持文字形式的命令列表
-  const textOnlyCommands = [
-    '#查看个人配置',
-    '#查看用户配置',
-    '#重置个人配置',
-    '#重置用户配置',
-    '#查看用户配置统计',
-    '#设置角色',
-    '#清除历史',
-    '#查看好感度历史',
-    '#止水更新',
-    '#止水版本'
+  // 只有以下特定命令才需要转换为图片
+  const imageCommands = [
+    '#生成图片',
+    '#创建图像',
+    '#画',
+    '#绘图',
+    '#生成图像',
+    '#创建图片'
   ];
 
-  // 检查命令是否在文字命令列表中
-  return !textOnlyCommands.some(cmd => command.startsWith(cmd));
+  // 检查命令是否在图片命令列表中
+  return imageCommands.some(cmd => command.startsWith(cmd));
 }
 
 /**

@@ -5,6 +5,9 @@ import { common } from '../model/index.js';
 import { Plugin_Path, Config } from '../components/index.js';
 import Data from '../components/Data.js';
 
+// 确保 logger 可用
+const logger = global.logger || console;
+
 // 引入拆分后的模块
 import { chatActiveMap, lastRequestTime, API_INTERVALS, CHAT_CONTEXT_PATH } from './chat/config.js';
 import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './chat/utils.js';
@@ -420,6 +423,7 @@ export class ChatHandler extends plugin {
                             message: content,
                             favor_changes: []
                         };
+                        logger.warn('[止水对话] JSON对象缺少message字段，使用原始内容');
                     }
                 } catch (error) {
                     console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
@@ -431,6 +435,7 @@ export class ChatHandler extends plugin {
                         message: content,
                         favor_changes: []
                     };
+                    logger.warn('[止水对话] JSON解析失败，使用原始内容:', error.message);
                 }
                 replyObj.favor_changes = replyObj.favor_changes || [];
 
@@ -536,6 +541,13 @@ export class ChatHandler extends plugin {
                                 await e.reply(msgWithoutCode);
                             }
                         } else {
+                            // 检查是否有尝试使用图片格式的情况
+                            const hasImageAttempt = e.msg.includes('图片') || e.msg.includes('图像') || e.msg.includes('画');
+                            if (hasImageAttempt && !shouldResponseAsImage(e.msg)) {
+                                // 通知用户格式调整
+                                const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
+                                await e.reply([segment.at(e.user_id), notification]);
+                            }
                             await e.reply(msgWithoutCode);
                         }
                     }
@@ -546,30 +558,28 @@ export class ChatHandler extends plugin {
             } else {
                 // 如果没有获取到有效的回复或请求失败，返回错误信息并重置状态
                 chatActiveMap[sessionId] = 0;
+                let errorMsg = response || '抱歉，AI暂时无法回复，请稍后再试。';
                 if (response) {
-                    // 如果有错误信息，回复给用户
-                    if (shouldResponseAsImage(e.msg)) {
-                        const imageSuccess = await textToImage(e, response, {
-                            showFooter: true
-                        });
-                        if (!imageSuccess) {
-                            await e.reply(response);
+                    // 检查response是否为JSON字符串
+                    try {
+                        const errorObj = JSON.parse(response);
+                        if (errorObj.message) {
+                            errorMsg = errorObj.message;
                         }
-                    } else {
-                        await e.reply(response);
+                    } catch {
+                        // 如果不是JSON，使用原始内容
+                        logger.warn('[止水对话] 错误响应不是JSON，使用原始内容');
                     }
-                } else {
-                    const errorMsg = '抱歉，AI暂时无法回复，请稍后再试。';
-                    if (shouldResponseAsImage(e.msg)) {
-                        const imageSuccess = await textToImage(e, errorMsg, {
-                            showFooter: true
-                        });
-                        if (!imageSuccess) {
-                            await e.reply(errorMsg);
-                        }
-                    } else {
+                }
+                if (shouldResponseAsImage(e.msg)) {
+                    const imageSuccess = await textToImage(e, errorMsg, {
+                        showFooter: true
+                    });
+                    if (!imageSuccess) {
                         await e.reply(errorMsg);
                     }
+                } else {
+                    await e.reply(errorMsg);
                 }
                 return false;
             }
