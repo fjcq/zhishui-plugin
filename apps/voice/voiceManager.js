@@ -1,6 +1,9 @@
 import Config from '../../components/Config.js';
 import Data from '../../components/Data.js';
 
+// 确保 logger 可用
+const logger = global.logger || console;
+
 /**
  * 语音管理器
  * 负责处理不同语音系统的语音合成请求
