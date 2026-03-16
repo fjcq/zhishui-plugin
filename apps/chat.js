@@ -15,10 +15,11 @@ import {
     mergeSystemMessage, openAi, loadChatMsg, saveChatMsg,
     clearSessionContext, getCurrentRoleIndex, getSessionKeyv,
     ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel,
-    checkRateLimit, addFavorHistory
+    checkRateLimit, addFavorHistory, getCurrentApiConfig, convertAtFormat
 } from './chat/helpers.js';
 import { textToImage, shouldResponseAsImage } from './chat/chatHelper.js';
 import voiceManager from './voice/voiceManager.js';
+import { isToolCallingSupported } from './chat/api-types.js';
 
 /** 存储每个会话的原始返回数据 */
 const lastRawResponseMap = {};
@@ -273,17 +274,29 @@ export class ChatHandler extends plugin {
         // 记录本次请求时间
         lastRequestTime[sessionId] = now;
 
-        // 只有对话机制被触发后，才检测图片和文件
+        // 检测图片、文件，并将艾特转换为{at:用户ID}格式
         let images = [];
         let files = [];
+        let processedMsg = msg; // 处理后的消息文本
+
         if (Array.isArray(e.message)) {
+            // 构建包含艾特的消息文本
+            let msgParts = [];
             for (const seg of e.message) {
-                if (seg.type === 'image' && seg.url) {
+                if (seg.type === 'text' && seg.text) {
+                    msgParts.push(seg.text);
+                } else if (seg.type === 'at' && seg.qq) {
+                    // 将艾特转换为{at:用户ID}格式，保留位置
+                    msgParts.push(`{at:${seg.qq}}`);
+                } else if (seg.type === 'image' && seg.url) {
                     images.push(seg.url);
+                } else if (seg.type === 'file' && seg.file) {
+                    files.push(seg.file);
                 }
-                if (seg.type === 'file' && seg.file) {
-                    files.push(seg.file); // file对象结构可根据实际平台调整
-                }
+            }
+            // 如果有非纯文本内容，使用重新构建的消息
+            if (msgParts.length > 0) {
+                processedMsg = msgParts.join('');
             }
         }
         if (images.length > 0) {
@@ -294,9 +307,10 @@ export class ChatHandler extends plugin {
         }
 
         try {
-            // 提取用户消息内容，并去除对话昵称前缀
-            msg = msg.replace(/^#?${chatNickname}\s*/, '').trim();
-            msg = msg.replace(/{at:/g, '{@');
+            // 使用处理后的消息（艾特已转换为{at:用户ID}格式）
+            let finalMsg = processedMsg;
+            // 去除对话昵称前缀
+            finalMsg = finalMsg.replace(new RegExp(`^#?${escapeRegExp(chatNickname)}\\s*`), '').trim();
 
             // 处理特殊用户 stdin，使用主人QQ号码
             let actualUserId = e.user_id;
@@ -312,17 +326,30 @@ export class ChatHandler extends plugin {
             }
 
             const favor = await getUserFavor(actualUserId);
-            const userMessage = {
-                message: msg,
+
+            // 获取当前API配置，判断是否支持工具调用
+            const { apiConfig } = await getCurrentApiConfig(e);
+            const apiType = apiConfig.ApiType || 'default';
+            const supportsToolCalling = isToolCallingSupported(apiType);
+
+            // 构建用户消息（提取公共部分，减少冗余）
+            const baseMessage = {
+                message: finalMsg,
                 images: images,
                 files: files,
                 additional_info: {
                     name: e.sender.nickname,
                     user_id: actualUserId,
-                    favor: favor,
                     group_id: e.group_id || 0
                 }
             };
+
+            // 不支持工具调用时，添加好感度信息
+            if (!supportsToolCalling) {
+                baseMessage.additional_info.favor = favor;
+            }
+
+            const userMessage = baseMessage;
 
             // console.log(`[止水对话] -> 用户[${e.user_id}]说: ${msg}`); // 精简：隐藏用户输入日志
 
@@ -533,12 +560,15 @@ export class ChatHandler extends plugin {
                 } else {
                     // 语音处理失败，返回文字回复
                     if (msgWithoutCode) {
+                        // 转换 {at:用户ID} 格式为 segment.at 对象
+                        const replyContent = convertAtFormat(msgWithoutCode);
+
                         if (shouldResponseAsImage(e.msg)) {
                             const imageSuccess = await textToImage(e, msgWithoutCode, {
                                 showFooter: true
                             });
                             if (!imageSuccess) {
-                                await e.reply(msgWithoutCode);
+                                await e.reply(replyContent);
                             }
                         } else {
                             // 检查是否有尝试使用图片格式的情况
@@ -548,7 +578,7 @@ export class ChatHandler extends plugin {
                                 const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
                                 await e.reply([segment.at(e.user_id), notification]);
                             }
-                            await e.reply(msgWithoutCode);
+                            await e.reply(replyContent);
                         }
                     }
                 }
@@ -1514,13 +1544,13 @@ export class ChatHandler extends plugin {
             e.reply('只有主人可以设置对话主人');
             return;
         }
-        
+
         const match = e.msg.match(/设置(对话)?主人\s*(.+?)\s*(\d+)/);
         if (!match) {
             e.reply('请按照格式设置对话主人：#设置对话主人 <主人名字> <主人QQ>');
             return;
         }
-        
+
         const [, , masterName, masterQQ] = match;
         await Config.modify('chat', 'Master', masterName);
         await Config.modify('chat', 'MasterQQ', masterQQ);
@@ -1533,15 +1563,15 @@ export class ChatHandler extends plugin {
             e.reply('只有主人可以设置代理');
             return;
         }
-        
+
         const match = e.msg.match(/(设置|查看|开启|关闭)代理\s*(.*)/);
         if (!match) {
             e.reply('请使用正确的代理指令：#设置代理 <地址> 或 #开启/关闭代理');
             return;
         }
-        
+
         const [, action, proxyUrl] = match;
-        
+
         if (action === '查看') {
             const proxy = await Config.proxy;
             e.reply(`当前代理设置：${proxy.enable ? proxy.url : '未开启'}`);
@@ -1566,13 +1596,13 @@ export class ChatHandler extends plugin {
             e.reply('只有主人可以设置连接模式');
             return;
         }
-        
+
         const match = e.msg.match(/[链|连]接模式(开启|关闭)/);
         if (!match) {
             e.reply('请使用正确的连接模式指令：#连接模式开启 或 #连接模式关闭');
             return;
         }
-        
+
         const [, mode] = match;
         const enable = mode === '开启';
         await Config.modify('chat', 'LinkMode', enable);
@@ -1585,13 +1615,13 @@ export class ChatHandler extends plugin {
             e.reply('只有主人可以使用测试指令');
             return;
         }
-        
+
         const testContent = e.msg.replace(/^#?(止水)?(插件|对话)?测试/, '').trim();
         if (!testContent) {
             e.reply('请输入测试内容：#测试 <内容>');
             return;
         }
-        
+
         try {
             // 这里可以添加测试逻辑，例如测试API连接等
             e.reply(`测试内容：${testContent}\n测试成功！`);

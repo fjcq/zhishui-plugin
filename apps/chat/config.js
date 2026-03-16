@@ -1,5 +1,6 @@
 import { Config } from '../../components/index.js';
 import path from 'path';
+import { isToolCallingSupported } from './api-types.js';
 
 /**
  * 对话上下文缓存路径
@@ -115,14 +116,67 @@ export async function mergeSystemMessage(e) {
         };
 
         // 动态更新主人信息，使用实际配置的主人信息
-        if (merged['主人信息']) {
-            merged['主人信息'].master_name = await Config.Chat.Master || '默认主人昵称';
-            merged['主人信息'].master_qq = await Config.Chat.MasterQQ || '10001';
+        if (merged['用户身份系统'] && merged['用户身份系统']['主人']) {
+            merged['用户身份系统']['主人'].master_name = await Config.Chat.Master || '默认主人昵称';
+            merged['用户身份系统']['主人'].master_qq = await Config.Chat.MasterQQ || '10001';
         }
 
         // 动态更新角色名称，使用用户配置的昵称
         if (merged['基础身份']) {
             merged['基础身份'].名称 = await Config.Chat.NickName || '默认角色名';
+        }
+
+        // 获取当前API配置，判断是否支持工具调用
+        const { apiConfig } = await getCurrentApiConfig(e);
+        const apiType = apiConfig.ApiType || 'default';
+        const supportsToolCalling = isToolCallingSupported(apiType);
+
+        // 添加好感度管理说明（角色扮演友好的表述）
+        merged['好感度管理'] = {
+            '操作指南': supportsToolCalling ? [
+                '当需要了解用户好感度时，必须调用get_user_favor工具获取真实数据',
+                '当需要调整好感度时，必须调用set_user_favor工具记录变化',
+                '不要编造好感度数值，必须通过工具获取真实数据'
+            ] : [
+                '从用户信息中感知当前好感度状态',
+                '根据对话内容自然地调整好感度',
+                '好感度变化会自动记录，无需向用户说明',
+                '请以角色的自然语言表达方式与用户互动'
+            ]
+        };
+
+        // 添加信息查询能力说明（角色扮演友好的表述）
+        if (supportsToolCalling) {
+            merged['信息查询能力'] = {
+                '群组信息': '当用户询问群名、群号、群成员数量时，必须调用get_group_info或get_group_members工具获取真实数据',
+                '用户资料': '当需要知道用户的真实昵称、头像、等级时，必须调用get_user_profile工具获取真实数据',
+                '好感度查询': '当需要了解用户好感度时，必须调用get_user_favor工具获取真实数据',
+                '重要提醒': [
+                    '所有群名、用户昵称、群成员数量等信息必须通过工具调用获取真实数据，严禁编造',
+                    '不要说"让我看看"然后编造数据，必须真正调用工具',
+                    '如果工具调用失败，如实告知用户无法获取信息，不要编造'
+                ]
+            };
+
+            // 添加自然回复指南
+            merged['回复风格指南'] = {
+                '核心原则': '回复必须像人类一样自然流畅，不能暴露工具调用或数据查询的过程痕迹',
+                '禁止行为': [
+                    '禁止使用"让我查一下"、"让我看看"、"稍等片刻"、"正在查询"等暗示正在执行查询过程的表述',
+                    '禁止使用"根据查询结果"、"数据显示"、"系统返回"等暴露数据是通过查询获得的表述',
+                    '禁止在回复中解释你是如何获取到这些信息的'
+                ],
+                '推荐行为': [
+                    '直接说出结果，仿佛你本来就记得或知道这些信息',
+                    '用自然的语气增加亲和力',
+                    '可以适当加入角色的个人感受和互动',
+                    '如果信息不可用，用角色特有的方式委婉表达'
+                ],
+                '示例对比': {
+                    '错误示范': '让我查一下您的等级...根据查询结果，您的等级信息暂时无法获取。',
+                    '正确示范': '唔...我这边好像看不到您的等级信息呢，可能是数据还没同步过来~不过没关系，等级又不重要，重要的是我们之间的羁绊呀！'
+                }
+            };
         }
     } catch (error) {
         console.error('[mergeSystemMessage] 合并系统消息失败:', error);

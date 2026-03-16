@@ -3,7 +3,8 @@ import { getCurrentApiConfig, getCurrentRoleIndex, mergeSystemMessage } from './
 import { addMessage } from './session.js';
 import { checkJsonFormatSupport, validateRequestParams, parseJsonResponse, parseErrorMessage } from './parsers.js';
 import { getUserFavor, setUserFavor } from './user.js';
-import { ApiTypes } from './api-types.js';
+import { ApiTypes, TOOL_SUPPORTED_APIS, isToolCallingSupported } from './api-types.js';
+import { favorTools, handleFavorToolCall } from './tools.js';
 
 /**
  * 获取有效的用户ID
@@ -25,9 +26,31 @@ async function getValidUserId(userId) {
  * @param {Object} e - 事件对象
  * @param {string} systemMessage - 系统消息
  * @param {Array} chatMsg - 聊天历史
+ * @param {number} [recursionDepth=0] - 递归调用深度
  * @returns {Promise<Object>} 返回对象包含 { content: string, rawResponse: string }
  */
-export async function openAi(msg, e, systemMessage, chatMsg) {
+export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0) {
+    // 检查递归深度，避免无限循环
+    const MAX_RECURSION_DEPTH = 5;
+    const WARNING_DEPTH = 3;
+
+    // 接近限制时发出警告
+    if (recursionDepth >= WARNING_DEPTH) {
+        console.warn(`[openAi] 工具调用递归深度接近限制: ${recursionDepth}/${MAX_RECURSION_DEPTH}`);
+    }
+
+    // 超过限制时返回错误
+    if (recursionDepth > MAX_RECURSION_DEPTH) {
+        console.error(`[openAi] 工具调用递归深度超过限制: ${recursionDepth} > ${MAX_RECURSION_DEPTH}`);
+        return {
+            content: JSON.stringify({
+                message: '工具调用过于频繁，请稍后再试',
+                favor_changes: []
+            }),
+            rawResponse: '{}'
+        };
+    }
+
     // 使用新的API配置获取方法
     const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
 
@@ -66,8 +89,10 @@ export async function openAi(msg, e, systemMessage, chatMsg) {
     // 合并默认参数和角色参数
     roleRequestParams = { ...defaultParams, ...roleRequestParams };
 
-    // 针对硅基流动Qwen/Qwen2.5-VL-72B-Instruct模型的特殊处理
-    const isQwenVL = (aiModel || '').toLowerCase().includes('qwen') || (aiModel || '').toLowerCase().includes('vl-72b');
+    // 针对硅基流动Qwen-VL多模态模型的特殊处理（仅限VL模型，普通Qwen模型走标准流程）
+    const isQwenVL = (aiModel || '').toLowerCase().includes('qwen-vl') ||
+        (aiModel || '').toLowerCase().includes('vl-72b') ||
+        (aiModel || '').toLowerCase().includes('qwen2.5-vl');
 
     // 构建请求头和请求数据
     const { headers, requestData } = await buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL);
@@ -89,15 +114,37 @@ export async function openAi(msg, e, systemMessage, chatMsg) {
             body: JSON.stringify(requestData),
         });
 
-        // 错误码处理
-        handleHttpErrors(response, apiType);
+        // 统一的HTTP错误处理
+        if (!response.ok) {
+            const errorBody = await response.text().catch(() => '');
+            console.error('[API错误] 状态码:', response.status, '错误详情:', errorBody);
+
+            // 特定状态码的错误处理
+            if (response.status === 401) {
+                throw new Error('API密钥无效，请检查 Key 配置');
+            }
+            if (response.status === 429) {
+                throw new Error('请求过于频繁，请稍后再试');
+            }
+            if (response.status === 403) {
+                if (apiType === 'gemini') {
+                    throw new Error('当前地区无法使用 Gemini API，请更换为支持的地区或使用代理');
+                }
+                throw new Error('访问被拒绝，请检查API配置');
+            }
+            if (response.status === 500 || response.status === 502 || response.status === 503) {
+                throw new Error(`服务器错误 (${response.status})，请稍后重试`);
+            }
+
+            throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorBody}`);
+        }
 
         // 解析响应
         const responseData = await response.json();
         rawResponse = JSON.stringify(responseData, null, 2);
 
         // 根据API类型处理响应
-        content = await handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData);
+        content = await handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData, recursionDepth);
     } catch (error) {
         // 处理通信错误
         content = await handleCommunicationError(error, apiType);
@@ -141,7 +188,7 @@ async function buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssista
     } else if (apiType === 'gemini') {
         requestData = await buildGeminiRequest(aiModel, apiUrl, systemMessage, chatMsg, msg, e, validatedParams);
     } else if (isQwenVL) {
-        requestData = await buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams);
+        requestData = await buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType);
     } else {
         requestData = await buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType);
     }
@@ -345,7 +392,7 @@ async function buildGeminiRequest(aiModel, apiUrl, systemMessage, chatMsg, msg, 
 /**
  * 构建Qwen VL请求数据
  */
-async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams) {
+async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType) {
     let msgObj;
     let userMsg = msg;
     let images = [];
@@ -389,8 +436,7 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
     let fullUserMsg = userMsg;
     if (msgObj.additional_info) {
         const userInfo = msgObj.additional_info;
-        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
-        fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
+        fullUserMsg = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}${userInfo.favor !== undefined ? ', 好感度' + userInfo.favor : ''}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]\n用户说: ${userMsg}`;
     }
 
     // 构建符合OpenAI标准的多模态消息格式
@@ -421,12 +467,37 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
         messages.push({ role: 'system', content: systemPrompt });
     }
 
-    // 添加历史消息
+    // 添加历史消息（包括工具调用结果）
     if (Array.isArray(chatMsg)) {
         for (const item of chatMsg) {
-            if (!item || !item.role || !item.content) continue;
-            if (item.role === 'user' || item.role === 'assistant') {
-                messages.push({ role: item.role, content: item.content });
+            if (!item || !item.role) continue;
+
+            // 处理用户消息
+            if (item.role === 'user') {
+                if (!item.content) continue;
+                messages.push({ role: 'user', content: item.content });
+            }
+            // 处理助手消息（可能包含工具调用）
+            else if (item.role === 'assistant') {
+                // 如果有工具调用，保留完整的消息结构
+                if (item.tool_calls) {
+                    messages.push({
+                        role: 'assistant',
+                        content: item.content || null,
+                        tool_calls: item.tool_calls
+                    });
+                } else if (item.content) {
+                    // 普通助手消息
+                    messages.push({ role: 'assistant', content: item.content });
+                }
+            }
+            // 处理工具调用结果消息
+            else if (item.role === 'tool') {
+                messages.push({
+                    role: 'tool',
+                    tool_call_id: item.tool_call_id,
+                    content: item.content
+                });
             }
         }
     }
@@ -434,7 +505,7 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
     // 添加当前用户消息
     messages.push(userMessage);
 
-    return {
+    let requestData = {
         model: aiModel,
         messages: messages,
         ...(validatedParams.temperature !== undefined && { temperature: validatedParams.temperature }),
@@ -443,6 +514,14 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
         ...(validatedParams.presence_penalty !== undefined && { presence_penalty: validatedParams.presence_penalty }),
         ...(validatedParams.frequency_penalty !== undefined && { frequency_penalty: validatedParams.frequency_penalty })
     };
+
+    // 添加工具调用支持（Qwen-VL模型也支持工具调用）
+    if (isToolCallingSupported(apiType)) {
+        requestData.tools = favorTools;
+        requestData.tool_choice = 'auto';
+    }
+
+    return requestData;
 }
 
 /**
@@ -462,12 +541,37 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
         messages.push({ role: 'system', content: systemPrompt });
     }
 
-    // 添加历史消息
+    // 添加历史消息（包括工具调用结果）
     if (Array.isArray(chatMsg)) {
         for (const item of chatMsg) {
-            if (!item || !item.role || !item.content) continue;
-            if (item.role === 'user' || item.role === 'assistant') {
-                messages.push({ role: item.role, content: item.content });
+            if (!item || !item.role) continue;
+
+            // 处理用户消息
+            if (item.role === 'user') {
+                if (!item.content) continue;
+                messages.push({ role: 'user', content: item.content });
+            }
+            // 处理助手消息（可能包含工具调用）
+            else if (item.role === 'assistant') {
+                // 如果有工具调用，保留完整的消息结构
+                if (item.tool_calls) {
+                    messages.push({
+                        role: 'assistant',
+                        content: item.content || null,
+                        tool_calls: item.tool_calls
+                    });
+                } else if (item.content) {
+                    // 普通助手消息
+                    messages.push({ role: 'assistant', content: item.content });
+                }
+            }
+            // 处理工具调用结果消息
+            else if (item.role === 'tool') {
+                messages.push({
+                    role: 'tool',
+                    tool_call_id: item.tool_call_id,
+                    content: item.content
+                });
             }
         }
     }
@@ -486,8 +590,7 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
     // 构建包含用户信息的完整消息
     let fullUserMsg = userMsg;
     if (userInfo) {
-        const userContext = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}, 好感度${userInfo.favor}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]`;
-        fullUserMsg = `${userContext}\n用户说: ${userMsg}`;
+        fullUserMsg = `[用户信息: QQ号${userInfo.user_id}, 昵称${userInfo.name}${userInfo.favor !== undefined ? ', 好感度' + userInfo.favor : ''}${userInfo.group_id ? ', 群聊' + userInfo.group_id : ', 私聊'}]\n用户说: ${userMsg}`;
     }
 
     messages.push({ role: 'user', content: fullUserMsg });
@@ -502,43 +605,26 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
         ...(validatedParams.frequency_penalty !== undefined && { frequency_penalty: validatedParams.frequency_penalty })
     };
 
-    // 检查是否支持JSON格式输出
-    const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
-    if (supportsJsonFormat) {
-        requestData.response_format = { type: 'json_object' };
+    // 只在支持工具调用的API类型中添加工具配置
+    if (isToolCallingSupported(apiType)) {
+        requestData.tools = favorTools;
+        requestData.tool_choice = 'auto';
+    } else {
+        // 只有不支持工具调用的API才启用JSON格式输出
+        // 注意：工具调用与response_format可能冲突，需要分开处理
+        const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
+        if (supportsJsonFormat) {
+            requestData.response_format = { type: 'json_object' };
+        }
     }
 
     return requestData;
 }
 
 /**
- * 处理HTTP错误
- */
-function handleHttpErrors(response, apiType) {
-    if (response.status === 401) {
-        console.error('[openAi] API密钥无效，状态码401');
-        throw new Error('API密钥无效，请检查 Key 配置');
-    }
-    if (response.status === 429) {
-        console.error('[openAi] 请求过于频繁，状态码429');
-        throw new Error('请求过于频繁，请稍后再试');
-    }
-    if (response.status === 403) {
-        console.error('[openAi] 访问被拒绝，状态码403');
-        if (apiType === 'gemini') {
-            throw new Error('当前地区无法使用 Gemini API，请更换为支持的地区（如美国、日本等）或使用代理。');
-        }
-        throw new Error('访问被拒绝，请检查API配置');
-    }
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-}
-
-/**
  * 处理API响应
  */
-async function handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData) {
+async function handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData, recursionDepth = 0) {
     // 解析用户消息，提取实际内容
     let userMessageContent = msg;
     let userInfo = null;
@@ -559,18 +645,18 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
 
     if (apiType === 'tencent') {
         let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
-        
+
         // 尝试解析返回的 JSON 格式内容
         const parseResult = parseJsonResponse(rawContent, 'tencent');
-        
+
         // 如果JSON解析失败，记录日志
         if (parseResult.parseError) {
             console.warn('[tencent] JSON解析遇到错误: ' + parseResult.parseError);
         }
-        
+
         await addMessage({ role: 'user', content: fullUserMsg }, e);
         await addMessage({ role: 'assistant', content: rawContent }, e);
-        
+
         // 返回处理后的内容
         return JSON.stringify({
             message: parseResult.content,
@@ -633,20 +719,76 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
     }
 
     // 其他API格式
-    let rawContent = responseData.choices[0].message.content.trim();
-    
+    const message = responseData.choices[0].message;
+
+    // 处理工具调用
+    if (message.tool_calls) {
+        // 构建助手消息（包含工具调用）
+        const assistantMessage = {
+            role: 'assistant',
+            content: message.content || null,
+            tool_calls: message.tool_calls
+        };
+
+        // 处理工具调用
+        const toolResults = [];
+        for (const toolCall of message.tool_calls) {
+            const toolName = toolCall.function.name;
+            let toolParams;
+
+            // 处理JSON解析错误
+            try {
+                toolParams = JSON.parse(toolCall.function.arguments);
+            } catch (error) {
+                console.error(`[工具调用] 参数解析失败: ${error.message}`);
+                toolResults.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    content: JSON.stringify({ error: true, message: '参数格式错误' })
+                });
+                continue;
+            }
+
+            // 调用工具处理函数
+            const result = await handleFavorToolCall(toolName, toolParams, e);
+
+            // 构建工具调用结果（OpenAI格式要求）
+            toolResults.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                content: JSON.stringify(result)
+            });
+        }
+
+        // 将助手消息和工具调用结果添加到消息历史
+        await addMessage(assistantMessage, e);
+        for (const toolResult of toolResults) {
+            await addMessage(toolResult, e);
+        }
+
+        // 重新发送请求，包含工具调用结果
+        const updatedChatMsg = [...chatMsg, { role: 'user', content: fullUserMsg }, assistantMessage, ...toolResults];
+
+        const { content: followUpContent } = await openAi(msg, e, systemMessage, updatedChatMsg, recursionDepth + 1);
+
+        return followUpContent;
+    }
+
+    // 常规响应处理
+    let rawContent = message.content.trim();
+
     // 尝试解析返回的 JSON 格式内容
     const parseResult = parseJsonResponse(rawContent, apiType);
-    
+
     // 如果JSON解析失败，记录日志
     if (parseResult.parseError) {
         console.warn(`[${apiType}] JSON解析遇到错误: ${parseResult.parseError}`);
     }
-    
+
     const content = await Config.Chat.ShowReasoning ? rawContent : parseResult.content.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
     await addMessage({ role: 'user', content: fullUserMsg }, e);
     await addMessage({ role: 'assistant', content }, e);
-    
+
     // 返回处理后的内容
     return JSON.stringify({
         message: content,

@@ -16,6 +16,26 @@ export const ApiTypes = {
 };
 
 /**
+ * 支持工具调用的API类型列表
+ * 这些API支持OpenAI风格的Function Calling
+ */
+export const TOOL_SUPPORTED_APIS = [
+    ApiTypes.OPENAI,
+    ApiTypes.SILICONFLOW,
+    ApiTypes.DEEPSEEK,
+    ApiTypes.ZHIPU
+];
+
+/**
+ * 检查API类型是否支持工具调用
+ * @param {string} apiType - API类型
+ * @returns {boolean} 是否支持工具调用
+ */
+export function isToolCallingSupported(apiType) {
+    return TOOL_SUPPORTED_APIS.includes(apiType);
+}
+
+/**
  * API类型显示名称
  */
 export const ApiTypeLabels = {

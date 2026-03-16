@@ -1,6 +1,47 @@
 import { ApiTypes, ApiTypeSupportedParams } from './api-types.js';
 
 /**
+ * 将消息中的 {at:用户ID} 格式转换为 segment.at() 对象数组
+ * @param {string} message - 原始消息内容
+ * @returns {Array} 转换后的消息数组，包含文本和segment对象
+ */
+export function convertAtFormat(message) {
+    if (!message || typeof message !== 'string') {
+        return [message];
+    }
+
+    const result = [];
+    const atRegex = /\{at:(\d+)\}/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = atRegex.exec(message)) !== null) {
+        // 添加@之前的文本
+        if (match.index > lastIndex) {
+            result.push(message.substring(lastIndex, match.index));
+        }
+
+        // 添加segment.at对象
+        const userId = match[1];
+        result.push(segment.at(userId));
+
+        lastIndex = match.index + match[0].length;
+    }
+
+    // 添加最后一段文本
+    if (lastIndex < message.length) {
+        result.push(message.substring(lastIndex));
+    }
+
+    // 如果没有匹配到任何@格式，返回原始消息
+    if (result.length === 0) {
+        return [message];
+    }
+
+    return result;
+}
+
+/**
  * 检查模型是否支持JSON格式输出
  * @param {string} apiType - API类型
  * @param {string} aiModel - 模型名称
