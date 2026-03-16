@@ -559,9 +559,23 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
 
     if (apiType === 'tencent') {
         let rawContent = responseData.choices?.[0]?.message?.content?.trim() || '';
+        
+        // 尝试解析返回的 JSON 格式内容
+        const parseResult = parseJsonResponse(rawContent, 'tencent');
+        
+        // 如果JSON解析失败，记录日志
+        if (parseResult.parseError) {
+            console.warn('[tencent] JSON解析遇到错误: ' + parseResult.parseError);
+        }
+        
         await addMessage({ role: 'user', content: fullUserMsg }, e);
         await addMessage({ role: 'assistant', content: rawContent }, e);
-        return rawContent;
+        
+        // 返回处理后的内容
+        return JSON.stringify({
+            message: parseResult.content,
+            favor_changes: []
+        });
     }
 
     if (apiType === 'gemini') {
@@ -603,10 +617,13 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
             console.warn(`[Gemini] JSON解析遇到错误: ${parseResult.parseError}`);
         }
 
-        // 如果成功解析出JSON内容，直接使用原始JSON字符串（保持JSON格式）
+        // 如果成功解析出JSON内容，返回解析后的内容
         // 如果解析失败，包装成JSON格式返回
         if (parseResult.isJson) {
-            return rawContent;
+            return JSON.stringify({
+                message: parseResult.content,
+                favor_changes: []
+            });
         } else {
             return JSON.stringify({
                 message: parseResult.content,
@@ -617,10 +634,24 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
 
     // 其他API格式
     let rawContent = responseData.choices[0].message.content.trim();
-    const content = await Config.Chat.ShowReasoning ? rawContent : rawContent.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
+    
+    // 尝试解析返回的 JSON 格式内容
+    const parseResult = parseJsonResponse(rawContent, apiType);
+    
+    // 如果JSON解析失败，记录日志
+    if (parseResult.parseError) {
+        console.warn(`[${apiType}] JSON解析遇到错误: ${parseResult.parseError}`);
+    }
+    
+    const content = await Config.Chat.ShowReasoning ? rawContent : parseResult.content.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
     await addMessage({ role: 'user', content: fullUserMsg }, e);
     await addMessage({ role: 'assistant', content }, e);
-    return content;
+    
+    // 返回处理后的内容
+    return JSON.stringify({
+        message: content,
+        favor_changes: []
+    });
 }
 
 /**

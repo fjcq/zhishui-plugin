@@ -150,3 +150,5 @@ resources/Cache/
 resources/data/chat/
 
 /.github/copilot-instructions.md
+skills-lock.json
+AGENTS.md
