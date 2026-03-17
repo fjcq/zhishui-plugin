@@ -1159,10 +1159,15 @@ export class ChatHandler extends plugin {
         e.reply(msg.trim());
     }
 
-    /** 设置好感度，支持管理员@他人 */
+    /** 设置好感度，仅主人或管理员可设置 */
     async SetUserFavor(e) {
-        // 仅主人或管理员可设置他人
+        // 权限判断：非主人/管理员不可设置
         let isAdmin = e.isMaster || e.isAdmin;
+        if (!isAdmin) {
+            e.reply('只有主人或管理员可以设置好感度。');
+            return;
+        }
+
         let atUser = null;
         let favor = null;
 
@@ -1184,12 +1189,6 @@ export class ChatHandler extends plugin {
         // 目标用户
         let targetId = atUser || e.user_id;
 
-        // 权限判断
-        if (atUser && !isAdmin) {
-            e.reply('只有主人或管理员可以设置他人好感度。');
-            return;
-        }
-
         if (favor === null || isNaN(favor)) {
             e.reply('请指定要设置的好感度数值，例如：#设置好感度 50');
             return;
@@ -1199,7 +1198,7 @@ export class ChatHandler extends plugin {
         if (atUser) {
             e.reply(`已将 [${atUser}] 的好感度设置为：${favor}`);
         } else {
-            e.reply(`你的好感度已设置为：${favor}`);
+            e.reply(`已将你的好感度设置为：${favor}`);
         }
     }
 

@@ -32,7 +32,7 @@ export const favorTools = [
         type: "function",
         function: {
             name: "set_user_favor",
-            description: "设置用户的好感度数值。当对话中用户的言行影响了好感度时调用此工具记录变化。参数favor是目标值（-100到100），不是变化量。",
+            description: "设置用户的好感度数值。每次对话结束后，根据用户的言行主动评估并调整好感度。增加场景：礼貌关心(+1~+3)、真诚帮助(+4~+6)、情感共鸣(+7~+10)；降低场景：无礼冒犯(-1~-3)、欺骗嘲讽(-4~-6)、严重伤害(-7~-10)。参数favor是目标值（-100到100），不是变化量。",
             parameters: {
                 type: "object",
                 properties: {
