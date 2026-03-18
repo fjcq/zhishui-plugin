@@ -4,6 +4,7 @@ import path from 'path';
 import { common } from '../model/index.js';
 import { Plugin_Path, Config } from '../components/index.js';
 import Data from '../components/Data.js';
+import { puppeteer } from '../model/index.js';
 
 // 确保 logger 可用
 const logger = global.logger || console;
@@ -15,7 +16,7 @@ import {
     mergeSystemMessage, openAi, loadChatMsg, saveChatMsg,
     clearSessionContext, getCurrentRoleIndex, getSessionKeyv,
     ReadScene, WriteScene, getUserFavor, setUserFavor, convertChatContextForModel,
-    checkRateLimit, addFavorHistory, getCurrentApiConfig, convertAtFormat
+    checkRateLimit, addFavorHistory, getCurrentApiConfig, convertAtFormat, clearAllFavor, getFavorRank, getFavorTotalCount
 } from './chat/helpers.js';
 import { textToImage, shouldResponseAsImage } from './chat/chatHelper.js';
 import voiceManager from './voice/voiceManager.js';
@@ -75,6 +76,12 @@ export class ChatHandler extends plugin {
                 }, {
                     reg: `^#?(止水)?(插件|对话)?设置(好感|亲密)度(.*)$`,
                     fnc: 'SetUserFavor'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?(好感|亲密)度排名$`,
+                    fnc: 'ShowFavorRank'
+                }, {
+                    reg: `^#?(止水)?(插件|对话)?清空(好感|亲密)度$`,
+                    fnc: 'ClearAllFavor'
                 }, {
                     reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`,
                     fnc: 'SetMaster'
@@ -1168,38 +1175,157 @@ export class ChatHandler extends plugin {
             return;
         }
 
-        let atUser = null;
+        let targetId = null;
         let favor = null;
 
-        // 检查是否@了某人
-        if (e.at && e.at.length > 0) {
-            atUser = e.at[0];
-        }
-
-        // 提取好感度数值
-        let match = e.msg.match(/好感度\s*(-?\d+)/);
-        if (match) {
-            favor = parseInt(match[1]);
-        } else {
-            // 兼容 #设置好感度 @某人 50
-            let numMatch = e.msg.match(/(\d+)/);
-            if (numMatch) favor = parseInt(numMatch[1]);
-        }
-
-        // 目标用户
-        let targetId = atUser || e.user_id;
-
-        if (favor === null || isNaN(favor)) {
-            e.reply('请指定要设置的好感度数值，例如：#设置好感度 50');
+        // 提取消息中的所有数字
+        const numbers = e.msg.match(/(-?\d+)/g);
+        if (!numbers || numbers.length === 0) {
+            e.reply('请指定好感度数值，例如：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）\n#设置好感度 @某人 50（艾特设置）');
             return;
         }
 
+        // 检查是否@了某人
+        if (e.at && e.at.length > 0) {
+            // 有艾特：#设置好感度 @某人 数值
+            targetId = String(e.at[0]);
+            favor = parseInt(numbers[numbers.length - 1]); // 最后一个数字是好感度
+        } else if (numbers.length >= 2) {
+            // 两个及以上数字：#设置好感度 QQ号 数值
+            targetId = numbers[0];
+            favor = parseInt(numbers[1]);
+        } else {
+            // 只有一个数字：#设置好感度 数值（设置自己）
+            targetId = e.user_id;
+            favor = parseInt(numbers[0]);
+        }
+
+        if (isNaN(favor)) {
+            e.reply('好感度数值无效。');
+            return;
+        }
+
+        // 限制好感度范围
+        favor = Math.max(-100, Math.min(100, favor));
+
         await setUserFavor(targetId, favor);
-        if (atUser) {
-            e.reply(`已将 [${atUser}] 的好感度设置为：${favor}`);
+        if (targetId !== e.user_id) {
+            e.reply(`已将 [${targetId}] 的好感度设置为：${favor}`);
         } else {
             e.reply(`已将你的好感度设置为：${favor}`);
         }
+    }
+
+    /** 查看好感度排名，群内查看本群排名，私聊查看全部排名（仅主人） */
+    async ShowFavorRank(e) {
+        // 私聊时仅主人可用
+        if (!e.group_id && !e.isMaster) {
+            e.reply('私聊查看好感度排名仅限主人使用。');
+            return;
+        }
+
+        let userFilter = null;
+        let title = '好感度排名';
+        let subtitle = '止水插件';
+        let memberMap = new Map();
+
+        if (e.group_id) {
+            // 群内使用：获取群成员列表和群信息
+            title = `本群${title}`;
+            try {
+                // 获取群信息
+                const groupInfo = await e.bot?.pickGroup?.(e.group_id)?.getInfo?.() ||
+                    await e.group?.getInfo?.();
+                if (groupInfo) {
+                    subtitle = `${groupInfo.group_name || groupInfo.name || '未知群'} (${e.group_id})`;
+                } else {
+                    subtitle = `群号: ${e.group_id}`;
+                }
+
+                // 获取群成员列表，转为 Set 用于筛选
+                const memberList = await e.bot?.pickGroup?.(e.group_id)?.getMemberList?.() ||
+                    await e.group?.getMemberList?.();
+                if (memberList && memberList.length > 0) {
+                    userFilter = new Set();
+                    memberList.forEach(m => {
+                        // 统一提取用户ID，兼容对象和直接ID两种格式
+                        const uid = String(m.user_id || m.userId || m.info?.user_id || m.info?.userId || m.id || m);
+                        userFilter.add(uid);
+                    });
+                }
+            } catch (err) {
+                logger.error(`获取群成员列表失败: ${err.message}`);
+                e.reply('获取群成员列表失败，请稍后重试。');
+                return;
+            }
+        }
+
+        const rankList = await getFavorRank(userFilter, 10);
+
+        // 为排名列表添加昵称（逐个获取成员信息）
+        for (const item of rankList) {
+            if (e.group_id) {
+                try {
+                    const memberInfo = await e.bot?.pickMember?.(e.group_id, item.userId)?.getInfo?.() ||
+                        await e.group?.pickMember?.(item.userId)?.getInfo?.();
+                    if (memberInfo) {
+                        item.nickname = memberInfo.card || memberInfo.nickname || memberInfo.nick || null;
+                    }
+                } catch (err) {
+                    // 获取昵称失败，保持为null
+                }
+            }
+        }
+
+        // 计算总记录数
+        const totalCount = userFilter ? rankList.length : await getFavorTotalCount();
+
+        // 使用图片模板渲染
+        await puppeteer.render('chat/favor_rank', {
+            title,
+            subtitle,
+            rankList,
+            totalCount
+        }, {
+            e,
+            scale: 1.4
+        });
+    }
+
+    /** 清空好感度，群内清空本群成员，私聊清空全部（仅主人） */
+    async ClearAllFavor(e) {
+        // 权限判断：仅主人可用
+        if (!e.isMaster) {
+            e.reply('只有主人可以清空好感度。');
+            return;
+        }
+
+        let userFilter = null;
+        let targetDesc = '所有';
+
+        if (e.group_id) {
+            // 群内使用：清空本群成员的好感度
+            targetDesc = '本群成员';
+            try {
+                const memberList = await e.bot?.pickGroup?.(e.group_id)?.getMemberList?.() ||
+                    await e.group?.getMemberList?.();
+                if (memberList && memberList.length > 0) {
+                    userFilter = new Set();
+                    memberList.forEach(m => {
+                        // 统一提取用户ID，兼容对象和直接ID两种格式
+                        const uid = String(m.user_id || m.userId || m.info?.user_id || m.info?.userId || m.id || m);
+                        userFilter.add(uid);
+                    });
+                }
+            } catch (err) {
+                logger.error(`获取群成员列表失败: ${err.message}`);
+                e.reply('获取群成员列表失败，请稍后重试。');
+                return;
+            }
+        }
+
+        const result = await clearAllFavor(userFilter);
+        e.reply(`已清空${targetDesc}的好感度数据，共删除 ${result.count} 条记录。`);
     }
 
     /** 查看场景设定（仅私聊可用） */

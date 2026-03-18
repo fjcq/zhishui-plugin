@@ -9,12 +9,14 @@ import { getUserFavor, setUserFavor, getUserData, addFavorHistory } from './user
  * 工具集合
  * 注意：OpenAI工具调用格式要求使用 type: "function" 包装
  * 工具描述应避免技术术语，使用角色扮演友好的表述
+ * strict 模式：确保模型输出严格遵循 JSON Schema 格式
  */
 export const favorTools = [
     {
         type: "function",
         function: {
             name: "get_user_favor",
+            strict: true,
             description: "获取用户的好感度数值。当需要知道用户当前好感度、用户问「你对我的好感度是多少」「我们关系怎么样」等问题时必须调用此工具。不要编造好感度数值。",
             parameters: {
                 type: "object",
@@ -24,7 +26,8 @@ export const favorTools = [
                         description: "用户ID"
                     }
                 },
-                required: ["user_id"]
+                required: ["user_id"],
+                additionalProperties: false
             }
         }
     },
@@ -32,6 +35,7 @@ export const favorTools = [
         type: "function",
         function: {
             name: "set_user_favor",
+            strict: true,
             description: "设置用户的好感度数值。每次对话结束后，根据用户的言行主动评估并调整好感度。增加场景：礼貌关心(+1~+3)、真诚帮助(+4~+6)、情感共鸣(+7~+10)；降低场景：无礼冒犯(-1~-3)、欺骗嘲讽(-4~-6)、严重伤害(-7~-10)。参数favor是目标值（-100到100），不是变化量。",
             parameters: {
                 type: "object",
@@ -41,15 +45,16 @@ export const favorTools = [
                         description: "用户ID"
                     },
                     favor: {
-                        type: "number",
+                        type: "integer",
                         description: "好感度目标值，范围-100到100"
                     },
                     reason: {
                         type: "string",
-                        description: "调整原因，用于记录好感度变化的原因"
+                        description: "调整原因，用于记录好感度变化的原因，可选，不传则使用默认值"
                     }
                 },
-                required: ["user_id", "favor"]
+                required: ["user_id", "favor", "reason"],
+                additionalProperties: false
             }
         }
     },
@@ -57,6 +62,7 @@ export const favorTools = [
         type: "function",
         function: {
             name: "get_user_info",
+            strict: true,
             description: "获取用户的详细数据，包括好感度、互动次数等统计信息。当需要全面了解用户状态时调用。",
             parameters: {
                 type: "object",
@@ -66,7 +72,8 @@ export const favorTools = [
                         description: "用户ID"
                     }
                 },
-                required: ["user_id"]
+                required: ["user_id"],
+                additionalProperties: false
             }
         }
     },
@@ -74,16 +81,18 @@ export const favorTools = [
         type: "function",
         function: {
             name: "get_group_info",
+            strict: true,
             description: "获取群组信息（群名、群号、成员数量等）。当用户问「这个群叫什么」「群号是多少」「群里有几个人」等问题时必须调用此工具获取真实数据。不要编造群信息。",
             parameters: {
                 type: "object",
                 properties: {
                     group_id: {
                         type: "string",
-                        description: "群组ID，不传则使用当前群组"
+                        description: "群组ID，可选，不传或传空字符串则使用当前群组"
                     }
                 },
-                required: []
+                required: ["group_id"],
+                additionalProperties: false
             }
         }
     },
@@ -91,6 +100,7 @@ export const favorTools = [
         type: "function",
         function: {
             name: "get_user_profile",
+            strict: true,
             description: "获取用户的QQ资料（昵称、头像、等级等）。当需要知道用户的真实昵称、头像URL、等级等信息时必须调用此工具。不要编造用户资料。",
             parameters: {
                 type: "object",
@@ -101,10 +111,11 @@ export const favorTools = [
                     },
                     group_id: {
                         type: "string",
-                        description: "群组ID（可选，用于获取群内昵称）"
+                        description: "群组ID，可选，用于获取群内昵称，不传或传空字符串则不获取群内昵称"
                     }
                 },
-                required: ["user_id"]
+                required: ["user_id", "group_id"],
+                additionalProperties: false
             }
         }
     },
@@ -112,16 +123,18 @@ export const favorTools = [
         type: "function",
         function: {
             name: "get_group_members",
+            strict: true,
             description: "获取群成员列表。当用户问「群里有谁」「群成员有哪些」「列出群成员」等问题时必须调用此工具获取真实数据。不要编造成员列表。",
             parameters: {
                 type: "object",
                 properties: {
                     group_id: {
                         type: "string",
-                        description: "群组ID，不传则使用当前群组"
+                        description: "群组ID，可选，不传或传空字符串则使用当前群组"
                     }
                 },
-                required: []
+                required: ["group_id"],
+                additionalProperties: false
             }
         }
     }

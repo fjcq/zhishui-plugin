@@ -94,8 +94,12 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
         (aiModel || '').toLowerCase().includes('vl-72b') ||
         (aiModel || '').toLowerCase().includes('qwen2.5-vl');
 
+    // 获取思考模式配置（仅DeepSeek支持）
+    const enableThinking = await Config.Chat.EnableThinking;
+    const isThinkingMode = enableThinking && apiType === ApiTypes.DEEPSEEK;
+
     // 构建请求头和请求数据
-    const { headers, requestData } = await buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL);
+    const { headers, requestData } = await buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL, isThinkingMode);
 
     // 输出请求参数调试信息
     if (apiType === ApiTypes.TENCENT) {
@@ -155,8 +159,21 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
 
 /**
  * 构建请求数据
+ * @param {string} apiType - API类型
+ * @param {string} apiKey - API密钥
+ * @param {string} aiModel - AI模型名称
+ * @param {string} apiUrl - API地址
+ * @param {string} tencentAssistantId - 腾讯元器助手ID
+ * @param {string} systemMessage - 系统消息
+ * @param {Array} chatMsg - 聊天历史
+ * @param {string} msg - 当前用户消息
+ * @param {Object} e - 事件对象
+ * @param {Object} roleRequestParams - 角色请求参数
+ * @param {boolean} isQwenVL - 是否为Qwen VL模型
+ * @param {boolean} isThinkingMode - 是否启用思考模式
+ * @returns {Promise<Object>} 请求头和请求数据
  */
-async function buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL) {
+async function buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL, isThinkingMode = false) {
     let headers;
     let requestData;
 
@@ -190,7 +207,7 @@ async function buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssista
     } else if (isQwenVL) {
         requestData = await buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType);
     } else {
-        requestData = await buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType);
+        requestData = await buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType, isThinkingMode);
     }
 
     return { headers, requestData };
@@ -526,8 +543,17 @@ async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e, valid
 
 /**
  * 构建标准OpenAI格式请求数据
+ * @param {string} aiModel - AI模型名称
+ * @param {string} systemMessage - 系统消息
+ * @param {Array} chatMsg - 聊天历史
+ * @param {string} msg - 当前用户消息
+ * @param {Object} e - 事件对象
+ * @param {Object} validatedParams - 验证后的请求参数
+ * @param {string} apiType - API类型
+ * @param {boolean} isThinkingMode - 是否启用思考模式
+ * @returns {Promise<Object>} 请求数据对象
  */
-async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType) {
+async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType, isThinkingMode = false) {
     let messages = [];
 
     // 添加 system 消息
@@ -542,6 +568,7 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
     }
 
     // 添加历史消息（包括工具调用结果）
+    // 思考模式：新一轮对话需要清除 reasoning_content，只保留 content
     if (Array.isArray(chatMsg)) {
         for (const item of chatMsg) {
             if (!item || !item.role) continue;
@@ -551,18 +578,22 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
                 if (!item.content) continue;
                 messages.push({ role: 'user', content: item.content });
             }
-            // 处理助手消息（可能包含工具调用）
+            // 处理助手消息（可能包含工具调用和思维链）
             else if (item.role === 'assistant') {
+                const assistantMsg = {
+                    role: 'assistant',
+                    content: item.content || null
+                };
                 // 如果有工具调用，保留完整的消息结构
                 if (item.tool_calls) {
-                    messages.push({
-                        role: 'assistant',
-                        content: item.content || null,
-                        tool_calls: item.tool_calls
-                    });
-                } else if (item.content) {
-                    // 普通助手消息
-                    messages.push({ role: 'assistant', content: item.content });
+                    assistantMsg.tool_calls = item.tool_calls;
+                }
+                // 思考模式：工具调用过程中需要回传 reasoning_content
+                if (isThinkingMode && item.reasoning_content) {
+                    assistantMsg.reasoning_content = item.reasoning_content;
+                }
+                if (assistantMsg.content || assistantMsg.tool_calls || assistantMsg.reasoning_content) {
+                    messages.push(assistantMsg);
                 }
             }
             // 处理工具调用结果消息
@@ -597,13 +628,30 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
 
     let requestData = {
         model: aiModel,
-        messages: messages,
-        ...(validatedParams.temperature !== undefined && { temperature: validatedParams.temperature }),
-        ...(validatedParams.top_p !== undefined && { top_p: validatedParams.top_p }),
-        ...(validatedParams.max_tokens !== undefined && { max_tokens: validatedParams.max_tokens }),
-        ...(validatedParams.presence_penalty !== undefined && { presence_penalty: validatedParams.presence_penalty }),
-        ...(validatedParams.frequency_penalty !== undefined && { frequency_penalty: validatedParams.frequency_penalty })
+        messages: messages
     };
+
+    // 思考模式下不支持的参数：temperature、top_p、presence_penalty、frequency_penalty
+    // 这些参数设置不会报错但不会生效，为了代码清晰，思考模式下不传递
+    if (!isThinkingMode) {
+        if (validatedParams.temperature !== undefined) {
+            requestData.temperature = validatedParams.temperature;
+        }
+        if (validatedParams.top_p !== undefined) {
+            requestData.top_p = validatedParams.top_p;
+        }
+        if (validatedParams.presence_penalty !== undefined) {
+            requestData.presence_penalty = validatedParams.presence_penalty;
+        }
+        if (validatedParams.frequency_penalty !== undefined) {
+            requestData.frequency_penalty = validatedParams.frequency_penalty;
+        }
+    }
+
+    // max_tokens 在思考模式下仍然支持
+    if (validatedParams.max_tokens !== undefined) {
+        requestData.max_tokens = validatedParams.max_tokens;
+    }
 
     // 只在支持工具调用的API类型中添加工具配置
     if (isToolCallingSupported(apiType)) {
@@ -616,6 +664,11 @@ async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, val
         if (supportsJsonFormat) {
             requestData.response_format = { type: 'json_object' };
         }
+    }
+
+    // 思考模式：添加 thinking 参数
+    if (isThinkingMode) {
+        requestData.thinking = { type: 'enabled' };
     }
 
     return requestData;
@@ -723,12 +776,17 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
 
     // 处理工具调用
     if (message.tool_calls) {
-        // 构建助手消息（包含工具调用）
+        // 构建助手消息（包含工具调用和思维链）
         const assistantMessage = {
             role: 'assistant',
             content: message.content || null,
             tool_calls: message.tool_calls
         };
+
+        // 思考模式：保存 reasoning_content 以便工具调用过程中回传
+        if (message.reasoning_content) {
+            assistantMessage.reasoning_content = message.reasoning_content;
+        }
 
         // 处理工具调用
         const toolResults = [];
@@ -775,7 +833,8 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
     }
 
     // 常规响应处理
-    let rawContent = message.content.trim();
+    let rawContent = message.content ? message.content.trim() : '';
+    const reasoningContent = message.reasoning_content || null;
 
     // 尝试解析返回的 JSON 格式内容
     const parseResult = parseJsonResponse(rawContent, apiType);
@@ -785,9 +844,24 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
         console.warn(`[${apiType}] JSON解析遇到错误: ${parseResult.parseError}`);
     }
 
-    const content = await Config.Chat.ShowReasoning ? rawContent : parseResult.content.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
+    // 根据配置决定是否显示推理过程
+    const showReasoning = await Config.Chat.ShowReasoning;
+    let content = parseResult.content.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
+
+    // 思考模式：如果启用显示推理过程，将思维链内容添加到回复中
+    if (showReasoning && reasoningContent) {
+        content = `【思维链】\n${reasoningContent}\n\n【回答】\n${content}`;
+    }
+
+    // 保存消息到会话
     await addMessage({ role: 'user', content: fullUserMsg }, e);
-    await addMessage({ role: 'assistant', content }, e);
+
+    // 保存助手消息（包含 reasoning_content 用于思考模式的上下文拼接）
+    const assistantMsgToSave = { role: 'assistant', content };
+    if (reasoningContent) {
+        assistantMsgToSave.reasoning_content = reasoningContent;
+    }
+    await addMessage(assistantMsgToSave, e);
 
     // 返回处理后的内容
     return JSON.stringify({

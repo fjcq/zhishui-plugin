@@ -449,6 +449,12 @@ export function supportGuoba() {
                         component: 'Switch'
                     },
                     {
+                        field: 'chat.EnableThinking',
+                        label: '启用思考模式',
+                        bottomHelpMessage: '启用DeepSeek思考模式，模型会先输出思维链再给出回答。注意：思考模式下不支持temperature、top_p等参数',
+                        component: 'Switch'
+                    },
+                    {
                         field: 'chat.LinkMode',
                         label: '链接模式',
                         bottomHelpMessage: '是否开启对话链接模式',

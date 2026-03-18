@@ -46,7 +46,7 @@ export async function getUserData(userId) {
     try {
         const key = `zhishui:chat:user:${userId}`;
         const data = await redis.hgetall(key);
-        
+
         if (!data || Object.keys(data).length === 0) {
             return {
                 userId,
@@ -148,7 +148,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
             // 如果不支持列表操作，使用简单的get/set操作存储最近的记录
             const key = `zhishui:chat:history:${userId}`;
             let history = [];
-            
+
             // 获取现有历史记录
             const existing = await redis.get(key);
             if (existing) {
@@ -162,7 +162,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                     history = [];
                 }
             }
-            
+
             // 添加新记录到开头
             const record = {
                 time: Date.now(),
@@ -172,17 +172,17 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                 favorAfter
             };
             history.unshift(record);
-            
+
             // 只保留最近100条记录
             if (history.length > 100) {
                 history = history.slice(0, 100);
             }
-            
+
             // 保存回Redis
             await redis.set(key, JSON.stringify(history), { EX: 604800 });
             return true;
         }
-        
+
         // 如果支持列表操作，使用原有的实现
         const key = `zhishui:chat:history:${userId}`;
         const record = {
@@ -192,11 +192,11 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
             favorBefore,
             favorAfter
         };
-        
+
         await redis.lpush(key, JSON.stringify(record));
         await redis.ltrim(key, 0, 99);
         await redis.expire(key, 604800);
-        
+
         return true;
     } catch (error) {
         logger.error(`添加好感度历史失败: ${error.message}`);
@@ -232,11 +232,11 @@ export async function checkRateLimit(userId) {
         const minuteKey = `zhishui:chat:ratelimit:minute:${userId}`;
         const hourKey = `zhishui:chat:ratelimit:hour:${userId}`;
         const dayKey = `zhishui:chat:ratelimit:day:${userId}`;
-        
+
         const minuteCount = await redis.get(minuteKey) || 0;
         const hourCount = await redis.get(hourKey) || 0;
         const dayCount = await redis.get(dayKey) || 0;
-        
+
         if (parseInt(minuteCount) >= 10) {
             return {
                 allowed: false,
@@ -244,7 +244,7 @@ export async function checkRateLimit(userId) {
                 message: '您说话太快了，请稍后再试~'
             };
         }
-        
+
         if (parseInt(hourCount) >= 50) {
             return {
                 allowed: false,
@@ -252,7 +252,7 @@ export async function checkRateLimit(userId) {
                 message: '今天聊得太多了，休息一下吧~'
             };
         }
-        
+
         if (parseInt(dayCount) >= 200) {
             return {
                 allowed: false,
@@ -260,20 +260,20 @@ export async function checkRateLimit(userId) {
                 message: '今天的对话次数已用完，明天再来吧~'
             };
         }
-        
+
         const minuteExpire = 60 - (now % 60000) / 1000;
         const hourExpire = 3600 - (now % 3600000) / 1000;
         const dayExpire = 86400 - (now % 86400000) / 1000;
-        
+
         await redis.incr(minuteKey);
         await redis.expire(minuteKey, Math.ceil(minuteExpire));
-        
+
         await redis.incr(hourKey);
         await redis.expire(hourKey, Math.ceil(hourExpire));
-        
+
         await redis.incr(dayKey);
         await redis.expire(dayKey, Math.ceil(dayExpire));
-        
+
         return { allowed: true };
     } catch (error) {
         logger.error(`检查频率限制失败: ${error.message}`);
@@ -292,14 +292,14 @@ export async function addAchievement(userId, achievementId) {
         const key = `zhishui:chat:achievements:${userId}`;
         const isNew = await redis.sadd(key, achievementId) === 1;
         await redis.expire(key, 2592000);
-        
+
         if (isNew) {
             const userKey = `zhishui:chat:user:${userId}`;
             const achievements = await getUserAchievements(userId);
             await redis.hset(userKey, 'achievements', JSON.stringify([...achievements, achievementId]));
             await redis.expire(userKey, 86400);
         }
-        
+
         return isNew;
     } catch (error) {
         logger.error(`添加成就失败: ${error.message}`);
@@ -332,11 +332,140 @@ export async function clearRateLimit(userId) {
         const minuteKey = `zhishui:chat:ratelimit:minute:${userId}`;
         const hourKey = `zhishui:chat:ratelimit:hour:${userId}`;
         const dayKey = `zhishui:chat:ratelimit:day:${userId}`;
-        
+
         await redis.del(minuteKey, hourKey, dayKey);
         return true;
     } catch (error) {
         logger.error(`清除频率限制失败: ${error.message}`);
         return false;
+    }
+}
+
+/**
+ * 清空好感度数据
+ * @param {Set<string>} [userFilter] - 可选，用户ID集合用于筛选。不传则清空所有
+ * @returns {Promise<Object>} 清空结果 {success: boolean, count: number, message: string}
+ */
+export async function clearAllFavor(userFilter = null) {
+    try {
+        let totalDeleted = 0;
+
+        // 获取所有好感度键
+        const pattern = 'zhishui:chat:favor:*';
+        const keys = await redis.keys(pattern);
+
+        logger.info(`[好感度] 清空操作 - 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}, 找到键: ${keys ? keys.length : 0}个`);
+
+        if (keys && keys.length > 0) {
+            const keysToDelete = [];
+
+            // 调试：打印好感度键中的用户ID
+            const keyUserIds = keys.map(k => k.split(':').pop());
+            logger.info(`[好感度] 键中的用户ID: ${keyUserIds.join(', ')}`);
+
+            for (const key of keys) {
+                // 从键名中提取用户ID: zhishui:chat:favor:123456 -> 123456
+                const userId = key.split(':').pop();
+
+                // 如果有筛选条件，检查用户是否在筛选集合中
+                if (userFilter && !userFilter.has(userId)) {
+                    continue;
+                }
+
+                keysToDelete.push(key);
+            }
+
+            logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}`);
+
+            if (keysToDelete.length > 0) {
+                // 逐个删除并检查结果
+                for (const key of keysToDelete) {
+                    const delResult = await redis.del(key);
+                    if (delResult) {
+                        totalDeleted++;
+                    } else {
+                        logger.warn(`[好感度] 删除键失败: ${key}`);
+                    }
+                }
+            }
+        }
+
+        logger.info(`[好感度] 已清空好感度数据，共删除 ${totalDeleted} 条记录`);
+
+        return {
+            success: true,
+            count: totalDeleted,
+            message: `已成功清空好感度数据，共删除 ${totalDeleted} 条记录`
+        };
+    } catch (error) {
+        logger.error(`清空好感度失败: ${error.message}`);
+        return {
+            success: false,
+            count: 0,
+            message: `清空好感度失败: ${error.message}`
+        };
+    }
+}
+
+/**
+ * 获取好感度排名
+ * @param {Set<string>} [userFilter] - 可选，用户ID集合用于筛选。不传则返回所有用户
+ * @param {number} [limit=10] - 返回排名数量，默认10
+ * @returns {Promise<Array>} 排名数组 [{userId, favor, rank}]
+ */
+export async function getFavorRank(userFilter = null, limit = 10) {
+    try {
+        const favorMap = new Map();
+
+        // 获取所有用户的好感度
+        const pattern = 'zhishui:chat:favor:*';
+        const keys = await redis.keys(pattern);
+
+        if (keys && keys.length > 0) {
+            for (const key of keys) {
+                // 从键名中提取用户ID: zhishui:chat:favor:123456 -> 123456
+                const userId = key.split(':').pop();
+
+                // 如果有筛选条件，检查用户是否在筛选集合中
+                if (userFilter && !userFilter.has(userId)) {
+                    continue;
+                }
+
+                const value = await redis.get(key);
+                if (value) {
+                    favorMap.set(userId, parseInt(value));
+                }
+            }
+        }
+
+        // 按好感度降序排序
+        const sorted = [...favorMap.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, limit)
+            .map(([userId, favor], index) => ({
+                userId,
+                favor,
+                rank: index + 1
+            }));
+
+        return sorted;
+    } catch (error) {
+        logger.error(`获取好感度排名失败: ${error.message}`);
+        return [];
+    }
+}
+
+/**
+ * 获取好感度总记录数
+ * @returns {Promise<number>} 总记录数
+ */
+export async function getFavorTotalCount() {
+    try {
+        const pattern = 'zhishui:chat:favor:*';
+        const keys = await redis.keys(pattern);
+        return keys ? keys.length : 0;
+    } catch (error) {
+        logger.error(`获取好感度总数失败: ${error.message}`);
+        return 0;
     }
 }
