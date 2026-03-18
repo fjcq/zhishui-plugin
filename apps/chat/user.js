@@ -359,10 +359,6 @@ export async function clearAllFavor(userFilter = null) {
         if (keys && keys.length > 0) {
             const keysToDelete = [];
 
-            // 调试：打印好感度键中的用户ID
-            const keyUserIds = keys.map(k => k.split(':').pop());
-            logger.info(`[好感度] 键中的用户ID: ${keyUserIds.join(', ')}`);
-
             for (const key of keys) {
                 // 从键名中提取用户ID: zhishui:chat:favor:123456 -> 123456
                 const userId = key.split(':').pop();
@@ -378,13 +374,40 @@ export async function clearAllFavor(userFilter = null) {
             logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}`);
 
             if (keysToDelete.length > 0) {
-                // 逐个删除并检查结果
-                for (const key of keysToDelete) {
-                    const delResult = await redis.del(key);
-                    if (delResult) {
-                        totalDeleted++;
-                    } else {
-                        logger.warn(`[好感度] 删除键失败: ${key}`);
+                // 批量删除优化：使用unlink（异步删除）或批量del
+                // 每批处理100个键，避免一次性操作过多
+                const BATCH_SIZE = 100;
+
+                for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
+                    const batch = keysToDelete.slice(i, i + BATCH_SIZE);
+
+                    try {
+                        // 优先使用unlink（Redis 4.0+异步删除，性能更好）
+                        if (typeof redis.unlink === 'function') {
+                            const deleted = await redis.unlink(...batch);
+                            totalDeleted += deleted || batch.length;
+                        } else if (typeof redis.del === 'function') {
+                            // 批量删除（传递多个参数）
+                            const deleted = await redis.del(...batch);
+                            totalDeleted += deleted || batch.length;
+                        } else {
+                            // 降级：逐个删除
+                            for (const key of batch) {
+                                const result = await redis.del(key);
+                                if (result) totalDeleted++;
+                            }
+                        }
+                    } catch (batchError) {
+                        // 批量删除失败时，降级为逐个删除
+                        logger.warn(`[好感度] 批量删除失败，降级为逐个删除: ${batchError.message}`);
+                        for (const key of batch) {
+                            try {
+                                const result = await redis.del(key);
+                                if (result) totalDeleted++;
+                            } catch (e) {
+                                logger.warn(`[好感度] 删除键失败: ${key}`);
+                            }
+                        }
                     }
                 }
             }

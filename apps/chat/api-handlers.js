@@ -808,7 +808,16 @@ async function handleApiResponse(responseData, apiType, msg, e, systemMessage, c
             }
 
             // 调用工具处理函数
-            const result = await handleFavorToolCall(toolName, toolParams, e);
+            // 提取当前用户ID用于自动填充
+            let currentUserId = null;
+            try {
+                const msgObj = JSON.parse(msg);
+                currentUserId = msgObj.additional_info?.user_id || null;
+            } catch {
+                // msg 不是 JSON 格式
+            }
+
+            const result = await handleFavorToolCall(toolName, toolParams, e, currentUserId);
 
             // 构建工具调用结果（OpenAI格式要求）
             toolResults.push({

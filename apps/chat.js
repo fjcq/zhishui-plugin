@@ -1178,26 +1178,47 @@ export class ChatHandler extends plugin {
         let targetId = null;
         let favor = null;
 
-        // 提取消息中的所有数字
-        const numbers = e.msg.match(/(-?\d+)/g);
-        if (!numbers || numbers.length === 0) {
-            e.reply('请指定好感度数值，例如：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）\n#设置好感度 @某人 50（艾特设置）');
-            return;
-        }
-
-        // 检查是否@了某人
+        // 检查是否@了某人（优先级最高）
         if (e.at && e.at.length > 0) {
             // 有艾特：#设置好感度 @某人 数值
             targetId = String(e.at[0]);
-            favor = parseInt(numbers[numbers.length - 1]); // 最后一个数字是好感度
-        } else if (numbers.length >= 2) {
-            // 两个及以上数字：#设置好感度 QQ号 数值
-            targetId = numbers[0];
-            favor = parseInt(numbers[1]);
+            const numbers = e.msg.match(/(-?\d+)/g);
+            if (!numbers || numbers.length === 0) {
+                e.reply('请指定好感度数值，例如：#设置好感度 @某人 50');
+                return;
+            }
+            favor = parseInt(numbers[numbers.length - 1]);
         } else {
-            // 只有一个数字：#设置好感度 数值（设置自己）
-            targetId = e.user_id;
-            favor = parseInt(numbers[0]);
+            // 提取消息中的所有数字
+            const numbers = e.msg.match(/(-?\d+)/g);
+            if (!numbers || numbers.length === 0) {
+                e.reply('请指定好感度数值，例如：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）\n#设置好感度 @某人 50（艾特设置）');
+                return;
+            }
+
+            if (numbers.length >= 2) {
+                // 两个及以上数字：判断第一个是否为有效QQ号
+                const firstNum = numbers[0];
+                const secondNum = numbers[1];
+
+                // QQ号验证：5-11位数字，且不能是好感度范围（-100到100）
+                const isFirstQQ = firstNum.length >= 5 && firstNum.length <= 11 &&
+                    parseInt(firstNum) > 100;
+
+                if (isFirstQQ) {
+                    // 第一个数字是QQ号
+                    targetId = firstNum;
+                    favor = parseInt(secondNum);
+                } else {
+                    // 第一个数字不是有效QQ号，可能是用户输入错误
+                    e.reply(`参数格式错误。QQ号应为5-11位数字。\n正确格式：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）`);
+                    return;
+                }
+            } else {
+                // 只有一个数字：#设置好感度 数值（设置自己）
+                targetId = e.user_id;
+                favor = parseInt(numbers[0]);
+            }
         }
 
         if (isNaN(favor)) {
