@@ -1,35 +1,25 @@
-import { Config } from '../../components/index.js';
+/**
+ * 对话模块配置
+ * 共享的配置变量和常量
+ */
+
 import path from 'path';
-import { isToolCallingSupported } from './api-types.js';
+import { Plugin_Path, Config } from '../../components/index.js';
+import { ReadScene } from './sceneManager.js';
 
-/**
- * 对话上下文缓存路径
- */
-export const CHAT_CONTEXT_PATH = path.join(process.cwd(), 'plugins', 'zhishui-plugin', 'resources', 'data', 'chat');
+export const CHAT_CONTEXT_PATH = path.join(Plugin_Path, 'data', 'chatContext');
 
-/**
- * 存储每个会话的活跃状态
- * 0: 空闲, 1: 处理中
- */
 export const chatActiveMap = {};
 
-/**
- * 存储每个会话的最后请求时间
- */
 export const lastRequestTime = {};
 
-/**
- * API请求间隔配置（毫秒）
- * 不同API类型有不同的请求频率限制
- */
 export const API_INTERVALS = {
-    openai: 1000,        // OpenAI: 1秒
-    siliconflow: 500,    // 硅基流动: 0.5秒
-    deepseek: 500,       // DeepSeek: 0.5秒
-    zhipu: 500,          // 智谱AI: 0.5秒
-    tencent: 1000,       // 腾讯元器: 1秒
-    gemini: 500,         // Gemini: 0.5秒
-    default: 1000        // 默认: 1秒
+    'default': 3000,
+    'openai': 3000,
+    'gemini': 2000,
+    'tencent': 2000,
+    'qwen': 3000,
+    'deepseek': 3000
 };
 
 /**
@@ -38,37 +28,31 @@ export const API_INTERVALS = {
  * @returns {Promise<number>} 角色索引
  */
 export async function getCurrentRoleIndex(e) {
-    // 私聊：优先使用用户个人角色配置
-    if (!e.group_id && e.user_id) {
+    let currentRoleIndex = await Config.Chat.CurrentRoleIndex || 0;
+
+    if (!e.group_id) {
         try {
             const userRoleIndex = await Config.GetUserChatConfig(e.user_id, 'RoleIndex');
             if (typeof userRoleIndex === 'number') {
-                return userRoleIndex;
+                currentRoleIndex = userRoleIndex;
             }
         } catch (error) {
-            logger.error('[getCurrentRoleIndex] 获取用户角色配置失败:', error);
         }
-    }
-
-    // 群聊：使用群专属角色配置
-    const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
-    const groupId = e && e.group_id ? String(e.group_id) : null;
-    if (groupId && Array.isArray(groupRoleList)) {
-        const found = groupRoleList.find(item => String(item.group) === groupId);
+    } else {
+        const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+        const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
         if (found && typeof found.index === 'number') {
-            return found.index;
+            currentRoleIndex = found.index;
         }
     }
 
-    // 默认：使用全局角色配置
-    const globalRoleIndex = await Config.Chat.CurrentRoleIndex;
-    return typeof globalRoleIndex === 'number' ? globalRoleIndex : 0;
+    return currentRoleIndex;
 }
 
 /**
  * 获取当前API配置
  * @param {Object} e - 事件对象
- * @returns {Object} API配置对象 { apiIndex: number, apiConfig: Object }
+ * @returns {Promise<Object>} 包含 apiIndex 和 apiConfig 的对象
  */
 export async function getCurrentApiConfig(e) {
     const ApiList = await Config.Chat.ApiList || [];
@@ -76,9 +60,8 @@ export async function getCurrentApiConfig(e) {
         ? await Config.Chat.CurrentApiIndex
         : parseInt(await Config.Chat.CurrentApiIndex) || 0;
 
-    // 群聊：使用群专属API配置
-    if (e.group_id) {
-        const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
+    if (e.group_id && Array.isArray(await Config.Chat.GroupRoleIndex)) {
+        const groupRoleList = await Config.Chat.GroupRoleIndex;
         const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
         if (found && typeof found.apiIndex === 'number') {
             apiIndex = found.apiIndex;
@@ -86,165 +69,242 @@ export async function getCurrentApiConfig(e) {
     }
 
     const apiConfig = ApiList[apiIndex] || ApiList[0] || {};
+
     return { apiIndex, apiConfig };
 }
 
 /**
- * 组建 system 消息
- * @param {Object} e - 用户对象，包含用户ID等信息
- * @returns {Promise<string>} 返回组建完成的 system 消息
+ * 合并系统消息
+ * 整合角色设定、场景设定、系统配置、主人设定等
+ * @param {Object} e - 事件对象
+ * @param {boolean} supportsToolCalling - 是否支持工具调用
+ * @returns {Promise<string>} 系统消息字符串
  */
-export async function mergeSystemMessage(e) {
-    let merged = {};
+export async function mergeSystemMessage(e, supportsToolCalling = false) {
     try {
-        const sceneJson = await ReadScene();
-        const sceneSetting = JSON.parse(sceneJson);
+        const currentRoleIndex = await getCurrentRoleIndex(e);
         const roleJson = Config.getJsonConfig('RoleProfile');
         const roles = JSON.parse(roleJson);
-        const currentRoleIndex = await getCurrentRoleIndex(e);
-        // 深拷贝角色设定，避免污染原数据
-        const identitySetting = JSON.parse(JSON.stringify(roles[currentRoleIndex] || {}));
-        // 移除请求参数，防止污染上下文
-        if ('请求参数' in identitySetting) {
-            delete identitySetting['请求参数'];
+        const currentRole = roles[currentRoleIndex] || {};
+
+        if (currentRole.系统提示词) {
+            return currentRole.系统提示词;
         }
 
-        // 合并场景设定和角色设定
-        merged = {
-            ...sceneSetting,
-            ...identitySetting
-        };
+        let systemMessage = '';
 
-        // 动态更新主人信息，使用实际配置的主人信息
-        if (merged['用户身份系统'] && merged['用户身份系统']['主人']) {
-            merged['用户身份系统']['主人'].master_name = await Config.Chat.Master || '默认主人昵称';
-            merged['用户身份系统']['主人'].master_qq = await Config.Chat.MasterQQ || '10001';
+        const context = await Config.Chat.Context || '';
+        if (context) {
+            systemMessage += `## 对话身份\n${context}\n\n`;
         }
 
-        // 动态更新角色名称，使用用户配置的昵称
-        if (merged['基础身份']) {
-            merged['基础身份'].名称 = await Config.Chat.NickName || '默认角色名';
-        }
+        if (currentRole['基础身份']) {
+            const basicIdentity = currentRole['基础身份'];
+            systemMessage += `## 角色身份\n`;
+            systemMessage += `你是一个${basicIdentity.类型 || 'AI助手'}。\n\n`;
 
-        // 获取当前API配置，判断是否支持工具调用
-        const { apiConfig } = await getCurrentApiConfig(e);
-        const apiType = apiConfig.ApiType || 'default';
-        const supportsToolCalling = isToolCallingSupported(apiType);
-
-        // 添加好感度管理说明（角色扮演友好的表述）
-        merged['好感度管理'] = {
-            '核心要求': '好感度是角色情感的真实反映，必须在每次对话后主动评估并调整',
-            '重要提醒': supportsToolCalling ? [
-                '【强制要求】每次对话结束后，必须调用set_user_favor工具更新好感度，即使变化为0也要记录',
-                '【强制要求】根据用户的言行和你的心情，主动评估好感度变化，不要等待用户询问',
-                '【强制要求】好感度变化应该是自然的、符合角色性格的反应',
-                '你可以根据当前心情主动调整好感度，比如心情好时对用户的善意更敏感',
-                '好感度是角色扮演的核心机制，请认真对待每一次调整'
-            ] : [
-                '从用户信息中感知当前好感度状态',
-                '根据对话内容自然地调整好感度',
-                '好感度变化会自动记录，无需向用户说明',
-                '请以角色的自然语言表达方式与用户互动'
-            ],
-            '调整时机': {
-                '必须调整的场景': [
-                    '用户说了让你开心/生气的话',
-                    '用户表现出关心/冷漠的态度',
-                    '用户帮助你/伤害你',
-                    '用户与你的互动让你产生情感波动',
-                    '你的心情发生变化时对用户的态度调整'
-                ],
-                '可以保持不变的场景': [
-                    '纯粹的问答对话',
-                    '用户只是查询信息',
-                    '对话内容与情感无关'
-                ]
-            },
-            '调整触发条件': {
-                '增加好感度': {
-                    '轻微(+1~+3)': ['礼貌问候', '真诚关心', '有趣玩笑', '让你微笑的话'],
-                    '中度(+4~+6)': ['真诚赞美', '主动帮助', '理解你的感受', '让你感到温暖的话'],
-                    '大幅(+7~+10)': ['困难时支持你', '深度理解你', '情感共鸣', '让你感动的话']
-                },
-                '降低好感度': {
-                    '轻微(-1~-3)': ['无礼言语', '无视你的感受', '无聊话题', '让你有点不高兴的话'],
-                    '中度(-4~-6)': ['明显冒犯', '欺骗隐瞒', '嘲讽贬低', '让你感到受伤的话'],
-                    '大幅(-7~-10)': ['严重伤害你', '背叛信任', '恶意攻击', '让你感到愤怒或心碎的话']
-                }
-            },
-            '心情影响': {
-                '心情好时': '对用户的善意更敏感，可能给予更高的好感度提升',
-                '心情不好时': '对用户的冒犯更敏感，可能给予更严厉的好感度降低',
-                '心情平静时': '按照标准规则调整好感度'
+            if (basicIdentity.核心特征 && Array.isArray(basicIdentity.核心特征)) {
+                systemMessage += `### 核心特征\n`;
+                basicIdentity.核心特征.forEach(feature => {
+                    systemMessage += `- ${feature}\n`;
+                });
+                systemMessage += '\n';
             }
-        };
-
-        // 添加信息查询能力说明（角色扮演友好的表述）
-        if (supportsToolCalling) {
-            merged['信息查询能力'] = {
-                '群组信息': '当用户询问群名、群号、群成员数量时，必须调用get_group_info或get_group_members工具获取真实数据',
-                '用户资料': '当需要知道用户的真实昵称、头像、等级时，必须调用get_user_profile工具获取真实数据',
-                '好感度查询': '当需要了解用户好感度时，必须调用get_user_favor工具获取真实数据',
-                '重要提醒': [
-                    '所有群名、用户昵称、群成员数量等信息必须通过工具调用获取真实数据，严禁编造',
-                    '不要说"让我看看"然后编造数据，必须真正调用工具',
-                    '如果工具调用失败，如实告知用户无法获取信息，不要编造'
-                ]
-            };
-
-            // 添加自然回复指南
-            merged['回复风格指南'] = {
-                '核心原则': '回复必须像人类一样自然流畅，不能暴露工具调用或数据查询的过程痕迹',
-                '禁止行为': [
-                    '禁止使用"让我查一下"、"让我看看"、"稍等片刻"、"正在查询"等暗示正在执行查询过程的表述',
-                    '禁止使用"根据查询结果"、"数据显示"、"系统返回"等暴露数据是通过查询获得的表述',
-                    '禁止在回复中解释你是如何获取到这些信息的'
-                ],
-                '推荐行为': [
-                    '直接说出结果，仿佛你本来就记得或知道这些信息',
-                    '用自然的语气增加亲和力',
-                    '可以适当加入角色的个人感受和互动',
-                    '如果信息不可用，用角色特有的方式委婉表达'
-                ],
-                '示例对比': {
-                    '错误示范': '让我查一下您的等级...根据查询结果，您的等级信息暂时无法获取。',
-                    '正确示范': '唔...我这边好像看不到您的等级信息呢，可能是数据还没同步过来~不过没关系，等级又不重要，重要的是我们之间的羁绊呀！'
-                }
-            };
         }
+
+        if (currentRole['行为特征']) {
+            const behavior = currentRole['行为特征'];
+            systemMessage += `## 行为特征\n\n`;
+
+            if (behavior.语言风格) {
+                systemMessage += `### 语言风格\n${behavior.语言风格}\n\n`;
+            }
+
+            if (behavior.特殊机制 && Array.isArray(behavior.特殊机制)) {
+                systemMessage += `### 特殊机制\n`;
+                behavior.特殊机制.forEach(mechanism => {
+                    systemMessage += `- ${mechanism}\n`;
+                });
+                systemMessage += '\n';
+            }
+        }
+
+        if (currentRole['生物特征']) {
+            const bio = currentRole['生物特征'];
+            systemMessage += `## 生物特征\n\n`;
+
+            if (bio.身高) {
+                systemMessage += `- 身高：${bio.身高}\n`;
+            }
+            if (bio.体态) {
+                systemMessage += `- 体态：${bio.体态}\n`;
+            }
+            if (bio.能量源) {
+                systemMessage += `- 能量源：${bio.能量源}\n`;
+            }
+            systemMessage += '\n';
+        }
+
+        const sceneJson = await ReadScene();
+        if (sceneJson) {
+            try {
+                const scene = JSON.parse(sceneJson);
+                systemMessage += `## 场景设定\n\n`;
+                Object.entries(scene).forEach(([key, value]) => {
+                    if (typeof value === 'object') {
+                        systemMessage += `### ${key}\n${JSON.stringify(value, null, 2)}\n\n`;
+                    } else {
+                        systemMessage += `- ${key}: ${value}\n`;
+                    }
+                });
+                systemMessage += '\n';
+            } catch (sceneError) {
+                console.error('[mergeSystemMessage] 解析场景设定失败:', sceneError);
+            }
+        }
+
+        systemMessage += buildResponseFormatSection(supportsToolCalling);
+
+        const systemConfigJson = Config.getJsonConfig('SystemConfig');
+        if (systemConfigJson) {
+            try {
+                const systemConfig = JSON.parse(systemConfigJson);
+                systemMessage += `## 系统规则\n\n`;
+
+                if (systemConfig['身份保密']) {
+                    systemMessage += `### 身份保密\n`;
+                    systemMessage += `- 核心原则：${systemConfig['身份保密'].核心原则}\n`;
+                    if (systemConfig['身份保密'].必须行为) {
+                        systemMessage += `- 必须行为：\n`;
+                        systemConfig['身份保密'].必须行为.forEach(behavior => {
+                            systemMessage += `  - ${behavior}\n`;
+                        });
+                    }
+                    systemMessage += '\n';
+                }
+
+                if (systemConfig['好感度系统']) {
+                    const favorSystem = systemConfig['好感度系统'];
+                    systemMessage += `### 好感度系统\n`;
+                    systemMessage += `- 核心原则：${favorSystem.核心原则}\n`;
+                    systemMessage += `- 数值范围：${favorSystem.数值范围}\n`;
+                    if (favorSystem.调整原则) {
+                        systemMessage += `- 调整原则：\n`;
+                        favorSystem.调整原则.forEach(principle => {
+                            systemMessage += `  - ${principle}\n`;
+                        });
+                    }
+                    systemMessage += '\n';
+                }
+
+                if (systemConfig['用户身份系统']) {
+                    const userIdentity = systemConfig['用户身份系统'];
+                    systemMessage += `### 用户身份系统\n`;
+                    if (userIdentity.主人) {
+                        systemMessage += `- 主人定义：${userIdentity.主人.定义}\n`;
+                        systemMessage += `- 主人好感度状态：${userIdentity.主人.好感度状态}\n`;
+                        systemMessage += `- 主人特殊地位：${userIdentity.主人.特殊地位}\n`;
+                    }
+                    if (userIdentity.普通用户) {
+                        systemMessage += `- 普通用户定义：${userIdentity.普通用户.定义}\n`;
+                        systemMessage += `- 普通用户好感度状态：${userIdentity.普通用户.好感度状态}\n`;
+                    }
+                    systemMessage += '\n';
+                }
+
+                if (systemConfig['@提及功能']) {
+                    systemMessage += `### @提及功能\n`;
+                    systemMessage += `- 说明：${systemConfig['@提及功能'].说明}\n`;
+                    systemMessage += `- 示例：${systemConfig['@提及功能'].示例}\n\n`;
+                }
+            } catch (configError) {
+                console.error('[mergeSystemMessage] 解析系统配置失败:', configError);
+            }
+        }
+
+        const masterName = await Config.Chat.Master || '';
+        const masterQQ = await Config.Chat.MasterQQ || '';
+        if (masterName && masterQQ) {
+            systemMessage += `## 主人设定\n\n`;
+            systemMessage += `- 主人名称：${masterName}\n`;
+            systemMessage += `- 主人QQ：${masterQQ}\n`;
+            systemMessage += `- 主人是系统的唯一所有者，是角色最重要的人\n\n`;
+        }
+
+        if (currentRole['请求参数']) {
+            systemMessage += `## 请求参数\n`;
+            const params = currentRole['请求参数'];
+            Object.entries(params).forEach(([key, value]) => {
+                systemMessage += `- ${key}: ${value}\n`;
+            });
+            systemMessage += '\n';
+        }
+
+        return systemMessage || '你是一个有帮助的AI助手。';
     } catch (error) {
-        console.error('[mergeSystemMessage] 合并系统消息失败:', error);
-        merged = {};
+        console.error('[mergeSystemMessage] 构建系统消息失败:', error);
+        return '你是一个有帮助的AI助手。';
     }
-
-    // 转换为JSON字符串
-    return JSON.stringify(merged);
 }
 
 /**
- * 读场景设定
- * @returns {Promise<string>} 场景设定JSON字符串
+ * 构建响应格式部分
+ * @param {boolean} supportsToolCalling - 是否支持工具调用
+ * @returns {string} 响应格式说明
  */
-export async function ReadScene() {
-    return Config.getJsonConfig('SystemConfig');
-}
-
-/**
- * 写场景设定
- * @param {Object} Context - 场景设定对象
- * @returns {Promise<void>}
- */
-export async function WriteScene(Context) {
-    return Config.setJsonConfig('SystemConfig', Context);
-}
-
-/**
- * 写主人设定
- * @param {string} Master - 主人名字
- * @param {string} MasterQQ - 主人QQ号
- * @returns {Promise<void>}
- */
-export async function WriteMaster(Master, MasterQQ) {
-    Config.modify('chat', 'Master', Master);
-    Config.modify('chat', 'MasterQQ', MasterQQ);
+function buildResponseFormatSection(supportsToolCalling) {
+    let section = `## 响应格式\n\n`;
+    
+    if (supportsToolCalling) {
+        section += `### 响应要求\n`;
+        section += `- 所有响应必须是合法的JSON格式\n`;
+        section += `- 系统已启用工具调用功能，你可以通过调用工具来修改用户好感度\n\n`;
+        
+        section += `### 响应结构\n`;
+        section += `- message: 【必填】你的回复内容，这是唯一必需的字段\n`;
+        section += `- code_example: 【可选】代码示例，如果回复包含代码可以放在这里\n\n`;
+        
+        section += `### 示例响应\n`;
+        section += `\`\`\`json\n`;
+        section += `{\n`;
+        section += `  "message": "你好呀~很高兴见到你！"\n`;
+        section += `}\n`;
+        section += `\`\`\`\n\n`;
+        
+        section += `### 注意事项\n`;
+        section += `- message字段必须存在且为字符串类型\n`;
+        section += `- 如需修改好感度，请使用 change_user_favor 工具，不要在响应中包含favor_changes字段\n`;
+        section += `- 确保返回的是合法的JSON格式，不要有多余的文本\n\n`;
+    } else {
+        section += `### 响应要求\n`;
+        section += `- 所有响应必须是合法的JSON格式\n`;
+        section += `- 系统需要解析响应内容来处理好感度变化等功能\n\n`;
+        
+        section += `### 响应结构\n`;
+        section += `- message: 【必填】你的回复内容，这是唯一必需的字段\n`;
+        section += `- favor_changes: 【可选】好感度变化数组，格式：[{"user_id": 用户ID, "change": 变化值, "reason": "原因"}]\n`;
+        section += `- code_example: 【可选】代码示例，如果回复包含代码可以放在这里\n\n`;
+        
+        section += `### 示例响应\n`;
+        section += `\`\`\`json\n`;
+        section += `{\n`;
+        section += `  "message": "你好呀~很高兴见到你！",\n`;
+        section += `  "favor_changes": [\n`;
+        section += `    {\n`;
+        section += `      "user_id": "123456",\n`;
+        section += `      "change": 2,\n`;
+        section += `      "reason": "友好的问候"\n`;
+        section += `    }\n`;
+        section += `  ]\n`;
+        section += `}\n`;
+        section += `\`\`\`\n\n`;
+        
+        section += `### 注意事项\n`;
+        section += `- message字段必须存在且为字符串类型\n`;
+        section += `- favor_changes是数组类型，每个元素包含user_id、change、reason三个字段\n`;
+        section += `- change数值范围建议在-10到10之间\n`;
+        section += `- 确保返回的是合法的JSON格式，不要有多余的文本\n\n`;
+    }
+    
+    return section;
 }

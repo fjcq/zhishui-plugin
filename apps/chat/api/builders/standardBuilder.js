@@ -1,0 +1,117 @@
+/**
+ * 标准OpenAI格式请求构建器
+ */
+
+import { buildUserMessageContent, getDefaultParams, addToolCallingConfig, addJsonFormatConfig } from '../utils/requestUtils.js';
+import { isToolCallingSupported } from '../../api-types.js';
+import { favorTools } from '../../tools/index.js';
+
+/**
+ * 构建标准OpenAI格式请求数据
+ * @param {string} aiModel - AI模型名称
+ * @param {string} systemMessage - 系统消息
+ * @param {Array} chatMsg - 聊天历史
+ * @param {string} msg - 当前用户消息
+ * @param {Object} e - 事件对象
+ * @param {Object} validatedParams - 验证后的请求参数
+ * @param {string} apiType - API类型
+ * @param {boolean} isThinkingMode - 是否启用思考模式
+ * @returns {Promise<Object>} 请求数据对象
+ */
+export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg, e, validatedParams, apiType, isThinkingMode = false) {
+    let messages = [];
+
+    let systemPrompt = '';
+    try {
+        systemPrompt = typeof systemMessage === 'string' ? systemMessage : JSON.stringify(systemMessage);
+    } catch {
+        systemPrompt = '';
+    }
+    if (systemPrompt) {
+        messages.push({ role: 'system', content: systemPrompt });
+    }
+
+    if (Array.isArray(chatMsg)) {
+        for (const item of chatMsg) {
+            if (!item || !item.role) continue;
+
+            if (item.role === 'user') {
+                if (!item.content) continue;
+                messages.push({ role: 'user', content: item.content });
+            }
+            else if (item.role === 'assistant') {
+                const assistantMsg = {
+                    role: 'assistant',
+                    content: item.content || null
+                };
+                if (item.tool_calls) {
+                    assistantMsg.tool_calls = item.tool_calls;
+                }
+                if (isThinkingMode && item.reasoning_content) {
+                    assistantMsg.reasoning_content = item.reasoning_content;
+                }
+                if (assistantMsg.content || assistantMsg.tool_calls || assistantMsg.reasoning_content) {
+                    messages.push(assistantMsg);
+                }
+            }
+            else if (item.role === 'tool') {
+                messages.push({
+                    role: 'tool',
+                    tool_call_id: item.tool_call_id,
+                    content: item.content
+                });
+            }
+        }
+    }
+
+    const lastMsg = chatMsg && chatMsg.length > 0 ? chatMsg[chatMsg.length - 1] : null;
+    const isToolFollowUp = lastMsg && lastMsg.role === 'tool';
+
+    if (!isToolFollowUp) {
+        const { fullUserMsg } = buildUserMessageContent(msg);
+        messages.push({ role: 'user', content: fullUserMsg });
+    }
+
+    let requestData = {
+        model: aiModel,
+        messages: messages
+    };
+
+    if (!isThinkingMode) {
+        if (validatedParams.temperature !== undefined) {
+            requestData.temperature = validatedParams.temperature;
+        }
+        if (validatedParams.top_p !== undefined) {
+            requestData.top_p = validatedParams.top_p;
+        }
+        if (validatedParams.presence_penalty !== undefined) {
+            requestData.presence_penalty = validatedParams.presence_penalty;
+        }
+        if (validatedParams.frequency_penalty !== undefined) {
+            requestData.frequency_penalty = validatedParams.frequency_penalty;
+        }
+    }
+
+    if (validatedParams.max_tokens !== undefined) {
+        requestData.max_tokens = validatedParams.max_tokens;
+    }
+
+    if (isToolCallingSupported(apiType)) {
+        requestData.tools = favorTools;
+        requestData.tool_choice = 'auto';
+    }
+
+    const { checkJsonFormatSupport } = await import('../../parsers/index.js');
+    const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
+    const hasTools = isToolCallingSupported(apiType);
+
+    if (supportsJsonFormat && !hasTools) {
+        requestData.response_format = { type: 'json_object' };
+    }
+
+    if (isThinkingMode) {
+        requestData.thinking = { type: 'enabled' };
+    }
+
+    return requestData;
+}

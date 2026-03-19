@@ -108,8 +108,6 @@ export async function ForwardImageMsg(e, data) {
  * @param {string} codeText - 代码文本
  */
 export async function sendCodeAsForwardMsg(e, codeText) {
-    // 这里可以实现发送代码作为转发消息的逻辑
-    // 例如：
     await ForwardMsg(e, [codeText]);
 }
 

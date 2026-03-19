@@ -1,5 +1,5 @@
 import { puppeteer } from '../../model/index.js';
-import Config from '../../components/Config.js';
+import { Config } from '../../components/index.js';
 
 // 确保 logger 可用
 const logger = global.logger || console;

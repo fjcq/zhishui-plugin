@@ -1,0 +1,277 @@
+{{extend defaultLayout}}
+
+{{block 'css'}}
+<style>
+    .container {
+        background: #f8fafc;
+        padding: 32px;
+        min-height: 400px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .history-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 28px;
+        max-width: 480px;
+        margin: 0 auto;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .header-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 16px;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .user-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 3px solid #e5e7eb;
+        object-fit: cover;
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-width: 0;
+    }
+
+    .user-nickname {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .user-id {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .user-self-tag {
+        display: inline-block;
+        background: #dbeafe;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 4px;
+        margin-left: 8px;
+    }
+
+    .history-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .history-item {
+        padding: 14px 16px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .history-item.increase {
+        background: #fef2f2;
+        border-left: 4px solid #ef4444;
+    }
+
+    .history-item.decrease {
+        background: #eff6ff;
+        border-left: 4px solid #3b82f6;
+    }
+
+    .history-item.no-change {
+        background: #f3f4f6;
+        border-left: 4px solid #9ca3af;
+    }
+
+    .history-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .history-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .history-time {
+        font-size: 12px;
+        color: #6b7280;
+        min-width: 75px;
+        font-weight: 500;
+    }
+
+    .history-change {
+        font-size: 18px;
+        font-weight: 700;
+        min-width: 45px;
+        text-align: center;
+    }
+
+    .history-change.increase {
+        color: #dc2626;
+    }
+
+    .history-change.decrease {
+        color: #2563eb;
+    }
+
+    .history-change.no-change {
+        color: #4b5563;
+    }
+
+    .history-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .history-favor-range {
+        font-size: 12px;
+        color: #374151;
+        font-weight: 500;
+        background: rgba(0, 0, 0, 0.05);
+        padding: 3px 8px;
+        border-radius: 6px;
+    }
+
+    .history-operator {
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .history-operator.ai {
+        background: #8b5cf6;
+        color: #ffffff;
+    }
+
+    .history-operator.master {
+        background: #f59e0b;
+        color: #ffffff;
+    }
+
+    .history-operator.admin {
+        background: #10b981;
+        color: #ffffff;
+    }
+
+    .history-reason {
+        font-size: 12px;
+        color: #4b5563;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.03);
+        border-radius: 8px;
+        margin-top: 10px;
+        line-height: 1.5;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 48px 20px;
+        color: #6b7280;
+    }
+
+    .empty-icon {
+        font-size: 44px;
+        margin-bottom: 14px;
+        opacity: 0.5;
+    }
+
+    .empty-text {
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .footer-info {
+        text-align: center;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid #e5e7eb;
+        font-size: 12px;
+        color: #9ca3af;
+    }
+
+    .footer-count {
+        color: #6b7280;
+        font-weight: 600;
+    }
+</style>
+{{/block}}
+
+{{block 'main'}}
+<div class="history-card">
+    <div class="header">
+        <div class="header-title">好感度变化历史</div>
+        <div class="user-info">
+            <img class="user-avatar" src="{{avatarUrl}}" alt="头像" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23e5e7eb%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2240%22>?</text></svg>'">
+            <div class="user-details">
+                <div class="user-nickname">
+                    {{nickname}}
+                    {{if isSelf}}<span class="user-self-tag">你</span>{{/if}}
+                </div>
+                <div class="user-id">QQ: {{userId}}</div>
+            </div>
+        </div>
+    </div>
+
+    {{if historyList.length > 0}}
+    <ul class="history-list">
+        {{each historyList item index}}
+        <li class="history-item {{if item.change > 0}}increase{{else if item.change < 0}}decrease{{else}}no-change{{/if}}">
+            <div class="history-row">
+                <div class="history-left">
+                    <span class="history-time">{{item.time}}</span>
+                    <span class="history-change {{if item.change > 0}}increase{{else if item.change < 0}}decrease{{else}}no-change{{/if}}">
+                        {{if item.change > 0}}+{{/if}}{{item.change}}
+                    </span>
+                </div>
+                <div class="history-right">
+                    <span class="history-favor-range">{{item.favorBefore}} → {{item.favorAfter}}</span>
+                    <span class="history-operator {{if item.operator === 'AI'}}ai{{else if item.operator === '主人'}}master{{else if item.operator === '管理员'}}admin{{/if}}">{{item.operator}}</span>
+                </div>
+            </div>
+            {{if item.reason}}
+            <div class="history-reason">{{item.reason}}</div>
+            {{/if}}
+        </li>
+        {{/each}}
+    </ul>
+    {{else}}
+    <div class="empty-state">
+        <div class="empty-icon">💔</div>
+        <div class="empty-text">{{if isSelf}}你暂无好感度变化记录{{else}}该用户暂无好感度变化记录{{/if}}</div>
+    </div>
+    {{/if}}
+
+    <div class="footer-info">
+        共 <span class="footer-count">{{historyList.length}}</span> 条记录
+    </div>
+</div>
+{{/block}}

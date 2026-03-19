@@ -1,4 +1,4 @@
-import plugin from '../../../lib/plugins/plugin.js'
+import { plugin } from '../adapter/index.js'
 import { helpReg } from './help/config.js'
 import { help } from './help/helpers.js'
 

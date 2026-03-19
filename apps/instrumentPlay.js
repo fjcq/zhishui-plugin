@@ -1,4 +1,4 @@
-import plugin from '../../../lib/plugins/plugin.js'
+import { plugin } from '../adapter/index.js'
 import { createRequire } from 'module'
 import { Plugin_Path, Config } from '../components/index.js'
 import path from 'path'
