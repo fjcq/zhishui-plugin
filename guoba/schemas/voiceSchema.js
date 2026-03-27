@@ -1,5 +1,6 @@
 /**
  * 语音设置Schema
+ * 合并到系统设置中
  */
 
 import fs from 'fs';
@@ -52,10 +53,18 @@ const VoiceList = loadVoiceList();
 const TencentVoiceList = loadTencentVoiceList();
 
 /**
- * 获取语音设置Schema
+ * 获取语音设置Schema（已合并到系统设置，返回空数组）
  * @returns {Array} Schema配置
  */
 export function getVoiceSchemas() {
+    return [];
+}
+
+/**
+ * 获取完整的语音设置Schema（用于系统设置）
+ * @returns {Array} Schema配置
+ */
+export function getVoiceSettingSchemas() {
     return [
         {
             label: '语音设置',
@@ -63,21 +72,23 @@ export function getVoiceSchemas() {
         },
         {
             field: 'voice.VoiceSystem',
-            label: '语音系统设置',
-            bottomHelpMessage: '选择使用哪种语音系统：0（关闭）、1（DUI平台语音系统）、2（腾讯语音）',
-            component: 'Select',
+            label: '语音系统',
+            helpMessage: '选择TTS语音合成系统，关闭则不使用语音功能',
+            bottomHelpMessage: '选择使用的语音系统',
+            component: 'RadioGroup',
             componentProps: {
                 options: [
                     { label: '关闭', value: 0 },
-                    { label: 'DUI平台语音系统', value: 1 },
-                    { label: '腾讯语音', value: 2 }
+                    { label: 'DUI平台语音', value: 1 },
+                    { label: '腾讯云TTS', value: 2 }
                 ]
             }
         },
         {
             field: 'voice.VoiceIndex',
-            label: '语音发音人',
-            bottomHelpMessage: '选择语音回复的发音人（仅DUI平台语音系统有效）',
+            label: 'DUI发音人',
+            helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效）',
+            bottomHelpMessage: '选择DUI平台的语音发音人',
             component: 'Select',
             componentProps: {
                 options: VoiceList.length > 0 ? VoiceList.map((element, index) => ({
@@ -88,24 +99,30 @@ export function getVoiceSchemas() {
             }
         },
         {
+            component: 'Divider',
+            label: '腾讯云TTS配置'
+        },
+        {
             field: 'voice.TencentCloudTTS.Region',
-            label: '腾讯云TTS地域',
-            bottomHelpMessage: '腾讯云服务地域，如 ap-guangzhou',
+            label: '服务地域',
+            helpMessage: '腾讯云TTS服务的地域，选择就近地域可降低延迟',
+            bottomHelpMessage: '腾讯云服务地域',
             component: 'Select',
             componentProps: {
                 options: [
-                    { label: '广州 (ap-guangzhou)', value: 'ap-guangzhou' },
-                    { label: '北京 (ap-beijing)', value: 'ap-beijing' },
-                    { label: '上海 (ap-shanghai)', value: 'ap-shanghai' },
-                    { label: '成都 (ap-chengdu)', value: 'ap-chengdu' },
-                    { label: '中国香港 (ap-hongkong)', value: 'ap-hongkong' }
+                    { label: '广州', value: 'ap-guangzhou' },
+                    { label: '北京', value: 'ap-beijing' },
+                    { label: '上海', value: 'ap-shanghai' },
+                    { label: '成都', value: 'ap-chengdu' },
+                    { label: '中国香港', value: 'ap-hongkong' }
                 ],
                 placeholder: '请选择地域'
             }
         },
         {
             field: 'voice.TencentCloudTTS.SecretId',
-            label: '腾讯云SecretId',
+            label: 'SecretId',
+            helpMessage: '腾讯云API密钥的SecretId，在腾讯云控制台获取',
             bottomHelpMessage: '腾讯云API密钥SecretId',
             component: 'Input',
             componentProps: {
@@ -114,21 +131,24 @@ export function getVoiceSchemas() {
         },
         {
             field: 'voice.TencentCloudTTS.SecretKey',
-            label: '腾讯云SecretKey',
+            label: 'SecretKey',
+            helpMessage: '腾讯云API密钥的SecretKey，在腾讯云控制台获取',
             bottomHelpMessage: '腾讯云API密钥SecretKey',
             component: 'Input',
             componentProps: {
+                type: 'password',
                 placeholder: '请输入SecretKey'
             }
         },
         {
             field: 'voice.TencentCloudTTS.VoiceType',
-            label: '腾讯云语音类型',
-            bottomHelpMessage: '语音类型（音色 ID），包括精品音色、大模型音色与基础版复刻音色',
+            label: '语音类型',
+            helpMessage: '选择语音音色，不同音色有不同的声音特点',
+            bottomHelpMessage: '选择语音音色',
             component: 'Select',
             componentProps: {
                 options: TencentVoiceList.length > 0 ? TencentVoiceList.map(voice => ({
-                    label: `${voice.name} (${voice.id}) - ${voice.type} | ${voice.scene} | ${voice.languages}`,
+                    label: `${voice.name} - ${voice.type}`,
                     value: voice.id
                 })) : [],
                 placeholder: '请选择语音类型'
@@ -136,51 +156,60 @@ export function getVoiceSchemas() {
         },
         {
             field: 'voice.TencentCloudTTS.Speed',
-            label: '腾讯云语速',
-            bottomHelpMessage: '语速，范围：[-2，6]，分别对应不同语速：-2代表0.6倍，-1代表0.8倍，0代表1.0倍（默认）',
-            component: 'Input',
+            label: '语速',
+            helpMessage: '语速调节：-2为0.6倍速，0为正常速度，6为2倍速',
+            bottomHelpMessage: '语速范围：-2(0.6倍) ~ 6(2.0倍)',
+            component: 'InputNumber',
             componentProps: {
-                type: 'number',
-                placeholder: '请输入语速'
+                min: -2,
+                max: 6,
+                placeholder: '0'
             }
         },
         {
             field: 'voice.TencentCloudTTS.Volume',
-            label: '腾讯云音量',
-            bottomHelpMessage: '音量大小，范围[-10，10]，对应音量大小。默认为2，代表稍高音量',
-            component: 'Input',
+            label: '音量',
+            helpMessage: '音量大小调节，0为正常音量',
+            bottomHelpMessage: '音量范围：-10 ~ 10',
+            component: 'InputNumber',
             componentProps: {
-                type: 'number',
-                placeholder: '请输入音量'
+                min: -10,
+                max: 10,
+                placeholder: '0'
             }
         },
         {
             field: 'voice.TencentCloudTTS.SampleRate',
-            label: '腾讯云采样率',
-            bottomHelpMessage: '采样率：24000：24k（推荐），16000：16k，8000：8k',
-            component: 'Select',
+            label: '采样率',
+            helpMessage: '音频采样率，采样率越高音质越好但文件越大',
+            bottomHelpMessage: '音频采样率',
+            component: 'RadioGroup',
             componentProps: {
                 options: [
-                    { label: '24000（推荐）', value: 24000 },
-                    { label: '16000', value: 16000 },
-                    { label: '8000', value: 8000 }
-                ],
-                placeholder: '请选择采样率'
+                    { label: '8000Hz (低)', value: 8000 },
+                    { label: '16000Hz (中)', value: 16000 },
+                    { label: '24000Hz (推荐)', value: 24000 }
+                ]
             }
         },
         {
             field: 'voice.TencentCloudTTS.Codec',
-            label: '腾讯云音频格式',
-            bottomHelpMessage: '返回音频格式，可取值：wav，mp3（推荐），pcm',
-            component: 'Select',
+            label: '音频格式',
+            helpMessage: '输出音频的编码格式，mp3兼容性最好',
+            bottomHelpMessage: '输出音频格式',
+            component: 'RadioGroup',
             componentProps: {
                 options: [
-                    { label: 'mp3（推荐）', value: 'mp3' },
+                    { label: 'mp3 (推荐)', value: 'mp3' },
                     { label: 'wav', value: 'wav' },
                     { label: 'pcm', value: 'pcm' }
-                ],
-                placeholder: '请选择音频格式'
+                ]
             }
         }
     ];
 }
+
+export default {
+    getVoiceSchemas,
+    getVoiceSettingSchemas
+};

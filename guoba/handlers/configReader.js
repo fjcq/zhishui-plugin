@@ -80,6 +80,7 @@ export async function getConfigData() {
             chat: Config.getDefOrConfig('chat') || {},
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
+            tools: Config.getDefOrConfig('tools') || {},
             roleList: roleList || [],
             userRoleList: userRoleList || [],
             userResourceList: userResourceList || []
@@ -91,6 +92,7 @@ export async function getConfigData() {
             chat: {},
             voice: {},
             proxy: {},
+            tools: {},
             roleList: []
         };
     }
@@ -138,6 +140,7 @@ export function getLatestConfigData() {
             chat: Config.getDefOrConfig('chat') || {},
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
+            tools: Config.getDefOrConfig('tools') || {},
             roleList: roleList || []
         };
     } catch (err) {
@@ -147,6 +150,7 @@ export function getLatestConfigData() {
             chat: {},
             voice: {},
             proxy: {},
+            tools: {},
             roleList: []
         };
     }

@@ -83,6 +83,27 @@ export function validateRequestParams(params, apiType) {
 }
 
 /**
+ * 解码JSON字符串中的转义字符
+ * @param {string} str - 需要解码的字符串
+ * @returns {string} 解码后的字符串
+ */
+function decodeJsonString(str) {
+    if (!str || typeof str !== 'string') {
+        return str;
+    }
+    try {
+        return str
+            .replace(/\\n/g, '\n')
+            .replace(/\\t/g, '\t')
+            .replace(/\\r/g, '\r')
+            .replace(/\\"/g, '"')
+            .replace(/\\\\/g, '\\');
+    } catch {
+        return str;
+    }
+}
+
+/**
  * 从畸形JSON中提取文本内容
  * @param {string} malformedJson - 畸形的JSON字符串
  * @returns {string|null} 提取的文本内容
@@ -92,19 +113,19 @@ function extractTextFromMalformedJson(malformedJson) {
         return null;
     }
 
-    const colonStringPattern = /:\s*"((?:[^"\\]|\\.)*)"/;
-    const match = malformedJson.match(colonStringPattern);
-    if (match && match[1]) {
-        try {
-            const decoded = match[1]
-                .replace(/\\n/g, '\n')
-                .replace(/\\t/g, '\t')
-                .replace(/\\r/g, '\r')
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, '\\');
-            return decoded;
-        } catch {
-            return match[1];
+    const contentPatterns = [
+        /"content"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+        /"message"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+        /"text"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+        /"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+        /"answer"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+        /"response"\s*:\s*"((?:[^"\\]|\\.)*)"/
+    ];
+
+    for (const pattern of contentPatterns) {
+        const match = malformedJson.match(pattern);
+        if (match && match[1] && match[1].length > 5) {
+            return decodeJsonString(match[1]);
         }
     }
 
@@ -120,16 +141,7 @@ function extractTextFromMalformedJson(malformedJson) {
     }
 
     if (longestMatch) {
-        try {
-            return longestMatch
-                .replace(/\\n/g, '\n')
-                .replace(/\\t/g, '\t')
-                .replace(/\\r/g, '\r')
-                .replace(/\\"/g, '"')
-                .replace(/\\\\/g, '\\');
-        } catch {
-            return longestMatch;
-        }
+        return decodeJsonString(longestMatch);
     }
 
     return null;

@@ -34,12 +34,13 @@ export function getApiTypeSelectOptions() {
 
 /**
  * 获取角色选项列表
- * @param {Array} roles - 角色列表
+ * @param {Array} [roles] - 角色列表（可选，不传则自动获取）
  * @returns {Array} 角色选项
  */
 export function getRoleOptions(roles) {
-    return roles.map((role, idx) => ({
-        label: role.角色标题 || `角色${idx + 1}`,
+    const roleList = roles || getLatestRoles();
+    return (roleList || []).map((role, idx) => ({
+        label: role['角色标题'] || role.角色标题 || `角色${idx + 1}`,
         value: idx
     }));
 }

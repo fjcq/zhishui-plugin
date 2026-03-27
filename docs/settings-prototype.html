@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>止水插件设置面板 - 交互原型</title>
+    <style>
+        :root {
+            --primary-color: #4fc3f7;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+            --error-color: #f44336;
+            --disabled-color: #9e9e9e;
+            --bg-color: #1a1a1a;
+            --card-bg: #2a2a2a;
+            --text-color: #ffffff;
+            --text-secondary: #b0b0b0;
+            --border-color: #3a3a3a;
+            --space-section: 24px;
+            --space-item: 16px;
+            --radius-md: 6px;
+            --radius-lg: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-color), #0288d1);
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-desc {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: var(--radius-md) var(--radius-md) 0 0;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-color);
+        }
+
+        .tab.active {
+            background: var(--card-bg);
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+            border-bottom-color: var(--card-bg);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-section);
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.02);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .section-badge {
+            background: var(--warning-color);
+            color: #000;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .section-toggle {
+            color: var(--text-secondary);
+            transition: transform 0.2s;
+        }
+
+        .section.collapsed .section-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .section.collapsed .section-content {
+            display: none;
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        .form-item {
+            margin-bottom: var(--space-item);
+        }
+
+        .form-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-label .required {
+            color: var(--error-color);
+            margin-left: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .form-input::placeholder {
+            color: var(--disabled-color);
+        }
+
+        .form-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .form-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23999' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .form-switch {
+            position: relative;
+            width: 44px;
+            height: 22px;
+            background: var(--border-color);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .form-switch.active {
+            background: var(--primary-color);
+        }
+
+        .form-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .form-switch.active::after {
+            transform: translateX(22px);
+        }
+
+        .form-help {
+            margin-top: 6px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .form-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .form-row .form-label {
+            margin-bottom: 0;
+        }
+
+        .card-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .card-item {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-item-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-item-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(79, 195, 247, 0.1);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-color);
+        }
+
+        .card-item-title {
+            font-weight: 500;
+        }
+
+        .card-item-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background: #29b6f6;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-danger {
+            background: transparent;
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        .btn-danger:hover {
+            background: rgba(244, 67, 54, 0.1);
+        }
+
+        .btn-sm {
+            padding: 4px 12px;
+            font-size: 12px;
+        }
+
+        .quick-setup {
+            background: linear-gradient(135deg, rgba(79, 195, 247, 0.1), rgba(2, 136, 209, 0.1));
+            border: 1px solid rgba(79, 195, 247, 0.3);
+        }
+
+        .quick-setup .section-header {
+            background: rgba(79, 195, 247, 0.1);
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .tag-preset {
+            background: rgba(158, 158, 158, 0.2);
+            color: var(--disabled-color);
+        }
+
+        .tag-custom {
+            background: rgba(79, 195, 247, 0.2);
+            color: var(--primary-color);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 16px 0;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            border-color: var(--success-color);
+        }
+
+        .toast-success .toast-icon {
+            color: var(--success-color);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">💧</div>
+            <div>
+                <div class="header-title">止水插件设置</div>
+                <div class="header-desc">提供了搜剧、AI对话、乐器演奏等娱乐功能</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="chat">🤖 AI对话</button>
+            <button class="tab" data-tab="video">🎬 视频搜索</button>
+            <button class="tab" data-tab="system">⚙️ 系统设置</button>
+        </div>
+
+        <!-- AI对话模块 -->
+        <div class="tab-content active" id="tab-chat">
+            <!-- 快速配置 -->
+            <div class="section quick-setup">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <span>⚡ 快速配置</span>
+                        <span class="section-badge">必填</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">API配置<span class="required">*</span></label>
+                        <div class="card-list">
+                            <div class="card-item">
+                                <div class="card-item-info">
+                                    <div class="card-item-icon">🔗</div>
+                                    <div>
+                                        <div class="card-item-title">OpenAI - api.openai.com</div>
+                                        <div class="card-item-desc">gpt-4</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary btn-sm">编辑</button>
+                                    <button class="btn btn-danger btn-sm">删除</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;">+ 添加API配置</button>
+                        <div class="form-help">必填：配置AI服务的API地址、密钥和模型。支持OpenAI、DeepSeek等多种API。</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">当前使用的API</label>
+                        <select class="form-input form-select">
+                            <option>OpenAI - api.openai.com</option>
+                            <option>DeepSeek - api.deepseek.com</option>
+                        </select>
+                        <div class="form-help">选择当前激活的API配置</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">当前使用的角色</label>
+                        <select class="form-input form-select">
+                            <option>小止水</option>
+                            <option>猫娘</option>
+                            <option>助手</option>
+                        </select>
+                        <div class="form-help">选择AI对话的角色人格</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 角色管理 -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">👤 角色管理</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="card-list">
+                        <div class="card-item">
+                            <div class="card-item-info">
+                                <div class="card-item-icon">🎭</div>
+                                <div>
+                                    <div class="card-item-title">小止水 <span class="tag tag-preset">🔒 预设</span></div>
+                                    <div class="card-item-desc">默认角色，不可编辑</div>
+                                </div>
+                            </div>
+                            <button class="btn btn-secondary btn-sm">复制</button>
+                        </div>
+                        <div class="card-item">
+                            <div class="card-item-info">
+                                <div class="card-item-icon">🎭</div>
+                                <div>
+                                    <div class="card-item-title">猫娘 <span class="tag tag-custom">✏️ 自定义</span></div>
+                                    <div class="card-item-desc">可自由编辑修改</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm">编辑</button>
+                                <button class="btn btn-danger btn-sm">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;">+ 添加新角色</button>
+                </div>
+            </div>
+
+            <!-- 对话基础设置 -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">💬 对话基础设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">对话昵称</label>
+                        <input type="text" class="form-input" placeholder="请输入对话昵称" value="小止水">
+                        <div class="form-help">对话触发昵称，如"小止水"</div>
+                    </div>
+
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">艾特触发</label>
+                            <div class="form-switch active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">机器人被艾特时也能触发对话</div>
+                    </div>
+
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">私聊AI回复</label>
+                            <div class="form-switch active" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">开启后，私聊消息将由AI自动回复</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 对话高级设置 -->
+            <div class="section collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">⚙️ 对话高级设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">最大历史记录</label>
+                        <input type="number" class="form-input" value="10" min="1" max="50">
+                        <div class="form-help">最多保存几条对话记录，建议10-20条</div>
+                    </div>
+
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">显示推理过程</label>
+                            <div class="form-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">是否在回复中显示AI的推理过程</div>
+                    </div>
+
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">启用思考模式</label>
+                            <div class="form-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">启用DeepSeek思考模式，模型会先输出思维链再给出回答</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 群专属配置 -->
+            <div class="section collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">👥 群专属配置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="card-list">
+                        <div class="card-item">
+                            <div class="card-item-info">
+                                <div class="card-item-icon">👥</div>
+                                <div>
+                                    <div class="card-item-title">群号: 123456789</div>
+                                    <div class="card-item-desc">角色: 猫娘 | API: DeepSeek</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm">编辑</button>
+                                <button class="btn btn-danger btn-sm">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;">+ 添加群专属配置</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 视频搜索模块 -->
+        <div class="tab-content" id="tab-video">
+            <!-- 快速配置 -->
+            <div class="section quick-setup">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">
+                        <span>⚡ 快速配置</span>
+                    </div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">当前资源站</label>
+                        <select class="form-input form-select">
+                            <option>资源站1</option>
+                            <option>资源站2</option>
+                        </select>
+                        <div class="form-help">选择默认使用的视频资源站点</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">解析接口<span class="required">*</span></label>
+                        <input type="text" class="form-input" placeholder="请输入解析接口地址">
+                        <div class="form-help">必填：用于解析视频播放地址的接口</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 资源站点管理 -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">📺 资源站点管理</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="card-list">
+                        <div class="card-item">
+                            <div class="card-item-info">
+                                <div class="card-item-icon">📺</div>
+                                <div>
+                                    <div class="card-item-title">资源站1</div>
+                                    <div class="card-item-desc">https://example.com</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-secondary btn-sm">编辑</button>
+                                <button class="btn btn-danger btn-sm">删除</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="btn btn-secondary" style="margin-top: 12px; width: 100%;">+ 添加资源站点</button>
+                </div>
+            </div>
+
+            <!-- 播放设置 -->
+            <div class="section collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">🎬 播放设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">播放器链接</label>
+                        <input type="text" class="form-input" placeholder="请输入播放器链接">
+                        <div class="form-help">用于在线播放的播放器页面地址</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">Cloudflare TLS版本</label>
+                        <select class="form-input form-select">
+                            <option>TLSv1.1</option>
+                            <option>TLSv1.2</option>
+                        </select>
+                        <div class="form-help">绕过 Cloudflare Challenge 所使用的 TLS 版本</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统设置模块 -->
+        <div class="tab-content" id="tab-system">
+            <!-- 网络设置 -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">🌐 网络设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">启用代理</label>
+                            <div class="form-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">是否在搜剧和对话中使用代理服务器</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">代理地址</label>
+                        <input type="text" class="form-input" placeholder="http://127.0.0.1:7890">
+                        <div class="form-help">代理服务器地址，如 http://127.0.0.1:7890</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 语音设置 -->
+            <div class="section collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">🎙️ 语音设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <label class="form-label">语音系统</label>
+                        <select class="form-input form-select">
+                            <option>关闭</option>
+                            <option>DUI平台语音系统</option>
+                            <option>腾讯语音</option>
+                        </select>
+                        <div class="form-help">选择使用的语音系统类型</div>
+                    </div>
+
+                    <div class="divider"></div>
+                    <div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">腾讯云TTS配置</div>
+
+                    <div class="form-item">
+                        <label class="form-label">服务地域</label>
+                        <select class="form-input form-select">
+                            <option>广州</option>
+                            <option>北京</option>
+                            <option>上海</option>
+                        </select>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">SecretId</label>
+                        <input type="text" class="form-input" placeholder="请输入SecretId">
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">SecretKey</label>
+                        <input type="password" class="form-input" placeholder="请输入SecretKey">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 权限设置 -->
+            <div class="section collapsed">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <div class="section-title">🔐 权限设置</div>
+                    <span class="section-toggle">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="form-item">
+                        <div class="form-row">
+                            <label class="form-label">仅限主人使用</label>
+                            <div class="form-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                        <div class="form-help">开启后，对话功能仅限主人可用</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">主人名字</label>
+                        <input type="text" class="form-input" placeholder="请输入主人名字">
+                        <div class="form-help">场景对话中机器人的主人名字</div>
+                    </div>
+
+                    <div class="form-item">
+                        <label class="form-label">主人QQ</label>
+                        <input type="text" class="form-input" placeholder="请输入主人QQ号">
+                        <div class="form-help">场景对话中机器人的主人QQ号码</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast toast-success" id="toast">
+        <span class="toast-icon">✓</span>
+        <span>保存成功</span>
+    </div>
+
+    <script>
+        // Tab切换
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // 分组折叠
+        function toggleSection(header) {
+            header.parentElement.classList.toggle('collapsed');
+        }
+
+        // 显示Toast
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.querySelector('span:last-child').textContent = message;
+            toast.className = 'toast toast-' + type + ' show';
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

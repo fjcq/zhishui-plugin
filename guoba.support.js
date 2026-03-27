@@ -1,20 +1,25 @@
 /**
  * Guoba支持入口
  * 整合所有Schema和处理器模块
+ * 
+ * 设置面板结构（精简版）：
+ * - 对话设置：基础+高级合并
+ * - AI接口设置：API配置
+ * - 角色管理：角色列表+复制+用户个人
+ * - 工具开关设置：所有工具开关
+ * - 搜剧设置：所有搜剧相关合并
+ * - 系统设置：网络+语音+权限
  */
 
 import path from 'path';
 
 import {
     getChatBasicSchemas,
-    getChatAdvancedSchemas,
-    getProxySchemas,
-    getVoiceSchemas,
     getApiSchemas,
     getRoleSchemas,
-    getRoleListSchema,
-    getCopyRoleSchema,
-    getVideoSearchSchemas
+    getVideoSearchSchemas,
+    getSystemSchemas,
+    getToolSwitchSchemas
 } from './guoba/schemas/index.js';
 
 import { getConfigData, setConfigData } from './guoba/handlers/index.js';
@@ -43,31 +48,20 @@ export function supportGuoba() {
         },
         configInfo: {
             get schemas() {
-                const schemas = [
+                return [
+                    // 对话设置（合并基础+高级）
                     ...getChatBasicSchemas(),
-                    ...getVoiceSchemas(),
+                    // AI接口设置
                     ...getApiSchemas(),
+                    // 角色管理（合并角色列表+复制+用户个人）
                     ...getRoleSchemas(),
-                    ...getChatAdvancedSchemas(),
+                    // 工具开关设置
+                    ...getToolSwitchSchemas(),
+                    // 搜剧设置（合并所有搜剧相关）
                     ...getVideoSearchSchemas(),
-                    ...getProxySchemas()
+                    // 系统设置（网络+语音+权限）
+                    ...getSystemSchemas()
                 ];
-
-                const roleManageIndex = schemas.findIndex(item =>
-                    item.label === '角色管理' && item.component === 'SOFT_GROUP_BEGIN'
-                );
-
-                if (roleManageIndex !== -1) {
-                    const roleAppSettingsIndex = schemas.findIndex(item =>
-                        item.label === '角色应用设置' &&
-                        item.component === 'SOFT_GROUP_BEGIN'
-                    );
-
-                    schemas.splice(roleAppSettingsIndex, 0, getRoleListSchema());
-                    schemas.splice(roleAppSettingsIndex + 1, 0, getCopyRoleSchema());
-                }
-
-                return schemas;
             },
 
             async getConfigData() {

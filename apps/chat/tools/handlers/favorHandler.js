@@ -1,12 +1,12 @@
 /**
- * 工具处理函数模块
- * 处理AI调用的各种工具
+ * 好感度工具处理函数
+ * 处理AI调用的好感度相关工具
  */
 
-import { getUserFavor, setUserFavor, getUserData } from '../user/index.js';
+import { getUserFavor, setUserFavor, getUserData } from '../../user/index.js';
 
 /**
- * 处理工具调用
+ * 处理好感度工具调用
  * @param {string} toolName - 工具名称
  * @param {object} toolParams - 工具参数
  * @param {object} e - 事件对象（用于访问Bot API）
@@ -86,11 +86,11 @@ export async function handleFavorToolCall(toolName, toolParams, e = null, curren
  */
 async function handleChangeUserFavor(params) {
     const { user_id, change, reason = "AI主动调整" } = params;
-    
+
     if (!user_id) {
         return { error: true, message: "缺少用户ID参数" };
     }
-    
+
     if (change === undefined || change === null) {
         return { error: true, message: "缺少变化量参数" };
     }
@@ -115,7 +115,8 @@ async function handleChangeUserFavor(params) {
             old_favor: oldFavor,
             change: clampedChange,
             new_favor: newFavor,
-            message: `用户 ${user_id} 好感度变化 ${clampedChange >= 0 ? '+' : ''}${clampedChange}，从 ${oldFavor} 变为 ${newFavor}`
+            message: `好感度已更新`,
+            natural_feedback: true
         };
     } else {
         return { error: true, message: "调整好感度失败" };
@@ -254,6 +255,7 @@ async function handleGetUserProfile(params, e) {
                     profile.sign = memberInfo.sign || memberInfo.signature || null;
                 }
             } catch {
+                // 忽略错误
             }
         }
 
@@ -266,6 +268,7 @@ async function handleGetUserProfile(params, e) {
                     profile.sign = strangerInfo.sign || strangerInfo.signature || null;
                 }
             } catch {
+                // 忽略错误
             }
         }
 

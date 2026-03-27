@@ -217,6 +217,37 @@ class VoiceManager {
     }
 
     /**
+     * 检查文本是否适合语音合成
+     * 根据腾讯云TTS限制判断文本长度是否合适
+     * @param {string} text - 要检查的文本
+     * @returns {boolean} - 是否适合语音合成
+     */
+    isTextSuitableForVoice(text) {
+        if (!text || typeof text !== 'string') {
+            return false;
+        }
+        const filteredText = this.filterText(text);
+        if (!filteredText) {
+            return false;
+        }
+        const MAX_TOTAL_LENGTH = 500;
+        return filteredText.length <= MAX_TOTAL_LENGTH;
+    }
+
+    /**
+     * 获取过滤后的文本长度
+     * @param {string} text - 原始文本
+     * @returns {number} - 过滤后的文本长度
+     */
+    getFilteredTextLength(text) {
+        if (!text || typeof text !== 'string') {
+            return 0;
+        }
+        const filteredText = this.filterText(text);
+        return filteredText ? filteredText.length : 0;
+    }
+
+    /**
      * 文本分段处理
      * @param {string} text - 要分段的文本
      * @returns {Array<string>} - 分段后的文本数组

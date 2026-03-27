@@ -5,7 +5,7 @@
 import { Config } from '../../../../components/index.js';
 import { validateRequestParams, checkJsonFormatSupport } from '../../parsers.js';
 import { ApiTypes, isToolCallingSupported } from '../../api-types.js';
-import { favorTools } from '../../tools/index.js';
+import { getEnabledTools } from '../../tools/index.js';
 
 /**
  * 获取有效的用户ID
@@ -107,7 +107,7 @@ export function buildUserMessageContent(msg) {
  */
 export function addToolCallingConfig(requestData, apiType) {
     if (isToolCallingSupported(apiType)) {
-        requestData.tools = favorTools;
+        requestData.tools = getEnabledTools();
         requestData.tool_choice = 'auto';
     }
 }

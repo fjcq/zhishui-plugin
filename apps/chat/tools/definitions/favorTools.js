@@ -1,14 +1,8 @@
 /**
- * 工具定义模块
- * 定义AI可调用的工具集合
+ * 好感度工具定义
+ * 定义AI可调用的好感度相关工具
  */
 
-/**
- * 工具集合
- * 注意：OpenAI工具调用格式要求使用 type: "function" 包装
- * 工具描述应避免技术术语，使用角色扮演友好的表述
- * 注意：strict 参数仅 OpenAI 支持，SiliconFlow/DeepSeek 等平台不支持
- */
 export const favorTools = [
     {
         type: "function",

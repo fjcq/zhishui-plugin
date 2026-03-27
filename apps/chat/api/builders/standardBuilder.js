@@ -4,7 +4,7 @@
 
 import { buildUserMessageContent, getDefaultParams, addToolCallingConfig, addJsonFormatConfig } from '../utils/requestUtils.js';
 import { isToolCallingSupported } from '../../api-types.js';
-import { favorTools } from '../../tools/index.js';
+import { getEnabledTools } from '../../tools/index.js';
 
 /**
  * 构建标准OpenAI格式请求数据
@@ -97,7 +97,7 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
     }
 
     if (isToolCallingSupported(apiType)) {
-        requestData.tools = favorTools;
+        requestData.tools = getEnabledTools();
         requestData.tool_choice = 'auto';
     }
 

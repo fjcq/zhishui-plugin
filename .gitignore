@@ -149,6 +149,9 @@ resources/Cache/
 # 忽略用户对话数据（包含敏感信息，勿提交）
 resources/data/chat/
 
+# 忽略运行时生成的数据目录（包含用户上下文等敏感信息）
+data/
+
 /.github/copilot-instructions.md
 skills-lock.json
 AGENTS.md

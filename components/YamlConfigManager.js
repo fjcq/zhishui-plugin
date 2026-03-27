@@ -146,6 +146,18 @@ class YamlConfigManager {
 
         if (this.config[key]) return this.config[key];
 
+        // 如果文件不存在，尝试从默认配置复制
+        if (!fs.existsSync(file)) {
+            let defPath = path.join(Plugin_Path, 'config', 'default_config', `${name}.yaml`);
+            if (fs.existsSync(defPath)) {
+                fs.copyFileSync(defPath, file);
+            } else {
+                // 如果默认配置也不存在，返回空对象
+                this.config[key] = {};
+                return {};
+            }
+        }
+
         this.config[key] = YAML.parse(
             fs.readFileSync(file, 'utf8')
         );
@@ -190,6 +202,19 @@ class YamlConfigManager {
     async modify(name, key, value, type = 'config') {
         try {
             let filePath = path.join(Plugin_Path, 'config', type, `${name}.yaml`);
+            
+            // 如果文件不存在，尝试从默认配置复制
+            if (!fs.existsSync(filePath)) {
+                let defPath = path.join(Plugin_Path, 'config', 'default_config', `${name}.yaml`);
+                if (fs.existsSync(defPath)) {
+                    fs.copyFileSync(defPath, filePath);
+                    this.watch(filePath, name, type);
+                } else {
+                    // 如果默认配置也不存在，创建空文件
+                    fs.writeFileSync(filePath, '{}', 'utf8');
+                }
+            }
+            
             new YamlReader(filePath).set(key, value);
             delete this.config[`${type}.${name}`];
             return true;

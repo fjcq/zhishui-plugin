@@ -6,6 +6,7 @@
 import path from 'path';
 import { Plugin_Path, Config } from '../../components/index.js';
 import { ReadScene } from './sceneManager.js';
+import { getDecisionPrompt } from './tools/decisionEngine.js';
 
 export const CHAT_CONTEXT_PATH = path.join(Plugin_Path, 'data', 'chatContext');
 
@@ -216,6 +217,116 @@ export async function mergeSystemMessage(e, supportsToolCalling = false) {
                     systemMessage += `### @提及功能\n`;
                     systemMessage += `- 说明：${systemConfig['@提及功能'].说明}\n`;
                     systemMessage += `- 示例：${systemConfig['@提及功能'].示例}\n\n`;
+                }
+
+                if (systemConfig['工具决策系统']) {
+                    const toolDecision = systemConfig['工具决策系统'];
+                    systemMessage += `### 工具决策系统\n`;
+                    systemMessage += `- 核心原则：${toolDecision.核心原则}\n\n`;
+
+                    if (toolDecision.敏感度等级) {
+                        systemMessage += `#### 敏感度等级\n`;
+                        Object.entries(toolDecision.敏感度等级).forEach(([level, config]) => {
+                            systemMessage += `**${level}**（等级${config.等级}）\n`;
+                            systemMessage += `  - 示例：${config.示例.join('、')}\n`;
+                            systemMessage += `  - 好感度要求：${config.好感度要求}\n`;
+                            systemMessage += `  - 决策原则：${config.决策原则}\n\n`;
+                        });
+                    }
+
+                    if (toolDecision.决策规则) {
+                        systemMessage += `#### 决策规则\n`;
+                        Object.entries(toolDecision.决策规则).forEach(([key, value]) => {
+                            systemMessage += `- ${key}：${value}\n`;
+                        });
+                        systemMessage += '\n';
+                    }
+
+                    if (toolDecision.拒绝话术模板) {
+                        systemMessage += `#### 拒绝话术参考\n`;
+                        systemMessage += `请根据角色性格灵活运用，不要生硬地照搬：\n`;
+                        Object.entries(toolDecision.拒绝话术模板).forEach(([situation, templates]) => {
+                            if (typeof templates === 'object') {
+                                systemMessage += `- ${situation}：\n`;
+                                Object.entries(templates).forEach(([level, text]) => {
+                                    systemMessage += `  - ${level}：「${text}」\n`;
+                                });
+                            }
+                        });
+                        systemMessage += '\n';
+                    }
+                }
+
+                if (systemConfig['自然反馈指导']) {
+                    const naturalFeedback = systemConfig['自然反馈指导'];
+                    systemMessage += `### 自然反馈指导\n`;
+                    systemMessage += `- 核心原则：${naturalFeedback.核心原则}\n\n`;
+                    
+                    if (naturalFeedback['工具调用反馈']) {
+                        const toolFeedback = naturalFeedback['工具调用反馈'];
+                        systemMessage += `#### 工具调用反馈\n`;
+                        systemMessage += `**原则：**\n`;
+                        toolFeedback.原则.forEach(principle => {
+                            systemMessage += `- ${principle}\n`;
+                        });
+                        systemMessage += '\n';
+                        
+                        if (toolFeedback.示例) {
+                            systemMessage += `**示例对比：**\n`;
+                            Object.entries(toolFeedback.示例).forEach(([toolName, examples]) => {
+                                systemMessage += `- ${toolName}：\n`;
+                                systemMessage += `  - ❌ ${examples['错误示范']}\n`;
+                                systemMessage += `  - ✅ ${examples['正确示范']}\n`;
+                            });
+                            systemMessage += '\n';
+                        }
+                    }
+                    
+                    if (naturalFeedback['好感度操作反馈']) {
+                        const favorFeedback = naturalFeedback['好感度操作反馈'];
+                        systemMessage += `#### 好感度操作反馈\n`;
+                        systemMessage += `**原则：**\n`;
+                        favorFeedback.原则.forEach(principle => {
+                            systemMessage += `- ${principle}\n`;
+                        });
+                        systemMessage += '\n';
+                        
+                        if (favorFeedback['正向变化']) {
+                            systemMessage += `**正向变化：**\n`;
+                            Object.entries(favorFeedback['正向变化']).forEach(([range, config]) => {
+                                systemMessage += `- ${range}（${config.情绪}）：${config.示例.join('、')}\n`;
+                            });
+                            systemMessage += '\n';
+                        }
+                        
+                        if (favorFeedback['负向变化']) {
+                            systemMessage += `**负向变化：**\n`;
+                            Object.entries(favorFeedback['负向变化']).forEach(([range, config]) => {
+                                systemMessage += `- ${range}（${config.情绪}）：${config.示例.join('、')}\n`;
+                            });
+                            systemMessage += '\n';
+                        }
+                    }
+                    
+                    if (naturalFeedback['拒绝操作反馈']) {
+                        const denyFeedback = naturalFeedback['拒绝操作反馈'];
+                        systemMessage += `#### 拒绝操作反馈\n`;
+                        systemMessage += `**原则：**\n`;
+                        denyFeedback.原则.forEach(principle => {
+                            systemMessage += `- ${principle}\n`;
+                        });
+                        systemMessage += '\n';
+                        
+                        if (denyFeedback.示例) {
+                            systemMessage += `**示例对比：**\n`;
+                            Object.entries(denyFeedback.示例).forEach(([situation, examples]) => {
+                                systemMessage += `- ${situation}：\n`;
+                                systemMessage += `  - ❌ ${examples['生硬拒绝']}\n`;
+                                systemMessage += `  - ✅ ${examples['自然拒绝']}\n`;
+                            });
+                            systemMessage += '\n';
+                        }
+                    }
                 }
             } catch (configError) {
                 console.error('[mergeSystemMessage] 解析系统配置失败:', configError);

@@ -4,7 +4,7 @@
 
 import { buildUserMessageContent, downloadImageAsBase64 } from '../utils/requestUtils.js';
 import { isToolCallingSupported } from '../../api-types.js';
-import { favorTools } from '../../tools/index.js';
+import { getEnabledTools } from '../../tools/index.js';
 
 /**
  * 构建Qwen VL请求数据
@@ -120,7 +120,7 @@ export async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e
     };
 
     if (isToolCallingSupported(apiType)) {
-        requestData.tools = favorTools;
+        requestData.tools = getEnabledTools();
         requestData.tool_choice = 'auto';
     }
 

@@ -5,7 +5,8 @@
 import { Config } from '../../../../components/index.js';
 import { addMessage } from '../../session.js';
 import { parseJsonResponse, parseErrorMessage } from '../../parsers/index.js';
-import { handleFavorToolCall } from '../../tools/index.js';
+import { handleToolCall } from '../../tools/index.js';
+import { generateToolFeedback, shouldShowFeedback } from '../../tools/feedbackGenerator.js';
 
 /**
  * 处理API响应
@@ -181,6 +182,8 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
     }
 
     const toolResults = [];
+    const naturalFeedbacks = [];
+    
     for (const toolCall of message.tool_calls) {
         const toolName = toolCall.function.name;
         const toolArgs = toolCall.function.arguments;
@@ -208,9 +211,16 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
         } catch {
         }
 
-        const result = await handleFavorToolCall(toolName, toolParams, e, currentUserId);
+        const result = await handleToolCall(toolName, toolParams, e, currentUserId);
 
         console.log(`[工具调用] 结果: ${JSON.stringify(result)}`);
+        
+        if (shouldShowFeedback(toolName, result)) {
+            const feedback = await generateToolFeedback(toolName, result, toolParams, { e, currentUserId });
+            if (feedback) {
+                naturalFeedbacks.push(feedback);
+            }
+        }
 
         toolResults.push({
             role: 'tool',
@@ -227,6 +237,21 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
     const updatedChatMsg = [...chatMsg, { role: 'user', content: fullUserMsg }, assistantMessage, ...toolResults];
 
     const { content: followUpContent } = await openAiCallback(msg, e, systemMessage, updatedChatMsg, recursionDepth + 1);
+    
+    if (naturalFeedbacks.length > 0) {
+        try {
+            const followUpObj = JSON.parse(followUpContent);
+            if (followUpObj.message && naturalFeedbacks.length > 0) {
+                const feedbackText = naturalFeedbacks.filter(f => f).join(' ');
+                if (feedbackText && !followUpObj.message.includes(feedbackText)) {
+                    followUpObj.message = `${feedbackText}\n\n${followUpObj.message}`;
+                }
+            }
+            return JSON.stringify(followUpObj);
+        } catch {
+            return followUpContent;
+        }
+    }
 
     return followUpContent;
 }

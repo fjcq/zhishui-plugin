@@ -1,6 +1,6 @@
 {
     "name": "zhishui-plugin",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "author": "fjcq",
     "description": "Yunzai-Bot插件扩展",
     "main": "index.js",

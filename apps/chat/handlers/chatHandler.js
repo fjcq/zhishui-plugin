@@ -21,18 +21,38 @@ import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSess
 export async function handleChat(e, chatNickname) {
     const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
     let msg = e.msg;
-    
+
     function escapeRegExp(str) {
         return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
-    
+
+    /**
+     * 检查消息是否以特殊符号开头
+     * 排除与其他指令冲突的消息
+     * @param {string} message - 消息内容
+     * @returns {boolean} 是否为特殊指令
+     */
+    function isSpecialCommand(message) {
+        if (!message || typeof message !== 'string') {
+            return false;
+        }
+        const trimmedMsg = message.trim();
+        const specialPrefixPattern = /^[#*~\/\\!$%&^=+\-_|<>]/;
+        return specialPrefixPattern.test(trimmedMsg);
+    }
+
+    if (isSpecialCommand(msg)) {
+        chatActiveMap[sessionId] = 0;
+        return false;
+    }
+
     let nickname = chatNickname;
     let regex = new RegExp(`^#?${escapeRegExp(nickname)}`);
     const isPrivate = !e.group_id;
     const enablePrivate = await Config.Chat.EnablePrivateChat;
 
     let triggered = false;
-    
+
     if (isPrivate) {
         if (enablePrivate || regex.test(msg)) {
             triggered = true;
@@ -50,12 +70,12 @@ export async function handleChat(e, chatNickname) {
             triggered = true;
         }
     }
-    
+
     if (!triggered) {
         chatActiveMap[sessionId] = 0;
         return false;
     }
-    
+
     if (chatActiveMap[sessionId] === 1) {
         if (e.group_id) {
             await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
@@ -266,7 +286,7 @@ export async function handleChat(e, chatNickname) {
 
             let finalReply = replyObj.message ?? '';
             console.log(`[止水对话] <- AI回复: ${finalReply}`);
-            
+
             let codeText = '';
 
             const codeRegex = /```(?:[\w]*)\n*([\s\S]*?)```/g;
@@ -290,7 +310,17 @@ export async function handleChat(e, chatNickname) {
             }
 
             const textForVoice = msgWithoutCode.replace(/at\d+/g, '').replace(/\s+/g, ' ').trim();
-            const voiceResult = await voiceManager.synthesize(e, textForVoice);
+
+            const MAX_VOICE_TEXT_LENGTH = 500;
+            const isTextTooLong = textForVoice.length > MAX_VOICE_TEXT_LENGTH;
+
+            let voiceResult = null;
+            if (!isTextTooLong) {
+                voiceResult = await voiceManager.synthesize(e, textForVoice);
+            } else {
+                logger.debug(`[止水对话] 文本长度 ${textForVoice.length} 超过限制 ${MAX_VOICE_TEXT_LENGTH}，跳过语音合成`);
+            }
+
             if (voiceResult) {
                 if (typeof voiceResult === 'string') {
                     e.reply([segment.record(voiceResult)]);
