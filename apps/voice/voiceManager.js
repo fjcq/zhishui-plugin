@@ -254,7 +254,7 @@ class VoiceManager {
      */
     splitText(text) {
         const segments = [];
-        const maxLength = 300; // 腾讯云TTS API文本长度限制
+        const maxLength = 150; // 腾讯云标准TTS API文本长度限制（ModelType=1）
 
         if (text.length <= maxLength) {
             segments.push(text);

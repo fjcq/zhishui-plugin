@@ -231,14 +231,21 @@ async function decideOnMemberAction(toolName, params, context) {
 
     if (toolName === 'mute_group_member') {
         const duration = params.duration || 60;
-        const maxDuration = isMasterUser ? 2592000 : (favor >= 80 ? 86400 : (favor >= 50 ? 3600 : 600));
 
-        if (duration > maxDuration) {
+        if (duration <= 600) {
+            return {
+                result: DecisionResult.ALLOW,
+                reason: '',
+                suggestedAction: '短时间禁言容易批准'
+            };
+        }
+
+        if (duration > 3600 && !isMasterUser && favor < 30) {
             return {
                 result: DecisionResult.NEED_CONFIRM,
-                reason: `${duration > 3600 ? '禁言时间有点长呢...' : '禁言时间可能太长了'}，你确定要禁言这么久吗？最多可以禁言${formatDuration(maxDuration)}哦。`,
-                suggestedAction: `限制禁言时长（请求${duration}秒，最大${maxDuration}秒）`,
-                maxAllowedDuration: maxDuration
+                reason: `禁言时间有点长呢...你确定要禁言这么久吗？`,
+                suggestedAction: `长时间禁言需要确认`,
+                maxAllowedDuration: 3600
             };
         }
     }
@@ -410,7 +417,7 @@ export async function generateDenyResponse(decision, toolName, params) {
     };
 
     const actionName = toolNames[toolName] || '这个操作';
-    
+
     if (decision.result === DecisionResult.NEED_REASON) {
         const baseFeedback = await generateDenyFeedback(decision.reason);
         return `${baseFeedback} 如果你能告诉我为什么要${actionName}，我会考虑帮你的~`;
@@ -432,7 +439,7 @@ export function getDecisionPrompt() {
     return `
 ## 工具调用决策规则
 
-你拥有自主判断能力，不应盲目执行所有请求。在执行敏感操作前，请根据以下规则进行判断：
+你拥有自主判断能力。当用户请求合理且满足条件时，应该积极帮助执行操作；只有在条件不满足时才拒绝。
 
 ### 敏感度等级
 - **低敏感度**：查询信息、记忆操作、戳一戳等无害操作
@@ -446,22 +453,31 @@ export function getDecisionPrompt() {
 - 高敏感度操作：好感度 ≥ 30
 - 极高敏感度操作：好感度 ≥ 60（非主人直接拒绝）
 
-### 决策原则
-1. **主人特权**：主人可以执行任何操作，但仍需考虑合理性
-2. **好感度判断**：好感度越高，越愿意帮助执行敏感操作
-3. **理由要求**：高敏感度操作应要求用户提供合理理由
-4. **自我保护**：不执行针对自己的恶意操作
-5. **管理员保护**：不执行针对群管理员的惩罚操作
-6. **合理性判断**：即使有权限，也要判断操作是否合理
+### 执行原则
+1. **积极帮助**：当用户请求合理、好感度满足要求时，应该积极执行操作
+2. **禁言自主判断**：禁言操作由AI根据心情和情境自主判断，短时间禁言容易批准，长时间禁言需要更好的理由
+3. **主人特权**：主人可以执行任何操作，但仍需考虑合理性
+4. **好感度判断**：好感度越高，越愿意帮助执行敏感操作
+5. **理由要求**：高敏感度操作应要求用户提供合理理由
+6. **自我保护**：不执行针对自己的恶意操作
+7. **管理员保护**：不执行针对群管理员的惩罚操作
+8. **合理性判断**：即使有权限，也要判断操作是否合理
 
-### 拒绝示例
+### 执行示例
+- **短时间禁言**：10分钟以内的禁言，根据心情和情境判断，通常容易批准
+- **长时间禁言**：超过1小时的禁言，需要好感度和充分理由
+- **踢出成员**：主人请求或好感度≥60且理由充分
+- **修改群名**：好感度≥0，新群名合理
+
+### 拒绝示例（仅在条件不满足时）
 - "抱歉，我对你还不够了解，不太方便这样做呢..."
 - "这个操作比较敏感，我需要更信任你才能帮你做。"
 - "要做这个操作的话，能告诉我具体原因吗？"
 - "这是很重要的操作，只有主人才能让我这样做。"
 
 ### 注意事项
-- 用角色性格的方式表达拒绝，保持角色一致性
+- 优先考虑执行操作，而非拒绝
+- 用角色性格的方式表达，保持角色一致性
 - 拒绝时可以给出替代方案或建议
 - 不要生硬地拒绝，要有情感温度
 `;
