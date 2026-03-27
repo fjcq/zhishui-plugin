@@ -1,0 +1,866 @@
+﻿import plugin from '../../../lib/plugins/plugin.js';
+import { puppeteer, common } from '../model/index.js';
+import { Plugin_Path, Config } from '../components/index.js';
+import Data from '../components/Data.js';
+import request from '../lib/request/request.js';
+import YamlReader from '../components/YamlReader.js';
+
+/** 缓存目录 */
+const CachePath = `${Plugin_Path}/resources/Cache/SearchVideos`;
+/** 搜剧视频名称 */
+let SearchName = "";
+/** 视频ID数组 */
+var IDs = [];
+/** 正在搜索 */
+var zzss = 0;
+
+export class souju extends plugin {
+    constructor() {
+        super({
+            name: '[止水插件]搜剧',
+            dsc: '七星搜剧',
+            event: 'message',
+            priority: 1000,
+            rule: [
+                {
+                    reg: '^(#|\/)?(设置|增加|删除|查看)搜剧接口(.*)$',
+                    fnc: 'SearchInterface'
+                }, {
+                    reg: '^(#|\/)?(设置|查看)(搜剧)?播放器(.*)$',
+                    fnc: 'PlayerInterface'
+                }, {
+                    reg: '^(#|\/)?取消搜剧$',
+                    fnc: 'CancelSearch'
+                }, {
+                    reg: '^(#|\/)?选剧(.*)',
+                    fnc: 'SelectVideo'
+                }, {
+                    reg: '^(#|\/)?看剧.*集?$',
+                    fnc: 'WatchVideo'
+                }, {
+                    reg: '^(#|\/)?(搜剧)?线路(.*)$',
+                    fnc: 'changeRoute'
+                }, {
+                    reg: '^(#|\/)?我的搜剧$',
+                    fnc: 'MySearchVideo'
+                }, {
+                    reg: '^(#|\/)?(搜剧|到).*页$',
+                    fnc: 'GoPage'
+                }, {
+                    reg: "^(#|\/)?(重新)?搜剧(.*)$",
+                    fnc: 'SearchVideos'
+                }
+            ]
+        });
+    }
+
+    /** 搜剧 */
+    async SearchVideos(e) {
+        // 检查是否有正在进行的搜索
+        if (zzss === 1) {
+            e.reply('前方有搜索任务正在进行，请稍候再试！');
+            return false;
+        }
+
+        // 获取接口
+        const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+
+        // 检查resources数组是否存在且有效
+        if (!Config.SearchVideos.resources || Config.SearchVideos.resources.length === 0) {
+            e.reply('搜剧接口未配置，请管理员先配置接口！');
+            return false;
+        }
+
+        // 检查索引是否有效
+        if (idx < 0 || idx >= Config.SearchVideos.resources.length) {
+            e.reply('当前接口索引无效，请使用#设置搜剧接口 选择有效接口');
+            return false;
+        }
+
+        const resource = Config.SearchVideos.resources[idx];
+        const site = resource?.site || {};
+
+        // 检查接口是否存在，兼容新旧格式
+        if (!resource || (!site.url && !resource.url)) {
+            e.reply('接口配置错误，请联系管理员修复！');
+            logger.error(`接口配置错误: 索引${idx}`, { resource });
+            return false;
+        }
+
+        // 统一接口URL和标题获取方式
+        const apiUrl = site.url || resource.url;
+        const apiTitle = site.title || resource.title || `未命名接口(${apiUrl || '无URL'})`;
+
+        try {
+            // 开始搜索过程，设置搜索状态
+            zzss = 1;
+
+            // 获取搜索关键词
+            const SearchName = extractSearchKeyword(e.msg);
+            e.reply(`正在搜索 [${SearchName || '最新视频'}] ，请稍候…`);
+
+            // 获取搜剧数据
+            let SearchResults = await getSearchResultsWithCache(e.user_id, SearchName, 1, apiUrl);
+
+            // 保存搜索结果至缓存
+            await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
+            await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+            await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+
+            // 检查并展示搜索结果
+            handleAndDisplaySearchResults(e, SearchResults, site.showpic || resource.showpic, SearchName);
+
+        } catch (error) {
+            e.reply(`搜索过程中发生错误：${error.message}`);
+        }
+        zzss = 0;
+        return true;
+    }
+
+    /** 搜剧接口 */
+    async SearchInterface(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        const type = e.msg.substring(1, 3);
+
+        if (type == "设置") {
+            let index = parseInt(e.msg.replace(/^.*搜剧接口/, '').trim());
+            if (isNaN(index)) {
+                index = 1;
+            }
+
+            const resources = await Config.SearchVideos.resources;
+            if (index < 1 && index > resources.length) {
+                index = 1;
+            }
+
+            //重置搜剧设置
+            this.CancelSearch(e);
+
+            //写入搜剧接口设置
+            await Config.SetUserSearchVideos(e.user_id, 'idx', index - 1);
+            Show_SearchInterface(e);
+
+        }
+        else if (type == "增加") {
+
+            const Interface = e.msg.replace(/^.*搜剧接口/, '').trim();
+
+            if (Interface) {
+
+                const [url, title = '新接口', showpic = 'true'] = Interface.split('|');
+                const site = {
+                    site: {
+                        showpic: showpic === '显示' || showpic === 'true',
+                        title,
+                        url
+                    }
+                };
+
+                await Config.modifyarr('souju', `resources`, site, 'add');
+                Show_SearchInterface(e);
+            }
+
+        }
+
+        else if (type == "删除") {
+
+            const index = parseInt(e.msg.replace(/^.*搜剧接口/, '').trim());
+            if (isNaN(index)) {
+                e.reply(`接口编号错误！`);
+                return false;
+            }
+
+            let path = `${Plugin_Path}/config/config/souju.yaml`;
+            let yaml = new YamlReader(path);
+            let resources = yaml.jsonData['resources'];
+            const resource = resources[index - 1];
+            const site = resource?.site || resource; // 兼容新旧格式
+            let title = site?.title || '未命名接口';
+
+            if (index < 0 && index >= resources.length) {
+                e.reply(`接口编号错误！`);
+                return false;
+            }
+
+            yaml.delete(`resources.${index - 1}`);
+
+            e.reply(`已删除搜剧接口： ${title}`);
+
+        }
+
+        else if (type == "查看") {
+            Show_SearchInterface(e);
+        }
+        return true;
+    }
+
+    /** 显示搜剧接口 */
+    async Show_SearchInterface(e) {
+        try {
+            const resources = await Config.SearchVideos.resources;
+            if (!resources || resources.length === 0) {
+                e.reply('搜剧接口未配置，请联系管理员！');
+                return;
+            }
+
+            const idx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+            const currentInterface = resources[idx]?.site;
+
+            if (!currentInterface || !currentInterface.title) {
+                e.reply('当前接口配置错误，请联系管理员！');
+                return;
+            }
+
+            let msg = '*** 搜剧接口列表 ***\n';
+            resources.forEach((item, index) => {
+                const siteTitle = item?.site?.title || '未命名接口';
+                msg += `${index + 1}. ${siteTitle}`;
+                if (index === idx) msg += ' (当前使用)';
+                msg += '\n';
+            });
+
+            e.reply(msg);
+        } catch (error) {
+            e.reply(`显示接口时发生错误：${error.message}`);
+        }
+    }
+
+    /** 播放器接口 */
+    async PlayerInterface(e) {
+        if (e.isMaster == false) {
+            return false; //不是主人
+        };
+
+        const type = e.msg.substring(1, 3);
+        let msg, Interface = ""
+        if (type == "设置") {
+            Interface = e.msg.replace(/^.*播放器/, '').trim();
+            await Config.modify('souju', 'player', Interface)
+            msg = '设置成功，当前播放器：\n';
+        } else {
+            msg = '当前播放器：\n';
+        }
+        msg += await Config.SearchVideos.player;
+        e.reply(msg);
+        return true;
+    }
+
+    /** 取消搜剧 */
+    async CancelSearch(e) {
+
+        const SearchName = await Config.GetUserSearchVideos(e.user_id, 'keyword');
+
+        //重置搜剧设置
+        zzss = 0;
+        await Config.SetUserSearchVideos(e.user_id, 'SearchResults', '');
+        await Config.SetUserSearchVideos(e.user_id, 'keyword', '');
+        await Config.SetUserSearchVideos(e.user_id, 'page', 1);
+        await Config.SetUserSearchVideos(e.user_id, 'Episode', 1);
+        await Config.SetUserSearchVideos(e.user_id, 'Route', '');
+
+        e.reply(`已取消 [ ${SearchName || '最新视频'} ] 的搜索`);
+        return true;
+
+    }
+
+    /** 选剧 */
+    async SelectVideo(e) {
+        // 获取用户搜索结果
+        let userSearchResult = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+
+        // 检查搜索结果是否存在
+        if (isNotNull(userSearchResult)) {
+            try {
+                // 解析搜索结果为JSON对象
+                userSearchResult = JSON.parse(userSearchResult);
+
+                // 检查JSON对象中是否包含必要的list属性
+                if (!isNotNull(userSearchResult.list)) {
+                    // 数据错误，提示用户重新搜剧
+                    e.reply(`搜剧数据错误，请重新#搜剧！`);
+                    return false;
+                }
+            } catch (error) {
+                // 解析JSON时发生错误，记录错误信息并提示用户
+                console.error('解析搜剧结果为JSON时出错:', error);
+                e.reply(`解析搜剧数据时发生错误，请稍后重试！`);
+                return false;
+            }
+        } else {
+            // 用户尚未执行搜剧操作，提示用户先搜剧
+            e.reply(`你需要先#搜剧，才可以#选剧！`);
+            return false;
+        }
+
+        // 从用户消息中提取选剧编号，若无有效数字则默认为1
+        const selectedEpisodeIndex = Math.max(parseInt(e.msg.replace(/\D+/, '').trim()) || 1, 1);
+
+        // 检查选剧编号是否在有效范围内（1到搜索结果列表长度）
+        if (selectedEpisodeIndex > userSearchResult.list.length) {
+            // 错误的选剧编号，提示用户正确输入
+            e.reply(`[选剧]错误，请确保选剧编号在1到${userSearchResult.list.length}之间。`);
+            return false;
+        } else {
+            // 保存选中的剧集编号
+            await Config.SetUserSearchVideos(e.user_id, 'selectedID', selectedEpisodeIndex);
+        }
+
+        // 获取用户已选择的播放路线（Route）及搜索结果索引
+        const siteIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        const selectedEpisodeDetails = userSearchResult.list[selectedEpisodeIndex - 1];
+        const playbackRoutes = selectedEpisodeDetails.vod_play_from.split('$$$');
+        const playRoutes = await RouteToNameMap(playbackRoutes);
+        await Config.SetUserSearchVideos(e.user_id, 'playRoutes', JSON.stringify(playRoutes));
+
+        // 获取目前播放线路
+        let Route = await Config.GetUserSearchVideos(e.user_id, 'Route');
+
+        // 若 Route 为无效值，尝试从 playRoutes 中恢复
+        if (!Route || !Array.isArray(playRoutes) || playRoutes.length === 0) {
+            Route = playRoutes[0]?.RouteName || '';
+        }
+
+        // 获取当前播放路线索引（currentPlaybackRoute），并确保其有效性
+        let currentPlaybackRoute = await findRouteIndex(Route, playRoutes);
+
+        // 根据当前播放路线获取资源分组
+        const resourceGroups = selectedEpisodeDetails.vod_play_url.split('$$$');
+
+        // 若当前播放路线索引超出资源分组范围，设置为默认路线（第一条路线）
+        if (resourceGroups.length < currentPlaybackRoute) {
+            currentPlaybackRoute = 0;
+        }
+
+        // 解析资源分组中的剧集名称和链接
+        const episodesWithLinks = resourceGroups[currentPlaybackRoute]?.split('#') || [resourceGroups[0]];
+        const episodeNames = [];
+        const episodeLinks = [];
+        for (let i = 0; i < episodesWithLinks.length; i++) {
+            const [episodeName, episodeLink] = episodesWithLinks[i].split('$');
+            episodeNames.push(episodeName);
+            episodeLinks.push(episodeLink);
+        }
+
+        // 组装播放数据对象，并保存至缓存
+        const playData = { VodName: selectedEpisodeDetails.vod_name, episodeNames, episodeLinks };
+        console.log(`保存用户数据：${JSON.stringify(playData)}`);
+        await Config.SetUserSearchVideos(e.user_id, 'playData', JSON.stringify(playData));
+
+        // 获取渲染所需数据
+        const resource = await Config.SearchVideos.resources[siteIdx];
+        const site = resource?.site || resource; // 兼容新旧格式
+
+        // 渲染选剧页面，传递相关数据
+        await puppeteer.render("souju/select", {
+            list: selectedEpisodeDetails,
+            episodeNames: episodeNames,
+            playRoutes: playRoutes,
+            showPic: site?.showpic || false,
+            CurrentrRoute: currentPlaybackRoute
+        }, {
+            e,
+            scale: 1.8
+        });
+    }
+
+    /** 看剧 */
+    async WatchVideo(e) {
+        let Episode = parseInt(await Config.GetUserSearchVideos(e.user_id, 'Episode')) || 1;
+        const playDataStr = await Config.GetUserSearchVideos(e.user_id, 'playData');
+        const playData = JSON.parse(playDataStr);
+
+        console.log(`用户集数：${Episode}`);
+        // 初始集数处理
+        if (isNaN(Episode)) {
+            Episode = 1;
+        }
+
+        // 解析用户输入
+        const input = e.msg.trim();
+        let targetEpisode = Episode;
+
+
+        // 删除无关字符，仅保留集数相关指令
+        const cleanedInput = input.replace(/#|看|剧|第|集/g, "");
+        console.log(`cleanedInput：${cleanedInput}`);
+        // 判断指令类型
+        if (cleanedInput === '上一') {
+            targetEpisode = Math.max(1, targetEpisode - 1);
+        } else if (cleanedInput === '下一') {
+            targetEpisode = Math.min(targetEpisode + 1, playData.episodeLinks.length);
+        } else if (cleanedInput === '最后') {
+            targetEpisode = playData.episodeLinks.length;
+        } else if (!isNaN(parseInt(cleanedInput))) {
+            targetEpisode = parseInt(cleanedInput);
+        } else {
+            // 判断是数字还是中文
+            const chineseNumeral = cleanedInput;
+            try {
+                targetEpisode = chineseToNumber(chineseNumeral);
+                console.log(`解析中文：${targetEpisode}`);
+            } catch (error) {
+                targetEpisode = parseInt(cleanedInput);
+                if (isNaN(targetEpisode)) {
+                    e.reply('输入的集数格式不正确，请重新输入。');
+                    return false;
+                }
+            }
+        }
+
+        console.log(`解析集数：${targetEpisode}`);
+
+
+        if (!isNotNull(playDataStr)) {
+            e.reply('搜索数据错误，请重新搜索！');
+            return false;
+        }
+
+
+        // 集数校验
+        targetEpisode = Math.max(1, Math.min(targetEpisode, playData.episodeLinks.length));
+        console.log(`最终集数：${targetEpisode}`);
+
+        // 更新并保存当前集数
+        await Config.SetUserSearchVideos(e.user_id, 'Episode', targetEpisode);
+
+        // 构建回复消息
+        if (isNotNull(playData.episodeLinks[targetEpisode - 1])) {
+            const title = `${playData.VodName}  ${playData.episodeNames[targetEpisode - 1]}`;
+            const fullLink = Config.SearchVideos.player + playData.episodeLinks[targetEpisode - 1];
+            const msg = [
+                '*** 请复制到浏览器中观看 ***',
+                fullLink,
+            ];
+
+            try {
+                await common.getforwardMsg(e, msg, { isxml: true, xmlTitle: title });
+                return true; // 返回true，阻止消息继续传播
+            } catch (err) {
+                let replyMsg = title + '\n';
+
+                if (e.isGroup) {
+                    const at = Number(e.user_id);
+                    replyMsg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`];
+                } else {
+                    replyMsg = `消息发送失败，可能被风控。`;
+                }
+
+                e.reply(replyMsg);
+                return false; // 发送失败，允许消息继续传播
+            }
+        } else {
+            e.reply('集数错误，无法观看！');
+            return false;
+        }
+    }
+
+
+    /** 到指定页 */
+    async GoPage(e) {
+
+        const PAGE_COMMANDS = {
+            PREVIOUS: '上一页',
+            NEXT: '下一页',
+            FIRST: '首',
+            LAST: '尾',
+        };
+
+        const msg = e.msg.trim();
+
+        // 一次性获取所需的用户搜索数据
+        const searchUserData = await Config.GetUserSearchVideos(e.user_id, [
+            'keyword',
+            'page',
+            'idx',
+            'SearchResults',
+        ]);
+
+        let {
+            keyword = '',
+            page = 1,
+            idx = 0,
+            SearchResults = '',
+        } = searchUserData;
+
+        // 解析SearchResults文本为JSON对象并重新赋值给SearchResults
+        try {
+            SearchResults = JSON.parse(SearchResults);
+        } catch (error) {
+            SearchResults = { "pagecount": 1 }
+        }
+
+        switch (true) {
+            case msg.includes(PAGE_COMMANDS.PREVIOUS):
+                page = page > 1 ? page - 1 : 1;
+                break;
+            case msg.includes(PAGE_COMMANDS.NEXT):
+                page++;
+                break;
+            case msg.includes(PAGE_COMMANDS.FIRST):
+                page = 1;
+                break;
+            case msg.includes(PAGE_COMMANDS.LAST):
+                page = SearchResults.pagecount || 99999;
+                break;
+            default:
+                page = chineseToArabic(msg.replace(/#|到|第|页/g, "")) || 1;
+                break;
+        }
+
+        // 保存参数
+        await Config.SetUserSearchVideos(e.user_id, 'page', page);
+
+        e.reply(`开始跳转到 [${keyword || '最新视频'}] - 第${page}页`);
+
+        /** 搜剧结果 */
+        const resource = await Config.SearchVideos.resources[idx];
+        const site = resource?.site || resource; // 兼容新旧格式
+        const domain = site?.url;
+        SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
+        let IDs = [];
+
+        if (SearchResults && SearchResults.list) {
+            IDs = SearchResults.list.map(item => item.vod_id);
+            console.log(`获取数组：${IDs}`);
+        } else {
+            console.warn('SearchResults.list 未定义或为 null。跳过 ID 提取。');
+        }
+
+        if (isNotNull(SearchResults.list)) {
+            // 写到缓存
+            await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));
+            // 获取资源配置，兼容新旧格式
+            const resource = await Config.SearchVideos.resources[idx];
+            const site = resource?.site || resource;
+            // 发送图片
+            await puppeteer.render("souju/result", {
+                list: SearchResults.list,
+                keyword: keyword || '最新视频',
+                showpic: site?.showpic || false
+            }, {
+                e,
+                scale: 1.6,
+            });
+
+            return true;
+        } else {
+            e.reply(`未能搜索到 [${keyword || '最新视频'}]，抱歉`);
+            return false;
+        }
+
+    }
+
+    /**
+ * 切换线路
+ * @param {Object} e - 事件对象，包含用户ID（user_id）、原始消息（msg）等信息
+ * @returns {Promise<boolean>} - 表示切换线路操作是否成功
+ */
+    async changeRoute(e) {
+        try {
+            // 1. 解析用户输入的线路信息
+            const inputRouteStr = e.msg.replace(/^.*线路/, '').trim(); // 提取用户输入的线路内容（可能为编号或名称）
+            let inputRoute;
+
+            // 2. 处理输入为线路编号的情况
+            if (Number.isInteger(+inputRouteStr)) {
+                // 2.1 获取可用线路列表
+                const availableRoutesStr = await Config.GetUserSearchVideos(e.user_id, 'playRoutes');
+                const availableRoutes = JSON.parse(availableRoutesStr);
+
+                // 2.2 检查线路编号是否有效
+                if (+inputRouteStr < 1 || +inputRouteStr > availableRoutes.length) {
+                    return e.reply(`线路编号错误，请确保输入的数字在1到${availableRoutes.length}之间。`);
+                }
+
+                // 2.3 将线路编号转换为线路名称
+                inputRoute = availableRoutes[+inputRouteStr - 1].RouteName;
+            } else {
+                // 3. 处理输入为线路名称的情况（假设输入直接为线路名称）
+                inputRoute = inputRouteStr;
+            }
+
+            // 4. 保存当前播放线路
+            await Config.SetUserSearchVideos(e.user_id, 'Route', inputRoute);
+            console.log(`已切换到 [${inputRoute}] 线路`);
+
+            // 5. 获取当前选剧ID
+            let selectedID = await Config.GetUserSearchVideos(e.user_id, 'selectedID');
+            selectedID = selectedID > 0 ? selectedID : 1;
+
+            // 6. 更新消息并执行选剧操作
+            e.msg = '#选剧' + selectedID.toString();
+            return await this.SelectVideo(e);
+        } catch (error) {
+            return e.reply('切换线路时发生错误:', error);
+        }
+    }
+
+    async MySearchVideo(e) {
+        try {
+            // 合并数据库查询，一次性获取所有所需属性
+            const userSearchData = await Config.GetUserSearchVideos(e.user_id, [
+                'keyword',
+                'page',
+                'Episode',
+                'idx',
+                'playData',
+                'Route'
+            ]);
+
+            if (userSearchData === null || userSearchData === undefined) {
+                e.reply(`未能找到你的搜剧记录`);
+                throw error;
+            }
+
+            const {
+                keyword,
+                page = 1,
+                Episode: initialEpisode,
+                idx = 0,
+                playData: playDataStr,
+                Route
+            } = userSearchData;
+            console.log(`搜索数据：${JSON.stringify(userSearchData)}`);
+
+            // 检查playData是否为空
+            if (!playDataStr) {
+                e.reply(`没有找到有效的搜剧记录`);
+                return false;
+            }
+
+            // 解析JSON字符串
+            let playData;
+            try {
+                playData = JSON.parse(playDataStr);
+            } catch (error) {
+                e.reply(`搜剧记录数据格式错误，请重新搜索`);
+                return false;
+            }
+
+            let Episode = initialEpisode;
+            let msg = '';
+
+            // 资源接口站名
+            const resource = Config.SearchVideos.resources[idx];
+            const site = resource?.site || resource; // 兼容新旧格式
+            const InterfaceName = site?.title || '错误';
+
+            msg += '*** 搜索记录 ***\n';
+            msg += `接口：${InterfaceName}\n`;
+            msg += `关键词：${keyword}\n`;
+            msg += `搜索页：${page}\n`;
+            msg += `线路：${Route}\n\n`;
+
+            // 集数效验，防止超出范围
+            Episode = Math.max(1, Math.min(Episode, playData.episodeLinks.length));
+
+            const VodName = playData.VodName;
+            const EpisodeName = playData.episodeNames[Episode - 1] || '未知';
+
+            const PlayerUrl = Config.SearchVideos.player + playData.episodeLinks[Episode - 1];
+
+            msg += '*** 播放记录 ***\n';
+            msg += `片名：${VodName}\n`;
+            msg += `视频：${EpisodeName}\n`;
+            msg += `链接：${PlayerUrl}\n`;
+
+            return e.reply(msg);
+        } catch (error) {
+            e.reply(`获取搜剧记录时发生错误：${error.message}`);
+            throw error;
+        }
+    }
+
+}
+
+/** 显示搜剧接口 */
+async function Show_SearchInterface(e) {
+    if (!Config.SearchVideos?.resources || !Array.isArray(Config.SearchVideos.resources)) {
+        return e.reply('搜剧接口配置错误：resources数组未定义或格式不正确');
+    }
+
+    // 获取当前用户选择的接口索引
+    const currentIdx = Number(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+
+    // 处理所有资源站点，确保有title属性
+    const resources = Config.SearchVideos.resources.map((item, index) => {
+        const site = item?.site || {};
+        return {
+            ...item,
+            site: {
+                ...site,
+                title: site.title || `未命名接口(${site.url || '无URL'})`,
+                isCurrent: index === currentIdx
+            }
+        };
+    });
+
+    if (resources.length === 0) {
+        return e.reply('搜剧接口配置错误：没有有效的资源站点配置');
+    }
+    try {
+        const allResources = await Config.SearchVideos.resources;
+        if (!Array.isArray(allResources) || allResources.length === 0) {
+            await e.reply("没有可用的搜剧接口。");
+            return false;
+        }
+
+        const currentIdx = parseInt(await Config.GetUserSearchVideos(e.user_id, 'idx')) || 0;
+        const validIdx = currentIdx >= 0 && currentIdx < allResources.length ? currentIdx : 0;
+
+        let msg = "***搜剧接口列表***\n\n";
+        const currentResource = allResources[validIdx];
+        const currentTitle = currentResource?.title || currentResource?.site?.title || `未命名接口(${currentResource?.url || currentResource?.site?.url || '无URL'})`;
+        msg += `当前使用接口: ${currentTitle}\n\n`;
+        msg += "可用接口:\n";
+
+        msg += allResources.map((resource, index) => {
+            const title = resource?.title || resource?.site?.title || `未命名接口(${resource?.url || resource?.site?.url || '无URL'})`;
+            return `${index === validIdx ? '>>' : ''} ${index + 1}、${title} ${index === validIdx ? '<<' : ''}`;
+        }).join('\n') + "\n\n你可以使用 #设置搜剧接口<数字> 来切换不同的搜索接口。\n";
+
+        await e.reply(msg);
+        return true;
+    } catch (error) {
+        logger.error(`搜剧接口显示失败: ${error.stack || error.message}`);
+        await e.reply('搜剧接口显示失败，请稍后再试');
+        return false;
+    }
+}
+
+/**
+ * 判断对象是否不为undefined且不为null、NaN
+ * @param {any} obj - 待检查的对象。
+ * @returns {boolean} - 如果 obj 既不是 undefined，也不是 null，也不是 NaN，则返回 true；否则返回 false。
+ */
+function isNotNull(obj) {
+    // 检查 obj 是否为 undefined 或 null
+    if (obj === undefined || obj === null) { return false; }
+
+    // 使用 Number.isNaN() 来检查 obj 是否为 NaN
+    if (Number.isNaN(obj)) { return false; }
+
+    return true;
+};
+
+/**
+ * 关键词搜索视频
+ * @param {string} keyword - 搜索关键词
+ * @param {number} [page=1] - 页码，默认为1
+ * @param {number} [type=0] - 搜索类型
+ * @param {number} [hour=0] - 搜索几小时内的数据
+ * @param {string} [domain=''] - 资源站网址
+ * @throws {Error} 当未找到作品时，会抛出异常
+ * @returns {Array<string>} 返回搜索结果信息数组
+ */
+async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
+    if (page < 1) { page = 1 }
+    if (type < 0) { type = 0 }
+    if (hour < 0) { hour = 0 }
+
+    try {
+        const params = new URLSearchParams({
+            ac: 'detail',
+            wd: keyword,
+            t: type,
+            h: hour,
+            pg: page
+        });
+        const url = `${domain}?${params.toString()}`;
+        let res;
+        try {
+            res = await request.get(url, { responseType: 'json' });
+        } catch (err) {
+            logger.error(err);
+            // 检查证书相关错误
+            if (err.message && (err.message.includes('certificate has expired') || err.message.includes('CERT_HAS_EXPIRED') || err.message.includes('self signed certificate') || err.message.includes('unable to verify the first certificate'))) {
+                return { list: null, error: '接口证书无效或已过期，请更换接口或联系管理员修复。' };
+            }
+            throw new Error('请求过程中发生错误。' + (err.message ? ` ${err.message}` : ''));
+        }
+        return res;
+    } catch (error) {
+        throw error;
+    }
+}
+
+/**
+ * 将中文数字字符串转换为等效的阿拉伯数字。
+ *
+ * @param {string} str - 待转换的中文数字字符串，默认为空字符串。
+ * @returns {number} 转换后的阿拉伯数字。
+ *
+ * @throws {Error} 当输入的中文数字字符串不符合书写规则时，抛出错误。
+ */
+function chineseToNumber(str) {
+    // 九十二
+    const numChar = {
+        '零': 0,
+        '一': 1,
+        '二': 2,
+        '三': 3,
+        '四': 4,
+        '五': 5,
+        '六': 6,
+        '七': 7,
+        '八': 8,
+        '九': 9,
+    };
+    const levelChar = {
+        '十': 10,
+        '百': 100,
+        '千': 1000,
+        '万': 10000,
+        '亿': 100000000
+    };
+    let arr = Array.from(str);
+    console.log(arr);
+    let sum = 0, temp = 0;
+    for (let i = 0; i < arr.length; i++) {
+        const char = arr[i];
+        if (char === '零') continue;
+        if (char === '亿' || char === '万') {
+            sum += temp * levelChar[char];
+            temp = 0;
+        } else {
+            const next = arr[i + 1];
+            if (next && next !== '亿' && next !== '万') {
+                temp += numChar[char] * levelChar[next];
+                i++;
+            } else {
+                temp += numChar[char]
+            }
+        }
+    }
+    return sum + temp;
+}
+
+
+/**
+ * 获取线路名称
+ * @param {string} RouteCode - 线路代码
+ * @returns {Promise<string>} RouteName - 返回对应的线路名称，若未找到则返回线路代码本身。发生错误时，返回Promise.reject。
+ */
+async function RouteToName(RouteCode) {
+    try {
+        const RouteList = await Data.ReadRouteList();
+
+        // 使用Map对象以提高查找效率
+        const routeMap = new Map(RouteList.map(item => {
+            // 进行更全面的数据验证
+            if (typeof item.RouteCode === 'string' && item.RouteCode.trim() !== '' &&
+                typeof item.RouteName === 'string' && item.RouteName.trim() !== '') {
+                return [item.RouteCode.trim(), item.RouteName.trim()];
+            }
+            return null;
+        }).filter(Boolean)); // 过滤掉无效的项
+
+        // 提高代码的可读性和简洁性
+        const RouteName = routeMap.get(RouteCode) || RouteCode;
+
+        return RouteName;
+    } catch (error) {
+        // 默认的错误处理：在控制台输出错误信息，并返回Promise.reje

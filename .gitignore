@@ -1,157 +1,84 @@
-## 忽略 Visual Studio 临时文件、编译结果及常见插件生成的文件
-## 可获取最新版模板：https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
-
-# 用户相关文件
-*.rsuser
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# MonoDevelop/Xamarin Studio 用户相关文件
-*.userprefs
-
-# Mono 自动生成的崩溃日志
-mono_crash.*
-
-# 编译输出目录
-[Dd]ebug/
-[Dd]ebugPublic/
-[Rr]elease/
-[Rr]eleases/
-x64/
-x86/
-[Ww][Ii][Nn]32/
-[Aa][Rr][Mm]/
-[Aa][Rr][Mm]64/
-bld/
-[Bb]in/
-[Oo]bj/
-[Oo]ut/
-[Ll]og/
-[Ll]ogs/
-.idea/
-
-# Visual Studio 2015/2017 缓存/选项目录
-.vs/
-.vscode/
-# Trae AI 相关配置文件，不应提交到版本控制
-.trae/
-
-# 静态文件输出目录（如有任务生成 wwwroot 可取消注释）
-#wwwroot/
-
-# Visual Studio 2017 自动生成文件
-Generated\ Files/
-
-# MSTest 测试结果
-[Tt]est[Rr]esult*/
-[Bb]uild[Ll]og.*
-
-# NUnit 测试相关
-*.VisualState.xml
-TestResult.xml
-nunit-*.xml
-
-# ATL 项目编译结果
-[Dd]ebugPS/
-[Rr]eleasePS/
-dlldata.c
-
-# BenchmarkDotNet 性能测试结果
-BenchmarkDotNet.Artifacts/
-
-# .NET Core 相关
-project.lock.json
-project.fragment.lock.json
-artifacts/
-
-# ASP.NET 脚手架
-ScaffoldingReadMe.txt
-
-# StyleCop 报告
-StyleCopReport.xml
-
-# Fody 自动生成的 XML
-FodyWeavers.xsd
-
-# 其它常见缓存、日志、临时文件
-*.log
-*.tmp
-*.cache
-*.dbmdl
-*.pfx
-*.publishsettings
-*.snk
-*.plg
-*.opt
-*.vbw
-
-# Node.js 依赖
+# ==================== Node.js ====================
+# 依赖目录
 node_modules/
 
-# Python 缓存
-__pycache__/
-*.pyc
+# 日志文件
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
 
-# Cake 构建工具
-# tools/**
-# !tools/packages.config
+# 缓存目录
+.npm/
+.npmrc
 
-# Tabs Studio
-*.tss
+# 锁文件（根据团队约定决定是否保留）
+# package-lock.json
+# yarn.lock
 
-# Telerik JustMock 配置
-*.jmconfig
+# ==================== 操作系统 ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
 
-# BizTalk 构建输出
-*.btp.cs
-*.btm.cs
-*.odx.cs
-*.xsd.cs
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# OpenCover UI 分析结果
-OpenCover/
+# Linux
+*~
 
-# Azure Stream Analytics 本地输出
-ASALocalRun/
+# ==================== 编辑器/IDE ====================
+# VS Code
+.vscode/
 
-# MSBuild 二进制和结构化日志
-*.binlog
+# JetBrains IDEs
+.idea/
 
-# NVidia Nsight GPU 调试器配置
-*.nvuser
+# 其他编辑器
+*.swp
+*.swo
+*~
 
-# MFractors (Xamarin 工具) 工作目录
-.mfractor/
+# ==================== AI 工具配置 ====================
+# Trae AI 配置（包含本地设置，不应提交）
+.trae/
 
-# Visual Studio 本地历史
-.localhistory/
+# AI 记忆知识库目录
+knowledge/
 
-# BeatPulse 健康检查临时数据库
-healthchecksdb
-
-# 包引用转换工具备份
-MigrationBackup/
-
-# Ionide (跨平台 F# VS Code 工具) 工作目录
-.ionide/
-
-# 本地音频缓存
-/resources/yanzou/gangqin/output.mp3
-
-# 忽略聊天上下文缓存（插件运行时生成，勿提交）
-plugins/zhishui-plugin/resources/Cache/ChatContext/*
-
-# 忽略 resources/Cache 目录下的所有内容
+# ==================== 项目运行时生成 ====================
+# 缓存目录
 resources/Cache/
 
-# 忽略用户对话数据（包含敏感信息，勿提交）
+# 用户对话数据（包含敏感信息）
 resources/data/chat/
 
-# 忽略运行时生成的数据目录（包含用户上下文等敏感信息）
+# 本地音频缓存
+resources/yanzou/gangqin/output.mp3
+
+# 输出目录（运行时生成）
+resources/output/output.*
+
+# 运行时数据目录
 data/
 
-/.github/copilot-instructions.md
+# ==================== 配置文件 ====================
+# 用户自定义配置（运行时生成）
+config/config/
+
+# ==================== 临时文件 ====================
+*.tmp
+*.temp
+*.cache
+*.bak
+
+# ==================== 其他 ====================
+# 技能锁文件
 skills-lock.json
+
+# Agents 配置（本地开发用）
 AGENTS.md
