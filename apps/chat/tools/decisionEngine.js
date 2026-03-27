@@ -3,7 +3,6 @@
  * 让AI拥有判断能力，决定是否执行敏感操作
  */
 
-import { getUserFavor } from '../user/index.js';
 import { Config } from '../../../components/index.js';
 import { generateDenyFeedback } from './feedbackGenerator.js';
 
@@ -62,32 +61,12 @@ const TOOL_SENSITIVITY = {
 };
 
 /**
- * 好感度阈值配置
- */
-const FAVOR_THRESHOLDS = {
-    [SensitivityLevel.LOW]: -20,
-    [SensitivityLevel.MEDIUM]: 0,
-    [SensitivityLevel.HIGH]: 30,
-    [SensitivityLevel.CRITICAL]: 60
-};
-
-/**
  * 决策理由模板
  */
 const DENY_REASONS = {
-    low_favor: {
-        [SensitivityLevel.LOW]: 'low_favor',
-        [SensitivityLevel.MEDIUM]: 'low_favor',
-        [SensitivityLevel.HIGH]: 'low_favor',
-        [SensitivityLevel.CRITICAL]: 'low_favor'
-    },
     not_master: {
         [SensitivityLevel.HIGH]: 'not_master',
         [SensitivityLevel.CRITICAL]: 'not_master'
-    },
-    need_reason: {
-        [SensitivityLevel.HIGH]: 'need_reason',
-        [SensitivityLevel.CRITICAL]: 'need_reason'
     },
     target_admin: 'target_admin',
     self_protection: 'self_protection',
@@ -125,7 +104,7 @@ export function getToolSensitivity(toolName) {
  * @returns {Promise<{result: string, reason: string, suggestedAction: string}>} 决策结果
  */
 export async function makeDecision(toolName, params, context = {}) {
-    const { e, currentUserId, requesterFavor } = context;
+    const { e, currentUserId } = context;
     const sensitivity = getToolSensitivity(toolName);
 
     const requesterId = currentUserId || e?.user_id;
@@ -138,14 +117,12 @@ export async function makeDecision(toolName, params, context = {}) {
     }
 
     const isMasterUser = await isMaster(requesterId);
-    const favor = requesterFavor !== undefined ? requesterFavor : await getUserFavor(requesterId);
 
     if (toolName === 'mute_group_member' || toolName === 'kick_group_member') {
         return await decideOnMemberAction(toolName, params, {
             ...context,
             sensitivity,
             isMasterUser,
-            favor,
             requesterId
         });
     }
@@ -155,7 +132,6 @@ export async function makeDecision(toolName, params, context = {}) {
             ...context,
             sensitivity,
             isMasterUser,
-            favor,
             requesterId
         });
     }
@@ -164,9 +140,7 @@ export async function makeDecision(toolName, params, context = {}) {
         return await decideHighSensitivityAction(toolName, params, {
             ...context,
             sensitivity,
-            isMasterUser,
-            favor,
-            requesterId
+            isMasterUser
         });
     }
 
@@ -174,9 +148,7 @@ export async function makeDecision(toolName, params, context = {}) {
         return await decideMediumSensitivityAction(toolName, params, {
             ...context,
             sensitivity,
-            isMasterUser,
-            favor,
-            requesterId
+            isMasterUser
         });
     }
 
@@ -189,9 +161,10 @@ export async function makeDecision(toolName, params, context = {}) {
 
 /**
  * 决定成员管理操作（禁言、踢人）
+ * 主人请求直接通过，AI自主执行无需好感度检查
  */
 async function decideOnMemberAction(toolName, params, context) {
-    const { sensitivity, isMasterUser, favor, requesterId, e } = context;
+    const { sensitivity, isMasterUser, requesterId } = context;
     const targetUserId = params.user_id;
 
     if (targetUserId === requesterId) {
@@ -202,37 +175,7 @@ async function decideOnMemberAction(toolName, params, context) {
         };
     }
 
-    if (sensitivity === SensitivityLevel.CRITICAL && !isMasterUser) {
-        return {
-            result: DecisionResult.DENY,
-            reason: DENY_REASONS.not_master[sensitivity],
-            suggestedAction: '仅主人可执行'
-        };
-    }
-
-    const requiredFavor = FAVOR_THRESHOLDS[sensitivity];
-    if (favor < requiredFavor) {
-        return {
-            result: DecisionResult.DENY,
-            reason: DENY_REASONS.low_favor[sensitivity],
-            suggestedAction: `好感度不足（当前${favor}，需要${requiredFavor}）`
-        };
-    }
-
-    if (!params.reason && sensitivity >= SensitivityLevel.HIGH) {
-        if (favor < 70) {
-            return {
-                result: DecisionResult.NEED_REASON,
-                reason: DENY_REASONS.need_reason[sensitivity],
-                suggestedAction: '需要提供操作理由'
-            };
-        }
-    }
-
     if (toolName === 'mute_group_member') {
-        const duration = params.duration || 60;
-
-        // 主人永远不被禁言
         if (params.user_id && await isMaster(params.user_id)) {
             return {
                 result: DecisionResult.DENY,
@@ -241,21 +184,34 @@ async function decideOnMemberAction(toolName, params, context) {
             };
         }
 
-        // AI自主判断：根据情绪和情境决定是否禁言
-        // 移除死板的时长限制，让AI有更大的自主权
-        if (favor < -50 && duration > 3600) {
-            return {
-                result: DecisionResult.ALLOW,
-                reason: '',
-                suggestedAction: '极度厌恶，可以长时间禁言'
-            };
-        }
-
-        // 默认批准，让AI自主决定
         return {
             result: DecisionResult.ALLOW,
             reason: '',
             suggestedAction: 'AI自主判断批准'
+        };
+    }
+
+    if (toolName === 'kick_group_member') {
+        if (params.user_id && await isMaster(params.user_id)) {
+            return {
+                result: DecisionResult.DENY,
+                reason: 'self_protection',
+                suggestedAction: '主人不能被踢出'
+            };
+        }
+
+        if (!isMasterUser && sensitivity === SensitivityLevel.CRITICAL) {
+            return {
+                result: DecisionResult.DENY,
+                reason: DENY_REASONS.not_master[sensitivity],
+                suggestedAction: '仅主人可执行'
+            };
+        }
+
+        return {
+            result: DecisionResult.ALLOW,
+            reason: '',
+            suggestedAction: ''
         };
     }
 
@@ -268,9 +224,10 @@ async function decideOnMemberAction(toolName, params, context) {
 
 /**
  * 决定资料修改操作（名片、头衔）
+ * AI自主执行无需好感度检查
  */
 async function decideOnProfileAction(toolName, params, context) {
-    const { sensitivity, isMasterUser, favor, requesterId } = context;
+    const { isMasterUser, requesterId } = context;
     const targetUserId = params.user_id;
 
     if (targetUserId === requesterId) {
@@ -286,15 +243,6 @@ async function decideOnProfileAction(toolName, params, context) {
             result: DecisionResult.DENY,
             reason: '设置专属头衔只有群主才能操作，我只是管理员呢...',
             suggestedAction: '仅群主可设置头衔'
-        };
-    }
-
-    const requiredFavor = FAVOR_THRESHOLDS[sensitivity];
-    if (favor < requiredFavor) {
-        return {
-            result: DecisionResult.DENY,
-            reason: DENY_REASONS.low_favor[sensitivity],
-            suggestedAction: `好感度不足（当前${favor}，需要${requiredFavor}）`
         };
     }
 
@@ -316,32 +264,16 @@ async function decideOnProfileAction(toolName, params, context) {
 
 /**
  * 决定高敏感度操作
+ * AI自主执行无需好感度检查，仅保留主人权限检查
  */
 async function decideHighSensitivityAction(toolName, params, context) {
-    const { sensitivity, isMasterUser, favor } = context;
+    const { sensitivity, isMasterUser } = context;
 
     if (!isMasterUser && sensitivity === SensitivityLevel.CRITICAL) {
         return {
             result: DecisionResult.DENY,
             reason: DENY_REASONS.not_master[sensitivity],
             suggestedAction: '仅主人可执行'
-        };
-    }
-
-    const requiredFavor = FAVOR_THRESHOLDS[sensitivity];
-    if (favor < requiredFavor) {
-        return {
-            result: DecisionResult.DENY,
-            reason: DENY_REASONS.low_favor[sensitivity],
-            suggestedAction: `好感度不足（当前${favor}，需要${requiredFavor}）`
-        };
-    }
-
-    if (!params.reason) {
-        return {
-            result: DecisionResult.NEED_REASON,
-            reason: DENY_REASONS.need_reason[sensitivity],
-            suggestedAction: '需要提供操作理由'
         };
     }
 
@@ -354,19 +286,9 @@ async function decideHighSensitivityAction(toolName, params, context) {
 
 /**
  * 决定中等敏感度操作
+ * AI自主执行无需好感度检查
  */
 async function decideMediumSensitivityAction(toolName, params, context) {
-    const { sensitivity, favor } = context;
-
-    const requiredFavor = FAVOR_THRESHOLDS[sensitivity];
-    if (favor < requiredFavor) {
-        return {
-            result: DecisionResult.DENY,
-            reason: DENY_REASONS.low_favor[sensitivity],
-            suggestedAction: `好感度不足（当前${favor}，需要${requiredFavor}）`
-        };
-    }
-
     return {
         result: DecisionResult.ALLOW,
         reason: '',
