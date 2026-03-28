@@ -401,7 +401,7 @@ async function searchMusicByMeting(keyword, platform) {
     try {
         const loaded = await loadMeting();
         if (!loaded) {
-            logger.warn(`[音乐搜索] @meting/core 模块未安装，请运行: pnpm add @meting/core -w`);
+            logger.warn(`[音乐搜索] @meting/core 模块未安装，音乐搜索功能不可用。请运行: pnpm add @meting/core -w`);
             return null;
         }
 
