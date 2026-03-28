@@ -375,6 +375,7 @@ async function searchQQMusic(keyword) {
  */
 async function searchKugouMusic(keyword) {
     try {
+        // 注意：酷狗HTTPS证书有问题，必须使用HTTP
         const searchUrl = `http://mobilecdn.kugou.com/api/v3/search/song?keyword=${encodeURIComponent(keyword)}&page=1&pagesize=5`;
         const response = await fetch(searchUrl);
         const data = await response.json();
@@ -407,14 +408,14 @@ async function searchKugouMusic(keyword) {
  */
 async function searchNeteaseMusic(keyword) {
     try {
-        const searchUrl = `http://music.163.com/api/search/get/web?csrf_token=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=5`;
+        const searchUrl = `https://music.163.com/api/search/get/web?csrf_token=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=5`;
         const response = await fetch(searchUrl);
         const data = await response.json();
 
         if (data.code === 200 && data.result?.songs?.length > 0) {
             const song = data.result.songs[0];
             const songId = song.id;
-            const musicUrl = `http://music.163.com/song/media/outer/url?id=${songId}.mp3`;
+            const musicUrl = `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
 
             return {
                 name: song.name,
@@ -649,10 +650,10 @@ async function getUserAvatar(e, userId) {
             if (avatarUrl) return avatarUrl;
         }
 
-        return `http://q2.qlogo.cn/headimg_dl?dst_uin=${userId}&spec=5`;
+        return `https://q2.qlogo.cn/headimg_dl?dst_uin=${userId}&spec=5`;
     } catch (error) {
         logger.warn(`[获取头像] 失败: ${error.message}`);
-        return `http://q2.qlogo.cn/headimg_dl?dst_uin=${userId}&spec=5`;
+        return `https://q2.qlogo.cn/headimg_dl?dst_uin=${userId}&spec=5`;
     }
 }
 
