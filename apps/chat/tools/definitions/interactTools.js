@@ -132,8 +132,8 @@ export const interactTools = [
                     },
                     platform: {
                         type: "string",
-                        enum: ["qq", "netease"],
-                        description: "音乐平台：qq(QQ音乐) 或 netease(网易云音乐)，默认qq"
+                        enum: ["netease", "tencent", "kugou", "kuwo"],
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
                     }
                 },
                 required: ["keyword"]

@@ -16,6 +16,7 @@
     ],
     "license": "GPL-3.0",
     "dependencies": {
+        "@meting/core": "^1.6.1",
         "chalk": "^5.6.2",
         "fetch-undici": "^3.0.2",
         "fluent-ffmpeg": "^2.1.3",

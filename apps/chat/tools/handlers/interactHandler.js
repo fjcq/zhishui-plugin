@@ -4,6 +4,22 @@
  */
 
 import { isBotAdmin } from '../permissions.js';
+import Meting from '@meting/core';
+
+const metingCache = {};
+
+/**
+ * 获取Meting实例
+ * @param {string} platform - 平台代码
+ * @returns {Meting} Meting实例
+ */
+function getMeting(platform) {
+    if (!metingCache[platform]) {
+        metingCache[platform] = new Meting(platform);
+        metingCache[platform].format(true);
+    }
+    return metingCache[platform];
+}
 
 /**
  * 处理互动工具调用
@@ -314,12 +330,12 @@ async function handleSetEssenceMessage(params, e) {
  * 处理搜索音乐
  * @param {object} params - 参数对象
  * @param {string} params.keyword - 搜索关键词
- * @param {string} params.platform - 音乐平台 qq/netease
+ * @param {string} params.platform - 音乐平台 netease/tencent/kugou/kuwo
  * @param {object} e - 事件对象
  * @returns {Promise<object>} 执行结果
  */
 async function handleSearchMusic(params, e) {
-    const { keyword, platform = 'qq' } = params;
+    const { keyword, platform = 'netease' } = params;
 
     if (!keyword) {
         return { error: true, message: '请告诉我你想听什么歌' };
@@ -330,13 +346,7 @@ async function handleSearchMusic(params, e) {
     }
 
     try {
-        let songInfo = null;
-
-        if (platform === 'netease') {
-            songInfo = await searchNeteaseMusic(keyword);
-        } else {
-            songInfo = await searchQQMusic(keyword);
-        }
+        const songInfo = await searchMusicByMeting(keyword, platform);
 
         if (!songInfo) {
             return { error: true, message: `没有找到"${keyword}"相关的歌曲` };
@@ -360,77 +370,67 @@ async function handleSearchMusic(params, e) {
 }
 
 /**
- * 搜索QQ音乐（使用酷狗API）
+ * 使用Meting搜索音乐
  * @param {string} keyword - 搜索关键词
+ * @param {string} platform - 平台代码 netease/tencent/kugou/kuwo
  * @returns {Promise<object|null>} 歌曲信息
  */
-async function searchQQMusic(keyword) {
-    return await searchKugouMusic(keyword);
-}
-
-/**
- * 搜索酷狗音乐
- * @param {string} keyword - 搜索关键词
- * @returns {Promise<object|null>} 歌曲信息
- */
-async function searchKugouMusic(keyword) {
+async function searchMusicByMeting(keyword, platform) {
     try {
-        // 注意：酷狗HTTPS证书有问题，必须使用HTTP
-        const searchUrl = `http://mobilecdn.kugou.com/api/v3/search/song?keyword=${encodeURIComponent(keyword)}&page=1&pagesize=5`;
-        const response = await fetch(searchUrl);
-        const data = await response.json();
-
-        if (data.status === 1 && data.data?.info?.length > 0) {
-            const songs = data.data.info;
-            const freeSong = songs.find(s => s.pay_type === 0) || songs[0];
-            
-            return {
-                name: freeSong.songname || freeSong.songname_original,
-                artist: freeSong.singername,
-                hash: freeSong.hash,
-                duration: freeSong.duration,
-                album: freeSong.album_name,
-                pic: freeSong.trans_param?.union_cover?.replace('{size}', '400') || '',
-                link: `https://www.kugou.com/song/#hash=${freeSong.hash}`
-            };
+        const meting = getMeting(platform);
+        const searchResult = await meting.search(keyword, { page: 1, limit: 5 });
+        
+        let songs;
+        try {
+            songs = JSON.parse(searchResult);
+        } catch (parseError) {
+            logger.error(`[音乐搜索] JSON解析失败: ${parseError.message}`);
+            return null;
         }
-        return null;
-    } catch (error) {
-        logger.error(`[酷狗搜索] 失败: ${error.message}`);
-        return null;
-    }
-}
 
-/**
- * 搜索网易云音乐
- * @param {string} keyword - 搜索关键词
- * @returns {Promise<object|null>} 歌曲信息
- */
-async function searchNeteaseMusic(keyword) {
-    try {
-        const searchUrl = `https://music.163.com/api/search/get/web?csrf_token=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=5`;
-        const response = await fetch(searchUrl);
-        const data = await response.json();
-
-        if (data.code === 200 && data.result?.songs?.length > 0) {
-            const song = data.result.songs[0];
-            const songId = song.id;
-            const musicUrl = `https://music.163.com/song/media/outer/url?id=${songId}.mp3`;
-
-            return {
-                name: song.name,
-                artist: song.artists?.[0]?.name || '未知歌手',
-                id: songId,
-                url: musicUrl,
-                duration: Math.floor(song.duration / 1000),
-                album: song.album?.name,
-                pic: song.album?.picId ? `https://p1.music.126.net/${song.album.picId}/${song.album.picId}.jpg` : '',
-                link: `https://music.163.com/#/song?id=${songId}`
-            };
+        if (!songs || songs.length === 0) {
+            return null;
         }
-        return null;
+
+        const song = songs[0];
+        
+        let musicUrl = '';
+        try {
+            const urlResult = await meting.url(song.url_id || song.id, 320);
+            const urlData = JSON.parse(urlResult);
+            musicUrl = urlData?.url || '';
+        } catch (urlError) {
+            logger.warn(`[音乐搜索] 获取播放链接失败: ${urlError.message}`);
+        }
+
+        let picUrl = '';
+        try {
+            const picResult = await meting.pic(song.pic_id, 300);
+            const picData = JSON.parse(picResult);
+            picUrl = picData?.url || '';
+        } catch (picError) {
+            logger.warn(`[音乐搜索] 获取封面失败: ${picError.message}`);
+        }
+
+        const platformLinks = {
+            netease: `https://music.163.com/#/song?id=${song.id}`,
+            tencent: `https://y.qq.com/n/ryqq/songDetail/${song.id}`,
+            kugou: `https://www.kugou.com/song/#hash=${song.id}`,
+            kuwo: `https://www.kuwo.cn/play_detail/${song.id}`
+        };
+
+        return {
+            name: song.name || song.title,
+            artist: Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '未知歌手'),
+            id: song.id,
+            url: musicUrl,
+            duration: song.duration || 0,
+            album: song.album || '',
+            pic: picUrl || song.pic || '',
+            link: platformLinks[platform] || ''
+        };
     } catch (error) {
-        logger.error(`[网易云搜索] 失败: ${error.message}`);
+        logger.error(`[音乐搜索] Meting搜索失败: ${error.message}`);
         return null;
     }
 }
@@ -443,7 +443,13 @@ async function searchNeteaseMusic(keyword) {
  */
 async function sendMusicCard(e, songInfo, platform) {
     try {
-        const platformName = platform === 'netease' ? '网易云' : '酷狗';
+        const platformNames = {
+            netease: '网易云',
+            tencent: 'QQ音乐',
+            kugou: '酷狗',
+            kuwo: '酷我'
+        };
+        const platformName = platformNames[platform] || platform;
         
         if (songInfo.url) {
             await e.reply(`正在下载《${songInfo.name}》，请稍等...`);
