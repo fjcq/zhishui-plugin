@@ -4,16 +4,38 @@
  */
 
 import { isBotAdmin } from '../permissions.js';
-import Meting from '@meting/core';
+
+let Meting = null;
+let metingLoadError = null;
+
+/**
+ * 动态加载Meting模块
+ * @returns {Promise<boolean>} 是否加载成功
+ */
+async function loadMeting() {
+    if (Meting) return true;
+    if (metingLoadError) return false;
+    
+    try {
+        const module = await import('@meting/core');
+        Meting = module.default;
+        return true;
+    } catch (error) {
+        metingLoadError = error;
+        logger.warn(`[音乐搜索] @meting/core 模块未安装，音乐搜索功能不可用。请运行: pnpm add @meting/core -w`);
+        return false;
+    }
+}
 
 const metingCache = {};
 
 /**
  * 获取Meting实例
  * @param {string} platform - 平台代码
- * @returns {Meting} Meting实例
+ * @returns {Meting|null} Meting实例
  */
 function getMeting(platform) {
+    if (!Meting) return null;
     if (!metingCache[platform]) {
         metingCache[platform] = new Meting(platform);
         metingCache[platform].format(true);
@@ -377,7 +399,18 @@ async function handleSearchMusic(params, e) {
  */
 async function searchMusicByMeting(keyword, platform) {
     try {
+        const loaded = await loadMeting();
+        if (!loaded) {
+            logger.error(`[音乐搜索] @meting/core 模块未安装，请运行: pnpm add @meting/core -w`);
+            return null;
+        }
+        
         const meting = getMeting(platform);
+        if (!meting) {
+            logger.error(`[音乐搜索] 获取Meting实例失败`);
+            return null;
+        }
+        
         const searchResult = await meting.search(keyword, { page: 1, limit: 5 });
         
         let songs;
