@@ -15,7 +15,7 @@ let metingLoadError = null;
 async function loadMeting() {
     if (Meting) return true;
     if (metingLoadError) return false;
-    
+
     try {
         const module = await import('@meting/core');
         Meting = module.default;
@@ -401,18 +401,18 @@ async function searchMusicByMeting(keyword, platform) {
     try {
         const loaded = await loadMeting();
         if (!loaded) {
-            logger.error(`[音乐搜索] @meting/core 模块未安装，请运行: pnpm add @meting/core -w`);
+            logger.warn(`[音乐搜索] @meting/core 模块未安装，请运行: pnpm add @meting/core -w`);
             return null;
         }
-        
+
         const meting = getMeting(platform);
         if (!meting) {
             logger.error(`[音乐搜索] 获取Meting实例失败`);
             return null;
         }
-        
+
         const searchResult = await meting.search(keyword, { page: 1, limit: 5 });
-        
+
         let songs;
         try {
             songs = JSON.parse(searchResult);
@@ -426,7 +426,7 @@ async function searchMusicByMeting(keyword, platform) {
         }
 
         const song = songs[0];
-        
+
         let musicUrl = '';
         try {
             const urlResult = await meting.url(song.url_id || song.id, 320);
@@ -483,15 +483,15 @@ async function sendMusicCard(e, songInfo, platform) {
             kuwo: '酷我'
         };
         const platformName = platformNames[platform] || platform;
-        
+
         if (songInfo.url) {
-            await e.reply(`正在下载《${songInfo.name}》，请稍等...`);
-            
+            await e.reply(`正在获取《${songInfo.name}》，请稍等...`);
+
             try {
                 const segment = await import('oicq').then(m => m.segment).catch(() =>
                     import('icqq').then(m => m.segment)
                 );
-                
+
                 if (segment) {
                     const recordMsg = await segment.record(songInfo.url);
                     await e.reply(recordMsg);
@@ -502,7 +502,7 @@ async function sendMusicCard(e, songInfo, platform) {
                 logger.warn(`[点歌] 语音发送失败: ${recordError.message}`);
             }
         }
-        
+
         const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n💿 ${songInfo.album || '未知专辑'}\n⏱️ ${formatDuration(songInfo.duration)}\n🔗 ${songInfo.link}`;
         await e.reply(textMsg);
         logger.info(`[点歌] 发送链接成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
