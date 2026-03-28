@@ -360,12 +360,44 @@ async function handleSearchMusic(params, e) {
 }
 
 /**
- * 搜索QQ音乐（使用网易云API作为备用）
+ * 搜索QQ音乐（使用酷狗API）
  * @param {string} keyword - 搜索关键词
  * @returns {Promise<object|null>} 歌曲信息
  */
 async function searchQQMusic(keyword) {
-    return await searchNeteaseMusic(keyword);
+    return await searchKugouMusic(keyword);
+}
+
+/**
+ * 搜索酷狗音乐
+ * @param {string} keyword - 搜索关键词
+ * @returns {Promise<object|null>} 歌曲信息
+ */
+async function searchKugouMusic(keyword) {
+    try {
+        const searchUrl = `http://mobilecdn.kugou.com/api/v3/search/song?keyword=${encodeURIComponent(keyword)}&page=1&pagesize=5`;
+        const response = await fetch(searchUrl);
+        const data = await response.json();
+
+        if (data.status === 1 && data.data?.info?.length > 0) {
+            const songs = data.data.info;
+            const freeSong = songs.find(s => s.pay_type === 0) || songs[0];
+            
+            return {
+                name: freeSong.songname || freeSong.songname_original,
+                artist: freeSong.singername,
+                hash: freeSong.hash,
+                duration: freeSong.duration,
+                album: freeSong.album_name,
+                pic: freeSong.trans_param?.union_cover?.replace('{size}', '400') || '',
+                link: `https://www.kugou.com/song/#hash=${freeSong.hash}`
+            };
+        }
+        return null;
+    } catch (error) {
+        logger.error(`[酷狗搜索] 失败: ${error.message}`);
+        return null;
+    }
 }
 
 /**
@@ -375,7 +407,7 @@ async function searchQQMusic(keyword) {
  */
 async function searchNeteaseMusic(keyword) {
     try {
-        const searchUrl = `http://music.163.com/api/search/get/web?csrf_token=hlpretag=&hlposttag=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=1`;
+        const searchUrl = `http://music.163.com/api/search/get/web?csrf_token=&s=${encodeURIComponent(keyword)}&type=1&offset=0&total=true&limit=5`;
         const response = await fetch(searchUrl);
         const data = await response.json();
 
@@ -387,8 +419,11 @@ async function searchNeteaseMusic(keyword) {
             return {
                 name: song.name,
                 artist: song.artists?.[0]?.name || '未知歌手',
+                id: songId,
                 url: musicUrl,
-                pic: song.album?.picId ? `http://music.163.com/api/img/blur/${song.album.picId}` : '',
+                duration: Math.floor(song.duration / 1000),
+                album: song.album?.name,
+                pic: song.album?.picId ? `https://p1.music.126.net/${song.album.picId}/${song.album.picId}.jpg` : '',
                 link: `https://music.163.com/#/song?id=${songId}`
             };
         }
@@ -407,34 +442,46 @@ async function searchNeteaseMusic(keyword) {
  */
 async function sendMusicCard(e, songInfo, platform) {
     try {
-        if (!songInfo.url) {
-            throw new Error('无法获取音乐播放链接');
+        const platformName = platform === 'netease' ? '网易云' : '酷狗';
+        
+        if (songInfo.url) {
+            await e.reply(`正在下载《${songInfo.name}》，请稍等...`);
+            
+            try {
+                const segment = await import('oicq').then(m => m.segment).catch(() =>
+                    import('icqq').then(m => m.segment)
+                );
+                
+                if (segment) {
+                    const recordMsg = await segment.record(songInfo.url);
+                    await e.reply(recordMsg);
+                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
+                    return;
+                }
+            } catch (recordError) {
+                logger.warn(`[点歌] 语音发送失败: ${recordError.message}`);
+            }
         }
-
-        const segment = await import('oicq').then(m => m.segment).catch(() =>
-            import('icqq').then(m => m.segment)
-        );
-
-        if (!segment) {
-            throw new Error('无法加载segment模块');
-        }
-
-        await e.reply(`正在下载《${songInfo.name}》，请稍等...`);
-
-        try {
-            const recordMsg = await segment.record(songInfo.url);
-            await e.reply(recordMsg);
-            logger.info(`[点歌] 发送语音成功 | ${songInfo.name} - ${songInfo.artist}`);
-        } catch (recordError) {
-            logger.warn(`[点歌] 语音发送失败: ${recordError.message}，尝试文本链接`);
-            const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n🔗 ${songInfo.link}`;
-            await e.reply(textMsg);
-        }
+        
+        const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n💿 ${songInfo.album || '未知专辑'}\n⏱️ ${formatDuration(songInfo.duration)}\n🔗 ${songInfo.link}`;
+        await e.reply(textMsg);
+        logger.info(`[点歌] 发送链接成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
     } catch (error) {
         logger.error(`[发送音乐] 失败: ${error.message}`);
-        const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n🔗 ${songInfo.link}`;
-        await e.reply(textMsg);
+        await e.reply(`歌曲：${songInfo.name} - ${songInfo.artist}\n链接：${songInfo.link}`);
     }
+}
+
+/**
+ * 格式化时长
+ * @param {number} seconds - 秒数
+ * @returns {string} 格式化后的时长
+ */
+function formatDuration(seconds) {
+    if (!seconds) return '未知';
+    const min = Math.floor(seconds / 60);
+    const sec = seconds % 60;
+    return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
 /**
