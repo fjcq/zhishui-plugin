@@ -1,22 +1,48 @@
 # 工具调用全局开关
 EnableToolCalling: true
 
-# 启用的工具列表（数组格式）
-# 只有在此列表中的工具才会被启用
-# 未列出的工具默认禁用
-EnabledTools:
-    # 好感度工具
+# 好感度工具
+favor_tools:
     - change_user_favor
     - get_user_favor
+    - set_user_favor
     - get_user_info
     - get_group_info
     - get_user_profile
     - get_group_members
-    # 好友工具
+
+# 好友工具
+friend_tools:
     - get_friend_list
     - get_friend_info
-    # 互动工具
+
+# 群管理工具
+# 禁言和踢人工具默认关闭，其他开启
+group_tools:
+    - set_group_card
+    - set_group_title
+    - delete_message
+    - set_group_name
+    - set_group_announcement
+
+# 互动工具
+interact_tools:
     - poke_user
-    # 记忆工具
+    - search_music
+    - generate_meme
+    - send_image
+    - send_voice
+    - send_private_message
+    - forward_message
+    - set_essence_message
+
+# 记忆工具
+memory_tools:
     - remember_user_info
     - recall_user_info
+    - forget_user_info
+    - set_reminder
+    - get_reminders
+    - cancel_reminder
+    - record_interaction
+    - get_interaction_history

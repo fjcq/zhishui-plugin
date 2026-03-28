@@ -35,7 +35,9 @@ const INTERACT_TOOLS = [
     'send_voice',
     'send_private_message',
     'forward_message',
-    'set_essence_message'
+    'set_essence_message',
+    'search_music',
+    'generate_meme'
 ];
 
 /**

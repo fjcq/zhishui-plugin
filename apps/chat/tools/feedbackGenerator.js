@@ -10,12 +10,14 @@ import { Config } from '../../../components/index.js';
  */
 const TOOL_CATEGORIES = {
     favor: ['change_user_favor', 'get_user_favor', 'set_user_favor', 'get_user_info'],
-    group: ['get_group_info', 'get_group_members', 'set_group_name', 'set_group_announcement'],
+    group: ['get_group_info', 'get_group_members', 'set_group_name', 'set_group_announcement', 'delete_message'],
     user: ['get_user_profile', 'set_group_card', 'set_group_title'],
-    message: ['send_image', 'send_voice', 'send_private_message', 'forward_message', 'delete_message'],
+    message: ['send_image', 'send_voice', 'send_private_message', 'forward_message', 'set_essence_message'],
     member: ['mute_group_member', 'kick_group_member', 'poke_user'],
-    memory: ['remember_user_info', 'recall_user_info', 'forget_user_info'],
-    reminder: ['set_reminder', 'get_reminders', 'cancel_reminder']
+    friend: ['get_friend_list', 'get_friend_info'],
+    memory: ['remember_user_info', 'recall_user_info', 'forget_user_info', 'record_interaction', 'get_interaction_history'],
+    reminder: ['set_reminder', 'get_reminders', 'cancel_reminder'],
+    interact: ['search_music', 'generate_meme']
 };
 
 /**
@@ -41,6 +43,10 @@ const FEEDBACK_TEMPLATES = {
         success: '让我想想...',
         error: '我好像记不清了...'
     },
+    set_user_favor: {
+        success: '好的，我记住了~',
+        error: '设置失败了...'
+    },
     get_user_info: {
         success: '让我回忆一下...',
         error: '我好像不记得了...'
@@ -57,6 +63,14 @@ const FEEDBACK_TEMPLATES = {
         success: '让我看看群里都有谁...',
         error: '我看不清群成员列表呢...'
     },
+    get_friend_list: {
+        success: '让我看看我的好友列表...',
+        error: '我看不到好友列表呢...'
+    },
+    get_friend_info: {
+        success: '让我想想这个好友...',
+        error: '我不太了解这个好友呢...'
+    },
     send_image: {
         success: '给你看看这个~',
         error: '图片好像发不出去呢...'
@@ -64,6 +78,18 @@ const FEEDBACK_TEMPLATES = {
     send_voice: {
         success: '让我跟你说说话~',
         error: '我的声音好像传不过去呢...'
+    },
+    send_private_message: {
+        success: '好的，我已经私聊TA了~',
+        error: '私聊发不出去了呢...'
+    },
+    forward_message: {
+        success: '消息转发好了~',
+        error: '转发失败了...'
+    },
+    set_essence_message: {
+        success: '已经设为精华了~',
+        error: '设精华失败了，可能权限不够呢...'
     },
     mute_group_member: {
         success: '好的，我会让他安静一下的',
@@ -80,6 +106,18 @@ const FEEDBACK_TEMPLATES = {
     set_group_title: {
         success: '头衔设置好了~',
         error: '设置头衔失败了...'
+    },
+    delete_message: {
+        success: '消息已经撤回了~',
+        error: '撤回失败了，可能权限不够呢...'
+    },
+    set_group_name: {
+        success: '群名改好了~',
+        error: '改群名失败了...'
+    },
+    set_group_announcement: {
+        success: '公告发布好了~',
+        error: '发布公告失败了...'
     },
     remember_user_info: {
         success: '我会记住的~',
@@ -104,6 +142,26 @@ const FEEDBACK_TEMPLATES = {
     cancel_reminder: {
         success: '好的，已经取消了',
         error: '取消提醒失败了...'
+    },
+    record_interaction: {
+        success: '这件事我记下了~',
+        error: '记录失败了...'
+    },
+    get_interaction_history: {
+        success: '让我回忆一下我们的过往...',
+        error: '我想不起什么了...'
+    },
+    poke_user: {
+        success: ['戳戳~', '戳你一下~', '嘿嘿，戳~'],
+        error: '戳不到呢...'
+    },
+    search_music: {
+        success: ['找到了！听听看~', '这首歌不错呢~', '给你找来了~'],
+        error: '找不到这首歌呢...'
+    },
+    generate_meme: {
+        success: ['表情包生成好了~', '嘿嘿，看看这个~', '给你做好了~'],
+        error: '表情包生成失败了...'
     }
 };
 
@@ -140,14 +198,14 @@ function randomChoice(array) {
 export async function generateToolFeedback(toolName, result, params = {}, context = {}) {
     try {
         const templates = FEEDBACK_TEMPLATES[toolName];
-        
+
         if (!templates) {
             return generateGenericFeedback(toolName, result);
         }
 
         if (result.error) {
-            return typeof templates.error === 'string' 
-                ? templates.error 
+            return typeof templates.error === 'string'
+                ? templates.error
                 : randomChoice(templates.error);
         }
 
@@ -181,13 +239,13 @@ function generateFavorChangeFeedback(result, params, templates) {
     const change = result.change || params.change || 0;
     const magnitude = getChangeMagnitude(change);
     const direction = change >= 0 ? 'positive' : 'negative';
-    
+
     const feedbackSet = templates.success?.[direction]?.[magnitude];
-    
+
     if (feedbackSet && Array.isArray(feedbackSet)) {
         return randomChoice(feedbackSet);
     }
-    
+
     return '';
 }
 
@@ -201,11 +259,11 @@ function generateGenericFeedback(toolName, result) {
     if (result.error) {
         return '这个操作好像出了点问题呢...';
     }
-    
-    const category = Object.keys(TOOL_CATEGORIES).find(cat => 
+
+    const category = Object.keys(TOOL_CATEGORIES).find(cat =>
         TOOL_CATEGORIES[cat].includes(toolName)
     );
-    
+
     switch (category) {
         case 'favor':
             return '好的，我知道了~';
@@ -217,10 +275,14 @@ function generateGenericFeedback(toolName, result) {
             return '好的~';
         case 'member':
             return '我知道了~';
+        case 'friend':
+            return '好友信息我看到了~';
         case 'memory':
             return '记住了~';
         case 'reminder':
             return '好的~';
+        case 'interact':
+            return '搞定啦~';
         default:
             return '';
     }
@@ -265,12 +327,12 @@ export async function generateDenyFeedback(reason, context = {}) {
             '我不太了解这个人'
         ]
     };
-    
+
     const feedbackSet = DENY_FEEDBACK[reason];
     if (feedbackSet && Array.isArray(feedbackSet)) {
         return randomChoice(feedbackSet);
     }
-    
+
     return '抱歉，我无法执行这个操作...';
 }
 
@@ -287,7 +349,7 @@ export function generateConfirmFeedback(action, context = {}) {
         `${action}的话...你确定吗？`,
         `嗯...${action}会不会有点...你确定吗？`
     ];
-    
+
     return randomChoice(CONFIRM_TEMPLATES);
 }
 
@@ -298,11 +360,22 @@ export function generateConfirmFeedback(action, context = {}) {
  * @returns {boolean} 是否显示反馈
  */
 export function shouldShowFeedback(toolName, result) {
-    const SILENT_TOOLS = ['get_user_favor', 'get_user_info', 'get_group_info', 'get_user_profile'];
-    
-    if (SILENT_TOOLS.includes(toolName) && result.success) {
+    const SILENT_TOOLS = [
+        'get_user_favor',
+        'get_user_info',
+        'get_group_info',
+        'get_user_profile',
+        'get_group_members',
+        'get_friend_list',
+        'get_friend_info',
+        'get_reminders',
+        'get_interaction_history',
+        'recall_user_info'
+    ];
+
+    if (SILENT_TOOLS.includes(toolName) && !result.error) {
         return false;
     }
-    
+
     return true;
 }

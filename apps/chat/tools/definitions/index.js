@@ -80,8 +80,39 @@ export function isToolCallingEnabled(toolsConfig = null) {
 }
 
 /**
+ * 工具分类字段映射
+ */
+const TOOL_CATEGORY_FIELDS = [
+    'favor_tools',
+    'friend_tools',
+    'group_tools',
+    'interact_tools',
+    'memory_tools'
+];
+
+/**
+ * 从分类配置中获取所有启用的工具
+ * @param {object} toolsConfig - 工具配置
+ * @returns {Array} 启用的工具名称列表
+ */
+function getEnabledToolsFromCategories(toolsConfig) {
+    const enabledTools = [];
+
+    for (const field of TOOL_CATEGORY_FIELDS) {
+        const tools = toolsConfig[field];
+        if (Array.isArray(tools)) {
+            enabledTools.push(...tools);
+        }
+    }
+
+    return enabledTools;
+}
+
+/**
  * 检查工具是否启用
- * 新逻辑：使用 EnabledTools 数组判断，数组中存在的工具即为启用
+ * 支持两种配置格式：
+ * 1. 新格式：按分类配置 (favor_tools, interact_tools 等)
+ * 2. 旧格式：单一数组 (EnabledTools)
  * @param {string} toolName - 工具名称
  * @param {object} toolsConfig - 工具配置对象
  * @returns {boolean} 是否启用
@@ -91,13 +122,18 @@ export function isToolEnabled(toolName, toolsConfig = null) {
         toolsConfig = getToolsConfig();
     }
 
-    const enabledTools = toolsConfig.EnabledTools;
+    const enabledTools = getEnabledToolsFromCategories(toolsConfig);
 
-    if (!enabledTools || !Array.isArray(enabledTools)) {
+    if (enabledTools.length > 0) {
+        return enabledTools.includes(toolName);
+    }
+
+    const legacyEnabledTools = toolsConfig.EnabledTools;
+    if (!legacyEnabledTools || !Array.isArray(legacyEnabledTools)) {
         return false;
     }
 
-    return enabledTools.includes(toolName);
+    return legacyEnabledTools.includes(toolName);
 }
 
 /**
@@ -113,7 +149,12 @@ export function getEnabledTools() {
             return [];
         }
 
-        const enabledToolsList = toolsConfig.EnabledTools || [];
+        let enabledToolsList = getEnabledToolsFromCategories(toolsConfig);
+
+        if (enabledToolsList.length === 0) {
+            enabledToolsList = toolsConfig.EnabledTools || [];
+        }
+
         const enabledTools = [];
 
         for (const tool of allTools) {

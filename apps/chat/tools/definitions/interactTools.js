@@ -117,5 +117,53 @@ export const interactTools = [
                 required: ["message_id"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "search_music",
+            description: "搜索并发送音乐。根据歌曲名称或歌手搜索音乐，自动发送第一首匹配的歌曲卡片。",
+            parameters: {
+                type: "object",
+                properties: {
+                    keyword: {
+                        type: "string",
+                        description: "搜索关键词，可以是歌曲名、歌手名或两者组合"
+                    },
+                    platform: {
+                        type: "string",
+                        enum: ["qq", "netease"],
+                        description: "音乐平台：qq(QQ音乐) 或 netease(网易云音乐)，默认qq"
+                    }
+                },
+                required: ["keyword"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "generate_meme",
+            description: "生成表情包。使用用户头像或指定图片生成各种有趣的表情包，如摸头、拍打、爬行等。",
+            parameters: {
+                type: "object",
+                properties: {
+                    meme_type: {
+                        type: "string",
+                        description: "表情包类型：petpet(摸头)、crawl(爬行)、slap(拍打)、kiss(亲亲)、rub(蹭蹭)、play(玩弄)、pat(拍)、tear(撕)、punch(拳击)、kick(踢)、cry(哭)、support(加油)、always(一直)、any(任意门)、spin(旋转)、jump(跳)等",
+                        "enum": ["petpet", "crawl", "slap", "kiss", "rub", "play", "pat", "tear", "punch", "kick", "cry", "support", "always", "any", "spin", "jump", "throw", "wall", "eat", "my_friend", "looklook"]
+                    },
+                    user_id: {
+                        type: "string",
+                        description: "目标用户ID，用于获取头像，可省略则使用当前对话用户"
+                    },
+                    text: {
+                        type: "string",
+                        description: "表情包上的文字（可选，部分表情包支持）"
+                    }
+                },
+                required: ["meme_type"]
+            }
+        }
     }
 ];

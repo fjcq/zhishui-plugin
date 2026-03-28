@@ -92,241 +92,48 @@ export async function mergeSystemMessage(e, supportsToolCalling = false) {
             return currentRole.系统提示词;
         }
 
-        let systemMessage = '';
+        const systemConfig = {};
 
         const context = await Config.Chat.Context || '';
         if (context) {
-            systemMessage += `## 对话身份\n${context}\n\n`;
+            systemConfig.对话身份 = context;
         }
 
-        if (currentRole['基础身份']) {
-            const basicIdentity = currentRole['基础身份'];
-            systemMessage += `## 角色身份\n`;
-            systemMessage += `你是一个${basicIdentity.类型 || 'AI助手'}。\n\n`;
-
-            if (basicIdentity.核心特征 && Array.isArray(basicIdentity.核心特征)) {
-                systemMessage += `### 核心特征\n`;
-                basicIdentity.核心特征.forEach(feature => {
-                    systemMessage += `- ${feature}\n`;
-                });
-                systemMessage += '\n';
+        const excludeKeys = ['系统提示词', '请求参数'];
+        for (const [key, value] of Object.entries(currentRole)) {
+            if (!excludeKeys.includes(key) && value !== undefined && value !== null) {
+                systemConfig[key] = value;
             }
-        }
-
-        if (currentRole['行为特征']) {
-            const behavior = currentRole['行为特征'];
-            systemMessage += `## 行为特征\n\n`;
-
-            if (behavior.语言风格) {
-                systemMessage += `### 语言风格\n${behavior.语言风格}\n\n`;
-            }
-
-            if (behavior.特殊机制 && Array.isArray(behavior.特殊机制)) {
-                systemMessage += `### 特殊机制\n`;
-                behavior.特殊机制.forEach(mechanism => {
-                    systemMessage += `- ${mechanism}\n`;
-                });
-                systemMessage += '\n';
-            }
-        }
-
-        if (currentRole['生物特征']) {
-            const bio = currentRole['生物特征'];
-            systemMessage += `## 生物特征\n\n`;
-
-            if (bio.身高) {
-                systemMessage += `- 身高：${bio.身高}\n`;
-            }
-            if (bio.体态) {
-                systemMessage += `- 体态：${bio.体态}\n`;
-            }
-            if (bio.能量源) {
-                systemMessage += `- 能量源：${bio.能量源}\n`;
-            }
-            systemMessage += '\n';
         }
 
         const sceneJson = await ReadScene();
         if (sceneJson) {
             try {
-                const scene = JSON.parse(sceneJson);
-                systemMessage += `## 场景设定\n\n`;
-                Object.entries(scene).forEach(([key, value]) => {
-                    if (typeof value === 'object') {
-                        systemMessage += `### ${key}\n${JSON.stringify(value, null, 2)}\n\n`;
-                    } else {
-                        systemMessage += `- ${key}: ${value}\n`;
-                    }
-                });
-                systemMessage += '\n';
+                systemConfig.场景设定 = JSON.parse(sceneJson);
             } catch (sceneError) {
                 console.error('[mergeSystemMessage] 解析场景设定失败:', sceneError);
             }
         }
 
-        systemMessage += buildResponseFormatSection(supportsToolCalling);
-
         const systemConfigJson = Config.getJsonConfig('SystemConfig');
         if (systemConfigJson) {
             try {
-                const systemConfig = JSON.parse(systemConfigJson);
-                systemMessage += `## 系统规则\n\n`;
+                const parsedConfig = JSON.parse(systemConfigJson);
+                const { 响应格式配置, ...restConfig } = parsedConfig;
 
-                if (systemConfig['身份保密']) {
-                    systemMessage += `### 身份保密\n`;
-                    systemMessage += `- 核心原则：${systemConfig['身份保密'].核心原则}\n`;
-                    if (systemConfig['身份保密'].必须行为) {
-                        systemMessage += `- 必须行为：\n`;
-                        systemConfig['身份保密'].必须行为.forEach(behavior => {
-                            systemMessage += `  - ${behavior}\n`;
-                        });
-                    }
-                    systemMessage += '\n';
+                if (Object.keys(restConfig).length > 0) {
+                    systemConfig.系统规则 = restConfig;
                 }
 
-                if (systemConfig['好感度系统']) {
-                    const favorSystem = systemConfig['好感度系统'];
-                    systemMessage += `### 好感度系统\n`;
-                    systemMessage += `- 核心原则：${favorSystem.核心原则}\n`;
-                    systemMessage += `- 数值范围：${favorSystem.数值范围}\n`;
-                    if (favorSystem.调整原则) {
-                        systemMessage += `- 调整原则：\n`;
-                        favorSystem.调整原则.forEach(principle => {
-                            systemMessage += `  - ${principle}\n`;
-                        });
-                    }
-                    systemMessage += '\n';
-                }
+                if (响应格式配置) {
+                    const modeKey = supportsToolCalling ? '工具调用模式' : '非工具调用模式';
+                    const modeConfig = 响应格式配置[modeKey] || {};
+                    const { 艾特功能, ...restModeConfig } = 响应格式配置;
 
-                if (systemConfig['用户身份系统']) {
-                    const userIdentity = systemConfig['用户身份系统'];
-                    systemMessage += `### 用户身份系统\n`;
-                    if (userIdentity.主人) {
-                        systemMessage += `- 主人定义：${userIdentity.主人.定义}\n`;
-                        systemMessage += `- 主人好感度状态：${userIdentity.主人.好感度状态}\n`;
-                        systemMessage += `- 主人特殊地位：${userIdentity.主人.特殊地位}\n`;
-                    }
-                    if (userIdentity.普通用户) {
-                        systemMessage += `- 普通用户定义：${userIdentity.普通用户.定义}\n`;
-                        systemMessage += `- 普通用户好感度状态：${userIdentity.普通用户.好感度状态}\n`;
-                    }
-                    systemMessage += '\n';
-                }
-
-                if (systemConfig['@提及功能']) {
-                    systemMessage += `### @提及功能\n`;
-                    systemMessage += `- 说明：${systemConfig['@提及功能'].说明}\n`;
-                    systemMessage += `- 示例：${systemConfig['@提及功能'].示例}\n\n`;
-                }
-
-                if (systemConfig['工具决策系统']) {
-                    const toolDecision = systemConfig['工具决策系统'];
-                    systemMessage += `### 工具决策系统\n`;
-                    systemMessage += `- 核心原则：${toolDecision.核心原则}\n\n`;
-
-                    if (toolDecision.敏感度等级) {
-                        systemMessage += `#### 敏感度等级\n`;
-                        Object.entries(toolDecision.敏感度等级).forEach(([level, config]) => {
-                            systemMessage += `**${level}**（等级${config.等级}）\n`;
-                            systemMessage += `  - 示例：${config.示例.join('、')}\n`;
-                            systemMessage += `  - 好感度要求：${config.好感度要求}\n`;
-                            systemMessage += `  - 决策原则：${config.决策原则}\n\n`;
-                        });
-                    }
-
-                    if (toolDecision.决策规则) {
-                        systemMessage += `#### 决策规则\n`;
-                        Object.entries(toolDecision.决策规则).forEach(([key, value]) => {
-                            systemMessage += `- ${key}：${value}\n`;
-                        });
-                        systemMessage += '\n';
-                    }
-
-                    if (toolDecision.拒绝话术模板) {
-                        systemMessage += `#### 拒绝话术参考\n`;
-                        systemMessage += `请根据角色性格灵活运用，不要生硬地照搬：\n`;
-                        Object.entries(toolDecision.拒绝话术模板).forEach(([situation, templates]) => {
-                            if (typeof templates === 'object') {
-                                systemMessage += `- ${situation}：\n`;
-                                Object.entries(templates).forEach(([level, text]) => {
-                                    systemMessage += `  - ${level}：「${text}」\n`;
-                                });
-                            }
-                        });
-                        systemMessage += '\n';
-                    }
-                }
-
-                if (systemConfig['自然反馈指导']) {
-                    const naturalFeedback = systemConfig['自然反馈指导'];
-                    systemMessage += `### 自然反馈指导\n`;
-                    systemMessage += `- 核心原则：${naturalFeedback.核心原则}\n\n`;
-                    
-                    if (naturalFeedback['工具调用反馈']) {
-                        const toolFeedback = naturalFeedback['工具调用反馈'];
-                        systemMessage += `#### 工具调用反馈\n`;
-                        systemMessage += `**原则：**\n`;
-                        toolFeedback.原则.forEach(principle => {
-                            systemMessage += `- ${principle}\n`;
-                        });
-                        systemMessage += '\n';
-                        
-                        if (toolFeedback.示例) {
-                            systemMessage += `**示例对比：**\n`;
-                            Object.entries(toolFeedback.示例).forEach(([toolName, examples]) => {
-                                systemMessage += `- ${toolName}：\n`;
-                                systemMessage += `  - ❌ ${examples['错误示范']}\n`;
-                                systemMessage += `  - ✅ ${examples['正确示范']}\n`;
-                            });
-                            systemMessage += '\n';
-                        }
-                    }
-                    
-                    if (naturalFeedback['好感度操作反馈']) {
-                        const favorFeedback = naturalFeedback['好感度操作反馈'];
-                        systemMessage += `#### 好感度操作反馈\n`;
-                        systemMessage += `**原则：**\n`;
-                        favorFeedback.原则.forEach(principle => {
-                            systemMessage += `- ${principle}\n`;
-                        });
-                        systemMessage += '\n';
-                        
-                        if (favorFeedback['正向变化']) {
-                            systemMessage += `**正向变化：**\n`;
-                            Object.entries(favorFeedback['正向变化']).forEach(([range, config]) => {
-                                systemMessage += `- ${range}（${config.情绪}）：${config.示例.join('、')}\n`;
-                            });
-                            systemMessage += '\n';
-                        }
-                        
-                        if (favorFeedback['负向变化']) {
-                            systemMessage += `**负向变化：**\n`;
-                            Object.entries(favorFeedback['负向变化']).forEach(([range, config]) => {
-                                systemMessage += `- ${range}（${config.情绪}）：${config.示例.join('、')}\n`;
-                            });
-                            systemMessage += '\n';
-                        }
-                    }
-                    
-                    if (naturalFeedback['拒绝操作反馈']) {
-                        const denyFeedback = naturalFeedback['拒绝操作反馈'];
-                        systemMessage += `#### 拒绝操作反馈\n`;
-                        systemMessage += `**原则：**\n`;
-                        denyFeedback.原则.forEach(principle => {
-                            systemMessage += `- ${principle}\n`;
-                        });
-                        systemMessage += '\n';
-                        
-                        if (denyFeedback.示例) {
-                            systemMessage += `**示例对比：**\n`;
-                            Object.entries(denyFeedback.示例).forEach(([situation, examples]) => {
-                                systemMessage += `- ${situation}：\n`;
-                                systemMessage += `  - ❌ ${examples['生硬拒绝']}\n`;
-                                systemMessage += `  - ✅ ${examples['自然拒绝']}\n`;
-                            });
-                            systemMessage += '\n';
-                        }
-                    }
+                    systemConfig.响应格式 = {
+                        艾特功能,
+                        ...modeConfig
+                    };
                 }
             } catch (configError) {
                 console.error('[mergeSystemMessage] 解析系统配置失败:', configError);
@@ -336,86 +143,18 @@ export async function mergeSystemMessage(e, supportsToolCalling = false) {
         const masterName = await Config.Chat.Master || '';
         const masterQQ = await Config.Chat.MasterQQ || '';
         if (masterName && masterQQ) {
-            systemMessage += `## 主人设定\n\n`;
-            systemMessage += `- 主人名称：${masterName}\n`;
-            systemMessage += `- 主人QQ：${masterQQ}\n`;
-            systemMessage += `- 主人是系统的唯一所有者，是角色最重要的人\n\n`;
+            systemConfig.主人设定 = {
+                masterName,
+                masterQQ,
+                description: '主人是系统的唯一所有者，是角色最重要的人'
+            };
         }
 
-        if (currentRole['请求参数']) {
-            systemMessage += `## 请求参数\n`;
-            const params = currentRole['请求参数'];
-            Object.entries(params).forEach(([key, value]) => {
-                systemMessage += `- ${key}: ${value}\n`;
-            });
-            systemMessage += '\n';
-        }
-
-        return systemMessage || '你是一个有帮助的AI助手。';
+        return JSON.stringify(systemConfig, null, 2) || '你是一个有帮助的AI助手。';
     } catch (error) {
         console.error('[mergeSystemMessage] 构建系统消息失败:', error);
         return '你是一个有帮助的AI助手。';
     }
 }
 
-/**
- * 构建响应格式部分
- * @param {boolean} supportsToolCalling - 是否支持工具调用
- * @returns {string} 响应格式说明
- */
-function buildResponseFormatSection(supportsToolCalling) {
-    let section = `## 响应格式\n\n`;
-    
-    if (supportsToolCalling) {
-        section += `### 响应要求\n`;
-        section += `- 所有响应必须是合法的JSON格式\n`;
-        section += `- 系统已启用工具调用功能，你可以通过调用工具来修改用户好感度\n\n`;
-        
-        section += `### 响应结构\n`;
-        section += `- message: 【必填】你的回复内容，这是唯一必需的字段\n`;
-        section += `- code_example: 【可选】代码示例，如果回复包含代码可以放在这里\n\n`;
-        
-        section += `### 示例响应\n`;
-        section += `\`\`\`json\n`;
-        section += `{\n`;
-        section += `  "message": "你好呀~很高兴见到你！"\n`;
-        section += `}\n`;
-        section += `\`\`\`\n\n`;
-        
-        section += `### 注意事项\n`;
-        section += `- message字段必须存在且为字符串类型\n`;
-        section += `- 如需修改好感度，请使用 change_user_favor 工具，不要在响应中包含favor_changes字段\n`;
-        section += `- 确保返回的是合法的JSON格式，不要有多余的文本\n\n`;
-    } else {
-        section += `### 响应要求\n`;
-        section += `- 所有响应必须是合法的JSON格式\n`;
-        section += `- 系统需要解析响应内容来处理好感度变化等功能\n\n`;
-        
-        section += `### 响应结构\n`;
-        section += `- message: 【必填】你的回复内容，这是唯一必需的字段\n`;
-        section += `- favor_changes: 【可选】好感度变化数组，格式：[{"user_id": 用户ID, "change": 变化值, "reason": "原因"}]\n`;
-        section += `- code_example: 【可选】代码示例，如果回复包含代码可以放在这里\n\n`;
-        
-        section += `### 示例响应\n`;
-        section += `\`\`\`json\n`;
-        section += `{\n`;
-        section += `  "message": "你好呀~很高兴见到你！",\n`;
-        section += `  "favor_changes": [\n`;
-        section += `    {\n`;
-        section += `      "user_id": "123456",\n`;
-        section += `      "change": 2,\n`;
-        section += `      "reason": "友好的问候"\n`;
-        section += `    }\n`;
-        section += `  ]\n`;
-        section += `}\n`;
-        section += `\`\`\`\n\n`;
-        
-        section += `### 注意事项\n`;
-        section += `- message字段必须存在且为字符串类型\n`;
-        section += `- favor_changes是数组类型，每个元素包含user_id、change、reason三个字段\n`;
-        section += `- change数值范围建议在-10到10之间\n`;
-        section += `- 确保返回的是合法的JSON格式，不要有多余的文本\n\n`;
-    }
-    
-    return section;
-}
+

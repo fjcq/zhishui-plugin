@@ -241,14 +241,26 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
     if (naturalFeedbacks.length > 0) {
         try {
             const followUpObj = JSON.parse(followUpContent);
-            if (followUpObj.message && naturalFeedbacks.length > 0) {
-                const feedbackText = naturalFeedbacks.filter(f => f).join(' ');
-                if (feedbackText && !followUpObj.message.includes(feedbackText)) {
-                    followUpObj.message = `${feedbackText}\n\n${followUpObj.message}`;
+            const feedbackText = naturalFeedbacks.filter(f => f).join(' ');
+            
+            if (feedbackText) {
+                if (followUpObj.message && followUpObj.message.trim()) {
+                    if (!followUpObj.message.includes(feedbackText)) {
+                        followUpObj.message = `${feedbackText}\n\n${followUpObj.message}`;
+                    }
+                } else {
+                    followUpObj.message = feedbackText;
                 }
             }
             return JSON.stringify(followUpObj);
         } catch {
+            if (naturalFeedbacks.length > 0) {
+                const feedbackText = naturalFeedbacks.filter(f => f).join(' ');
+                return JSON.stringify({
+                    message: feedbackText,
+                    favor_changes: []
+                });
+            }
             return followUpContent;
         }
     }

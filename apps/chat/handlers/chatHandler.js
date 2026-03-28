@@ -5,7 +5,7 @@
 
 import { Config } from '../../../components/index.js';
 import { chatActiveMap, lastRequestTime, API_INTERVALS } from '../config.js';
-import { convertAtFormat } from '../parsers/index.js';
+import { convertAtFormat, convertAtToNames } from '../parsers/index.js';
 import { textToImage, shouldResponseAsImage } from '../chatHelper.js';
 import voiceManager from '../../voice/voiceManager.js';
 import { isToolCallingSupported } from '../api-types.js';
@@ -112,6 +112,7 @@ export async function handleChat(e, chatNickname) {
     let images = [];
     let files = [];
     let processedMsg = msg;
+    const botId = Bot?.uin || e.bot?.uin || e.bot?.id;
 
     if (Array.isArray(e.message)) {
         let msgParts = [];
@@ -119,7 +120,11 @@ export async function handleChat(e, chatNickname) {
             if (seg.type === 'text' && seg.text) {
                 msgParts.push(seg.text);
             } else if (seg.type === 'at' && seg.qq) {
-                msgParts.push(`{at:${seg.qq}}`);
+                if (botId && String(seg.qq) === String(botId)) {
+                    msgParts.push('[CQ:at,qq=self]');
+                } else {
+                    msgParts.push(`[CQ:at,qq=${seg.qq}]`);
+                }
             } else if (seg.type === 'image' && seg.url) {
                 images.push(seg.url);
             } else if (seg.type === 'file' && seg.file) {
@@ -309,7 +314,8 @@ export async function handleChat(e, chatNickname) {
                 await e.reply(codeText, true);
             }
 
-            const textForVoice = msgWithoutCode.replace(/at\d+/g, '').replace(/\s+/g, ' ').trim();
+            let textForVoice = await convertAtToNames(msgWithoutCode, e);
+            textForVoice = textForVoice.replace(/\s+/g, ' ').trim();
 
             const MAX_VOICE_TEXT_LENGTH = 500;
             const isTextTooLong = textForVoice.length > MAX_VOICE_TEXT_LENGTH;

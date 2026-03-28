@@ -3,7 +3,7 @@
  * 导出所有解析相关功能
  */
 
-export { convertAtFormat } from './atParser.js';
+export { convertAtFormat, convertAtToNames } from './atParser.js';
 export {
     checkJsonFormatSupport,
     validateRequestParams,
