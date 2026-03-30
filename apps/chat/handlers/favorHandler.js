@@ -145,6 +145,9 @@ export async function handleShowFavorRank(e) {
                     const uid = String(m.user_id || m.userId || m.info?.user_id || m.info?.userId || m.id || m);
                     userFilter.add(uid);
                 });
+                logger.info(`[好感度排名] 获取群成员列表成功，共 ${userFilter.size} 人`);
+            } else {
+                logger.warn(`[好感度排名] 获取群成员列表为空`);
             }
         } catch (err) {
             logger.error(`获取群成员列表失败: ${err.message}`);

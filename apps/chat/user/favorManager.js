@@ -12,7 +12,8 @@ const logger = global.logger || console;
  */
 export async function getUserFavor(userId) {
     try {
-        const key = `zhishui:chat:favor:${userId}`;
+        const normalizedUserId = String(userId);
+        const key = `zhishui:chat:favor:${normalizedUserId}`;
         const value = await redis.get(key);
         return value ? parseInt(value) : 0;
     } catch (error) {
@@ -31,16 +32,19 @@ export async function getUserFavor(userId) {
  */
 export async function setUserFavor(userId, favor, reason = '', operator = 'AI') {
     try {
-        const key = `zhishui:chat:favor:${userId}`;
+        const normalizedUserId = String(userId);
+        const key = `zhishui:chat:favor:${normalizedUserId}`;
         const clampedFavor = Math.max(-100, Math.min(100, favor));
 
-        const favorBefore = await getUserFavor(userId);
+        const favorBefore = await getUserFavor(normalizedUserId);
 
-        await redis.set(key, clampedFavor);
+        await redis.set(key, String(clampedFavor), { EX: 86400 * 30 });
+
+        logger.info(`[好感度] 设置用户 ${normalizedUserId} 好感度为 ${clampedFavor}`);
 
         if (favorBefore !== clampedFavor) {
             const finalReason = reason || '未说明';
-            await addFavorHistory(userId, clampedFavor - favorBefore, finalReason, favorBefore, clampedFavor, operator);
+            await addFavorHistory(normalizedUserId, clampedFavor - favorBefore, finalReason, favorBefore, clampedFavor, operator);
         }
 
         return true;
@@ -62,8 +66,9 @@ export async function setUserFavor(userId, favor, reason = '', operator = 'AI') 
  */
 export async function addFavorHistory(userId, change, reason, favorBefore, favorAfter, operator = 'AI') {
     try {
+        const normalizedUserId = String(userId);
         if (typeof redis.lpush !== 'function') {
-            const key = `zhishui:chat:history:${userId}`;
+            const key = `zhishui:chat:history:${normalizedUserId}`;
             let history = [];
 
             const existing = await redis.get(key);
@@ -92,11 +97,11 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                 history = history.slice(0, 100);
             }
 
-            await redis.set(key, JSON.stringify(history));
+            await redis.set(key, JSON.stringify(history), { EX: 604800 * 4 });
             return true;
         }
 
-        const key = `zhishui:chat:history:${userId}`;
+        const key = `zhishui:chat:history:${normalizedUserId}`;
         const record = {
             time: Date.now(),
             change,
@@ -108,6 +113,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
 
         await redis.lpush(key, JSON.stringify(record));
         await redis.ltrim(key, 0, 99);
+        await redis.expire(key, 604800 * 4);
 
         return true;
     } catch (error) {
@@ -124,7 +130,8 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
  */
 export async function getFavorHistory(userId, limit = 10) {
     try {
-        const key = `zhishui:chat:history:${userId}`;
+        const normalizedUserId = String(userId);
+        const key = `zhishui:chat:history:${normalizedUserId}`;
 
         if (typeof redis.lrange !== 'function') {
             const existing = await redis.get(key);
@@ -244,20 +251,29 @@ export async function getFavorRank(userFilter = null, limit = 10) {
         const pattern = 'zhishui:chat:favor:*';
         const keys = await redis.keys(pattern);
 
+        logger.info(`[好感度排名] 查询键模式: ${pattern}, 找到 ${keys ? keys.length : 0} 个键, 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}`);
+
         if (keys && keys.length > 0) {
+            let filteredCount = 0;
             for (const key of keys) {
                 const userId = key.split(':').pop();
 
                 if (userFilter && !userFilter.has(userId)) {
+                    filteredCount++;
                     continue;
                 }
 
                 const value = await redis.get(key);
-                if (value) {
+                if (value !== null && value !== undefined) {
                     favorMap.set(userId, parseInt(value));
                 }
             }
+            if (userFilter && filteredCount > 0) {
+                logger.info(`[好感度排名] 被筛选排除的用户数: ${filteredCount}`);
+            }
         }
+
+        logger.info(`[好感度排名] 符合条件的用户数: ${favorMap.size}`);
 
         const sorted = [...favorMap.entries()]
             .sort((a, b) => b[1] - a[1])
