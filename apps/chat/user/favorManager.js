@@ -38,7 +38,7 @@ export async function setUserFavor(userId, favor, reason = '', operator = 'AI') 
 
         const favorBefore = await getUserFavor(normalizedUserId);
 
-        await redis.set(key, String(clampedFavor), { EX: 86400 * 30 });
+        await redis.set(key, String(clampedFavor));
 
         logger.info(`[好感度] 设置用户 ${normalizedUserId} 好感度为 ${clampedFavor}`);
 
@@ -97,7 +97,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                 history = history.slice(0, 100);
             }
 
-            await redis.set(key, JSON.stringify(history), { EX: 604800 * 4 });
+            await redis.set(key, JSON.stringify(history), { EX: 86400 * 180 });
             return true;
         }
 
@@ -113,7 +113,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
 
         await redis.lpush(key, JSON.stringify(record));
         await redis.ltrim(key, 0, 99);
-        await redis.expire(key, 604800 * 4);
+        await redis.expire(key, 86400 * 180);
 
         return true;
     } catch (error) {
