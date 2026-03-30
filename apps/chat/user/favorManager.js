@@ -36,7 +36,7 @@ export async function setUserFavor(userId, favor, reason = '', operator = 'AI') 
 
         const favorBefore = await getUserFavor(userId);
 
-        await redis.set(key, clampedFavor, { EX: 86400 });
+        await redis.set(key, clampedFavor);
 
         if (favorBefore !== clampedFavor) {
             const finalReason = reason || '未说明';
@@ -92,7 +92,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                 history = history.slice(0, 100);
             }
 
-            await redis.set(key, JSON.stringify(history), { EX: 604800 });
+            await redis.set(key, JSON.stringify(history));
             return true;
         }
 
@@ -108,7 +108,6 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
 
         await redis.lpush(key, JSON.stringify(record));
         await redis.ltrim(key, 0, 99);
-        await redis.expire(key, 604800);
 
         return true;
     } catch (error) {

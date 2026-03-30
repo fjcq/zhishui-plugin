@@ -57,7 +57,6 @@ export async function setUserNickname(userId, nickname) {
     try {
         const key = `zhishui:chat:user:${userId}`;
         await redis.hset(key, 'nickname', nickname);
-        await redis.expire(key, 86400);
         return true;
     } catch (error) {
         logger.error(`设置用户昵称失败: ${error.message}`);
@@ -75,7 +74,6 @@ export async function updateLastChatTime(userId) {
         const key = `zhishui:chat:user:${userId}`;
         const now = Date.now();
         await redis.hset(key, 'lastChatTime', now);
-        await redis.expire(key, 86400);
         return true;
     } catch (error) {
         logger.error(`更新最后聊天时间失败: ${error.message}`);
@@ -92,7 +90,6 @@ export async function incrementChatCount(userId) {
     try {
         const key = `zhishui:chat:user:${userId}`;
         const count = await redis.hincrby(key, 'chatCount', 1);
-        await redis.expire(key, 86400);
         return count;
     } catch (error) {
         logger.error(`增加聊天次数失败: ${error.message}`);
@@ -110,13 +107,11 @@ export async function addAchievement(userId, achievementId) {
     try {
         const key = `zhishui:chat:achievements:${userId}`;
         const isNew = await redis.sadd(key, achievementId) === 1;
-        await redis.expire(key, 2592000);
 
         if (isNew) {
             const userKey = `zhishui:chat:user:${userId}`;
             const achievements = await getUserAchievements(userId);
             await redis.hset(userKey, 'achievements', JSON.stringify([...achievements, achievementId]));
-            await redis.expire(userKey, 86400);
         }
 
         return isNew;
