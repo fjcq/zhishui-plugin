@@ -683,18 +683,14 @@ function parseLyric(lrcText) {
 function findBestTranslation(lyricTime, translations) {
     const EXACT_THRESHOLD = 0.1;
     const FALLBACK_THRESHOLD = 0.5;
-
-    for (const t of translations) {
-        if (Math.abs(t.time - lyricTime) <= EXACT_THRESHOLD) {
-            return t;
-        }
-    }
-
     let bestMatch = null;
     let minDiff = FALLBACK_THRESHOLD;
 
     for (const t of translations) {
         const diff = Math.abs(t.time - lyricTime);
+        if (diff <= EXACT_THRESHOLD) {
+            return t;
+        }
         if (diff < minDiff) {
             minDiff = diff;
             bestMatch = t;
