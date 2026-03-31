@@ -92,35 +92,48 @@ async function createVoiceWithTimeout(segment, source, timeout = 30000) {
  * @returns {Promise<object>} 工具执行结果
  */
 export async function handleInteractToolCall(toolName, params, e, currentUserId) {
+    let result;
     try {
         switch (toolName) {
             case 'poke_user':
-                return await handlePokeUser(params, e, currentUserId);
+                result = await handlePokeUser(params, e, currentUserId);
+                break;
             case 'send_image':
-                return await handleSendImage(params, e);
+                result = await handleSendImage(params, e);
+                break;
             case 'send_voice':
-                return await handleSendVoice(params, e);
+                result = await handleSendVoice(params, e);
+                break;
             case 'send_private_message':
-                return await handleSendPrivateMessage(params, e);
+                result = await handleSendPrivateMessage(params, e);
+                break;
             case 'forward_message':
-                return await handleForwardMessage(params, e);
+                result = await handleForwardMessage(params, e);
+                break;
             case 'set_essence_message':
-                return await handleSetEssenceMessage(params, e);
+                result = await handleSetEssenceMessage(params, e);
+                break;
             case 'search_music':
-                return await handleSearchMusic(params, e);
+                result = await handleSearchMusic(params, e);
+                break;
             case 'get_lyrics':
-                return await handleGetLyrics(params, e);
+                result = await handleGetLyrics(params, e);
+                break;
             case 'get_playlist':
-                return await handleGetPlaylist(params, e);
+                result = await handleGetPlaylist(params, e);
+                break;
             case 'generate_meme':
-                return await handleGenerateMeme(params, e, currentUserId);
+                result = await handleGenerateMeme(params, e, currentUserId);
+                break;
             default:
-                return { error: true, message: `未知的互动工具: ${toolName}` };
+                result = { error: true, error_message: `未知的互动工具: ${toolName}` };
         }
     } catch (error) {
         logger.error(`[互动工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, message: `操作失败: ${error.message}` };
+        result = { error: true, error_message: `操作失败: ${error.message}` };
     }
+
+    return result;
 }
 
 /**
@@ -130,17 +143,17 @@ async function handlePokeUser(params, e, currentUserId) {
     const user_id = params.user_id || currentUserId;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     if (!e || !e.group_id) {
-        return { error: true, message: '戳一戳功能仅在群组中可用' };
+        return { error: true, error_message: '戳一戳功能仅在群组中可用' };
     }
 
     try {
         const group = e.group || e.bot?.pickGroup?.(e.group_id);
         if (!group) {
-            return { error: true, message: '无法获取群组信息' };
+            return { error: true, error_message: '无法获取群组信息' };
         }
 
         const errors = [];
@@ -151,8 +164,7 @@ async function handlePokeUser(params, e, currentUserId) {
                 logger.info(`[互动] 戳一戳(sendGroupPoke) | 群:${e.group_id} | 用户:${user_id}`);
                 return {
                     success: true,
-                    user_id: String(user_id),
-                    message: `已戳一戳用户 ${user_id}`
+                    user_id: String(user_id)
                 };
             } catch (err) {
                 errors.push(`sendGroupPoke: ${err.message}`);
@@ -165,8 +177,7 @@ async function handlePokeUser(params, e, currentUserId) {
                 logger.info(`[互动] 戳一戳(pokeMember) | 群:${e.group_id} | 用户:${user_id}`);
                 return {
                     success: true,
-                    user_id: String(user_id),
-                    message: `已戳一戳用户 ${user_id}`
+                    user_id: String(user_id)
                 };
             } catch (err) {
                 errors.push(`pokeMember: ${err.message}`);
@@ -179,8 +190,7 @@ async function handlePokeUser(params, e, currentUserId) {
                 logger.info(`[互动] 戳一戳(sendMsg) | 群:${e.group_id} | 用户:${user_id}`);
                 return {
                     success: true,
-                    user_id: String(user_id),
-                    message: `已戳一戳用户 ${user_id}`
+                    user_id: String(user_id)
                 };
             } catch (err) {
                 errors.push(`sendMsg: ${err.message}`);
@@ -196,8 +206,7 @@ async function handlePokeUser(params, e, currentUserId) {
                 logger.info(`[互动] 戳一戳(API) | 群:${e.group_id} | 用户:${user_id}`);
                 return {
                     success: true,
-                    user_id: String(user_id),
-                    message: `已戳一戳用户 ${user_id}`
+                    user_id: String(user_id)
                 };
             } catch (err) {
                 errors.push(`sendApi: ${err.message}`);
@@ -205,9 +214,9 @@ async function handlePokeUser(params, e, currentUserId) {
         }
 
         logger.warn(`[互动] 戳一戳失败，尝试过的方法: ${errors.join('; ')}`);
-        return { error: true, message: `戳一戳功能暂不支持，错误详情: ${errors.join('; ')}` };
+        return { error: true, error_message: `戳一戳功能暂不支持，错误详情: ${errors.join('; ')}` };
     } catch (error) {
-        return { error: true, message: `戳一戳失败: ${error.message}` };
+        return { error: true, error_message: `戳一戳失败: ${error.message}` };
     }
 }
 
@@ -218,18 +227,18 @@ async function handleSendImage(params, e) {
     const { url, caption = '' } = params;
 
     if (!url) {
-        return { error: true, message: '缺少图片URL参数' };
+        return { error: true, error_message: '缺少图片URL参数' };
     }
 
     if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
+        return { error: true, error_message: '无法发送消息：缺少事件对象' };
     }
 
     try {
         const segment = await getSegment();
 
         if (!segment) {
-            return { error: true, message: '无法加载segment模块' };
+            return { error: true, error_message: '无法加载segment模块' };
         }
 
         const imageMsg = segment.image(url);
@@ -241,11 +250,10 @@ async function handleSendImage(params, e) {
         return {
             success: true,
             url: url,
-            caption: caption,
-            message: '图片已发送'
+            caption: caption
         };
     } catch (error) {
-        return { error: true, message: `发送图片失败: ${error.message}` };
+        return { error: true, error_message: `发送图片失败: ${error.message}` };
     }
 }
 
@@ -256,27 +264,27 @@ async function handleSendVoice(params, e) {
     const { text } = params;
 
     if (!text) {
-        return { error: true, message: '缺少语音文本参数' };
+        return { error: true, error_message: '缺少语音文本参数' };
     }
 
     const trimmedText = text.trim();
     if (trimmedText.length === 0) {
-        return { error: true, message: '语音文本不能为空' };
+        return { error: true, error_message: '语音文本不能为空' };
     }
 
     if (trimmedText.length > 500) {
-        return { error: true, message: '语音文本过长，请控制在500字符以内' };
+        return { error: true, error_message: '语音文本过长，请控制在500字符以内' };
     }
 
     if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
+        return { error: true, error_message: '无法发送消息：缺少事件对象' };
     }
 
     try {
         const segment = await getSegment();
 
         if (!segment) {
-            return { error: true, message: '无法加载segment模块' };
+            return { error: true, error_message: '无法加载segment模块' };
         }
 
         const voiceMsg = await createVoiceWithTimeout(segment, trimmedText);
@@ -286,11 +294,10 @@ async function handleSendVoice(params, e) {
 
         return {
             success: true,
-            text: trimmedText,
-            message: '语音已发送'
+            text: trimmedText
         };
     } catch (error) {
-        return { error: true, message: `发送语音失败: ${error.message}` };
+        return { error: true, error_message: `发送语音失败: ${error.message}` };
     }
 }
 
@@ -301,17 +308,17 @@ async function handleSendPrivateMessage(params, e) {
     const { user_id, message } = params;
 
     if (!user_id || !message) {
-        return { error: true, message: '缺少用户ID或消息内容参数' };
+        return { error: true, error_message: '缺少用户ID或消息内容参数' };
     }
 
     if (!e || !e.bot) {
-        return { error: true, message: '无法发送私聊消息：缺少Bot实例' };
+        return { error: true, error_message: '无法发送私聊消息：缺少Bot实例' };
     }
 
     try {
         const friend = e.bot.pickFriend?.(user_id);
         if (!friend) {
-            return { error: true, message: `用户 ${user_id} 不是好友，无法发送私聊消息` };
+            return { error: true, error_message: `用户 ${user_id} 不是好友，无法发送私聊消息` };
         }
 
         await friend.sendMsg?.(message);
@@ -319,11 +326,10 @@ async function handleSendPrivateMessage(params, e) {
 
         return {
             success: true,
-            user_id: String(user_id),
-            message: `私聊消息已发送给用户 ${user_id}`
+            user_id: String(user_id)
         };
     } catch (error) {
-        return { error: true, message: `发送私聊消息失败: ${error.message}` };
+        return { error: true, error_message: `发送私聊消息失败: ${error.message}` };
     }
 }
 
@@ -334,17 +340,17 @@ async function handleForwardMessage(params, e) {
     const { target_group_id, message } = params;
 
     if (!target_group_id || !message) {
-        return { error: true, message: '缺少目标群ID或消息内容参数' };
+        return { error: true, error_message: '缺少目标群ID或消息内容参数' };
     }
 
     if (!e || !e.bot) {
-        return { error: true, message: '无法转发消息：缺少Bot实例' };
+        return { error: true, error_message: '无法转发消息：缺少Bot实例' };
     }
 
     try {
         const targetGroup = e.bot.pickGroup?.(target_group_id);
         if (!targetGroup) {
-            return { error: true, message: `无法访问群组 ${target_group_id}` };
+            return { error: true, error_message: `无法访问群组 ${target_group_id}` };
         }
 
         await targetGroup.sendMsg?.(message);
@@ -352,11 +358,10 @@ async function handleForwardMessage(params, e) {
 
         return {
             success: true,
-            target_group_id: String(target_group_id),
-            message: `消息已转发到群 ${target_group_id}`
+            target_group_id: String(target_group_id)
         };
     } catch (error) {
-        return { error: true, message: `转发消息失败: ${error.message}` };
+        return { error: true, error_message: `转发消息失败: ${error.message}` };
     }
 }
 
@@ -367,22 +372,22 @@ async function handleSetEssenceMessage(params, e) {
     const { message_id } = params;
 
     if (!message_id) {
-        return { error: true, message: '缺少消息ID参数' };
+        return { error: true, error_message: '缺少消息ID参数' };
     }
 
     if (!e || !e.group_id) {
-        return { error: true, message: '设置精华消息仅在群组中可用' };
+        return { error: true, error_message: '设置精华消息仅在群组中可用' };
     }
 
     const isAdmin = await isBotAdmin(e);
     if (!isAdmin) {
-        return { error: true, message: '设置精华消息需要Bot是管理员' };
+        return { error: true, error_message: '设置精华消息需要Bot是管理员' };
     }
 
     try {
         const group = e.group || e.bot?.pickGroup?.(e.group_id);
         if (!group) {
-            return { error: true, message: '无法获取群组信息' };
+            return { error: true, error_message: '无法获取群组信息' };
         }
 
         await group.setEssenceMessage?.(message_id);
@@ -390,11 +395,10 @@ async function handleSetEssenceMessage(params, e) {
 
         return {
             success: true,
-            message_id: message_id,
-            message: '消息已设为精华'
+            message_id: message_id
         };
     } catch (error) {
-        return { error: true, message: `设置精华消息失败: ${error.message}` };
+        return { error: true, error_message: `设置精华消息失败: ${error.message}` };
     }
 }
 
@@ -407,21 +411,21 @@ async function handleSetEssenceMessage(params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleSearchMusic(params, e) {
-    const { keyword, platform = 'tencent' } = params;
+    const { keyword, platform = 'kugou' } = params;
 
     if (!keyword) {
-        return { error: true, message: '请告诉我你想听什么歌' };
+        return { error: true, error_message: '缺少歌曲关键词参数' };
     }
 
     if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
+        return { error: true, error_message: '无法发送消息：缺少事件对象' };
     }
 
     try {
         const songInfo = await searchMusicByMeting(keyword, platform);
 
         if (!songInfo) {
-            return { error: true, message: `没有找到"${keyword}"相关的歌曲` };
+            return { error: true, error_message: `没有找到"${keyword}"相关的歌曲` };
         }
 
         await sendMusicCard(e, songInfo, platform);
@@ -432,12 +436,11 @@ async function handleSearchMusic(params, e) {
             success: true,
             name: songInfo.name,
             artist: songInfo.artist,
-            platform: platform,
-            message: `已为你找到《${songInfo.name}》- ${songInfo.artist}`
+            platform: platform
         };
     } catch (error) {
         logger.error(`[互动] 点歌失败: ${error.message}`);
-        return { error: true, message: `点歌失败: ${error.message}` };
+        return { error: true, error_message: `点歌失败: ${error.message}` };
     }
 }
 
@@ -478,10 +481,17 @@ async function searchMusicByMeting(keyword, platform) {
         const song = songs[0];
 
         let musicUrl = '';
+        let duration = song.duration || 0;
         try {
             const urlResult = await meting.url(song.url_id || song.id, 320);
             const urlData = JSON.parse(urlResult);
             musicUrl = urlData?.url || '';
+            if (urlData?.size && urlData?.br && urlData.br > 0) {
+                const calculatedDuration = Math.round((urlData.size * 8) / (urlData.br * 1000));
+                if (calculatedDuration > 0) {
+                    duration = calculatedDuration;
+                }
+            }
         } catch (urlError) {
             logger.warn(`[音乐搜索] 获取播放链接失败: ${urlError.message}`);
         }
@@ -507,7 +517,7 @@ async function searchMusicByMeting(keyword, platform) {
             artist: Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '未知歌手'),
             id: song.id,
             url: musicUrl,
-            duration: song.duration || 0,
+            duration: duration,
             album: song.album || '',
             pic: picUrl || song.pic || '',
             link: platformLinks[platform] || ''
@@ -593,17 +603,17 @@ function formatDuration(seconds) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGetLyrics(params, e) {
-    const { keyword, platform = 'netease', show_translation = true } = params;
+    const { keyword, platform = 'kugou', show_translation = true } = params;
 
     if (!keyword) {
-        return { error: true, message: '请告诉我你想查看哪首歌的歌词' };
+        return { error: true, error_message: '缺少歌曲关键词参数' };
     }
 
     try {
         const lyricsInfo = await getLyricsByMeting(keyword, platform, show_translation);
 
         if (!lyricsInfo) {
-            return { error: true, message: `没有找到"${keyword}"的歌词` };
+            return { error: true, error_message: `没有找到"${keyword}"的歌词` };
         }
 
         logger.info(`[互动] 获取歌词 | 平台:${platform} | 歌曲:${lyricsInfo.name} - ${lyricsInfo.artist}`);
@@ -615,12 +625,11 @@ async function handleGetLyrics(params, e) {
             album: lyricsInfo.album,
             lyrics: lyricsInfo.lyrics,
             translation: lyricsInfo.translation,
-            has_translation: lyricsInfo.hasTranslation,
-            formatted_message: formatLyricsMessage(lyricsInfo)
+            has_translation: lyricsInfo.hasTranslation
         };
     } catch (error) {
         logger.error(`[互动] 获取歌词失败: ${error.message}`);
-        return { error: true, message: `获取歌词失败: ${error.message}` };
+        return { error: true, error_message: `获取歌词失败: ${error.message}` };
     }
 }
 
@@ -781,37 +790,6 @@ function findBestTranslation(lyricTime, translations) {
 }
 
 /**
- * 格式化歌词消息
- * @param {object} lyricsInfo - 歌词信息
- * @returns {string} 格式化后的消息
- */
-function formatLyricsMessage(lyricsInfo) {
-    const header = `🎵 《${lyricsInfo.name}》\n👤 ${lyricsInfo.artist}\n💿 ${lyricsInfo.album || '未知专辑'}\n${'─'.repeat(20)}`;
-
-    let lyricsText = '';
-    const maxLines = 30;
-    const displayLyrics = lyricsInfo.lyrics.slice(0, maxLines);
-
-    if (lyricsInfo.translation.length > 0) {
-        for (let i = 0; i < displayLyrics.length; i++) {
-            lyricsText += `\n${displayLyrics[i].text}`;
-            const transItem = findBestTranslation(displayLyrics[i].time, lyricsInfo.translation);
-            if (transItem) {
-                lyricsText += `\n  📝 ${transItem.text}`;
-            }
-        }
-    } else {
-        lyricsText = '\n' + displayLyrics.map(l => l.text).join('\n');
-    }
-
-    if (lyricsInfo.lyrics.length > maxLines) {
-        lyricsText += `\n\n... 共 ${lyricsInfo.lyrics.length} 行歌词`;
-    }
-
-    return header + lyricsText;
-}
-
-/**
  * 处理获取歌单
  * @param {object} params - 参数对象
  * @param {string} params.playlist_id - 歌单ID
@@ -821,10 +799,10 @@ function formatLyricsMessage(lyricsInfo) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGetPlaylist(params, e) {
-    const { playlist_id, platform = 'tencent', limit = 10 } = params;
+    const { playlist_id, platform = 'kugou', limit = 10 } = params;
 
     if (!playlist_id) {
-        return { error: true, message: '请提供歌单ID' };
+        return { error: true, error_message: '缺少歌单ID参数' };
     }
 
     const actualLimit = Math.min(Math.max(1, limit), 30);
@@ -833,7 +811,7 @@ async function handleGetPlaylist(params, e) {
         const playlistInfo = await getPlaylistByMeting(playlist_id, platform, actualLimit);
 
         if (!playlistInfo) {
-            return { error: true, message: `没有找到歌单 ${playlist_id}` };
+            return { error: true, error_message: `没有找到歌单 ${playlist_id}` };
         }
 
         logger.info(`[互动] 获取歌单 | 平台:${platform} | 歌单:${playlistInfo.name} | 歌曲数:${playlistInfo.songs.length}`);
@@ -843,12 +821,11 @@ async function handleGetPlaylist(params, e) {
             name: playlistInfo.name,
             description: playlistInfo.description,
             total_count: playlistInfo.totalCount,
-            songs: playlistInfo.songs,
-            formatted_message: formatPlaylistMessage(playlistInfo)
+            songs: playlistInfo.songs
         };
     } catch (error) {
         logger.error(`[互动] 获取歌单失败: ${error.message}`);
-        return { error: true, message: `获取歌单失败: ${error.message}` };
+        return { error: true, error_message: `获取歌单失败: ${error.message}` };
     }
 }
 
@@ -912,34 +889,6 @@ async function getPlaylistByMeting(playlistId, platform, limit) {
 }
 
 /**
- * 格式化歌单消息
- * @param {object} playlistInfo - 歌单信息
- * @returns {string} 格式化后的消息
- */
-function formatPlaylistMessage(playlistInfo) {
-    let msg = `📋 《${playlistInfo.name}》\n`;
-    if (playlistInfo.description) {
-        msg += `📝 ${playlistInfo.description.substring(0, 50)}${playlistInfo.description.length > 50 ? '...' : ''}\n`;
-    }
-    msg += `🎵 共 ${playlistInfo.totalCount} 首歌曲\n`;
-    msg += `${'─'.repeat(20)}\n`;
-
-    for (const song of playlistInfo.songs) {
-        msg += `\n${song.index}. ${song.name}`;
-        msg += `\n   👤 ${song.artist}`;
-        if (song.album) {
-            msg += ` | 💿 ${song.album}`;
-        }
-    }
-
-    if (playlistInfo.totalCount > playlistInfo.songs.length) {
-        msg += `\n\n... 还有 ${playlistInfo.totalCount - playlistInfo.songs.length} 首歌曲`;
-    }
-
-    return msg;
-}
-
-/**
  * 表情包API基础URL
  */
 const MEME_API_BASE = 'https://h.winterqkl.cn/memes';
@@ -990,25 +939,25 @@ async function handleGenerateMeme(params, e, currentUserId) {
     const { meme_type, user_id, text = '' } = params;
 
     if (!meme_type) {
-        return { error: true, message: '请指定表情包类型' };
+        return { error: true, error_message: '缺少表情包类型参数' };
     }
 
     const memeConfig = MEME_CONFIG[meme_type];
     if (!memeConfig) {
-        return { error: true, message: `不支持的表情包类型: ${meme_type}` };
+        return { error: true, error_message: `不支持的表情包类型: ${meme_type}` };
     }
 
     if (memeConfig.needsText && !text) {
-        return { error: true, message: `${memeConfig.name}表情包需要提供文字内容。${memeConfig.textHint}` };
+        return { error: true, error_message: `${memeConfig.name}表情包需要提供文字内容。${memeConfig.textHint}` };
     }
 
     const targetUserId = user_id || currentUserId;
     if (!targetUserId) {
-        return { error: true, message: '缺少目标用户ID，请提供user_id参数' };
+        return { error: true, error_message: '缺少目标用户ID参数' };
     }
 
     if (!e) {
-        return { error: true, message: '无法获取用户信息：缺少事件对象' };
+        return { error: true, error_message: '无法获取用户信息：缺少事件对象' };
     }
 
     try {
@@ -1032,7 +981,7 @@ async function handleGenerateMeme(params, e, currentUserId) {
         } else {
             const avatarUrl = await getUserAvatar(e, targetUserId);
             if (!avatarUrl) {
-                return { error: true, message: '无法获取用户头像' };
+                return { error: true, error_message: '无法获取用户头像' };
             }
             const avatarBuffer = await fetchImageBuffer(avatarUrl);
             formData.append('images', new Blob([avatarBuffer]));
@@ -1053,7 +1002,7 @@ async function handleGenerateMeme(params, e, currentUserId) {
         if (response.status > 299) {
             const errorText = await response.text().catch(() => '');
             logger.warn(`[表情包] API返回错误: ${response.status} - ${errorText}`);
-            return { error: true, message: `表情包生成失败，API返回错误: ${response.status}` };
+            return { error: true, error_message: `表情包生成失败，API返回错误: ${response.status}` };
         }
 
         const resultBuffer = Buffer.from(await response.arrayBuffer());
@@ -1072,12 +1021,11 @@ async function handleGenerateMeme(params, e, currentUserId) {
             success: true,
             meme_type: meme_type,
             meme_name: memeConfig.name,
-            user_id: String(targetUserId),
-            message: `已生成${memeConfig.name}表情包`
+            user_id: String(targetUserId)
         };
     } catch (error) {
         logger.error(`[表情包] 生成失败: ${error.message}`);
-        return { error: true, message: `表情包生成失败: ${error.message}` };
+        return { error: true, error_message: `表情包生成失败: ${error.message}` };
     }
 }
 

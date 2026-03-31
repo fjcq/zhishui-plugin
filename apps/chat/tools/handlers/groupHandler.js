@@ -19,12 +19,12 @@ import {
  */
 export async function handleGroupToolCall(toolName, params, e) {
     if (!e || !e.group_id) {
-        return { error: true, message: '此功能仅在群组中可用' };
+        return { error: true, error_message: '此功能仅在群组中可用' };
     }
 
     const permission = await checkToolPermission(toolName, e, params);
     if (!permission.allowed) {
-        return { error: true, message: permission.reason };
+        return { error: true, error_message: permission.reason };
     }
 
     try {
@@ -44,11 +44,11 @@ export async function handleGroupToolCall(toolName, params, e) {
             case 'set_group_announcement':
                 return await handleSetGroupAnnouncement(params, e);
             default:
-                return { error: true, message: `未知的群管理工具: ${toolName}` };
+                return { error: true, error_message: `未知的群管理工具: ${toolName}` };
         }
     } catch (error) {
         logger.error(`[群管理工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, message: `操作失败: ${error.message}` };
+        return { error: true, error_message: `操作失败: ${error.message}` };
     }
 }
 
@@ -59,14 +59,14 @@ async function handleMuteMember(params, e) {
     const { user_id, duration = 60, reason = '' } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const muteDuration = validateMuteDuration(duration);
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
 
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -76,8 +76,7 @@ async function handleMuteMember(params, e) {
             return {
                 success: true,
                 user_id: String(user_id),
-                action: 'unmute',
-                message: `已解除用户 ${user_id} 的禁言`
+                action: 'unmute'
             };
         }
 
@@ -89,11 +88,10 @@ async function handleMuteMember(params, e) {
             user_id: String(user_id),
             duration: muteDuration,
             duration_text: formatMuteDuration(muteDuration),
-            reason: reason,
-            message: `已将用户 ${user_id} 禁言 ${formatMuteDuration(muteDuration)}`
+            reason: reason
         };
     } catch (error) {
-        return { error: true, message: `禁言操作失败: ${error.message}` };
+        return { error: true, error_message: `禁言操作失败: ${error.message}` };
     }
 }
 
@@ -104,16 +102,16 @@ async function handleSetGroupCard(params, e) {
     const { user_id, card } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     if (card === undefined || card === null) {
-        return { error: true, message: '缺少名片内容参数' };
+        return { error: true, error_message: '缺少名片内容参数' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -123,11 +121,10 @@ async function handleSetGroupCard(params, e) {
         return {
             success: true,
             user_id: String(user_id),
-            card: card,
-            message: card ? `已将用户 ${user_id} 的群名片修改为: ${card}` : `已清除用户 ${user_id} 的群名片`
+            card: card
         };
     } catch (error) {
-        return { error: true, message: `修改名片失败: ${error.message}` };
+        return { error: true, error_message: `修改名片失败: ${error.message}` };
     }
 }
 
@@ -138,17 +135,17 @@ async function handleSetGroupTitle(params, e) {
     const { user_id, title } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const isOwner = await isBotOwner(e);
     if (!isOwner) {
-        return { error: true, message: '设置专属头衔需要Bot是群主' };
+        return { error: true, error_message: '设置专属头衔需要Bot是群主' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -158,11 +155,10 @@ async function handleSetGroupTitle(params, e) {
         return {
             success: true,
             user_id: String(user_id),
-            title: title,
-            message: title ? `已为用户 ${user_id} 设置专属头衔: ${title}` : `已清除用户 ${user_id} 的专属头衔`
+            title: title
         };
     } catch (error) {
-        return { error: true, message: `设置头衔失败: ${error.message}` };
+        return { error: true, error_message: `设置头衔失败: ${error.message}` };
     }
 }
 
@@ -173,12 +169,12 @@ async function handleKickMember(params, e) {
     const { user_id, reason = '', reject_add_request = false } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -188,11 +184,10 @@ async function handleKickMember(params, e) {
         return {
             success: true,
             user_id: String(user_id),
-            reason: reason,
-            message: `已将用户 ${user_id} 移出群组`
+            reason: reason
         };
     } catch (error) {
-        return { error: true, message: `移出成员失败: ${error.message}` };
+        return { error: true, error_message: `移出成员失败: ${error.message}` };
     }
 }
 
@@ -203,12 +198,12 @@ async function handleDeleteMessage(params, e) {
     const { message_id } = params;
 
     if (!message_id) {
-        return { error: true, message: '缺少消息ID参数' };
+        return { error: true, error_message: '缺少消息ID参数' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -217,11 +212,10 @@ async function handleDeleteMessage(params, e) {
 
         return {
             success: true,
-            message_id: message_id,
-            message: '消息已撤回'
+            message_id: message_id
         };
     } catch (error) {
-        return { error: true, message: `撤回消息失败: ${error.message}` };
+        return { error: true, error_message: `撤回消息失败: ${error.message}` };
     }
 }
 
@@ -232,12 +226,12 @@ async function handleSetGroupName(params, e) {
     const { group_name } = params;
 
     if (!group_name) {
-        return { error: true, message: '缺少群名称参数' };
+        return { error: true, error_message: '缺少群名称参数' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -246,11 +240,10 @@ async function handleSetGroupName(params, e) {
 
         return {
             success: true,
-            group_name: group_name,
-            message: `群名称已修改为: ${group_name}`
+            group_name: group_name
         };
     } catch (error) {
-        return { error: true, message: `修改群名称失败: ${error.message}` };
+        return { error: true, error_message: `修改群名称失败: ${error.message}` };
     }
 }
 
@@ -261,12 +254,12 @@ async function handleSetGroupAnnouncement(params, e) {
     const { content, image } = params;
 
     if (!content) {
-        return { error: true, message: '缺少公告内容参数' };
+        return { error: true, error_message: '缺少公告内容参数' };
     }
 
     const group = e.group || e.bot?.pickGroup?.(e.group_id);
     if (!group) {
-        return { error: true, message: '无法获取群组信息' };
+        return { error: true, error_message: '无法获取群组信息' };
     }
 
     try {
@@ -279,10 +272,9 @@ async function handleSetGroupAnnouncement(params, e) {
 
         return {
             success: true,
-            content: content,
-            message: '群公告已发布'
+            content: content
         };
     } catch (error) {
-        return { error: true, message: `发布公告失败: ${error.message}` };
+        return { error: true, error_message: `发布公告失败: ${error.message}` };
     }
 }

@@ -13,6 +13,8 @@ import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../defi
 import { getUserFavor } from '../../user/index.js';
 import { generateDenyFeedback } from '../feedbackGenerator.js';
 
+const logger = global.logger || console;
+
 /**
  * 群管理工具名称列表
  */
@@ -101,7 +103,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
         return {
             error: true,
             disabled: true,
-            message: '工具调用功能已禁用'
+            error_message: '工具调用功能已禁用'
         };
     }
 
@@ -110,7 +112,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
         return {
             error: true,
             disabled: true,
-            message: `工具 ${toolName} 已禁用`
+            error_message: `工具 ${toolName} 已禁用`
         };
     }
 
@@ -136,7 +138,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
                 return {
                     error: true,
                     decision_denied: true,
-                    message: naturalFeedback,
+                    error_message: naturalFeedback,
                     suggested_action: decision.suggestedAction,
                     natural_feedback: true
                 };
@@ -148,7 +150,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
                 return {
                     error: true,
                     need_reason: true,
-                    message: naturalFeedback,
+                    error_message: naturalFeedback,
                     suggested_action: decision.suggestedAction,
                     natural_feedback: true
                 };
@@ -159,7 +161,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
                 return {
                     error: true,
                     need_confirm: true,
-                    message: decision.reason,
+                    error_message: decision.reason,
                     suggested_action: decision.suggestedAction,
                     max_allowed_duration: decision.maxAllowedDuration,
                     natural_feedback: true
@@ -173,35 +175,59 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
         }
 
         if (FAVOR_TOOLS.includes(toolName)) {
-            return await handleFavorToolCall(toolName, params, e, currentUserId);
+            const result = await handleFavorToolCall(toolName, params, e, currentUserId);
+            logToolResult(toolName, result);
+            return result;
         }
 
         if (FRIEND_TOOLS.includes(toolName)) {
-            return await handleFriendToolCall(toolName, params, e);
+            const result = await handleFriendToolCall(toolName, params, e);
+            logToolResult(toolName, result);
+            return result;
         }
 
         if (GROUP_TOOLS.includes(toolName)) {
-            return await handleGroupToolCall(toolName, params, e);
+            const result = await handleGroupToolCall(toolName, params, e);
+            logToolResult(toolName, result);
+            return result;
         }
 
         if (INTERACT_TOOLS.includes(toolName)) {
-            return await handleInteractToolCall(toolName, params, e, currentUserId);
+            const result = await handleInteractToolCall(toolName, params, e, currentUserId);
+            logToolResult(toolName, result);
+            return result;
         }
 
         if (MEMORY_TOOLS.includes(toolName)) {
-            return await handleMemoryToolCall(toolName, params, currentUserId);
+            const result = await handleMemoryToolCall(toolName, params, currentUserId);
+            logToolResult(toolName, result);
+            return result;
         }
 
         return {
             error: true,
-            message: `未知的工具: ${toolName}`
+            error_message: `未知的工具: ${toolName}`
         };
     } catch (error) {
         logger.error(`[工具调用] ${toolName} 异常: ${error.message}`);
         return {
             error: true,
-            message: `工具执行失败: ${error.message}`
+            error_message: `工具执行失败: ${error.message}`
         };
+    }
+}
+
+/**
+ * 输出工具执行结果日志
+ * @param {string} toolName - 工具名称
+ * @param {object} result - 执行结果
+ */
+function logToolResult(toolName, result) {
+    if (result.error) {
+        logger.warn(`[工具调用] ${toolName} 失败: ${result.error_message || '未知错误'}`);
+    } else {
+        const resultSummary = JSON.stringify(result).substring(0, 200);
+        logger.info(`[工具调用] ${toolName}: 成功 | 结果: ${resultSummary}`);
     }
 }
 

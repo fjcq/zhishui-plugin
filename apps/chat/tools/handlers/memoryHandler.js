@@ -39,11 +39,11 @@ export async function handleMemoryToolCall(toolName, params, currentUserId) {
             case 'get_interaction_history':
                 return await handleGetInteractionHistory(params, user_id);
             default:
-                return { error: true, message: `未知的记忆工具: ${toolName}` };
+                return { error: true, error_message: `未知的记忆工具: ${toolName}` };
         }
     } catch (error) {
         logger.error(`[记忆工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, message: `操作失败: ${error.message}` };
+        return { error: true, error_message: `操作失败: ${error.message}` };
     }
 }
 
@@ -65,16 +65,16 @@ async function handleRememberUserInfo(params, user_id) {
     const { key, value, expire_days = 30 } = params;
 
     if (!key || !value) {
-        return { error: true, message: '缺少键名或内容参数' };
+        return { error: true, error_message: '缺少键名或内容参数' };
     }
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -101,11 +101,10 @@ async function handleRememberUserInfo(params, user_id) {
             user_id: user_id,
             key: key,
             value: value,
-            expire_days: expire_days,
-            message: `已记住: ${key} = ${value}`
+            expire_days: expire_days
         };
     } catch (error) {
-        return { error: true, message: `记录失败: ${error.message}` };
+        return { error: true, error_message: `记录失败: ${error.message}` };
     }
 }
 
@@ -116,12 +115,12 @@ async function handleRecallUserInfo(params, user_id) {
     const { key } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -134,8 +133,7 @@ async function handleRecallUserInfo(params, user_id) {
                     success: true,
                     user_id: user_id,
                     key: key,
-                    value: null,
-                    message: `没有找到关于 "${key}" 的记忆`
+                    value: null
                 };
             }
 
@@ -145,8 +143,7 @@ async function handleRecallUserInfo(params, user_id) {
                 user_id: user_id,
                 key: key,
                 value: memoryData.value,
-                created_at: memoryData.created_at,
-                message: `回忆起: ${key} = ${memoryData.value}`
+                created_at: memoryData.created_at
             };
         }
 
@@ -170,11 +167,10 @@ async function handleRecallUserInfo(params, user_id) {
             success: true,
             user_id: user_id,
             memories: memories,
-            count: count,
-            message: count > 0 ? `找到 ${count} 条记忆` : '暂无记忆'
+            count: count
         };
     } catch (error) {
-        return { error: true, message: `获取记忆失败: ${error.message}` };
+        return { error: true, error_message: `获取记忆失败: ${error.message}` };
     }
 }
 
@@ -185,12 +181,12 @@ async function handleForgetUserInfo(params, user_id) {
     const { key } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -202,8 +198,7 @@ async function handleForgetUserInfo(params, user_id) {
             return {
                 success: true,
                 user_id: user_id,
-                key: key,
-                message: `已忘记: ${key}`
+                key: key
             };
         }
 
@@ -211,11 +206,10 @@ async function handleForgetUserInfo(params, user_id) {
         logger.info(`[记忆] 清空用户记忆 | 用户:${user_id}`);
         return {
             success: true,
-            user_id: user_id,
-            message: '已清空所有记忆'
+            user_id: user_id
         };
     } catch (error) {
-        return { error: true, message: `删除记忆失败: ${error.message}` };
+        return { error: true, error_message: `删除记忆失败: ${error.message}` };
     }
 }
 
@@ -226,26 +220,26 @@ async function handleSetReminder(params, user_id) {
     const { content, remind_time } = params;
 
     if (!content || !remind_time) {
-        return { error: true, message: '缺少提醒内容或时间参数' };
+        return { error: true, error_message: '缺少提醒内容或时间参数' };
     }
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
         const remindTimestamp = parseRemindTime(remind_time);
         if (!remindTimestamp) {
-            return { error: true, message: '无法解析提醒时间，请使用格式：YYYY-MM-DD HH:MM 或相对时间' };
+            return { error: true, error_message: '无法解析提醒时间，请使用格式：YYYY-MM-DD HH:MM 或相对时间' };
         }
 
         if (remindTimestamp <= Date.now()) {
-            return { error: true, message: '提醒时间必须是将来的时间' };
+            return { error: true, error_message: '提醒时间必须是将来的时间' };
         }
 
         const reminderId = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -271,11 +265,10 @@ async function handleSetReminder(params, user_id) {
             reminder_id: reminderId,
             user_id: user_id,
             content: content,
-            remind_time: new Date(remindTimestamp).toLocaleString(),
-            message: `已设置提醒: ${content}，将在 ${new Date(remindTimestamp).toLocaleString()} 提醒`
+            remind_time: new Date(remindTimestamp).toLocaleString()
         };
     } catch (error) {
-        return { error: true, message: `设置提醒失败: ${error.message}` };
+        return { error: true, error_message: `设置提醒失败: ${error.message}` };
     }
 }
 
@@ -331,12 +324,12 @@ function parseRemindTime(timeStr) {
  */
 async function handleGetReminders(params, user_id) {
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -367,11 +360,10 @@ async function handleGetReminders(params, user_id) {
             success: true,
             user_id: user_id,
             reminders: reminders,
-            count: reminders.length,
-            message: reminders.length > 0 ? `有 ${reminders.length} 个待提醒` : '暂无待提醒'
+            count: reminders.length
         };
     } catch (error) {
-        return { error: true, message: `获取提醒失败: ${error.message}` };
+        return { error: true, error_message: `获取提醒失败: ${error.message}` };
     }
 }
 
@@ -382,12 +374,12 @@ async function handleCancelReminder(params) {
     const { reminder_id } = params;
 
     if (!reminder_id) {
-        return { error: true, message: '缺少提醒ID参数' };
+        return { error: true, error_message: '缺少提醒ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -407,16 +399,15 @@ async function handleCancelReminder(params) {
         }
 
         if (!found) {
-            return { error: true, message: '未找到该提醒' };
+            return { error: true, error_message: '未找到该提醒' };
         }
 
         return {
             success: true,
-            reminder_id: reminder_id,
-            message: '提醒已取消'
+            reminder_id: reminder_id
         };
     } catch (error) {
-        return { error: true, message: `取消提醒失败: ${error.message}` };
+        return { error: true, error_message: `取消提醒失败: ${error.message}` };
     }
 }
 
@@ -427,16 +418,16 @@ async function handleRecordInteraction(params, user_id) {
     const { event_type, content } = params;
 
     if (!event_type || !content) {
-        return { error: true, message: '缺少事件类型或内容参数' };
+        return { error: true, error_message: '缺少事件类型或内容参数' };
     }
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -465,11 +456,10 @@ async function handleRecordInteraction(params, user_id) {
             success: true,
             interaction_id: interactionId,
             user_id: user_id,
-            event_type: event_type,
-            message: `已记录互动事件: ${event_type}`
+            event_type: event_type
         };
     } catch (error) {
-        return { error: true, message: `记录互动失败: ${error.message}` };
+        return { error: true, error_message: `记录互动失败: ${error.message}` };
     }
 }
 
@@ -480,12 +470,12 @@ async function handleGetInteractionHistory(params, user_id) {
     const { event_type, limit = 10 } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     const redisClient = getRedis();
     if (!redisClient) {
-        return { error: true, message: 'Redis服务不可用' };
+        return { error: true, error_message: 'Redis服务不可用' };
     }
 
     try {
@@ -514,10 +504,9 @@ async function handleGetInteractionHistory(params, user_id) {
             success: true,
             user_id: user_id,
             interactions: result,
-            count: result.length,
-            message: result.length > 0 ? `找到 ${result.length} 条互动记录` : '暂无互动记录'
+            count: result.length
         };
     } catch (error) {
-        return { error: true, message: `获取互动历史失败: ${error.message}` };
+        return { error: true, error_message: `获取互动历史失败: ${error.message}` };
     }
 }

@@ -18,11 +18,11 @@ export async function handleFriendToolCall(toolName, params, e) {
             case 'get_friend_info':
                 return await handleGetFriendInfo(params, e);
             default:
-                return { error: true, message: `未知的好友工具: ${toolName}` };
+                return { error: true, error_message: `未知的好友工具: ${toolName}` };
         }
     } catch (error) {
         logger.error(`[好友工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, message: `操作失败: ${error.message}` };
+        return { error: true, error_message: `操作失败: ${error.message}` };
     }
 }
 
@@ -34,7 +34,7 @@ export async function handleFriendToolCall(toolName, params, e) {
  */
 async function handleGetFriendList(params, e) {
     if (!e || !e.bot) {
-        return { error: true, message: '无法访问好友列表：缺少Bot实例' };
+        return { error: true, error_message: '无法访问好友列表：缺少Bot实例' };
     }
 
     try {
@@ -81,8 +81,7 @@ async function handleGetFriendList(params, e) {
             return {
                 success: true,
                 friend_count: 0,
-                friends: [],
-                message: '好友列表为空或无法获取'
+                friends: []
             };
         }
 
@@ -91,12 +90,11 @@ async function handleGetFriendList(params, e) {
         return {
             success: true,
             friend_count: friendList.length,
-            friends: friendList,
-            message: `共有 ${friendList.length} 位好友`
+            friends: friendList
         };
     } catch (error) {
         logger.error(`[好友工具] 获取好友列表失败: ${error.message}`);
-        return { error: true, message: `获取好友列表失败: ${error.message}` };
+        return { error: true, error_message: `获取好友列表失败: ${error.message}` };
     }
 }
 
@@ -110,18 +108,18 @@ async function handleGetFriendInfo(params, e) {
     const { user_id } = params;
 
     if (!user_id) {
-        return { error: true, message: '缺少用户ID参数' };
+        return { error: true, error_message: '缺少用户ID参数' };
     }
 
     if (!e || !e.bot) {
-        return { error: true, message: '无法访问好友信息：缺少Bot实例' };
+        return { error: true, error_message: '无法访问好友信息：缺少Bot实例' };
     }
 
     try {
         const friend = e.bot.pickFriend?.(user_id);
 
         if (!friend) {
-            return { error: true, message: `用户 ${user_id} 不是好友` };
+            return { error: true, error_message: `用户 ${user_id} 不是好友` };
         }
 
         const friendInfo = await friend.getInfo?.();
@@ -135,8 +133,7 @@ async function handleGetFriendInfo(params, e) {
             age: friendInfo?.age || null,
             sex: friendInfo?.sex || friendInfo?.gender || null,
             level: friendInfo?.level || null,
-            avatar_url: `https://q1.qlogo.cn/g?b=qq&nk=${user_id}&s=640`,
-            message: `好友 ${user_id} 的信息获取成功`
+            avatar_url: `https://q1.qlogo.cn/g?b=qq&nk=${user_id}&s=640`
         };
 
         logger.info(`[好友工具] 获取好友信息 | 用户:${user_id} | 昵称:${result.nickname}`);
@@ -144,6 +141,6 @@ async function handleGetFriendInfo(params, e) {
         return result;
     } catch (error) {
         logger.error(`[好友工具] 获取好友信息失败: ${error.message}`);
-        return { error: true, message: `获取好友信息失败: ${error.message}` };
+        return { error: true, error_message: `获取好友信息失败: ${error.message}` };
     }
 }

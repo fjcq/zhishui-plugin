@@ -61,22 +61,16 @@ export async function handleFavorToolCall(toolName, toolParams, e = null, curren
             default:
                 result = {
                     error: true,
-                    message: `未知的工具: ${toolName}`
+                    error_message: `未知的工具: ${toolName}`
                 };
-        }
-
-        if (result.error) {
-            logger.error(`[工具调用] ${toolName} 失败: ${result.message}`);
-        } else {
-            logger.info(`[工具调用] ${toolName}: ${result.message}`);
         }
 
         return result;
     } catch (error) {
-        logger.error(`[工具调用] ${toolName} 异常: ${error.message}`);
+        logger.error(`[好感度工具] ${toolName} 异常: ${error.message}`);
         return {
             error: true,
-            message: `工具执行失败: ${error.message}`
+            error_message: `工具执行失败: ${error.message}`
         };
     }
 }
@@ -88,16 +82,16 @@ async function handleChangeUserFavor(params) {
     const { user_id, change, reason = "AI主动调整" } = params;
 
     if (!user_id) {
-        return { error: true, message: "缺少用户ID参数" };
+        return { error: true, error_message: "缺少用户ID参数" };
     }
 
     if (change === undefined || change === null) {
-        return { error: true, message: "缺少变化量参数" };
+        return { error: true, error_message: "缺少变化量参数" };
     }
 
     const changeValue = Number(change);
     if (isNaN(changeValue)) {
-        return { error: true, message: "变化量必须是数字" };
+        return { error: true, error_message: "变化量必须是数字" };
     }
 
     const MAX_SINGLE_CHANGE = 10;
@@ -115,11 +109,10 @@ async function handleChangeUserFavor(params) {
             old_favor: oldFavor,
             change: clampedChange,
             new_favor: newFavor,
-            message: `好感度已更新`,
             natural_feedback: true
         };
     } else {
-        return { error: true, message: "调整好感度失败" };
+        return { error: true, error_message: "调整好感度失败" };
     }
 }
 
@@ -129,15 +122,14 @@ async function handleChangeUserFavor(params) {
 async function handleGetUserFavor(params) {
     const { user_id } = params;
     if (!user_id) {
-        return { error: true, message: "缺少用户ID参数" };
+        return { error: true, error_message: "缺少用户ID参数" };
     }
 
     const favor = await getUserFavor(user_id);
     return {
         success: true,
         user_id: user_id,
-        favor: favor,
-        message: `用户 ${user_id} 的好感度为 ${favor}`
+        favor: favor
     };
 }
 
@@ -147,7 +139,7 @@ async function handleGetUserFavor(params) {
 async function handleSetUserFavor(params) {
     const { user_id, favor, reason = "AI主动调整" } = params;
     if (!user_id || favor === undefined) {
-        return { error: true, message: "缺少用户ID或好感度参数" };
+        return { error: true, error_message: "缺少用户ID或好感度参数" };
     }
 
     const oldFavor = await getUserFavor(user_id);
@@ -158,11 +150,10 @@ async function handleSetUserFavor(params) {
             success: true,
             user_id: user_id,
             old_favor: oldFavor,
-            new_favor: favor,
-            message: `成功将用户 ${user_id} 的好感度从 ${oldFavor} 设置为 ${favor}`
+            new_favor: favor
         };
     } else {
-        return { error: true, message: "设置好感度失败" };
+        return { error: true, error_message: "设置好感度失败" };
     }
 }
 
@@ -172,15 +163,14 @@ async function handleSetUserFavor(params) {
 async function handleGetUserInfo(params) {
     const { user_id } = params;
     if (!user_id) {
-        return { error: true, message: "缺少用户ID参数" };
+        return { error: true, error_message: "缺少用户ID参数" };
     }
 
     const userData = await getUserData(user_id);
     return {
         success: true,
         user_id: user_id,
-        user_data: userData,
-        message: `获取用户 ${user_id} 的详细信息成功`
+        user_data: userData
     };
 }
 
@@ -189,12 +179,12 @@ async function handleGetUserInfo(params) {
  */
 async function handleGetGroupInfo(params, e) {
     if (!e) {
-        return { error: true, message: "无法访问群组信息：缺少事件对象" };
+        return { error: true, error_message: "无法访问群组信息：缺少事件对象" };
     }
 
     const group_id = params.group_id || e.group_id;
     if (!group_id) {
-        return { error: true, message: "当前不在群组环境中，无法获取群组信息" };
+        return { error: true, error_message: "当前不在群组环境中，无法获取群组信息" };
     }
 
     try {
@@ -208,19 +198,17 @@ async function handleGetGroupInfo(params, e) {
                 group_name: groupInfo.group_name || groupInfo.name || "未知群组",
                 member_count: groupInfo.member_count || groupInfo.memberCount || 0,
                 max_member_count: groupInfo.max_member_count || groupInfo.maxMemberCount || 0,
-                create_time: groupInfo.create_time || groupInfo.createTime || null,
-                message: `群组 ${group_id} 的信息获取成功`
+                create_time: groupInfo.create_time || groupInfo.createTime || null
             };
         }
 
         return {
             success: true,
             group_id: String(group_id),
-            group_name: "当前群组",
-            message: `群组 ${group_id} 的基本信息`
+            group_name: "当前群组"
         };
     } catch (error) {
-        return { error: true, message: `获取群组信息失败: ${error.message}` };
+        return { error: true, error_message: `获取群组信息失败: ${error.message}` };
     }
 }
 
@@ -230,7 +218,7 @@ async function handleGetGroupInfo(params, e) {
 async function handleGetUserProfile(params, e) {
     const { user_id, group_id } = params;
     if (!user_id) {
-        return { error: true, message: "缺少用户ID参数" };
+        return { error: true, error_message: "缺少用户ID参数" };
     }
 
     try {
@@ -274,11 +262,10 @@ async function handleGetUserProfile(params, e) {
 
         return {
             success: true,
-            ...profile,
-            message: `用户 ${user_id} 的资料获取成功`
+            ...profile
         };
     } catch (error) {
-        return { error: true, message: `获取用户资料失败: ${error.message}` };
+        return { error: true, error_message: `获取用户资料失败: ${error.message}` };
     }
 }
 
@@ -287,12 +274,12 @@ async function handleGetUserProfile(params, e) {
  */
 async function handleGetGroupMembers(params, e) {
     if (!e) {
-        return { error: true, message: "无法访问群成员信息：缺少事件对象" };
+        return { error: true, error_message: "无法访问群成员信息：缺少事件对象" };
     }
 
     const group_id = params.group_id || e.group_id;
     if (!group_id) {
-        return { error: true, message: "当前不在群组环境中，无法获取群成员列表" };
+        return { error: true, error_message: "当前不在群组环境中，无法获取群成员列表" };
     }
 
     try {
@@ -316,10 +303,9 @@ async function handleGetGroupMembers(params, e) {
             success: true,
             group_id: String(group_id),
             member_count: members.length,
-            members: members,
-            message: `群组 ${group_id} 的成员列表获取成功，共 ${members.length} 人`
+            members: members
         };
     } catch (error) {
-        return { error: true, message: `获取群成员列表失败: ${error.message}` };
+        return { error: true, error_message: `获取群成员列表失败: ${error.message}` };
     }
 }

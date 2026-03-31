@@ -206,12 +206,10 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
             toolResults.push({
                 role: 'tool',
                 tool_call_id: toolCall.id,
-                content: JSON.stringify({ error: true, message: '参数格式错误' })
+                content: JSON.stringify({ error: true, error_message: '参数格式错误' })
             });
             continue;
         }
-
-        console.log(`[工具调用] ${toolName}(${JSON.stringify(toolParams)})`);
 
         let currentUserId = null;
         try {

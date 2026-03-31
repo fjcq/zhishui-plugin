@@ -133,7 +133,7 @@ export const interactTools = [
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认tencent"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
                     }
                 },
                 required: ["keyword"]
@@ -155,7 +155,7 @@ export const interactTools = [
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
                     },
                     show_translation: {
                         type: "boolean",
@@ -181,7 +181,7 @@ export const interactTools = [
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认tencent"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
                     },
                     limit: {
                         type: "integer",
