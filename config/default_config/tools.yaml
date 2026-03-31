@@ -29,6 +29,8 @@ group_tools:
 interact_tools:
     - poke_user
     - search_music
+    - get_lyrics
+    - get_playlist
     - generate_meme
     - send_image
     - send_voice

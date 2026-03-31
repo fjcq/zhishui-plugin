@@ -49,6 +49,8 @@ const TOOL_CATEGORIES = [
         tools: [
             { value: 'poke_user', label: '戳一戳', desc: '允许AI戳一戳用户' },
             { value: 'search_music', label: '点歌', desc: '允许AI搜索并发送音乐' },
+            { value: 'get_lyrics', label: '获取歌词', desc: '允许AI获取歌曲歌词' },
+            { value: 'get_playlist', label: '获取歌单', desc: '允许AI获取歌单内容' },
             { value: 'generate_meme', label: '表情包生成', desc: '允许AI使用用户头像生成表情包' },
             { value: 'send_image', label: '发送图片', desc: '允许AI发送图片消息' },
             { value: 'send_voice', label: '发送语音', desc: '允许AI发送语音消息' },
@@ -101,6 +103,8 @@ const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
     interact_tools: [
         'poke_user',
         'search_music',
+        'get_lyrics',
+        'get_playlist',
         'generate_meme',
         'send_image',
         'send_voice',

@@ -674,6 +674,37 @@ function parseLyric(lrcText) {
 }
 
 /**
+ * 查找最佳匹配的翻译歌词
+ * 采用精确匹配优先策略，避免错误匹配
+ * @param {number} lyricTime - 原文歌词时间戳（秒）
+ * @param {Array} translations - 翻译歌词数组
+ * @returns {object|null} 匹配的翻译项或null
+ */
+function findBestTranslation(lyricTime, translations) {
+    const EXACT_THRESHOLD = 0.1;
+    const FALLBACK_THRESHOLD = 0.5;
+
+    for (const t of translations) {
+        if (Math.abs(t.time - lyricTime) <= EXACT_THRESHOLD) {
+            return t;
+        }
+    }
+
+    let bestMatch = null;
+    let minDiff = FALLBACK_THRESHOLD;
+
+    for (const t of translations) {
+        const diff = Math.abs(t.time - lyricTime);
+        if (diff < minDiff) {
+            minDiff = diff;
+            bestMatch = t;
+        }
+    }
+
+    return bestMatch;
+}
+
+/**
  * 格式化歌词消息
  * @param {object} lyricsInfo - 歌词信息
  * @returns {string} 格式化后的消息
@@ -688,9 +719,7 @@ function formatLyricsMessage(lyricsInfo) {
     if (lyricsInfo.translation.length > 0) {
         for (let i = 0; i < displayLyrics.length; i++) {
             lyricsText += `\n${displayLyrics[i].text}`;
-            const transItem = lyricsInfo.translation.find(t =>
-                Math.abs(t.time - displayLyrics[i].time) < 1
-            );
+            const transItem = findBestTranslation(displayLyrics[i].time, lyricsInfo.translation);
             if (transItem) {
                 lyricsText += `\n  📝 ${transItem.text}`;
             }
