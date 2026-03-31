@@ -74,9 +74,7 @@ export function isToolCallingEnabled(toolsConfig = null) {
         toolsConfig = getToolsConfig();
     }
 
-    const enabled = toolsConfig.EnableToolCalling === true;
-    logger.info(`[工具定义] 全局开关状态: EnableToolCalling=${toolsConfig.EnableToolCalling}, 结果=${enabled}`);
-    return enabled;
+    return toolsConfig.EnableToolCalling === true;
 }
 
 /**
@@ -164,7 +162,6 @@ export function getEnabledTools() {
             }
         }
 
-        logger.info(`[工具定义] 已启用 ${enabledTools.length} 个工具`);
         return enabledTools;
     } catch (error) {
         logger.error(`[工具定义] 获取启用工具失败: ${error.message}`);

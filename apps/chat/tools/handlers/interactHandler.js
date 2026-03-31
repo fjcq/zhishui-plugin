@@ -593,7 +593,7 @@ function formatDuration(seconds) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGetLyrics(params, e) {
-    const { keyword, platform = 'tencent', show_translation = true } = params;
+    const { keyword, platform = 'netease', show_translation = true } = params;
 
     if (!keyword) {
         return { error: true, message: '请告诉我你想查看哪首歌的歌词' };
