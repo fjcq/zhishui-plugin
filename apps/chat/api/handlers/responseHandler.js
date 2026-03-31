@@ -181,6 +181,16 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
         assistantMessage.reasoning_content = message.reasoning_content;
     }
 
+    // 如果AI返回了文本内容，立即发送给用户
+    if (message.content && message.content.trim()) {
+        try {
+            await e.reply(message.content.trim());
+            console.log(`[工具调用] AI预发送消息: ${message.content.trim()}`);
+        } catch (replyError) {
+            logger.error(`[工具调用] 发送消息失败: ${replyError.message}`);
+        }
+    }
+
     const toolResults = [];
     const naturalFeedbacks = [];
     

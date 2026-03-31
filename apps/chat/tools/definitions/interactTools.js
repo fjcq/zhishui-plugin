@@ -143,6 +143,58 @@ export const interactTools = [
     {
         type: "function",
         function: {
+            name: "get_lyrics",
+            description: "获取歌曲歌词。根据歌曲名称或歌手搜索歌曲并返回歌词内容，支持显示翻译歌词。",
+            parameters: {
+                type: "object",
+                properties: {
+                    keyword: {
+                        type: "string",
+                        description: "搜索关键词，可以是歌曲名、歌手名或两者组合"
+                    },
+                    platform: {
+                        type: "string",
+                        enum: ["netease", "tencent", "kugou", "kuwo"],
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认tencent"
+                    },
+                    show_translation: {
+                        type: "boolean",
+                        description: "是否显示翻译歌词（如果有），默认true"
+                    }
+                },
+                required: ["keyword"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_playlist",
+            description: "获取歌单内容。根据歌单ID或分享链接获取歌单中的歌曲列表，返回歌单名称、描述和歌曲列表。",
+            parameters: {
+                type: "object",
+                properties: {
+                    playlist_id: {
+                        type: "string",
+                        description: "歌单ID，可以从歌单分享链接中获取"
+                    },
+                    platform: {
+                        type: "string",
+                        enum: ["netease", "tencent", "kugou", "kuwo"],
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认tencent"
+                    },
+                    limit: {
+                        type: "integer",
+                        description: "返回歌曲数量限制，默认10首，最多30首"
+                    }
+                },
+                required: ["playlist_id"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
             name: "generate_meme",
             description: `生成并发送表情包。这是一个可选的互动工具，用于在合适的时机增加对话趣味性。
 

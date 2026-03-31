@@ -17,7 +17,7 @@ const TOOL_CATEGORIES = {
     friend: ['get_friend_list', 'get_friend_info'],
     memory: ['remember_user_info', 'recall_user_info', 'forget_user_info', 'record_interaction', 'get_interaction_history'],
     reminder: ['set_reminder', 'get_reminders', 'cancel_reminder'],
-    interact: ['search_music', 'generate_meme']
+    interact: ['search_music', 'get_lyrics', 'get_playlist', 'generate_meme']
 };
 
 /**
@@ -158,6 +158,14 @@ const FEEDBACK_TEMPLATES = {
     search_music: {
         success: ['找到了！听听看~', '这首歌不错呢~', '给你找来了~'],
         error: '找不到这首歌呢...'
+    },
+    get_lyrics: {
+        success: ['歌词找到了~', '给你看看歌词~', '这是歌词内容~'],
+        error: '找不到歌词呢...'
+    },
+    get_playlist: {
+        success: ['歌单找到了~', '看看这个歌单~', '歌单内容在这里~'],
+        error: '找不到这个歌单呢...'
     },
     generate_meme: {
         success: ['表情包生成好了~', '嘿嘿，看看这个~', '给你做好了~'],

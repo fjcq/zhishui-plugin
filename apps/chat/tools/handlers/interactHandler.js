@@ -68,6 +68,10 @@ export async function handleInteractToolCall(toolName, params, e, currentUserId)
                 return await handleSetEssenceMessage(params, e);
             case 'search_music':
                 return await handleSearchMusic(params, e);
+            case 'get_lyrics':
+                return await handleGetLyrics(params, e);
+            case 'get_playlist':
+                return await handleGetPlaylist(params, e);
             case 'generate_meme':
                 return await handleGenerateMeme(params, e, currentUserId);
             default:
@@ -522,6 +526,319 @@ function formatDuration(seconds) {
     const min = Math.floor(seconds / 60);
     const sec = seconds % 60;
     return `${min}:${sec.toString().padStart(2, '0')}`;
+}
+
+/**
+ * 处理获取歌词
+ * @param {object} params - 参数对象
+ * @param {string} params.keyword - 搜索关键词
+ * @param {string} params.platform - 音乐平台 netease/tencent/kugou/kuwo
+ * @param {boolean} params.show_translation - 是否显示翻译
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleGetLyrics(params, e) {
+    const { keyword, platform = 'tencent', show_translation = true } = params;
+
+    if (!keyword) {
+        return { error: true, message: '请告诉我你想查看哪首歌的歌词' };
+    }
+
+    if (!e) {
+        return { error: true, message: '无法发送消息：缺少事件对象' };
+    }
+
+    try {
+        const lyricsInfo = await getLyricsByMeting(keyword, platform, show_translation);
+
+        if (!lyricsInfo) {
+            return { error: true, message: `没有找到"${keyword}"的歌词` };
+        }
+
+        const lyricsMsg = formatLyricsMessage(lyricsInfo);
+        await e.reply(lyricsMsg);
+
+        logger.info(`[互动] 获取歌词 | 平台:${platform} | 歌曲:${lyricsInfo.name} - ${lyricsInfo.artist}`);
+
+        return {
+            success: true,
+            name: lyricsInfo.name,
+            artist: lyricsInfo.artist,
+            has_translation: lyricsInfo.hasTranslation,
+            message: `已获取《${lyricsInfo.name}》的歌词`
+        };
+    } catch (error) {
+        logger.error(`[互动] 获取歌词失败: ${error.message}`);
+        return { error: true, message: `获取歌词失败: ${error.message}` };
+    }
+}
+
+/**
+ * 使用Meting获取歌词
+ * @param {string} keyword - 搜索关键词
+ * @param {string} platform - 平台代码
+ * @param {boolean} showTranslation - 是否显示翻译
+ * @returns {Promise<object|null>} 歌词信息
+ */
+async function getLyricsByMeting(keyword, platform, showTranslation) {
+    try {
+        const loaded = await loadMeting();
+        if (!loaded) {
+            logger.warn(`[歌词获取] @meting/core 模块未安装`);
+            return null;
+        }
+
+        const meting = getMeting(platform);
+        if (!meting) {
+            logger.error(`[歌词获取] 获取Meting实例失败`);
+            return null;
+        }
+
+        const searchResult = await meting.search(keyword, { page: 1, limit: 1 });
+        let songs;
+        try {
+            songs = JSON.parse(searchResult);
+        } catch (parseError) {
+            logger.error(`[歌词获取] JSON解析失败: ${parseError.message}`);
+            return null;
+        }
+
+        if (!songs || songs.length === 0) {
+            return null;
+        }
+
+        const song = songs[0];
+
+        let lyricText = '';
+        let translationText = '';
+        try {
+            const lyricResult = await meting.lyric(song.lyric_id || song.id);
+            const lyricData = JSON.parse(lyricResult);
+            lyricText = lyricData?.lyric || lyricData?.lrc?.lyric || '';
+            translationText = lyricData?.tlyric?.lyric || lyricData?.translate || '';
+        } catch (lyricError) {
+            logger.warn(`[歌词获取] 获取歌词失败: ${lyricError.message}`);
+        }
+
+        if (!lyricText) {
+            return null;
+        }
+
+        const parsedLyrics = parseLyric(lyricText);
+        const parsedTranslation = translationText ? parseLyric(translationText) : [];
+
+        return {
+            name: song.name || song.title,
+            artist: Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '未知歌手'),
+            album: song.album || '',
+            lyrics: parsedLyrics,
+            translation: parsedTranslation,
+            hasTranslation: parsedTranslation.length > 0
+        };
+    } catch (error) {
+        logger.error(`[歌词获取] Meting获取失败: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * 解析LRC格式歌词
+ * @param {string} lrcText - LRC格式歌词文本
+ * @returns {Array<{time: number, text: string}>} 解析后的歌词数组
+ */
+function parseLyric(lrcText) {
+    if (!lrcText) return [];
+
+    const lines = lrcText.split('\n');
+    const result = [];
+    const timeRegex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g;
+
+    for (const line of lines) {
+        const matches = [...line.matchAll(timeRegex)];
+        if (matches.length === 0) continue;
+
+        const text = line.replace(timeRegex, '').trim();
+        if (!text) continue;
+
+        for (const match of matches) {
+            const minutes = parseInt(match[1]);
+            const seconds = parseInt(match[2]);
+            const milliseconds = parseInt(match[3].padEnd(3, '0'));
+            const time = minutes * 60 + seconds + milliseconds / 1000;
+
+            result.push({ time, text });
+        }
+    }
+
+    return result.sort((a, b) => a.time - b.time);
+}
+
+/**
+ * 格式化歌词消息
+ * @param {object} lyricsInfo - 歌词信息
+ * @returns {string} 格式化后的消息
+ */
+function formatLyricsMessage(lyricsInfo) {
+    const header = `🎵 《${lyricsInfo.name}》\n👤 ${lyricsInfo.artist}\n💿 ${lyricsInfo.album || '未知专辑'}\n${'─'.repeat(20)}`;
+
+    let lyricsText = '';
+    const maxLines = 30;
+    const displayLyrics = lyricsInfo.lyrics.slice(0, maxLines);
+
+    if (lyricsInfo.translation.length > 0) {
+        for (let i = 0; i < displayLyrics.length; i++) {
+            lyricsText += `\n${displayLyrics[i].text}`;
+            const transItem = lyricsInfo.translation.find(t =>
+                Math.abs(t.time - displayLyrics[i].time) < 1
+            );
+            if (transItem) {
+                lyricsText += `\n  📝 ${transItem.text}`;
+            }
+        }
+    } else {
+        lyricsText = '\n' + displayLyrics.map(l => l.text).join('\n');
+    }
+
+    if (lyricsInfo.lyrics.length > maxLines) {
+        lyricsText += `\n\n... 共 ${lyricsInfo.lyrics.length} 行歌词`;
+    }
+
+    return header + lyricsText;
+}
+
+/**
+ * 处理获取歌单
+ * @param {object} params - 参数对象
+ * @param {string} params.playlist_id - 歌单ID
+ * @param {string} params.platform - 音乐平台
+ * @param {number} params.limit - 返回歌曲数量限制
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleGetPlaylist(params, e) {
+    const { playlist_id, platform = 'tencent', limit = 10 } = params;
+
+    if (!playlist_id) {
+        return { error: true, message: '请提供歌单ID' };
+    }
+
+    if (!e) {
+        return { error: true, message: '无法发送消息：缺少事件对象' };
+    }
+
+    const actualLimit = Math.min(Math.max(1, limit), 30);
+
+    try {
+        const playlistInfo = await getPlaylistByMeting(playlist_id, platform, actualLimit);
+
+        if (!playlistInfo) {
+            return { error: true, message: `没有找到歌单 ${playlist_id}` };
+        }
+
+        const playlistMsg = formatPlaylistMessage(playlistInfo);
+        await e.reply(playlistMsg);
+
+        logger.info(`[互动] 获取歌单 | 平台:${platform} | 歌单:${playlistInfo.name} | 歌曲数:${playlistInfo.songs.length}`);
+
+        return {
+            success: true,
+            name: playlistInfo.name,
+            description: playlistInfo.description,
+            song_count: playlistInfo.totalCount,
+            display_count: playlistInfo.songs.length,
+            message: `已获取歌单《${playlistInfo.name}》`
+        };
+    } catch (error) {
+        logger.error(`[互动] 获取歌单失败: ${error.message}`);
+        return { error: true, message: `获取歌单失败: ${error.message}` };
+    }
+}
+
+/**
+ * 使用Meting获取歌单
+ * @param {string} playlistId - 歌单ID
+ * @param {string} platform - 平台代码
+ * @param {number} limit - 返回数量限制
+ * @returns {Promise<object|null>} 歌单信息
+ */
+async function getPlaylistByMeting(playlistId, platform, limit) {
+    try {
+        const loaded = await loadMeting();
+        if (!loaded) {
+            logger.warn(`[歌单获取] @meting/core 模块未安装`);
+            return null;
+        }
+
+        const meting = getMeting(platform);
+        if (!meting) {
+            logger.error(`[歌单获取] 获取Meting实例失败`);
+            return null;
+        }
+
+        const playlistResult = await meting.playlist(playlistId);
+        let playlistData;
+        try {
+            playlistData = JSON.parse(playlistResult);
+        } catch (parseError) {
+            logger.error(`[歌单获取] JSON解析失败: ${parseError.message}`);
+            return null;
+        }
+
+        if (!playlistData || (Array.isArray(playlistData) && playlistData.length === 0)) {
+            return null;
+        }
+
+        const tracks = Array.isArray(playlistData) ? playlistData : (playlistData.tracks || playlistData.songs || []);
+        const playlistName = playlistData.name || playlistData.title || '未知歌单';
+        const description = playlistData.description || playlistData.desc || '';
+
+        const songs = tracks.slice(0, limit).map((track, index) => ({
+            index: index + 1,
+            name: track.name || track.title,
+            artist: Array.isArray(track.artist) ? track.artist.join(', ') : (track.artist || '未知歌手'),
+            album: track.album || '',
+            id: track.id,
+            duration: track.duration || 0
+        }));
+
+        return {
+            name: playlistName,
+            description: description,
+            totalCount: tracks.length,
+            songs: songs
+        };
+    } catch (error) {
+        logger.error(`[歌单获取] Meting获取失败: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * 格式化歌单消息
+ * @param {object} playlistInfo - 歌单信息
+ * @returns {string} 格式化后的消息
+ */
+function formatPlaylistMessage(playlistInfo) {
+    let msg = `📋 《${playlistInfo.name}》\n`;
+    if (playlistInfo.description) {
+        msg += `📝 ${playlistInfo.description.substring(0, 50)}${playlistInfo.description.length > 50 ? '...' : ''}\n`;
+    }
+    msg += `🎵 共 ${playlistInfo.totalCount} 首歌曲\n`;
+    msg += `${'─'.repeat(20)}\n`;
+
+    for (const song of playlistInfo.songs) {
+        msg += `\n${song.index}. ${song.name}`;
+        msg += `\n   👤 ${song.artist}`;
+        if (song.album) {
+            msg += ` | 💿 ${song.album}`;
+        }
+    }
+
+    if (playlistInfo.totalCount > playlistInfo.songs.length) {
+        msg += `\n\n... 还有 ${playlistInfo.totalCount - playlistInfo.songs.length} 首歌曲`;
+    }
+
+    return msg;
 }
 
 /**
