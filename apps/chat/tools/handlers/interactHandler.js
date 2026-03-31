@@ -5,6 +5,8 @@
 
 import { isBotAdmin } from '../permissions.js';
 
+const logger = global.logger || console;
+
 let Meting = null;
 let metingLoadError = null;
 
@@ -41,6 +43,44 @@ function getMeting(platform) {
         metingCache[platform].format(true);
     }
     return metingCache[platform];
+}
+
+/**
+ * 动态加载segment模块
+ * @returns {Promise<object|null>} segment模块或null
+ */
+async function getSegment() {
+    try {
+        return await import('oicq').then(m => m.segment).catch(() =>
+            import('icqq').then(m => m.segment)
+        );
+    } catch (error) {
+        logger.warn(`[互动] 加载segment模块失败: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * 带超时控制的语音生成
+ * @param {object} segment - segment模块
+ * @param {string} source - 文本或URL
+ * @param {number} timeout - 超时时间(毫秒)，默认30秒
+ * @returns {Promise<object>} 语音消息段
+ */
+async function createVoiceWithTimeout(segment, source, timeout = 30000) {
+    try {
+        return await Promise.race([
+            segment.record(source),
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('语音生成超时')), timeout)
+            )
+        ]);
+    } catch (error) {
+        if (error.message === '语音生成超时') {
+            throw error;
+        }
+        throw new Error(`语音生成失败: ${error.message}`);
+    }
 }
 
 /**
@@ -181,15 +221,28 @@ async function handleSendImage(params, e) {
         return { error: true, message: '缺少图片URL参数' };
     }
 
+    if (!e) {
+        return { error: true, message: '无法发送消息：缺少事件对象' };
+    }
+
     try {
-        logger.info(`[互动] 准备发送图片 | URL:${url.substring(0, 50)}...`);
+        const segment = await getSegment();
+
+        if (!segment) {
+            return { error: true, message: '无法加载segment模块' };
+        }
+
+        const imageMsg = segment.image(url);
+        const message = caption ? [imageMsg, caption] : [imageMsg];
+
+        await e.reply(message);
+        logger.info(`[互动] 发送图片 | URL:${url.substring(0, 50)}...`);
 
         return {
             success: true,
             url: url,
             caption: caption,
-            image_type: 'url',
-            message: caption ? `图片：${url}\n说明：${caption}` : `图片：${url}`
+            message: '图片已发送'
         };
     } catch (error) {
         return { error: true, message: `发送图片失败: ${error.message}` };
@@ -206,14 +259,35 @@ async function handleSendVoice(params, e) {
         return { error: true, message: '缺少语音文本参数' };
     }
 
+    const trimmedText = text.trim();
+    if (trimmedText.length === 0) {
+        return { error: true, message: '语音文本不能为空' };
+    }
+
+    if (trimmedText.length > 500) {
+        return { error: true, message: '语音文本过长，请控制在500字符以内' };
+    }
+
+    if (!e) {
+        return { error: true, message: '无法发送消息：缺少事件对象' };
+    }
+
     try {
-        logger.info(`[互动] 准备发送语音 | 文本:${text.substring(0, 30)}...`);
+        const segment = await getSegment();
+
+        if (!segment) {
+            return { error: true, message: '无法加载segment模块' };
+        }
+
+        const voiceMsg = await createVoiceWithTimeout(segment, trimmedText);
+        await e.reply(voiceMsg);
+        logger.info(`[互动] 发送语音 | 文本:${trimmedText.substring(0, 30)}...`);
+
 
         return {
             success: true,
-            text: text,
-            voice_type: 'tts',
-            message: `语音内容：${text}`
+            text: trimmedText,
+            message: '语音已发送'
         };
     } catch (error) {
         return { error: true, message: `发送语音失败: ${error.message}` };
@@ -339,6 +413,10 @@ async function handleSearchMusic(params, e) {
         return { error: true, message: '请告诉我你想听什么歌' };
     }
 
+    if (!e) {
+        return { error: true, message: '无法发送消息：缺少事件对象' };
+    }
+
     try {
         const songInfo = await searchMusicByMeting(keyword, platform);
 
@@ -346,18 +424,16 @@ async function handleSearchMusic(params, e) {
             return { error: true, message: `没有找到"${keyword}"相关的歌曲` };
         }
 
+        await sendMusicCard(e, songInfo, platform);
+
         logger.info(`[互动] 点歌 | 平台:${platform} | 歌曲:${songInfo.name} - ${songInfo.artist}`);
 
         return {
             success: true,
             name: songInfo.name,
             artist: songInfo.artist,
-            album: songInfo.album,
-            duration: songInfo.duration,
             platform: platform,
-            url: songInfo.url,
-            pic: songInfo.pic,
-            link: songInfo.link
+            message: `已为你找到《${songInfo.name}》- ${songInfo.artist}`
         };
     } catch (error) {
         logger.error(`[互动] 点歌失败: ${error.message}`);
@@ -439,6 +515,59 @@ async function searchMusicByMeting(keyword, platform) {
     } catch (error) {
         logger.error(`[音乐搜索] Meting搜索失败: ${error.message}`);
         return null;
+    }
+}
+
+/**
+ * 发送音乐卡片
+ * @param {object} e - 事件对象
+ * @param {object} songInfo - 歌曲信息
+ * @param {string} platform - 平台类型
+ */
+async function sendMusicCard(e, songInfo, platform) {
+    try {
+        const platformNames = {
+            netease: '网易云',
+            tencent: 'QQ音乐',
+            kugou: '酷狗',
+            kuwo: '酷我'
+        };
+        const platformName = platformNames[platform] || platform;
+
+        const MAX_VOICE_DURATION = 300;
+        const duration = songInfo.duration || 0;
+        const canSendVoice = songInfo.url &&
+            songInfo.url.startsWith('http') &&
+            duration > 0 &&
+            duration <= MAX_VOICE_DURATION;
+
+        if (canSendVoice) {
+            await e.reply(`正在获取《${songInfo.name}》，请稍等...`);
+
+            try {
+                const segment = await getSegment();
+
+                if (segment) {
+                    const recordMsg = await createVoiceWithTimeout(segment, songInfo.url);
+                    await e.reply(recordMsg);
+                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist} | 时长:${duration}秒`);
+                    return;
+                }
+            } catch (recordError) {
+                logger.warn(`[点歌] 语音发送失败: ${recordError.message}，将发送链接`);
+            }
+        } else if (duration > MAX_VOICE_DURATION) {
+            logger.info(`[点歌] 歌曲时长${duration}秒超过限制，发送链接`);
+        } else if (!songInfo.url || !songInfo.url.startsWith('http')) {
+            logger.info(`[点歌] 无有效播放链接，发送歌曲信息`);
+        }
+
+        const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n💿 ${songInfo.album || '未知专辑'}\n⏱️ ${formatDuration(duration)}\n🔗 ${songInfo.link}`;
+        await e.reply(textMsg);
+        logger.info(`[点歌] 发送链接成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
+    } catch (error) {
+        logger.error(`[发送音乐] 失败: ${error.message}`);
+        await e.reply(`歌曲：${songInfo.name} - ${songInfo.artist}\n链接：${songInfo.link}`);
     }
 }
 
@@ -928,7 +1057,14 @@ async function handleGenerateMeme(params, e, currentUserId) {
         }
 
         const resultBuffer = Buffer.from(await response.arrayBuffer());
-        const base64Image = resultBuffer.toString('base64');
+
+        const segment = await getSegment();
+
+        if (segment) {
+            await e.reply(segment.image(resultBuffer));
+        } else {
+            await e.reply({ type: 'image', file: `base64://${resultBuffer.toString('base64')}` });
+        }
 
         logger.info(`[表情包] 生成成功 | 类型:${meme_type} | 用户:${targetUserId}`);
 
@@ -937,8 +1073,6 @@ async function handleGenerateMeme(params, e, currentUserId) {
             meme_type: meme_type,
             meme_name: memeConfig.name,
             user_id: String(targetUserId),
-            user_name: userName,
-            image_base64: base64Image,
             message: `已生成${memeConfig.name}表情包`
         };
     } catch (error) {
