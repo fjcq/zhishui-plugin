@@ -357,7 +357,7 @@ async function handleSetEssenceMessage(params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleSearchMusic(params, e) {
-    const { keyword, platform = 'netease' } = params;
+    const { keyword, platform = 'tencent' } = params;
 
     if (!keyword) {
         return { error: true, message: '请告诉我你想听什么歌' };
