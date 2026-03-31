@@ -222,8 +222,6 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
         }
 
         const result = await handleToolCall(toolName, toolParams, e, currentUserId);
-
-        console.log(`[工具调用] 结果: ${JSON.stringify(result)}`);
         
         if (shouldShowFeedback(toolName, result)) {
             const feedback = await generateToolFeedback(toolName, result, toolParams, { e, currentUserId });

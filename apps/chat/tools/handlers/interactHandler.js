@@ -181,30 +181,15 @@ async function handleSendImage(params, e) {
         return { error: true, message: '缺少图片URL参数' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     try {
-        const segment = await import('oicq').then(m => m.segment).catch(() =>
-            import('icqq').then(m => m.segment)
-        );
-
-        if (!segment) {
-            return { error: true, message: '无法加载segment模块' };
-        }
-
-        const imageMsg = segment.image(url);
-        const message = caption ? [imageMsg, caption] : [imageMsg];
-
-        await e.reply(message);
-        logger.info(`[互动] 发送图片 | URL:${url.substring(0, 50)}...`);
+        logger.info(`[互动] 准备发送图片 | URL:${url.substring(0, 50)}...`);
 
         return {
             success: true,
             url: url,
             caption: caption,
-            message: '图片已发送'
+            image_type: 'url',
+            message: caption ? `图片：${url}\n说明：${caption}` : `图片：${url}`
         };
     } catch (error) {
         return { error: true, message: `发送图片失败: ${error.message}` };
@@ -221,27 +206,14 @@ async function handleSendVoice(params, e) {
         return { error: true, message: '缺少语音文本参数' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     try {
-        const segment = await import('oicq').then(m => m.segment).catch(() =>
-            import('icqq').then(m => m.segment)
-        );
-
-        if (!segment) {
-            return { error: true, message: '无法加载segment模块' };
-        }
-
-        const voiceMsg = await segment.record(text);
-        await e.reply(voiceMsg);
-        logger.info(`[互动] 发送语音 | 文本:${text.substring(0, 30)}...`);
+        logger.info(`[互动] 准备发送语音 | 文本:${text.substring(0, 30)}...`);
 
         return {
             success: true,
             text: text,
-            message: '语音已发送'
+            voice_type: 'tts',
+            message: `语音内容：${text}`
         };
     } catch (error) {
         return { error: true, message: `发送语音失败: ${error.message}` };
@@ -367,10 +339,6 @@ async function handleSearchMusic(params, e) {
         return { error: true, message: '请告诉我你想听什么歌' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     try {
         const songInfo = await searchMusicByMeting(keyword, platform);
 
@@ -378,16 +346,18 @@ async function handleSearchMusic(params, e) {
             return { error: true, message: `没有找到"${keyword}"相关的歌曲` };
         }
 
-        await sendMusicCard(e, songInfo, platform);
-
         logger.info(`[互动] 点歌 | 平台:${platform} | 歌曲:${songInfo.name} - ${songInfo.artist}`);
 
         return {
             success: true,
             name: songInfo.name,
             artist: songInfo.artist,
+            album: songInfo.album,
+            duration: songInfo.duration,
             platform: platform,
-            message: `已为你找到《${songInfo.name}》- ${songInfo.artist}`
+            url: songInfo.url,
+            pic: songInfo.pic,
+            link: songInfo.link
         };
     } catch (error) {
         logger.error(`[互动] 点歌失败: ${error.message}`);
@@ -473,50 +443,6 @@ async function searchMusicByMeting(keyword, platform) {
 }
 
 /**
- * 发送音乐文件（语音形式）
- * @param {object} e - 事件对象
- * @param {object} songInfo - 歌曲信息
- * @param {string} platform - 平台类型
- */
-async function sendMusicCard(e, songInfo, platform) {
-    try {
-        const platformNames = {
-            netease: '网易云',
-            tencent: 'QQ音乐',
-            kugou: '酷狗',
-            kuwo: '酷我'
-        };
-        const platformName = platformNames[platform] || platform;
-
-        if (songInfo.url) {
-            await e.reply(`正在获取《${songInfo.name}》，请稍等...`);
-
-            try {
-                const segment = await import('oicq').then(m => m.segment).catch(() =>
-                    import('icqq').then(m => m.segment)
-                );
-
-                if (segment) {
-                    const recordMsg = await segment.record(songInfo.url);
-                    await e.reply(recordMsg);
-                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
-                    return;
-                }
-            } catch (recordError) {
-                logger.warn(`[点歌] 语音发送失败: ${recordError.message}`);
-            }
-        }
-
-        const textMsg = `🎵 ${songInfo.name}\n👤 ${songInfo.artist}\n💿 ${songInfo.album || '未知专辑'}\n⏱️ ${formatDuration(songInfo.duration)}\n🔗 ${songInfo.link}`;
-        await e.reply(textMsg);
-        logger.info(`[点歌] 发送链接成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist}`);
-    } catch (error) {
-        logger.error(`[发送音乐] 失败: ${error.message}`);
-        await e.reply(`歌曲：${songInfo.name} - ${songInfo.artist}\n链接：${songInfo.link}`);
-    }
-}
-
-/**
  * 格式化时长
  * @param {number} seconds - 秒数
  * @returns {string} 格式化后的时长
@@ -544,10 +470,6 @@ async function handleGetLyrics(params, e) {
         return { error: true, message: '请告诉我你想查看哪首歌的歌词' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     try {
         const lyricsInfo = await getLyricsByMeting(keyword, platform, show_translation);
 
@@ -555,17 +477,17 @@ async function handleGetLyrics(params, e) {
             return { error: true, message: `没有找到"${keyword}"的歌词` };
         }
 
-        const lyricsMsg = formatLyricsMessage(lyricsInfo);
-        await e.reply(lyricsMsg);
-
         logger.info(`[互动] 获取歌词 | 平台:${platform} | 歌曲:${lyricsInfo.name} - ${lyricsInfo.artist}`);
 
         return {
             success: true,
             name: lyricsInfo.name,
             artist: lyricsInfo.artist,
+            album: lyricsInfo.album,
+            lyrics: lyricsInfo.lyrics,
+            translation: lyricsInfo.translation,
             has_translation: lyricsInfo.hasTranslation,
-            message: `已获取《${lyricsInfo.name}》的歌词`
+            formatted_message: formatLyricsMessage(lyricsInfo)
         };
     } catch (error) {
         logger.error(`[互动] 获取歌词失败: ${error.message}`);
@@ -608,19 +530,48 @@ async function getLyricsByMeting(keyword, platform, showTranslation) {
         }
 
         const song = songs[0];
+        logger.info(`[歌词获取] 找到歌曲: ${song.name} - ID: ${song.id}, lyric_id: ${song.lyric_id}`);
 
         let lyricText = '';
         let translationText = '';
         try {
-            const lyricResult = await meting.lyric(song.lyric_id || song.id);
-            const lyricData = JSON.parse(lyricResult);
-            lyricText = lyricData?.lyric || lyricData?.lrc?.lyric || '';
-            translationText = lyricData?.tlyric?.lyric || lyricData?.translate || '';
+            const lyricId = song.lyric_id || song.id;
+            logger.info(`[歌词获取] 尝试获取歌词，ID: ${lyricId}`);
+
+            const lyricResult = await meting.lyric(lyricId);
+            logger.info(`[歌词获取] 原始返回类型: ${typeof lyricResult}, 长度: ${lyricResult?.length || 0}`);
+
+            let lyricData;
+            if (typeof lyricResult === 'string') {
+                try {
+                    lyricData = JSON.parse(lyricResult);
+                } catch (e) {
+                    logger.warn(`[歌词获取] JSON解析失败，可能是纯文本歌词`);
+                    lyricText = lyricResult;
+                }
+            } else {
+                lyricData = lyricResult;
+            }
+
+            if (lyricData) {
+                logger.info(`[歌词获取] 解析后的数据结构: ${JSON.stringify(Object.keys(lyricData))}`);
+
+                if (typeof lyricData === 'string') {
+                    lyricText = lyricData;
+                } else {
+                    lyricText = lyricData.lyric || lyricData.lrc?.lyric || lyricData.lrc || '';
+                    translationText = lyricData.tlyric?.lyric || lyricData.translate || lyricData.translation || '';
+                }
+            }
+
+            logger.info(`[歌词获取] 歌词文本长度: ${lyricText.length}, 翻译长度: ${translationText.length}`);
         } catch (lyricError) {
             logger.warn(`[歌词获取] 获取歌词失败: ${lyricError.message}`);
+            logger.warn(`[歌词获取] 错误堆栈: ${lyricError.stack}`);
         }
 
         if (!lyricText) {
+            logger.warn(`[歌词获取] 未获取到歌词文本`);
             return null;
         }
 
@@ -747,10 +698,6 @@ async function handleGetPlaylist(params, e) {
         return { error: true, message: '请提供歌单ID' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     const actualLimit = Math.min(Math.max(1, limit), 30);
 
     try {
@@ -760,18 +707,15 @@ async function handleGetPlaylist(params, e) {
             return { error: true, message: `没有找到歌单 ${playlist_id}` };
         }
 
-        const playlistMsg = formatPlaylistMessage(playlistInfo);
-        await e.reply(playlistMsg);
-
         logger.info(`[互动] 获取歌单 | 平台:${platform} | 歌单:${playlistInfo.name} | 歌曲数:${playlistInfo.songs.length}`);
 
         return {
             success: true,
             name: playlistInfo.name,
             description: playlistInfo.description,
-            song_count: playlistInfo.totalCount,
-            display_count: playlistInfo.songs.length,
-            message: `已获取歌单《${playlistInfo.name}》`
+            total_count: playlistInfo.totalCount,
+            songs: playlistInfo.songs,
+            formatted_message: formatPlaylistMessage(playlistInfo)
         };
     } catch (error) {
         logger.error(`[互动] 获取歌单失败: ${error.message}`);
@@ -920,10 +864,6 @@ async function handleGenerateMeme(params, e, currentUserId) {
         return { error: true, message: '请指定表情包类型' };
     }
 
-    if (!e) {
-        return { error: true, message: '无法发送消息：缺少事件对象' };
-    }
-
     const memeConfig = MEME_CONFIG[meme_type];
     if (!memeConfig) {
         return { error: true, message: `不支持的表情包类型: ${meme_type}` };
@@ -936,6 +876,10 @@ async function handleGenerateMeme(params, e, currentUserId) {
     const targetUserId = user_id || currentUserId;
     if (!targetUserId) {
         return { error: true, message: '缺少目标用户ID，请提供user_id参数' };
+    }
+
+    if (!e) {
+        return { error: true, message: '无法获取用户信息：缺少事件对象' };
     }
 
     try {
@@ -984,16 +928,7 @@ async function handleGenerateMeme(params, e, currentUserId) {
         }
 
         const resultBuffer = Buffer.from(await response.arrayBuffer());
-
-        const segment = await import('oicq').then(m => m.segment).catch(() =>
-            import('icqq').then(m => m.segment)
-        );
-
-        if (segment) {
-            await e.reply(segment.image(resultBuffer));
-        } else {
-            await e.reply({ type: 'image', file: `base64://${resultBuffer.toString('base64')}` });
-        }
+        const base64Image = resultBuffer.toString('base64');
 
         logger.info(`[表情包] 生成成功 | 类型:${meme_type} | 用户:${targetUserId}`);
 
@@ -1002,6 +937,8 @@ async function handleGenerateMeme(params, e, currentUserId) {
             meme_type: meme_type,
             meme_name: memeConfig.name,
             user_id: String(targetUserId),
+            user_name: userName,
+            image_base64: base64Image,
             message: `已生成${memeConfig.name}表情包`
         };
     } catch (error) {
