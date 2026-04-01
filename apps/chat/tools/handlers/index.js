@@ -39,6 +39,7 @@ const INTERACT_TOOLS = [
     'forward_message',
     'set_essence_message',
     'search_music',
+    'play_music',
     'get_lyrics',
     'get_playlist',
     'generate_meme'

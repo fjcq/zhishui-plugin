@@ -116,6 +116,9 @@ export async function handleInteractToolCall(toolName, params, e, currentUserId)
             case 'search_music':
                 result = await handleSearchMusic(params, e);
                 break;
+            case 'play_music':
+                result = await handlePlayMusic(params, e);
+                break;
             case 'get_lyrics':
                 result = await handleGetLyrics(params, e);
                 break;
@@ -407,50 +410,49 @@ async function handleSetEssenceMessage(params, e) {
  * @param {object} params - 参数对象
  * @param {string} params.keyword - 搜索关键词
  * @param {string} params.platform - 音乐平台 netease/tencent/kugou/kuwo
+ * @param {number} params.limit - 返回结果数量
  * @param {object} e - 事件对象
  * @returns {Promise<object>} 执行结果
  */
 async function handleSearchMusic(params, e) {
-    const { keyword, platform = 'kugou' } = params;
+    const { keyword, platform = 'kugou', limit = 5 } = params;
 
     if (!keyword) {
         return { error: true, error_message: '缺少歌曲关键词参数' };
     }
 
-    if (!e) {
-        return { error: true, error_message: '无法发送消息：缺少事件对象' };
-    }
+    const actualLimit = Math.min(Math.max(1, limit), 10);
 
     try {
-        const songInfo = await searchMusicByMeting(keyword, platform);
+        const songs = await searchMusicListByMeting(keyword, platform, actualLimit);
 
-        if (!songInfo) {
+        if (!songs || songs.length === 0) {
             return { error: true, error_message: `没有找到"${keyword}"相关的歌曲` };
         }
 
-        await sendMusicCard(e, songInfo, platform);
-
-        logger.info(`[互动] 点歌 | 平台:${platform} | 歌曲:${songInfo.name} - ${songInfo.artist}`);
+        logger.info(`[互动] 搜索音乐 | 平台:${platform} | 关键词:${keyword} | 结果数:${songs.length}`);
 
         return {
             success: true,
-            name: songInfo.name,
-            artist: songInfo.artist,
-            platform: platform
+            keyword: keyword,
+            platform: platform,
+            total_count: songs.length,
+            songs: songs
         };
     } catch (error) {
-        logger.error(`[互动] 点歌失败: ${error.message}`);
-        return { error: true, error_message: `点歌失败: ${error.message}` };
+        logger.error(`[互动] 搜索音乐失败: ${error.message}`);
+        return { error: true, error_message: `搜索音乐失败: ${error.message}` };
     }
 }
 
 /**
- * 使用Meting搜索音乐
+ * 使用Meting搜索音乐列表
  * @param {string} keyword - 搜索关键词
  * @param {string} platform - 平台代码 netease/tencent/kugou/kuwo
- * @returns {Promise<object|null>} 歌曲信息
+ * @param {number} limit - 返回数量限制
+ * @returns {Promise<Array<object>|null>} 歌曲列表
  */
-async function searchMusicByMeting(keyword, platform) {
+async function searchMusicListByMeting(keyword, platform, limit = 5) {
     try {
         const loaded = await loadMeting();
         if (!loaded) {
@@ -464,7 +466,7 @@ async function searchMusicByMeting(keyword, platform) {
             return null;
         }
 
-        const searchResult = await meting.search(keyword, { page: 1, limit: 5 });
+        const searchResult = await meting.search(keyword, { page: 1, limit: limit });
 
         let songs;
         try {
@@ -478,12 +480,103 @@ async function searchMusicByMeting(keyword, platform) {
             return null;
         }
 
-        const song = songs[0];
+        const platformLinks = {
+            netease: (id) => `https://music.163.com/#/song?id=${id}`,
+            tencent: (id) => `https://y.qq.com/n/ryqq/songDetail/${id}`,
+            kugou: (id) => `https://www.kugou.com/song/#hash=${id}`,
+            kuwo: (id) => `https://www.kuwo.cn/play_detail/${id}`
+        };
+
+        const results = songs.map((song, index) => ({
+            index: index + 1,
+            name: song.name || song.title,
+            artist: Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '未知歌手'),
+            id: song.id,
+            album: song.album || '',
+            duration: song.duration || 0,
+            link: platformLinks[platform] ? platformLinks[platform](song.id) : ''
+        }));
+
+        return results;
+    } catch (error) {
+        logger.error(`[音乐搜索] Meting搜索失败: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * 处理播放音乐
+ * @param {object} params - 参数对象
+ * @param {string} params.song_id - 歌曲ID
+ * @param {string} params.platform - 音乐平台 netease/tencent/kugou/kuwo
+ * @param {string} params.song_name - 歌曲名称（可选）
+ * @param {string} params.artist - 歌手名称（可选）
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handlePlayMusic(params, e) {
+    const { song_id, platform, song_name = '', artist = '' } = params;
+
+    if (!song_id) {
+        return { error: true, error_message: '缺少歌曲ID参数' };
+    }
+
+    if (!platform) {
+        return { error: true, error_message: '缺少音乐平台参数' };
+    }
+
+    if (!e) {
+        return { error: true, error_message: '无法发送消息：缺少事件对象' };
+    }
+
+    try {
+        const songInfo = await getSongDetail(song_id, platform);
+
+        if (!songInfo) {
+            return { error: true, error_message: `无法获取歌曲信息，ID: ${song_id}` };
+        }
+
+        await sendMusicCard(e, songInfo, platform);
+
+        logger.info(`[互动] 播放音乐 | 平台:${platform} | 歌曲:${songInfo.name} - ${songInfo.artist}`);
+
+        return {
+            success: true,
+            name: songInfo.name,
+            artist: songInfo.artist,
+            platform: platform,
+            song_id: song_id
+        };
+    } catch (error) {
+        logger.error(`[互动] 播放音乐失败: ${error.message}`);
+        return { error: true, error_message: `播放音乐失败: ${error.message}` };
+    }
+}
+
+/**
+ * 获取歌曲详情（包含播放链接）
+ * @param {string} songId - 歌曲ID
+ * @param {string} platform - 平台代码
+ * @returns {Promise<object|null>} 歌曲详情
+ */
+async function getSongDetail(songId, platform) {
+    try {
+        const loaded = await loadMeting();
+        if (!loaded) {
+            logger.warn(`[音乐播放] @meting/core 模块未安装`);
+            return null;
+        }
+
+        const meting = getMeting(platform);
+        if (!meting) {
+            logger.error(`[音乐播放] 获取Meting实例失败`);
+            return null;
+        }
 
         let musicUrl = '';
-        let duration = song.duration || 0;
+        let duration = 0;
         try {
-            const urlResult = await meting.url(song.url_id || song.id, 320);
+            const urlResult = await meting.url(songId, 320);
             const urlData = JSON.parse(urlResult);
             musicUrl = urlData?.url || '';
             if (urlData?.size && urlData?.br && urlData.br > 0) {
@@ -493,37 +586,43 @@ async function searchMusicByMeting(keyword, platform) {
                 }
             }
         } catch (urlError) {
-            logger.warn(`[音乐搜索] 获取播放链接失败: ${urlError.message}`);
+            logger.warn(`[音乐播放] 获取播放链接失败: ${urlError.message}`);
         }
 
         let picUrl = '';
+        let songName = '';
+        let artistName = '';
+        let albumName = '';
         try {
-            const picResult = await meting.pic(song.pic_id, 300);
+            const picResult = await meting.pic(songId, 300);
             const picData = JSON.parse(picResult);
             picUrl = picData?.url || '';
+            songName = picData?.name || picData?.title || '';
+            artistName = picData?.artist || '';
+            albumName = picData?.album || '';
         } catch (picError) {
-            logger.warn(`[音乐搜索] 获取封面失败: ${picError.message}`);
+            logger.warn(`[音乐播放] 获取封面失败: ${picError.message}`);
         }
 
         const platformLinks = {
-            netease: `https://music.163.com/#/song?id=${song.id}`,
-            tencent: `https://y.qq.com/n/ryqq/songDetail/${song.id}`,
-            kugou: `https://www.kugou.com/song/#hash=${song.id}`,
-            kuwo: `https://www.kuwo.cn/play_detail/${song.id}`
+            netease: `https://music.163.com/#/song?id=${songId}`,
+            tencent: `https://y.qq.com/n/ryqq/songDetail/${songId}`,
+            kugou: `https://www.kugou.com/song/#hash=${songId}`,
+            kuwo: `https://www.kuwo.cn/play_detail/${songId}`
         };
 
         return {
-            name: song.name || song.title,
-            artist: Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '未知歌手'),
-            id: song.id,
+            name: songName,
+            artist: Array.isArray(artistName) ? artistName.join(', ') : (artistName || '未知歌手'),
+            id: songId,
             url: musicUrl,
             duration: duration,
-            album: song.album || '',
-            pic: picUrl || song.pic || '',
+            album: albumName,
+            pic: picUrl,
             link: platformLinks[platform] || ''
         };
     } catch (error) {
-        logger.error(`[音乐搜索] Meting搜索失败: ${error.message}`);
+        logger.error(`[音乐播放] 获取歌曲详情失败: ${error.message}`);
         return null;
     }
 }
