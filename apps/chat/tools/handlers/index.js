@@ -29,21 +29,43 @@ const GROUP_TOOLS = [
 ];
 
 /**
- * 互动工具名称列表
+ * 音乐工具名称列表
  */
-const INTERACT_TOOLS = [
-    'poke_user',
+const MUSIC_TOOLS = [
+    'search_music',
+    'play_music',
+    'get_lyrics',
+    'get_playlist'
+];
+
+/**
+ * 消息工具名称列表
+ */
+const MESSAGE_TOOLS = [
     'send_image',
     'send_voice',
     'send_private_message',
     'forward_message',
-    'set_essence_message',
-    'search_music',
-    'play_music',
-    'get_lyrics',
-    'get_playlist',
+    'set_essence_message'
+];
+
+/**
+ * 互动工具名称列表
+ */
+const INTERACT_TOOLS = [
+    'poke_user',
     'generate_meme'
 ];
+
+/**
+ * 互动类工具集合（包含互动、音乐、消息工具）
+ * 用于快速判断工具是否由 handleInteractToolCall 处理
+ */
+const INTERACT_HANDLER_TOOLS = new Set([
+    ...INTERACT_TOOLS,
+    ...MUSIC_TOOLS,
+    ...MESSAGE_TOOLS
+]);
 
 /**
  * 记忆工具名称列表
@@ -193,7 +215,7 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
             return result;
         }
 
-        if (INTERACT_TOOLS.includes(toolName)) {
+        if (INTERACT_HANDLER_TOOLS.has(toolName)) {
             const result = await handleInteractToolCall(toolName, params, e, currentUserId);
             logToolResult(toolName, result);
             return result;
@@ -282,6 +304,8 @@ export {
     handleInteractToolCall,
     handleMemoryToolCall,
     GROUP_TOOLS,
+    MUSIC_TOOLS,
+    MESSAGE_TOOLS,
     INTERACT_TOOLS,
     MEMORY_TOOLS,
     FAVOR_TOOLS,

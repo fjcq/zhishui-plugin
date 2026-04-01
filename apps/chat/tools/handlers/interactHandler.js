@@ -7,6 +7,26 @@ import { isBotAdmin } from '../permissions.js';
 
 const logger = global.logger || console;
 
+/**
+ * 支持的音乐平台列表
+ */
+const VALID_MUSIC_PLATFORMS = ['netease', 'tencent', 'kugou', 'kuwo'];
+
+/**
+ * 验证音乐平台是否有效
+ * @param {string} platform - 平台名称
+ * @returns {object|null} 验证失败返回错误对象，成功返回null
+ */
+function validateMusicPlatform(platform) {
+    if (!VALID_MUSIC_PLATFORMS.includes(platform)) {
+        return {
+            error: true,
+            error_message: `不支持的音乐平台: ${platform}，支持的平台: ${VALID_MUSIC_PLATFORMS.join(', ')}`
+        };
+    }
+    return null;
+}
+
 let Meting = null;
 let metingLoadError = null;
 
@@ -421,6 +441,9 @@ async function handleSearchMusic(params, e) {
         return { error: true, error_message: '缺少歌曲关键词参数' };
     }
 
+    const platformError = validateMusicPlatform(platform);
+    if (platformError) return platformError;
+
     const actualLimit = Math.min(Math.max(1, limit), 10);
 
     try {
@@ -524,6 +547,9 @@ async function handlePlayMusic(params, e) {
     if (!platform) {
         return { error: true, error_message: '缺少音乐平台参数' };
     }
+
+    const platformError = validateMusicPlatform(platform);
+    if (platformError) return platformError;
 
     if (!e) {
         return { error: true, error_message: '无法发送消息：缺少事件对象' };
@@ -707,6 +733,9 @@ async function handleGetLyrics(params, e) {
     if (!keyword) {
         return { error: true, error_message: '缺少歌曲关键词参数' };
     }
+
+    const platformError = validateMusicPlatform(platform);
+    if (platformError) return platformError;
 
     try {
         const lyricsInfo = await getLyricsByMeting(keyword, platform, show_translation);
@@ -903,6 +932,9 @@ async function handleGetPlaylist(params, e) {
     if (!playlist_id) {
         return { error: true, error_message: '缺少歌单ID参数' };
     }
+
+    const platformError = validateMusicPlatform(platform);
+    if (platformError) return platformError;
 
     const actualLimit = Math.min(Math.max(1, limit), 30);
 

@@ -25,18 +25,25 @@ group_tools:
     - set_group_name
     - set_group_announcement
 
-# 互动工具
-interact_tools:
-    - poke_user
+# 音乐工具
+music_tools:
     - search_music
+    - play_music
     - get_lyrics
     - get_playlist
-    - generate_meme
+
+# 消息工具
+message_tools:
     - send_image
     - send_voice
     - send_private_message
     - forward_message
     - set_essence_message
+
+# 互动工具
+interact_tools:
+    - poke_user
+    - generate_meme
 
 # 记忆工具
 memory_tools:

@@ -44,19 +44,32 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '互动工具',
-        field: 'interact_tools',
+        label: '音乐工具',
+        field: 'music_tools',
         tools: [
-            { value: 'poke_user', label: '戳一戳', desc: '允许AI戳一戳用户' },
-            { value: 'search_music', label: '点歌', desc: '允许AI搜索并发送音乐' },
+            { value: 'search_music', label: '搜索音乐', desc: '允许AI搜索音乐并返回列表' },
+            { value: 'play_music', label: '播放音乐', desc: '允许AI播放指定音乐' },
             { value: 'get_lyrics', label: '获取歌词', desc: '允许AI获取歌曲歌词' },
-            { value: 'get_playlist', label: '获取歌单', desc: '允许AI获取歌单内容' },
-            { value: 'generate_meme', label: '表情包生成', desc: '允许AI使用用户头像生成表情包' },
+            { value: 'get_playlist', label: '获取歌单', desc: '允许AI获取歌单内容' }
+        ]
+    },
+    {
+        label: '消息工具',
+        field: 'message_tools',
+        tools: [
             { value: 'send_image', label: '发送图片', desc: '允许AI发送图片消息' },
             { value: 'send_voice', label: '发送语音', desc: '允许AI发送语音消息' },
             { value: 'send_private_message', label: '发送私聊', desc: '允许AI发送私聊消息' },
             { value: 'forward_message', label: '转发消息', desc: '允许AI转发消息到其他群' },
             { value: 'set_essence_message', label: '设为精华', desc: '允许AI设置精华消息（需Bot是管理员）' }
+        ]
+    },
+    {
+        label: '互动工具',
+        field: 'interact_tools',
+        tools: [
+            { value: 'poke_user', label: '戳一戳', desc: '允许AI戳一戳用户' },
+            { value: 'generate_meme', label: '表情包生成', desc: '允许AI使用用户头像生成表情包' }
         ]
     },
     {
@@ -100,17 +113,22 @@ const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
         'set_group_name',
         'set_group_announcement'
     ],
-    interact_tools: [
-        'poke_user',
+    music_tools: [
         'search_music',
+        'play_music',
         'get_lyrics',
-        'get_playlist',
-        'generate_meme',
+        'get_playlist'
+    ],
+    message_tools: [
         'send_image',
         'send_voice',
         'send_private_message',
         'forward_message',
         'set_essence_message'
+    ],
+    interact_tools: [
+        'poke_user',
+        'generate_meme'
     ],
     memory_tools: [
         'remember_user_info',

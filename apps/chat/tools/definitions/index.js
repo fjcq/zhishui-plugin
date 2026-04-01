@@ -7,6 +7,8 @@ import { Config } from '../../../../components/index.js';
 import { favorTools } from './favorTools.js';
 import { friendTools } from './friendTools.js';
 import { groupTools } from './groupTools.js';
+import { musicTools } from './musicTools.js';
+import { messageTools } from './messageTools.js';
 import { interactTools } from './interactTools.js';
 import { memoryTools } from './memoryTools.js';
 
@@ -27,6 +29,8 @@ export const allTools = [
     ...favorTools,
     ...friendTools,
     ...groupTools,
+    ...musicTools,
+    ...messageTools,
     ...interactTools,
     ...memoryTools
 ];
@@ -38,6 +42,8 @@ export const toolsByCategory = {
     favor: favorTools,
     friend: friendTools,
     group: groupTools,
+    music: musicTools,
+    message: messageTools,
     interact: interactTools,
     memory: memoryTools
 };
@@ -84,6 +90,8 @@ const TOOL_CATEGORY_FIELDS = [
     'favor_tools',
     'friend_tools',
     'group_tools',
+    'music_tools',
+    'message_tools',
     'interact_tools',
     'memory_tools'
 ];
@@ -196,4 +204,4 @@ export function getToolSensitivity(toolName) {
     return SensitivityLevel.LOW;
 }
 
-export { favorTools, friendTools, groupTools, interactTools, memoryTools };
+export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools };
