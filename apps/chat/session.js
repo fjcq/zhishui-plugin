@@ -2,7 +2,7 @@ import { KeyvFile } from 'keyv-file';
 import path from 'path';
 import fs from 'fs';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode, getCurrentRoleIndex } from './config.js';
-import { filterMessagesByPrivacy } from './privacy/sceneFilter.js';
+import { filterMessagesByPrivacy, DEFAULT_PRIVACY_CONFIG } from './privacy/sceneFilter.js';
 
 const logger = global.logger || console;
 
@@ -136,7 +136,7 @@ async function loadChatMsgV2(sessionId, e) {
     }
 
     const currentScene = getCurrentScene(e);
-    return filterMessagesByPrivacy(sessionData.messages, currentScene);
+    return filterMessagesByPrivacy(sessionData.messages, currentScene, DEFAULT_PRIVACY_CONFIG);
 }
 
 /**

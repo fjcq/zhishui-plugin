@@ -28,7 +28,7 @@ export const PRIVACY_LEVEL = {
 /**
  * 默认隐私配置
  */
-const DEFAULT_PRIVACY_CONFIG = {
+export const DEFAULT_PRIVACY_CONFIG = {
     crossSceneRecall: {
         enabled: true,
         allowedCombinations: [

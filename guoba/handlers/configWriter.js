@@ -263,9 +263,9 @@ async function handleChatSave(chatData) {
         const newMode = chatData.ContextMode || 'role';
 
         if (oldMode && newMode && oldMode !== newMode) {
-            const clearTarget = oldMode === 'role' ? 'role' : 'isolated';
+            const clearTarget = oldMode;
             const result = clearAllSessions(clearTarget);
-            console.log(`[锅巴面板] ContextMode切换: 先清除${clearTarget}模式${result.count}个会话文件`);
+            console.log(`[锅巴面板] ContextMode ${oldMode}→${newMode}: 已清除${clearTarget}模式${result.count}个会话文件`);
         }
 
         Config.modify('chat', '', chatData, 'config');
