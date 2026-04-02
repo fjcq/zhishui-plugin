@@ -12,7 +12,7 @@ import { getLatestRoles, getRoleOptions, getApiOptions } from '../utils/schemaUt
 export function getChatBasicSchemas() {
     return [
         {
-            label: '对话设置',
+            label: '💬 对话设置',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

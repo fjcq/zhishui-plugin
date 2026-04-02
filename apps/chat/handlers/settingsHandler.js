@@ -4,7 +4,8 @@
  */
 
 import { Config } from '../../../components/index.js';
-import { ReadScene, WriteScene, clearSessionContext } from '../helpers.js';
+import { ReadScene, WriteScene, clearSessionContext, getContextMode, setContextMode, CONTEXT_MODES } from '../helpers.js';
+import { clearAllSessions } from '../session.js';
 
 /**
  * 设置对话身份
@@ -186,7 +187,8 @@ export async function handleTalkTest(e) {
  */
 export async function handleShowRawResponse(e, lastRawResponseMap) {
     try {
-        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+        const { generateSessionId } = await import('../session.js');
+        const sessionId = await generateSessionId(e);
         const rawResponse = lastRawResponseMap[sessionId];
 
         if (!rawResponse) {
@@ -213,5 +215,95 @@ export async function handleShowRawResponse(e, lastRawResponseMap) {
     } catch (error) {
         console.error('[ShowRawResponse] 查看API原始返回数据失败:', error);
         e.reply('获取API原始返回数据失败，请稍后重试。');
+    }
+}
+
+/**
+ * 查看当前存储模式
+ * @param {Object} e - 事件对象
+ * @returns {Promise<void>}
+ */
+export async function handleShowContextMode(e) {
+    const mode = await getContextMode();
+    const modeLabel = mode === 'role' ? '角色整合模式（方案二）' : '场景隔离模式（方案一）';
+    const modeDesc = mode === 'role'
+        ? '同一角色的群聊和私聊对话记录合并存储，AI可跨场景记忆对话内容'
+        : '群聊和私聊的对话记录分开独立存储，互不干扰';
+    e.reply(`【当前存储模式】${modeLabel}\n\n${modeDesc}\n\n可用命令：#切换存储模式 isolated|role`);
+}
+
+/**
+ * 切换存储模式
+ * 切换时会清除旧模式的全部聊天记录
+ * @param {Object} e - 事件对象
+ * @returns {Promise<void>}
+ */
+export async function handleSwitchContextMode(e) {
+    if (!e.isMaster) {
+        e.reply('只有主人可以切换存储模式');
+        return;
+    }
+
+    const arg = e.msg
+        .replace(/^#?(止水)?(插件|对话)?切换(存储|对话|上下文)模式/, '')
+        .trim()
+        .toLowerCase();
+
+    if (!arg || (arg !== 'isolated' && arg !== 'role' && arg !== '方案一' && arg !== '方案二')) {
+        const currentMode = await getContextMode();
+        const currentLabel = currentMode === 'role' ? '角色整合（方案二）' : '场景隔离（方案一）';
+        e.reply(
+            `请指定要切换的存储模式：\n` +
+            `当前模式: ${currentLabel}\n\n` +
+            `用法: #切换存储模式 role\n` +
+            `     #切换存储模式 isolated\n\n` +
+            `【可选值】\n` +
+            `  role     - 角色整合模式（方案二，推荐）：同角色跨场景记忆\n` +
+            `  isolated - 场景隔离模式（方案一）：群聊/私聊完全隔离`
+        );
+        return;
+    }
+
+    let targetMode;
+    if (arg === 'role' || arg === '方案二') {
+        targetMode = CONTEXT_MODES.ROLE;
+    } else if (arg === 'isolated' || arg === '方案一') {
+        targetMode = CONTEXT_MODES.ISOLATED;
+    } else {
+        e.reply(`无效的模式参数: ${arg}，请使用 role 或 isolated`);
+        return;
+    }
+
+    const currentMode = await getContextMode();
+    if (currentMode === targetMode) {
+        const label = targetMode === 'role' ? '角色整合模式（方案二）' : '场景隔离模式（方案一）';
+        e.reply(`当前已经是${label}，无需切换。`);
+        return;
+    }
+
+    const oldModeLabel = currentMode === 'role' ? '角色整合' : '场景隔离';
+    const newModeLabel = targetMode === 'role' ? '角色整合（方案二）' : '场景隔离（方案一）';
+
+    try {
+        const clearTarget = currentMode === 'role' ? 'role' : 'isolated';
+        const result = clearAllSessions(clearTarget);
+
+        await setContextMode(targetMode);
+
+        const { chatActiveMap, lastRequestTime } = await import('../config.js');
+        Object.keys(chatActiveMap).forEach(key => chatActiveMap[key] = 0);
+        Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
+
+        let replyMsg = `存储模式已从「${oldModeLabel}」切换为「${newModeLabel}」`;
+        replyMsg += `\n已清除旧模式的全部聊天记录（共${result.count}个文件）`;
+
+        if (result.errors.length > 0) {
+            replyMsg += `\n⚠️ 部分文件清除失败: ${result.errors.slice(0, 2).join('; ')}`;
+        }
+        replyMsg += '\n新的对话将从零开始记录。';
+        e.reply(replyMsg);
+    } catch (error) {
+        console.error('[SwitchContextMode] 切换存储模式失败:', error);
+        e.reply(`切换失败: ${error.message}`);
     }
 }

@@ -5,7 +5,7 @@
 
 import { Config } from '../../../components/index.js';
 import { getCurrentRoleIndex } from '../config.js';
-import { clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel } from '../helpers.js';
+import { clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel, generateSessionId } from '../helpers.js';
 import { getCurrentApiConfig } from '../helpers.js';
 
 /**
@@ -118,14 +118,14 @@ export async function handleSwitchRole(e) {
         return;
     }
 
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    const sessionId = await generateSessionId(e);
 
     const { apiConfig } = await getCurrentApiConfig(e);
     const model = (apiConfig.ApiModel || '').toLowerCase();
     const type = (apiConfig.ApiType || '').toLowerCase();
 
     let lost = false;
-    let chatMsg = await loadChatMsg(sessionId);
+    let chatMsg = await loadChatMsg(e);
     if (Array.isArray(chatMsg) && chatMsg.length > 0) {
         const { converted, lostContent } = convertChatContextForModel(chatMsg, type, type, model, model);
         await saveChatMsg(sessionId, converted);

@@ -12,7 +12,7 @@ import { getVoiceSettingSchemas } from './voiceSchema.js';
 export function getNetworkSchemas() {
     return [
         {
-            label: '网络设置',
+            label: '🌐 网络设置',
             component: 'SOFT_GROUP_BEGIN'
         },
         {
@@ -42,7 +42,7 @@ export function getNetworkSchemas() {
 export function getPermissionSchemas() {
     return [
         {
-            label: '权限设置',
+            label: '🔐 权限设置',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

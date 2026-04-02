@@ -67,7 +67,7 @@ export function getVoiceSchemas() {
 export function getVoiceSettingSchemas() {
     return [
         {
-            label: '语音设置',
+            label: '🔊 语音设置',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

@@ -10,7 +10,7 @@ import { textToImage, shouldResponseAsImage } from '../chatHelper.js';
 import voiceManager from '../../voice/voiceManager.js';
 import { isToolCallingSupported } from '../api-types.js';
 import { checkRateLimit, getUserFavor, setUserFavor } from '../user/index.js';
-import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSessionContext, getSessionKeyv } from '../helpers.js';
+import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
 
 /**
  * 处理对话核心逻辑
@@ -19,7 +19,7 @@ import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSess
  * @returns {Promise<boolean>} 处理结果
  */
 export async function handleChat(e, chatNickname) {
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    const sessionId = await generateSessionId(e);
     let msg = e.msg;
 
     function escapeRegExp(str) {
@@ -172,7 +172,7 @@ export async function handleChat(e, chatNickname) {
         const userMessage = baseMessage;
         const MessageText = JSON.stringify(userMessage);
         const systemMessage = await mergeSystemMessage(e, supportsToolCalling);
-        const chatMsg = await loadChatMsg(sessionId);
+        const chatMsg = await loadChatMsg(e);
 
         if (!chatMsg || chatMsg.length === 0) {
             console.log('[止水对话] 首次构建上下文，系统提示词:');
@@ -417,8 +417,9 @@ export async function handleChat(e, chatNickname) {
  * @returns {Promise<void>}
  */
 export async function handleResetChat(e) {
-    const { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH } = await import('../config.js');
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    const { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH } = await import('../config.js');
+    const { clearAllSessions } = await import('../session.js');
+    const sessionId = await generateSessionId(e);
     chatActiveMap[sessionId] = 0;
 
     if (lastRequestTime[sessionId]) {
@@ -426,23 +427,23 @@ export async function handleResetChat(e) {
     }
 
     if (/全部/.test(e.msg)) {
-        const fs = await import('fs');
-        const path = await import('path');
-        const files = fs.readdirSync(CHAT_CONTEXT_PATH);
-        for (const file of files) {
-            const filePath = path.join(CHAT_CONTEXT_PATH, file);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-        }
+        const { clearAllSessions } = await import('../session.js');
+        const mode = await (await import('../config.js')).getContextMode();
+        const targetMode = mode === 'role' ? 'role' : 'isolated';
+        const result = clearAllSessions(targetMode);
+
         Object.keys(chatActiveMap).forEach(key => chatActiveMap[key] = 0);
         Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
-        e.reply('已清除全部对话缓存！');
+
+        let replyMsg = `已清除全部对话缓存！共清理${result.count}个文件`;
+        if (result.errors.length > 0) {
+            replyMsg += `\n部分文件清除失败: ${result.errors.slice(0, 3).join('; ')}`;
+        }
+        e.reply(replyMsg);
         return;
     }
 
-    const keyv = getSessionKeyv(sessionId);
-    await keyv.delete('chatMsg');
+    await clearSessionContext(e);
 
     e.reply('已经重置对话了！');
 }

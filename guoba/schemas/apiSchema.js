@@ -11,7 +11,7 @@ import { getApiTypeSelectOptions, getApiOptions } from '../utils/schemaUtils.js'
 export function getApiSchemas() {
     return [
         {
-            label: 'AI接口设置',
+            label: '⚙️ 模型接口',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

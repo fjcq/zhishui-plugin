@@ -4,7 +4,7 @@
  */
 
 import { Config } from '../../../components/index.js';
-import { getCurrentApiConfig, clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel } from '../helpers.js';
+import { getCurrentApiConfig, clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel, generateSessionId } from '../helpers.js';
 import { getCurrentRoleIndex } from '../config.js';
 
 /**
@@ -87,7 +87,7 @@ export async function handleSwitchApi(e) {
         return;
     }
 
-    const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
+    const sessionId = await generateSessionId(e);
 
     const { apiIndex: oldApiIndex, apiConfig: oldApi } = await getCurrentApiConfig(e);
     const newApi = ApiList[idx] || {};
@@ -99,7 +99,7 @@ export async function handleSwitchApi(e) {
     await Config.modify('chat', 'CurrentApiIndex', idx);
 
     let lost = false;
-    let chatMsg = await loadChatMsg(sessionId);
+    let chatMsg = await loadChatMsg(e);
     if (Array.isArray(chatMsg) && chatMsg.length > 0) {
         const { converted, lostContent } = convertChatContextForModel(chatMsg, oldType, newType, oldModel, newModel);
         await saveChatMsg(sessionId, converted);

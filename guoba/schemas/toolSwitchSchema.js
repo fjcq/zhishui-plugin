@@ -150,7 +150,7 @@ const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
 export function getToolSwitchSchemas() {
     const schemas = [
         {
-            label: '🔧 工具调用设置',
+            label: '🔧 工具管理',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

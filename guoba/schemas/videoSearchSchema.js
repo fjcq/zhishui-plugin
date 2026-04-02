@@ -12,7 +12,7 @@ import { getResourceOptions } from '../utils/schemaUtils.js';
 export function getVideoSearchSchemas() {
     return [
         {
-            label: '搜剧设置',
+            label: '🎬 搜剧设置',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

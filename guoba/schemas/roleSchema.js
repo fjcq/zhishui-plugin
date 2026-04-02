@@ -14,7 +14,7 @@ export function getRoleSchemas() {
     
     return [
         {
-            label: '角色管理',
+            label: '🎭 角色管理',
             component: 'SOFT_GROUP_BEGIN'
         },
         {

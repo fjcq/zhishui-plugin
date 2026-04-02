@@ -4,7 +4,7 @@
  */
 
 import { getCurrentRoleIndex } from '../config.js';
-import { clearSessionContext, getSessionKeyv, loadChatMsg } from '../helpers.js';
+import { clearSessionContext, getSessionKeyv, loadChatMsg, generateSessionId } from '../helpers.js';
 import { Config } from '../../../components/index.js';
 
 /**
@@ -14,9 +14,8 @@ import { Config } from '../../../components/index.js';
  */
 export async function handleShowChatHistory(e) {
     try {
-        const sessionId = e.group_id ? `group_${e.group_id}` : `user_${e.user_id}`;
-        const keyv = getSessionKeyv(sessionId);
-        const history = await keyv.get('chatMsg');
+        const sessionId = await generateSessionId(e);
+        const history = await loadChatMsg(e);
 
         if (!history || !Array.isArray(history) || history.length === 0) {
             e.reply('暂无对话历史记录');

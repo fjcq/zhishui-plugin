@@ -10,9 +10,50 @@ import { getDecisionPrompt } from './tools/decisionEngine.js';
 
 export const CHAT_CONTEXT_PATH = path.join(Plugin_Path, 'data', 'chatContext');
 
+export const CHAT_CONTEXT_V2_PATH = path.join(CHAT_CONTEXT_PATH, 'v2');
+
 export const chatActiveMap = {};
 
 export const lastRequestTime = {};
+
+/**
+ * 上下文存储模式
+ * isolated: 按场景隔离存储（群聊/私聊分开）- 方案一
+ * role:     按角色整合存储（同一角色跨场景合并）- 方案二
+ */
+const CONTEXT_MODES = {
+    ISOLATED: 'isolated',
+    ROLE: 'role'
+};
+
+/**
+ * 获取当前上下文存储模式
+ * @returns {Promise<string>} 存储模式标识
+ */
+export async function getContextMode() {
+    try {
+        const mode = await Config.Chat.ContextMode;
+        if (mode === CONTEXT_MODES.ISOLATED || mode === CONTEXT_MODES.ROLE) {
+            return mode;
+        }
+    } catch (error) {
+    }
+    return CONTEXT_MODES.ROLE;
+}
+
+/**
+ * 设置上下文存储模式
+ * @param {string} mode - 存储模式 (isolated | role)
+ * @returns {Promise<void>}
+ */
+export async function setContextMode(mode) {
+    if (mode !== CONTEXT_MODES.ISOLATED && mode !== CONTEXT_MODES.ROLE) {
+        throw new Error(`无效的存储模式: ${mode}，仅支持 ${CONTEXT_MODES.ISOLATED} 或 ${CONTEXT_MODES.ROLE}`);
+    }
+    await Config.modify('chat', 'ContextMode', mode);
+}
+
+export { CONTEXT_MODES };
 
 export const API_INTERVALS = {
     'default': 3000,
