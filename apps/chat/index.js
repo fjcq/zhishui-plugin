@@ -62,8 +62,9 @@ export class ChatHandler extends plugin {
                 { reg: `^#?(止水)?(插件|对话)?重置用户配置\\s*(\\d+)$`, fnc: 'ResetOtherUserConfig' },
                 { reg: `^#?(止水)?(插件|对话)?查看用户配置统计$`, fnc: 'ShowUserConfigStats' },
                 { reg: `^#?(止水)?(插件|对话)?查看(对话)?原始(数据|返回)$`, fnc: 'ShowRawResponse' },
-                { reg: `^#?(止水)?(插件|对话)?查看存储模式$`, fnc: 'ShowContextMode' },
-                { reg: `^#?(止水)?(插件|对话)?切换(存储|对话|上下文)模式(.*)$`, fnc: 'SwitchContextMode' },
+                { reg: `^#?(止水)?(插件|对话)?(查看)?(存储|上下文)模式$`, fnc: 'ShowContextMode' },
+                { reg: `^#?(止水)?(插件|对话)?切换?模式\s*(角色|整合|role|方案二)$`, fnc: 'SwitchContextModeRole' },
+                { reg: `^#?(止水)?(插件|对话)?切换?模式\s*(场景|隔离|isolated|方案一)$`, fnc: 'SwitchContextModeIsolated' },
                 { reg: ``, fnc: 'chat', log: false }
             ]
         });
@@ -207,8 +208,12 @@ export class ChatHandler extends plugin {
         await handlers.handleShowContextMode(e);
     }
 
-    async SwitchContextMode(e) {
-        await handlers.handleSwitchContextMode(e);
+    async SwitchContextModeRole(e) {
+        await handlers.handleSwitchContextMode(e, 'role');
+    }
+
+    async SwitchContextModeIsolated(e) {
+        await handlers.handleSwitchContextMode(e, 'isolated');
     }
 }
 

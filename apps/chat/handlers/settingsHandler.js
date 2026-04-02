@@ -225,85 +225,96 @@ export async function handleShowRawResponse(e, lastRawResponseMap) {
  */
 export async function handleShowContextMode(e) {
     const mode = await getContextMode();
-    const modeLabel = mode === 'role' ? '角色整合模式（方案二）' : '场景隔离模式（方案一）';
+    const modeLabel = mode === 'role' ? '角色整合（方案二）' : '场景隔离（方案一）';
     const modeDesc = mode === 'role'
-        ? '同一角色的群聊和私聊对话记录合并存储，AI可跨场景记忆对话内容'
-        : '群聊和私聊的对话记录分开独立存储，互不干扰';
-    e.reply(`【当前存储模式】${modeLabel}\n\n${modeDesc}\n\n可用命令：#切换存储模式 isolated|role`);
+        ? '同一角色的群聊和私聊对话合并存储，AI可跨场景记忆'
+        : '群聊和私聊的对话分开独立存储，互不干扰';
+    e.reply(`【当前模式】${modeLabel}\n${modeDesc}\n\n切换命令：#模式角色 / #模式隔离`);
 }
 
 /**
  * 切换存储模式
  * 切换时会清除旧模式的全部聊天记录
  * @param {Object} e - 事件对象
+ * @param {string} [targetMode] - 目标模式，由调用方传入时直接使用，否则从消息解析
  * @returns {Promise<void>}
  */
-export async function handleSwitchContextMode(e) {
+export async function handleSwitchContextMode(e, targetMode) {
     if (!e.isMaster) {
         e.reply('只有主人可以切换存储模式');
         return;
     }
 
+    if (targetMode) {
+        await doSwitchMode(e, targetMode);
+        return;
+    }
+
     const arg = e.msg
-        .replace(/^#?(止水)?(插件|对话)?切换(存储|对话|上下文)模式/, '')
+        .replace(/^#?(止水)?(插件|对话)?切换?(存储|上下文)?模式\s*/, '')
         .trim()
         .toLowerCase();
 
-    if (!arg || (arg !== 'isolated' && arg !== 'role' && arg !== '方案一' && arg !== '方案二')) {
-        const currentMode = await getContextMode();
-        const currentLabel = currentMode === 'role' ? '角色整合（方案二）' : '场景隔离（方案一）';
+    if (!arg) {
         e.reply(
-            `请指定要切换的存储模式：\n` +
-            `当前模式: ${currentLabel}\n\n` +
-            `用法: #切换存储模式 role\n` +
-            `     #切换存储模式 isolated\n\n` +
-            `【可选值】\n` +
-            `  role     - 角色整合模式（方案二，推荐）：同角色跨场景记忆\n` +
-            `  isolated - 场景隔离模式（方案一）：群聊/私聊完全隔离`
+            `【切换存储模式】当前: ${await (async () => { const m = await getContextMode(); return m === 'role' ? '角色整合' : '场景隔离'; })()}\n\n` +
+            `命令：\n` +
+            `  #模式角色   → 切换为角色整合模式（跨场景记忆）\n` +
+            `  #模式隔离   → 切换为场景隔离模式（群聊私聊分离）\n\n` +
+            `也可在锅巴设置面板中切换`
         );
         return;
     }
 
-    let targetMode;
-    if (arg === 'role' || arg === '方案二') {
-        targetMode = CONTEXT_MODES.ROLE;
-    } else if (arg === 'isolated' || arg === '方案一') {
-        targetMode = CONTEXT_MODES.ISOLATED;
+    if (arg === 'role' || arg === '角色' || arg === '整合' || arg === '方案二') {
+        await doSwitchMode(e, CONTEXT_MODES.ROLE);
+    } else if (arg === 'isolated' || arg === '场景' || arg === '隔离' || arg === '方案一') {
+        await doSwitchMode(e, CONTEXT_MODES.ISOLATED);
     } else {
-        e.reply(`无效的模式参数: ${arg}，请使用 role 或 isolated`);
-        return;
+        e.reply(`未知参数: ${arg}\n可用命令: #模式角色 / #模式隔离`);
     }
+}
 
+/**
+ * 执行模式切换的核心逻辑
+ * @param {Object} e - 事件对象
+ * @param {string} targetMode - 目标模式 ('role' | 'isolated')
+ * @returns {Promise<void>}
+ */
+async function doSwitchMode(e, targetMode) {
     const currentMode = await getContextMode();
+
     if (currentMode === targetMode) {
-        const label = targetMode === 'role' ? '角色整合模式（方案二）' : '场景隔离模式（方案一）';
-        e.reply(`当前已经是${label}，无需切换。`);
+        const label = targetMode === 'role' ? '角色整合' : '场景隔离';
+        e.reply(`当前已经是「${label}」模式，无需切换。`);
         return;
     }
 
-    const oldModeLabel = currentMode === 'role' ? '角色整合' : '场景隔离';
-    const newModeLabel = targetMode === 'role' ? '角色整合（方案二）' : '场景隔离（方案一）';
+    const oldLabel = currentMode === 'role' ? '角色整合' : '场景隔离';
+    const newLabel = targetMode === 'role' ? '角色整合' : '场景隔离';
 
     try {
-        const clearTarget = currentMode === 'role' ? 'role' : 'isolated';
+        // Step 1: 清除当前模式下的所有会话数据
+        const clearTarget = currentMode;
         const result = clearAllSessions(clearTarget);
 
+        // Step 2: 切换到新模式
         await setContextMode(targetMode);
 
         const { chatActiveMap, lastRequestTime } = await import('../config.js');
         Object.keys(chatActiveMap).forEach(key => chatActiveMap[key] = 0);
         Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
 
-        let replyMsg = `存储模式已从「${oldModeLabel}」切换为「${newModeLabel}」`;
-        replyMsg += `\n已清除旧模式的全部聊天记录（共${result.count}个文件）`;
+        let replyMsg = `已从「${oldLabel}」切换为「${newLabel}」`;
+        replyMsg += `\n清除旧记录: ${result.count}个文件`;
 
         if (result.errors.length > 0) {
-            replyMsg += `\n⚠️ 部分文件清除失败: ${result.errors.slice(0, 2).join('; ')}`;
+            replyMsg += `\n⚠️ ${result.errors.slice(0, 2).join('; ')}`;
         }
-        replyMsg += '\n新的对话将从零开始记录。';
+        replyMsg += '\n新对话将从零开始。';
         e.reply(replyMsg);
     } catch (error) {
-        console.error('[SwitchContextMode] 切换存储模式失败:', error);
+        console.error('[SwitchContextMode] 切换失败:', error);
         e.reply(`切换失败: ${error.message}`);
     }
 }

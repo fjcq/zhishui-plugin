@@ -4,6 +4,7 @@
 
 import { Config } from '../../components/index.js';
 import { getLatestConfigData } from './configReader.js';
+import { clearAllSessions } from '../../apps/chat/session.js';
 
 /**
  * 保存配置数据
@@ -35,9 +36,11 @@ export async function setConfigData(data, { Result, action }) {
                     handleVideoSearchSave(data[key]);
                     break;
                 case 'voice':
-                case 'chat':
                 case 'proxy':
                     Config.modify(key, '', data[key], 'config');
+                    break;
+                case 'chat':
+                    await handleChatSave(data[key]);
                     break;
                 default:
                     handleGenericSave(key, data[key]);
@@ -245,5 +248,29 @@ function handleGenericSave(key, value) {
         Config.modify(fileName, configKey, value, 'config');
     } else {
         Config.modify(fileName, '', value, 'config');
+    }
+}
+
+/**
+ * 处理对话配置保存
+ * 检测ContextMode变化，切换时清除旧模式的会话数据
+ * @param {Object} chatData - 对话配置数据
+ * @returns {Promise<void>}
+ */
+async function handleChatSave(chatData) {
+    try {
+        const oldMode = await Config.Chat.ContextMode;
+        const newMode = chatData.ContextMode || 'role';
+
+        if (oldMode && newMode && oldMode !== newMode) {
+            const clearTarget = oldMode === 'role' ? 'role' : 'isolated';
+            const result = clearAllSessions(clearTarget);
+            console.log(`[锅巴面板] ContextMode切换: 先清除${clearTarget}模式${result.count}个会话文件`);
+        }
+
+        Config.modify('chat', '', chatData, 'config');
+    } catch (error) {
+        console.error('[锅巴面板] 保存对话配置失败:', error);
+        throw error;
     }
 }

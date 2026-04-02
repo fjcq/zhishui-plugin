@@ -2,6 +2,7 @@ import { KeyvFile } from 'keyv-file';
 import path from 'path';
 import fs from 'fs';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode, getCurrentRoleIndex } from './config.js';
+import { filterMessagesByPrivacy } from './privacy/sceneFilter.js';
 
 const logger = global.logger || console;
 
@@ -121,8 +122,9 @@ async function loadChatMsgV1(sessionId) {
 
 /**
  * V2模式加载聊天消息（按角色整合，返回纯消息数组供API使用）
+ * 自动应用隐私过滤，防止跨场景敏感信息泄露
  * @param {string} sessionId - V2会话ID
- * @param {Object} e - 事件对象（用于隐私过滤）
+ * @param {Object} e - 事件对象（用于确定当前场景和隐私过滤）
  * @returns {Promise<Array>} 过滤后的消息数组
  */
 async function loadChatMsgV2(sessionId, e) {
@@ -133,13 +135,8 @@ async function loadChatMsgV2(sessionId, e) {
         return [];
     }
 
-    return sessionData.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        tool_calls: msg.tool_calls,
-        tool_call_id: msg.tool_call_id,
-        reasoning_content: msg.reasoning_content
-    }));
+    const currentScene = getCurrentScene(e);
+    return filterMessagesByPrivacy(sessionData.messages, currentScene);
 }
 
 /**

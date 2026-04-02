@@ -75,6 +75,24 @@ export function getChatBasicSchemas() {
             helpMessage: '开启后，AI回复中的链接会以可点击的形式展示',
             bottomHelpMessage: '是否开启对话链接模式',
             component: 'Switch'
+        },
+        {
+            component: 'Divider',
+            label: '存储模式'
+        },
+        {
+            field: 'chat.ContextMode',
+            label: '上下文存储模式',
+            helpMessage: '控制AI对话记录的保存方式。切换模式会清除当前模式的全部聊天记录。',
+            bottomHelpMessage: '角色整合：同角色跨场景记忆；场景隔离：群聊/私聊分开存储（默认角色整合）',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { label: '角色整合（推荐）', value: 'role' },
+                    { label: '场景隔离', value: 'isolated' }
+                ],
+                placeholder: '选择存储模式'
+            }
         }
     ];
 }

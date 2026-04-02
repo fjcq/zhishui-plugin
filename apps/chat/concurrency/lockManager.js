@@ -92,15 +92,15 @@ class SessionLockManager {
     async withLock(sessionId, operation, timeout) {
         const effectiveTimeout = timeout || this.lockTimeout;
         const lock = this.getLock(sessionId);
-        let release;
+        let release = null;
 
         try {
-            const raceResult = await Promise.race([
+            const acquireResult = await Promise.race([
                 lock.acquire(),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('获取锁超时')), effectiveTimeout))
             ]);
 
-            release = raceResult;
+            release = acquireResult;
             return await operation();
         } catch (error) {
             if (error.message.includes('超时')) {
@@ -108,7 +108,7 @@ class SessionLockManager {
             }
             throw error;
         } finally {
-            if (typeof release === 'function') {
+            if (release !== null && typeof release === 'function') {
                 release();
             }
         }
