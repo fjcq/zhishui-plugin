@@ -104,7 +104,7 @@ export async function handleMemeToolCall(toolName, params, e, currentUserId) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGenerateMeme(params, e, currentUserId) {
-    const { meme_type, user_id, text = '' } = params;
+    const { meme_type, user_id, user_id_2, text = '' } = params;
 
     if (!meme_type) {
         return { error: true, error_message: '缺少表情包类型参数' };
@@ -135,10 +135,11 @@ async function handleGenerateMeme(params, e, currentUserId) {
         const formData = new FormData();
 
         if (memeConfig.minImages > 1) {
-            const selfAvatarUrl = await getUserAvatar(e, e.bot?.uin || e.self_id);
-            if (selfAvatarUrl) {
-                const selfAvatarBuffer = await fetchImageBuffer(selfAvatarUrl);
-                formData.append('images', new Blob([selfAvatarBuffer]));
+            const secondUserId = user_id_2 || e.bot?.uin || e.self_id;
+            const secondAvatarUrl = await getUserAvatar(e, secondUserId);
+            if (secondAvatarUrl) {
+                const secondAvatarBuffer = await fetchImageBuffer(secondAvatarUrl);
+                formData.append('images', new Blob([secondAvatarBuffer]));
             }
         }
 
