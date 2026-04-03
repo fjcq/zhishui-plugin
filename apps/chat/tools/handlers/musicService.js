@@ -94,11 +94,12 @@ export async function getSongDetail(songId, platform) {
             const urlResult = await meting.url(songId, 320);
             const urlData = JSON.parse(urlResult);
             musicUrl = urlData?.url || '';
-            if (urlData?.size && urlData?.br && urlData.br > 0) {
-                const calculatedDuration = Math.round((urlData.size * 8) / (urlData.br * 1000));
-                if (calculatedDuration > 0) {
-                    duration = calculatedDuration;
-                }
+            // 优先使用API返回的duration
+            if (urlData?.duration && urlData.duration > 0) {
+                duration = urlData.duration;
+            } else if (urlData?.size && urlData?.br && urlData.br > 0) {
+                // 备用：通过文件大小和比特率计算
+                duration = Math.round((urlData.size * 8) / (urlData.br * 1000));
             }
         } catch (urlError) {
             logger.warn(`[音乐播放] 获取播放链接失败: ${urlError.message}`);
@@ -147,10 +148,12 @@ export async function sendMusicCard(e, songInfo, platform) {
 
         const MAX_VOICE_DURATION = 300;
         const duration = songInfo.duration || 0;
-        const canSendVoice = songInfo.url &&
-            songInfo.url.startsWith('http') &&
-            duration > 0 &&
-            duration <= MAX_VOICE_DURATION;
+        const hasValidUrl = songInfo.url && songInfo.url.startsWith('http');
+
+        // 判断是否可以发送语音
+        // 条件：有有效URL，且时长不超过限制（时长为0时也尝试发送）
+        const canSendVoice = hasValidUrl &&
+            (duration === 0 || duration <= MAX_VOICE_DURATION);
 
         if (canSendVoice) {
             await e.reply(`正在获取《${songInfo.name}》，请稍等...`);
@@ -161,7 +164,7 @@ export async function sendMusicCard(e, songInfo, platform) {
                 if (segment) {
                     const recordMsg = await createVoiceWithTimeout(segment, songInfo.url);
                     await e.reply(recordMsg);
-                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist} | 时长:${duration}秒`);
+                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist} | 时长:${duration > 0 ? duration + '秒' : '未知'}`);
                     return;
                 }
             } catch (recordError) {
@@ -169,7 +172,7 @@ export async function sendMusicCard(e, songInfo, platform) {
             }
         } else if (duration > MAX_VOICE_DURATION) {
             logger.info(`[点歌] 歌曲时长${duration}秒超过限制，发送链接`);
-        } else if (!songInfo.url || !songInfo.url.startsWith('http')) {
+        } else if (!hasValidUrl) {
             logger.info(`[点歌] 无有效播放链接，发送歌曲信息`);
         }
 
