@@ -72,9 +72,14 @@ export async function searchMusicList(keyword, platform, limit = 5) {
  * 获取歌曲详情
  * @param {string} songId - 歌曲ID
  * @param {string} platform - 平台代码
+ * @param {object} options - 可选参数
+ * @param {string} options.songName - 歌曲名称（备选）
+ * @param {string} options.artist - 歌手名称（备选）
  * @returns {Promise<object|null>} 歌曲详情
  */
-export async function getSongDetail(songId, platform) {
+export async function getSongDetail(songId, platform, options = {}) {
+    const { songName: fallbackName = '', artist: fallbackArtist = '' } = options;
+
     try {
         const loaded = await loadMeting();
         if (!loaded) {
@@ -119,6 +124,10 @@ export async function getSongDetail(songId, platform) {
         } catch (picError) {
             logger.warn(`[音乐播放] 获取封面失败: ${picError.message}`);
         }
+
+        // 如果API未返回歌名，使用传入的备选值
+        songName = songName || fallbackName;
+        artistName = artistName || fallbackArtist;
 
         return {
             name: songName,

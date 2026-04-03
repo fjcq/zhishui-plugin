@@ -1,7 +1,7 @@
 import { KeyvFile } from 'keyv-file';
 import path from 'path';
 import fs from 'fs';
-import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode, getCurrentRoleIndex } from './config.js';
+import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode, getCurrentRoleIndex, getUserRoleIndex } from './config.js';
 import { filterMessagesByPrivacy, DEFAULT_PRIVACY_CONFIG } from './privacy/sceneFilter.js';
 
 const logger = global.logger || console;
@@ -39,16 +39,16 @@ function generateSessionIdV1(e) {
 }
 
 /**
- * 生成V2格式的会话ID（按角色整合）
- * 格式: role_{角色索引}_user_{用户ID}
+ * 生成V2格式的会话ID（全局整合模式）
+ * 所有用户、所有群、所有私聊共用一个全局会话
+ * AI通过消息中的scene信息识别消息来源（群聊/私聊）
  * @param {Object} e - 事件对象
- * @param {number} roleId - 角色索引
- * @returns {string} 会话ID
+ * @param {number} roleId - 角色索引（可选）
+ * @returns {Promise<string>} 会话ID
  */
 async function generateSessionIdV2(e, roleId) {
-    const userId = e.user_id;
-    const effectiveRoleId = typeof roleId === 'number' ? roleId : await getCurrentRoleIndex(e);
-    return `role_${effectiveRoleId}_user_${userId}`;
+    const effectiveRoleId = typeof roleId === 'number' ? roleId : await getUserRoleIndex(e);
+    return `role_${effectiveRoleId}_global`;
 }
 
 /**
@@ -211,13 +211,14 @@ function computeStats(messages) {
     let lastScene = null;
 
     for (const msg of messages) {
-        if (msg.scene) {
-            if (msg.scene.type === 'group') {
+        if (msg.additional_info) {
+            if (msg.additional_info.group_id && msg.additional_info.group_id !== 0) {
                 groupMessages++;
+                lastScene = { type: 'group', source_id: String(msg.additional_info.group_id) };
             } else {
                 privateMessages++;
+                lastScene = { type: 'private', source_id: String(msg.additional_info.user_id) };
             }
-            lastScene = { type: msg.scene.type, source_id: msg.scene.source_id };
         }
     }
 
@@ -253,27 +254,22 @@ async function addMessageV1(msg, e) {
 }
 
 /**
- * V2模式添加消息（携带场景标记和元数据）
+ * V2模式添加消息（使用 additional_info 格式，与 SystemConfig.json 约定一致）
  * @param {Object} msg - 消息对象
  * @param {Object} e - 事件对象
  * @returns {Promise<void>}
  */
 async function addMessageV2(msg, e) {
     const sessionId = await generateSessionIdV2(e);
-    const scene = getCurrentScene(e);
 
     const enhancedMessage = {
         role: msg.role,
         content: msg.content,
-        scene: {
-            type: scene.type,
-            source_id: scene.source_id,
+        additional_info: {
+            user_id: e.user_id,
+            group_id: e.group_id || 0,
+            name: e.sender?.nickname || '',
             timestamp: Date.now()
-        },
-        meta: {
-            message_id: `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-            created_at: Date.now(),
-            is_private: scene.type === 'private'
         }
     };
 
@@ -285,12 +281,10 @@ async function addMessageV2(msg, e) {
     let sessionData = await keyv.get('session');
 
     if (!sessionData) {
-        const [roleIdStr, userIdStr] = sessionId.replace('role_', '').split('_user_');
         sessionData = {
             version: '2.0',
             sessionId,
-            roleId: parseInt(roleIdStr) || 0,
-            userId: userIdStr,
+            roleId: parseInt(sessionId.replace('role_', '').replace('_global', '')) || 0,
             createdAt: Date.now(),
             updatedAt: Date.now(),
             stats: { totalMessages: 0, groupMessages: 0, privateMessages: 0 },

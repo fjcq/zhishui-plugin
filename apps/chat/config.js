@@ -92,6 +92,17 @@ export async function getCurrentRoleIndex(e) {
 }
 
 /**
+ * 获取用户个人角色索引（V2模式专用）
+ * V2角色整合模式忽略所有个人和群的角色配置，一律采用全局设置
+ * 确保同一用户在不同场景使用相同的roleId，实现跨场景对话整合
+ * @param {Object} e - 事件对象
+ * @returns {Promise<number>} 全局角色索引
+ */
+export async function getUserRoleIndex(e) {
+    return await Config.Chat.CurrentRoleIndex || 0;
+}
+
+/**
  * 获取当前API配置
  * @param {Object} e - 事件对象
  * @returns {Promise<Object>} 包含 apiIndex 和 apiConfig 的对象

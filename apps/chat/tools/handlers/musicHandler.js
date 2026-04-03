@@ -124,7 +124,7 @@ async function handlePlayMusic(params, e) {
     }
 
     try {
-        const songInfo = await getSongDetail(song_id, platform);
+        const songInfo = await getSongDetail(song_id, platform, { songName: song_name, artist });
 
         if (!songInfo) {
             return { error: true, error_message: `无法获取歌曲信息，ID: ${song_id}` };

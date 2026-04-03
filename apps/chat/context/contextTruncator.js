@@ -53,14 +53,15 @@ class MessageScorer {
 
     /**
      * 计算单条消息的重要性得分
-     * @param {Object} msg - 消息对象（V2增强格式）
-     * @returns {number} 重要性得分
+     * 根据多维度评估消息的保留价值
      */
     score(msg) {
         let score = 0;
 
-        const meta = msg.meta || {};
-        const createdTime = meta.created_at || Date.now();
+        const info = msg.additional_info || {};
+        if (!info) return 0;
+
+        const createdTime = info.timestamp || Date.now();
         const ageMs = Date.now() - createdTime;
         const ageHours = ageMs / (1000 * 60 * 60);
         score += Math.max(0, this.timeDecayFactor - ageHours);
@@ -72,13 +73,13 @@ class MessageScorer {
             score += this.substantiveBonus;
         }
 
-        const scene = msg.scene || {};
-        if (this.currentSceneId && scene.source_id === this.currentSceneId) {
+        const isGroup = info.group_id && info.group_id !== 0;
+        if (isGroup && String(info.group_id) === this.currentSceneId) {
             score += this.sceneWeight;
         }
 
-        if (meta.tags && Array.isArray(meta.tags)) {
-            for (const tag of meta.tags) {
+        if (info.tags && Array.isArray(info.tags)) {
+            for (const tag of info.tags) {
                 if (tag === '重要' || tag === 'important') {
                     score += this.tagBonus;
                 }
@@ -168,8 +169,8 @@ export async function truncateContext(messages, options = {}) {
     }
 
     keptOlder.sort((a, b) => {
-        const timeA = a.meta?.created_at || 0;
-        const timeB = b.meta?.created_at || 0;
+        const timeA = a.additional_info?.timestamp || 0;
+        const timeB = b.additional_info?.timestamp || 0;
         return timeA - timeB;
     });
 
@@ -224,14 +225,18 @@ function generateSimpleSummary(messages) {
     }
 
     const userMessages = messages.filter(m => m.role === 'user');
-    const assistantMessages = messages.filter(m => m.role === 'assistant');
 
     const topics = userMessages.slice(-5).map(m => {
         const content = (m.content || '').substring(0, 30);
         return content.replace(/\n/g, ' ');
     }).filter(t => t.length > 0);
 
-    const sceneTypes = new Set(messages.map(m => m.scene?.type).filter(Boolean));
+    const sceneTypes = new Set(messages.map(m => {
+        const info = m.additional_info;
+        if (!info) return null;
+        return info.group_id && info.group_id !== 0 ? 'group' : 'private';
+    }).filter(Boolean));
+
     const sceneLabel = sceneTypes.has('group') && sceneTypes.has('private')
         ? '群聊和私聊'
         : (sceneTypes.has('group') ? '群聊' : '私聊');

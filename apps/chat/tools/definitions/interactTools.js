@@ -34,8 +34,8 @@ export const interactTools = [
 - 如果用户只是普通聊天、提问、讨论问题，不需要发表情
 
 【合适的时机】
-- 用户情绪低落、需要安慰时（发送petpet摸头、support加油）
-- 用户在开玩笑、调侃时，可以配合回应（发送slap拍打、kick踢）
+- 用户情绪低落、需要安慰时（发送petpet摸头）
+- 用户在开玩笑、调侃时，可以配合回应（发送punch打拳、crawl爬）
 - 用户明确要求或期待互动时
 - 想要表达某种强烈情绪时
 
@@ -46,18 +46,18 @@ export const interactTools = [
 - 用户只是简单打招呼
 
 【表情类型】
-安慰类: petpet(摸头), support(加油), rub(蹭蹭)
-调侃类: slap(拍打), kick(踢), throw(扔), punch(拳击), crawl(爬行)
-互动类: kiss(亲亲), play(玩弄), pat(拍)
-情绪类: cry(哭), jump(跳), wall(墙), eat(吃), always(一直), any(任意门)
-文字类: my_friend(需填名字), spin(选填圈数), looklook(选填"翻转")`,
+安慰类: petpet(摸头), always(一直)
+调侃类: punch(打拳), crawl(爬), throw(扔)
+互动类: kiss(亲亲), rub(贴贴), play(玩), pat(拍)
+情绪类: jump(跳), eat(吃), bite(啃)
+文字类: my_friend(需填名字)`,
             parameters: {
                 type: "object",
                 properties: {
                     meme_type: {
                         type: "string",
                         description: "表情包类型",
-                        "enum": ["petpet", "crawl", "slap", "kiss", "rub", "play", "pat", "tear", "punch", "kick", "cry", "support", "always", "any", "spin", "jump", "throw", "wall", "eat", "my_friend", "looklook"]
+                        "enum": ["petpet", "crawl", "kiss", "rub", "play", "pat", "punch", "always", "jump", "eat", "my_friend", "bite", "support", "throw"]
                     },
                     user_id: {
                         type: "string",
@@ -65,7 +65,7 @@ export const interactTools = [
                     },
                     text: {
                         type: "string",
-                        description: "文字。my_friend必填；spin选填圈数；looklook选填'翻转'"
+                        description: "文字。my_friend必填名字；petpet可选'圆'；always可选'循环'或'套娃'；crawl可选数字"
                     }
                 },
                 required: ["meme_type", "user_id"]

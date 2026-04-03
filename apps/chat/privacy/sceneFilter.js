@@ -32,10 +32,10 @@ export const DEFAULT_PRIVACY_CONFIG = {
     crossSceneRecall: {
         enabled: true,
         allowedCombinations: [
-            { from: 'private', to: 'group', level: PRIVACY_LEVEL.PUBLIC },
-            { from: 'group', to: 'private', level: PRIVACY_LEVEL.SCENE_RESTRICTED },
+            { from: 'private', to: 'group', level: PRIVACY_LEVEL.SCENE_RESTRICTED },
+            { from: 'group', to: 'private', level: PRIVACY_LEVEL.PUBLIC },
             { from: 'group', to: 'group', level: PRIVACY_LEVEL.PUBLIC },
-            { from: 'private', to: 'private', level: PRIVACY_LEVEL.PRIVATE }
+            { from: 'private', to: 'private', level: PRIVACY_LEVEL.CONFIDENTIAL }
         ]
     },
     sensitiveKeywords: DEFAULT_SENSITIVE_KEYWORDS,
@@ -80,6 +80,7 @@ export function detectPrivacyLevel(content, keywords) {
 
 /**
  * 过滤消息列表，根据当前场景和隐私设置决定可见性
+ * 使用 additional_info 格式（与 SystemConfig.json 约定一致)
  * @param {Array} messages - 完整的消息数组（V2增强格式）
  * @param {Object} currentScene - 当前场景 { type: 'group'|'private', source_id: string }
  * @param {Object} privacyConfig - 隐私配置对象
@@ -94,27 +95,41 @@ export function filterMessagesByPrivacy(messages, currentScene, privacyConfig) {
 
     if (!config.crossSceneRecall.enabled) {
         return messages.filter(msg => {
-            const scene = msg.scene;
-            return scene && scene.type === currentScene.type && scene.source_id === currentScene.source_id;
-        });
+            const info = msg.additional_info;
+            if (!info) return false;
+            const isGroup = info.group_id && info.group_id !== 0;
+            const isSameScene = isGroup
+                ? String(info.group_id) === currentScene.source_id
+                : String(info.user_id) === currentScene.source_id;
+            return isGroup || info.user_id === currentScene.source_id;
+        }).map(msg => ({
+            role: msg.role,
+            content: msg.content,
+            tool_calls: msg.tool_calls,
+            tool_call_id: msg.tool_call_id,
+            reasoning_content: msg.reasoning_content
+        }));
     }
 
     return messages.filter(msg => {
-        const msgScene = msg.scene || {};
-        let msgLevel = PRIVACY_LEVEL.PUBLIC;
+        const info = msg.additional_info || {};
+        if (!info) return false;
 
-        if (msg.meta && typeof msg.meta.privacy_level === 'number') {
-            msgLevel = msg.meta.privacy_level;
+        let msgLevel = PRIVACY_LEVEL.PUBLIC;
+        if (info.privacy_level !== undefined && typeof info.privacy_level === 'number') {
+            msgLevel = info.privacy_level;
         } else if (config.autoDetectSensitive) {
             msgLevel = detectPrivacyLevel(msg.content, config.sensitiveKeywords);
         }
 
-        if (msgScene.type === 'private') {
-            msgLevel = Math.max(msgLevel, PRIVACY_LEVEL.PRIVATE);
+        const isPrivate = !info.group_id || info.group_id === 0;
+        if (isPrivate && msgLevel === PRIVACY_LEVEL.PUBLIC) {
+            msgLevel = PRIVACY_LEVEL.SCENE_RESTRICTED;
         }
 
+        const msgSceneType = isPrivate ? 'private' : 'group';
         const rule = config.crossSceneRecall.allowedCombinations.find(
-            r => r.from === (msgScene.type || 'private') && r.to === currentScene.type
+            r => r.from === msgSceneType && r.to === currentScene.type
         );
 
         if (!rule) {
@@ -132,26 +147,22 @@ export function filterMessagesByPrivacy(messages, currentScene, privacyConfig) {
 }
 
 /**
- * 为消息添加场景标记和隐私等级
+ * 为消息添加 additional_info 信息
  * 在V2模式写入时调用
  * @param {Object} msg - 原始消息对象
- * @param {Object} scene - 场景信息 { type, source_id }
+ * @param {Object} e - 事件对象
  * @param {Object} options - 选项 { autoDetect?: boolean, keywords?: string[] }
  * @returns {Object} 增强后的消息对象
  */
-export function enrichMessageWithPrivacy(msg, scene, options) {
+export function enrichMessageWithPrivacy(msg, e, options) {
     const enriched = {
         role: msg.role,
         content: msg.content,
-        scene: {
-            type: scene.type,
-            source_id: scene.source_id,
+        additional_info: {
+            user_id: e.user_id,
+            group_id: e.group_id || 0,
+            name: e.sender?.nickname || '',
             timestamp: Date.now()
-        },
-        meta: {
-            message_id: `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-            created_at: Date.now(),
-            is_private: scene.type === 'private'
         }
     };
 
@@ -167,7 +178,7 @@ export function enrichMessageWithPrivacy(msg, scene, options) {
 
     const opts = options || {};
     if (opts.autoDetect !== false) {
-        enriched.meta.privacy_level = detectPrivacyLevel(msg.content, opts.keywords);
+        enriched.additional_info.privacy_level = detectPrivacyLevel(msg.content, opts.keywords);
     }
 
     return enriched;

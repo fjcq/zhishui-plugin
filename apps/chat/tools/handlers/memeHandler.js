@@ -21,27 +21,20 @@ const MEME_API_BASE = 'https://h.winterqkl.cn/memes';
  * @property {string} textHint - 文字输入提示，告诉AI应该输入什么内容
  */
 const MEME_CONFIG = {
-    petpet: { name: '摸头', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    crawl: { name: '爬行', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    slap: { name: '拍打', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    petpet: { name: '摸头', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"圆"让头像为圆形' },
+    crawl: { name: '爬', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字指定爬行样式' },
     kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个用户的头像，会自动使用Bot头像作为第二个头像' },
-    rub: { name: '蹭蹭', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    play: { name: '玩弄', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    play: { name: '玩', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     pat: { name: '拍', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    tear: { name: '撕', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    punch: { name: '拳击', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    kick: { name: '踢', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    cry: { name: '哭', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    support: { name: '加油', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    always: { name: '一直', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    any: { name: '任意门', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    spin: { name: '旋转', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字表示旋转比例，默认为2' },
+    punch: { name: '打拳', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    always: { name: '一直', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"循环"或"套娃"' },
     jump: { name: '跳', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    throw: { name: '扔', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    wall: { name: '墙', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     eat: { name: '吃', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     my_friend: { name: '我朋友', minImages: 1, needsAvatar: true, needsText: true, textHint: '必须输入朋友的名字，例如"小明"、"老王"等' },
-    looklook: { name: '看看', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"翻转"可以镜像翻转图片' }
+    bite: { name: '啃', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个用户的头像' },
+    support: { name: '加油', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    throw: { name: '扔', minImages: 1, needsAvatar: true, needsText: false, textHint: '' }
 };
 
 /**
@@ -276,19 +269,18 @@ function buildMemeArgs(memeType, text, userName) {
 
     switch (memeType) {
         case 'crawl':
-            argsObj.number = Math.floor(Math.random() * 92) + 1;
-            break;
-        case 'spin':
-            argsObj.ratio = parseInt(text) || 2;
+            argsObj.number = parseInt(text) || Math.floor(Math.random() * 92) + 1;
             break;
         case 'my_friend':
             argsObj.name = text || userName || '朋友';
             break;
-        case 'looklook':
-            argsObj.mirror = text === '翻转';
-            break;
         case 'always':
-            argsObj.mode = 'normal';
+            const modeMap = {
+                '': 'normal',
+                '循环': 'loop',
+                '套娃': 'circle'
+            };
+            argsObj.mode = modeMap[text] || 'normal';
             break;
         case 'petpet':
             argsObj.circle = text?.startsWith('圆') || false;
