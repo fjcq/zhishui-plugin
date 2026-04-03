@@ -63,8 +63,8 @@ const MEME_CONFIG = {
     // === 文字类表情 ===
     my_friend: { name: '我朋友说', minImages: 1, needsAvatar: true, needsText: true, textHint: '必须输入朋友的名字' },
     // === 双头像表情 ===
-    kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，自动使用Bot头像' },
-    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，自动使用Bot头像' }
+    kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，不填第二个则使用你的头像' },
+    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，不填第二个则使用你的头像' }
 };
 
 /**
@@ -135,11 +135,13 @@ async function handleGenerateMeme(params, e, currentUserId) {
         const formData = new FormData();
 
         if (memeConfig.minImages > 1) {
-            const secondUserId = user_id_2 || e.bot?.uin || e.self_id;
-            const secondAvatarUrl = await getUserAvatar(e, secondUserId);
-            if (secondAvatarUrl) {
-                const secondAvatarBuffer = await fetchImageBuffer(secondAvatarUrl);
-                formData.append('images', new Blob([secondAvatarBuffer]));
+            const secondUserId = user_id_2 || e.bot?.uin || e.bot?.user_id || e.self_id;
+            if (secondUserId) {
+                const secondAvatarUrl = await getUserAvatar(e, secondUserId);
+                if (secondAvatarUrl) {
+                    const secondAvatarBuffer = await fetchImageBuffer(secondAvatarUrl);
+                    formData.append('images', new Blob([secondAvatarBuffer]));
+                }
             }
         }
 

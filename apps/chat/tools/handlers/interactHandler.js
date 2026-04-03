@@ -6,7 +6,9 @@
 import { isBotAdmin } from '../permissions.js';
 import { handleMusicToolCall } from './musicHandler.js';
 import { handleMemeToolCall } from './memeHandler.js';
-import { getSegment, createVoiceWithTimeout } from './musicCore.js';
+import { getSegment } from './musicCore.js';
+import VoiceManager from '../../../voice/voiceManager.js';
+import Config from '../../../../components/Config.js';
 
 const logger = global.logger || console;
 
@@ -182,7 +184,40 @@ async function handleSendImage(params, e) {
 }
 
 /**
+ * 检查语音系统是否已配置
+ * @returns {object} { hasConfig: boolean, configType: number, message: string }
+ */
+function checkVoiceConfig() {
+    const voiceConfig = Config.Voice;
+    const tencentConfig = voiceConfig?.TencentCloudTTS;
+
+    const hasTencentConfig = tencentConfig?.SecretId &&
+        tencentConfig?.SecretKey &&
+        tencentConfig.SecretId !== '你的腾讯云SecretId' &&
+        tencentConfig.SecretKey !== '你的腾讯云SecretKey';
+
+    const hasDuiConfig = voiceConfig?.VoiceIndex !== undefined;
+
+    if (hasTencentConfig) {
+        return { hasConfig: true, configType: 2, message: '腾讯云语音已配置' };
+    }
+
+    if (hasDuiConfig) {
+        return { hasConfig: true, configType: 1, message: 'DUI平台语音已配置' };
+    }
+
+    return {
+        hasConfig: false,
+        configType: 0,
+        message: '语音系统未配置。请主人使用指令配置：\n"对话语音开启" - 开启DUI平台语音系统\n"对话语音开启腾讯" - 开启腾讯云语音系统（需先配置SecretId和SecretKey）'
+    };
+}
+
+/**
  * 处理发送语音
+ * @param {object} params - 工具参数
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 工具执行结果
  */
 async function handleSendVoice(params, e) {
     const { text } = params;
@@ -205,22 +240,61 @@ async function handleSendVoice(params, e) {
     }
 
     try {
-        const segment = await getSegment();
+        const configCheck = checkVoiceConfig();
 
+        if (!configCheck.hasConfig) {
+            return { error: true, error_message: configCheck.message };
+        }
+
+        const segment = await getSegment();
         if (!segment) {
             return { error: true, error_message: '无法加载segment模块' };
         }
 
-        const voiceMsg = await createVoiceWithTimeout(segment, trimmedText);
-        await e.reply(voiceMsg);
-        logger.info(`[互动] 发送语音 | 文本:${trimmedText.substring(0, 30)}...`);
+        const originalVoiceSystem = Config.Voice.VoiceSystem;
+        const tempModify = originalVoiceSystem !== configCheck.configType;
 
+        if (tempModify) {
+            Config.modify('voice', 'VoiceSystem', configCheck.configType);
+        }
+
+        let voiceResult;
+        try {
+            voiceResult = await VoiceManager.synthesize(e, trimmedText);
+        } finally {
+            if (tempModify) {
+                Config.modify('voice', 'VoiceSystem', originalVoiceSystem);
+            }
+        }
+
+        if (!voiceResult) {
+            return { error: true, error_message: '语音合成失败，请检查语音系统配置' };
+        }
+
+        if (typeof voiceResult === 'string') {
+            const voiceMsg = segment.record(voiceResult);
+            await e.reply(voiceMsg);
+            logger.info(`[互动] 发送语音(DUI) | 文本:${trimmedText.substring(0, 30)}...`);
+        } else if (Array.isArray(voiceResult) && voiceResult.length > 0) {
+            const uploadRecord = (await import('../../../../model/uploadRecord.js')).default;
+            for (let i = 0; i < voiceResult.length; i++) {
+                const buffer = voiceResult[i];
+                const voiceMsg = await uploadRecord(buffer);
+                if (voiceMsg) {
+                    await e.reply(voiceMsg);
+                }
+            }
+            logger.info(`[互动] 发送语音(腾讯云) | 文本:${trimmedText.substring(0, 30)}... | 分段:${voiceResult.length}`);
+        } else {
+            return { error: true, error_message: '语音合成返回结果无效' };
+        }
 
         return {
             success: true,
             text: trimmedText
         };
     } catch (error) {
+        logger.error(`[互动] 发送语音失败: ${error.message}`);
         return { error: true, error_message: `发送语音失败: ${error.message}` };
     }
 }

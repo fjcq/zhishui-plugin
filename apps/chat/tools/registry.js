@@ -550,7 +550,7 @@ song_id和platform来自search_music的返回结果`,
 安慰类: petpet(摸头), always(一直), support(加油), little_angel(小天使)
 调侃类: punch(打拳), crawl(爬), throw(扔), flick(弹), hammer(锤), knock(敲), pound(捣)
 互动类: kiss(亲亲), rub(贴贴), play(玩), pat(拍), make_friend(交个朋友), marriage(结婚申请)
-【双头像表情】kiss和rub需要两个用户头像，可使用user_id_2指定第二个用户，不填则默认使用Bot头像`,
+【双头像表情】kiss和rub需要两个用户头像，可使用user_id_2指定第二个用户，不填则默认使用你的头像`,
             parameters: {
                 type: "object",
                 properties: {
@@ -562,7 +562,7 @@ song_id和platform来自search_music的返回结果`,
                         "painter", "paint", "out", "my_friend", "kiss", "rub"
                     ] },
                     user_id: { type: "string", description: "目标用户ID，使用当前对话用户的ID" },
-                    user_id_2: { type: "string", description: "第二个用户的QQ号（仅kiss、rub双头像表情需要）。主动使用场景：当AI想调侃两个群友、撮合两人互动、或表达两人关系时，可主动填入另一个群友的QQ号。不填则默认使用机器人头像作为第二人" },
+                    user_id_2: { type: "string", description: "第二个用户的QQ号（仅kiss、rub双头像表情需要）。主动使用场景：当你想调侃两个群友、撮合两人互动、或表达两人关系时，可主动填入另一个群友的QQ号。不填则默认使用你的头像作为第二人" },
                     text: { type: "string", description: "文字参数。my_friend必填名字；petpet/kirby_hammer可选'圆'；always可选'循环'或'套娃'；crawl可选数字(1-92)；symmetric可选'左'/'右'/'上'/'下'；look_flat可选数字(缩放倍数)" }
                 },
                 required: ["meme_type", "user_id"]
