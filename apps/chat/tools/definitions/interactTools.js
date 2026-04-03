@@ -8,7 +8,7 @@ export const interactTools = [
         type: "function",
         function: {
             name: "poke_user",
-            description: "戳一戳用户（群聊双击头像效果）。用于友好互动或引起注意。",
+            description: "戳一戳用户（群聊双击头像效果）。注意：此功能需要NapCatQQ的PacketBackend支持，如果QQ版本不兼容会失败，失败时请改用表情包互动。",
             parameters: {
                 type: "object",
                 properties: {

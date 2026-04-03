@@ -72,75 +72,113 @@ async function handlePokeUser(params, e, currentUserId) {
         return { error: true, error_message: '缺少用户ID参数' };
     }
 
-    if (!e || !e.group_id) {
-        return { error: true, error_message: '戳一戳功能仅在群组中可用' };
+    if (!e) {
+        return { error: true, error_message: '无法获取事件对象' };
     }
 
+    const isGroup = !!e.group_id;
+    const errors = [];
+
     try {
+        // ========== 私聊戳一戳 ==========
+        if (!isGroup) {
+            // 方法1: NapCatQQ native API - friend_poke
+            if (e.bot?.sendApi) {
+                try {
+                    await e.bot.sendApi('friend_poke', {
+                        user_id: Number(user_id)
+                    });
+                    logger.info(`[互动] 戳一戳(friend_poke) | 私聊用户:${user_id}`);
+                    return { success: true, user_id: String(user_id) };
+                } catch (err) {
+                    errors.push(`friend_poke: ${err.message}`);
+                }
+            }
+
+            // 方法2: 标准OneBot API
+            if (typeof e.bot?.sendFriendPoke === 'function') {
+                try {
+                    await e.bot.sendFriendPoke(user_id);
+                    logger.info(`[互动] 戳一戳(sendFriendPoke) | 私聊用户:${user_id}`);
+                    return { success: true, user_id: String(user_id) };
+                } catch (err) {
+                    errors.push(`sendFriendPoke: ${err.message}`);
+                }
+            }
+
+            logger.warn(`[互动] 私聊戳一戳失败，尝试过的方法: ${errors.join('; ')}`);
+            return { error: true, error_message: `私聊戳一戳暂不支持，错误详情: ${errors.join('; ')}` };
+        }
+
+        // ========== 群聊戳一戳 ==========
         const group = e.group || e.bot?.pickGroup?.(e.group_id);
         if (!group) {
             return { error: true, error_message: '无法获取群组信息' };
         }
 
-        const errors = [];
+        // 方法1: NapCatQQ native API - group_poke
+        if (e.bot?.sendApi) {
+            try {
+                await e.bot.sendApi('group_poke', {
+                    group_id: Number(e.group_id),
+                    user_id: Number(user_id)
+                });
+                logger.info(`[互动] 戳一戳(group_poke) | 群:${e.group_id} | 用户:${user_id}`);
+                return { success: true, user_id: String(user_id) };
+            } catch (err) {
+                errors.push(`group_poke: ${err.message}`);
+            }
+        }
 
+        // 方法2: 标准OneBot API - sendGroupPoke
         if (typeof e.bot?.sendGroupPoke === 'function') {
             try {
                 await e.bot.sendGroupPoke(e.group_id, user_id);
                 logger.info(`[互动] 戳一戳(sendGroupPoke) | 群:${e.group_id} | 用户:${user_id}`);
-                return {
-                    success: true,
-                    user_id: String(user_id)
-                };
+                return { success: true, user_id: String(user_id) };
             } catch (err) {
                 errors.push(`sendGroupPoke: ${err.message}`);
             }
         }
 
+        // 方法3: Yunzai原生 - pokeMember
         if (typeof group.pokeMember === 'function') {
             try {
                 await group.pokeMember(user_id);
                 logger.info(`[互动] 戳一戳(pokeMember) | 群:${e.group_id} | 用户:${user_id}`);
-                return {
-                    success: true,
-                    user_id: String(user_id)
-                };
+                return { success: true, user_id: String(user_id) };
             } catch (err) {
                 errors.push(`pokeMember: ${err.message}`);
             }
         }
 
+        // 方法4: 发送消息格式 - { type: 'poke', data: { qq: ... } }
         if (typeof group.sendMsg === 'function') {
             try {
-                await group.sendMsg({ type: 'poke', qq: Number(user_id) });
+                await group.sendMsg({ type: 'poke', data: { qq: Number(user_id) } });
                 logger.info(`[互动] 戳一戳(sendMsg) | 群:${e.group_id} | 用户:${user_id}`);
-                return {
-                    success: true,
-                    user_id: String(user_id)
-                };
+                return { success: true, user_id: String(user_id) };
             } catch (err) {
                 errors.push(`sendMsg: ${err.message}`);
             }
         }
 
+        // 方法5: 其他OneBot实现 - set_group_poke
         if (e.bot?.sendApi) {
             try {
                 await e.bot.sendApi('set_group_poke', {
                     group_id: e.group_id,
                     user_id: user_id
                 });
-                logger.info(`[互动] 戳一戳(API) | 群:${e.group_id} | 用户:${user_id}`);
-                return {
-                    success: true,
-                    user_id: String(user_id)
-                };
+                logger.info(`[互动] 戳一戳(set_group_poke) | 群:${e.group_id} | 用户:${user_id}`);
+                return { success: true, user_id: String(user_id) };
             } catch (err) {
-                errors.push(`sendApi: ${err.message}`);
+                errors.push(`set_group_poke: ${err.message}`);
             }
         }
 
-        logger.warn(`[互动] 戳一戳失败，尝试过的方法: ${errors.join('; ')}`);
-        return { error: true, error_message: `戳一戳功能暂不支持，错误详情: ${errors.join('; ')}` };
+        logger.warn(`[互动] 群聊戳一戳失败，尝试过的方法: ${errors.join('; ')}`);
+        return { error: true, error_message: `群聊戳一戳暂不支持，错误详情: ${errors.join('; ')}` };
     } catch (error) {
         return { error: true, error_message: `戳一戳失败: ${error.message}` };
     }
