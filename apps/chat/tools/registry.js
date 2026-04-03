@@ -547,17 +547,25 @@ song_id和platform来自search_music的返回结果`,
 - 用户只是简单打招呼
 
 【表情类型】
-安慰类: petpet(摸头), always(一直)
-调侃类: punch(打拳), crawl(爬), throw(扔)
-互动类: kiss(亲亲), rub(贴贴), play(玩), pat(拍)
-情绪类: jump(跳), eat(吃), bite(啃)
-文字类: my_friend(需填名字)`,
+安慰类: petpet(摸头), always(一直), support(加油), little_angel(小天使)
+调侃类: punch(打拳), crawl(爬), throw(扔), flick(弹), hammer(锤), knock(敲), pound(捣)
+互动类: kiss(亲亲), rub(贴贴), play(玩), pat(拍), make_friend(交个朋友), marriage(结婚申请)
+情绪类: jump(跳), eat(吃), bite(啃), prpr(舔屏), confuse(迷惑)
+特效类: look_flat(看扁), symmetric(对称), pixelate(像素化), pyramid(金字塔), pinch(捏)
+趣味类: dinosaur(恐龙), potato(土豆), police(出警), painter(小画家), paint(这像画吗), pass_the_buck(甩锅)
+文字类: my_friend(我朋友说-必填名字), need(你需要), look_this_icon(看图标)`,
             parameters: {
                 type: "object",
                 properties: {
-                    meme_type: { type: "string", description: "表情包类型", enum: ["petpet", "crawl", "kiss", "rub", "play", "pat", "punch", "always", "jump", "eat", "my_friend", "bite", "support", "throw"] },
+                    meme_type: { type: "string", description: "表情包类型", enum: [
+                        "petpet", "crawl", "play", "pat", "punch", "always", "jump", "eat", "bite", "support", "throw",
+                        "prpr", "look_flat", "symmetric", "confuse", "dinosaur", "flick", "hammer", "knock", "pound",
+                        "jiji_king", "kirby_hammer", "little_angel", "make_friend", "marriage", "need", "look_this_icon",
+                        "printing", "pyramid", "perfect", "pinch", "pixelate", "police", "potato", "pass_the_buck",
+                        "painter", "paint", "out", "my_friend", "kiss", "rub"
+                    ] },
                     user_id: { type: "string", description: "目标用户ID，使用当前对话用户的ID" },
-                    text: { type: "string", description: "文字。my_friend必填名字；petpet可选'圆'；always可选'循环'或'套娃'；crawl可选数字" }
+                    text: { type: "string", description: "文字参数。my_friend必填名字；petpet/kirby_hammer可选'圆'；always可选'循环'或'套娃'；crawl可选数字(1-92)；symmetric可选'左'/'右'/'上'/'下'；look_flat可选数字(缩放倍数)" }
                 },
                 required: ["meme_type", "user_id"]
             }

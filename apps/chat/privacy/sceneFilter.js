@@ -101,7 +101,7 @@ export function filterMessagesByPrivacy(messages, currentScene, privacyConfig) {
             const isSameScene = isGroup
                 ? String(info.group_id) === currentScene.source_id
                 : String(info.user_id) === currentScene.source_id;
-            return isGroup || info.user_id === currentScene.source_id;
+            return isSameScene;
         }).map(msg => ({
             role: msg.role,
             content: msg.content,

@@ -21,20 +21,50 @@ const MEME_API_BASE = 'https://h.winterqkl.cn/memes';
  * @property {string} textHint - 文字输入提示，告诉AI应该输入什么内容
  */
 const MEME_CONFIG = {
+    // === 单头像表情 ===
     petpet: { name: '摸头', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"圆"让头像为圆形' },
-    crawl: { name: '爬', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字指定爬行样式' },
-    kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个用户的头像，会自动使用Bot头像作为第二个头像' },
+    crawl: { name: '爬', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字指定爬行样式(1-92)' },
     play: { name: '玩', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     pat: { name: '拍', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     punch: { name: '打拳', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     always: { name: '一直', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"循环"或"套娃"' },
     jump: { name: '跳', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     eat: { name: '吃', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    my_friend: { name: '我朋友', minImages: 1, needsAvatar: true, needsText: true, textHint: '必须输入朋友的名字，例如"小明"、"老王"等' },
     bite: { name: '啃', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个用户的头像' },
     support: { name: '加油', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    throw: { name: '扔', minImages: 1, needsAvatar: true, needsText: false, textHint: '' }
+    throw: { name: '扔', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    prpr: { name: '舔屏', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    look_flat: { name: '看扁', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字指定缩放倍数' },
+    symmetric: { name: '对称', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"左"、"右"、"上"、"下"' },
+    confuse: { name: '迷惑', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    dinosaur: { name: '恐龙', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    flick: { name: '弹', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    hammer: { name: '锤', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    knock: { name: '敲', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    pound: { name: '捣', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    jiji_king: { name: '急急国王', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    kirby_hammer: { name: '卡比锤', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"圆"让头像为圆形' },
+    little_angel: { name: '小天使', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入名字' },
+    make_friend: { name: '交个朋友', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入名字' },
+    marriage: { name: '结婚申请', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    need: { name: '你需要', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    look_this_icon: { name: '看图标', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入描述' },
+    printing: { name: '打印', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    pyramid: { name: '金字塔', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    perfect: { name: '完美', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    pinch: { name: '捏', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    pixelate: { name: '像素化', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    police: { name: '出警', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    potato: { name: '土豆', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    pass_the_buck: { name: '甩锅', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    painter: { name: '小画家', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    paint: { name: '这像画吗', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    out: { name: 'out', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    // === 文字类表情 ===
+    my_friend: { name: '我朋友说', minImages: 1, needsAvatar: true, needsText: true, textHint: '必须输入朋友的名字' },
+    // === 双头像表情 ===
+    kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，自动使用Bot头像' },
+    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，自动使用Bot头像' }
 };
 
 /**
@@ -275,15 +305,26 @@ function buildMemeArgs(memeType, text, userName) {
             argsObj.name = text || userName || '朋友';
             break;
         case 'always':
-            const modeMap = {
-                '': 'normal',
-                '循环': 'loop',
-                '套娃': 'circle'
-            };
-            argsObj.mode = modeMap[text] || 'normal';
+            const alwaysModeMap = { '': 'normal', '循环': 'loop', '套娃': 'circle' };
+            argsObj.mode = alwaysModeMap[text] || 'normal';
             break;
         case 'petpet':
+        case 'kirby_hammer':
             argsObj.circle = text?.startsWith('圆') || false;
+            break;
+        case 'look_flat':
+            argsObj.ratio = parseInt(text) || 2;
+            break;
+        case 'symmetric':
+            const directionMap = { '左': 'left', '右': 'right', '上': 'top', '下': 'bottom' };
+            argsObj.direction = directionMap[text] || 'left';
+            break;
+        case 'little_angel':
+        case 'make_friend':
+            argsObj.name = text || userName || '朋友';
+            break;
+        case 'look_this_icon':
+            argsObj.text = text || '';
             break;
         default:
             break;
