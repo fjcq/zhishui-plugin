@@ -55,3 +55,7 @@ memory_tools:
     - cancel_reminder
     - record_interaction
     - get_interaction_history
+
+# 输出工具
+output_tools:
+    - output_code

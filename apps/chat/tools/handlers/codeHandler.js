@@ -3,8 +3,6 @@
  * 处理AI调用的代码输出相关工具
  */
 
-import { getSegment } from './musicCore.js';
-
 const logger = global.logger || console;
 
 /**

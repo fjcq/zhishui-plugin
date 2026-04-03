@@ -85,6 +85,13 @@ const TOOL_CATEGORIES = [
             { value: 'record_interaction', label: '记录互动', desc: '允许AI记录与用户的重要互动' },
             { value: 'get_interaction_history', label: '获取互动历史', desc: '允许AI获取与用户的历史互动记录' }
         ]
+    },
+    {
+        label: '输出工具',
+        field: 'output_tools',
+        tools: [
+            { value: 'output_code', label: '输出代码', desc: '允许AI以结构化方式输出代码示例' }
+        ]
     }
 ];
 
@@ -139,6 +146,9 @@ const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
         'cancel_reminder',
         'record_interaction',
         'get_interaction_history'
+    ],
+    output_tools: [
+        'output_code'
     ]
 };
 
