@@ -21,12 +21,7 @@ import { handleApiResponse, handleCommunicationError } from './handlers/index.js
  * @returns {Promise<Object>} 返回对象包含 { content: string, rawResponse: string }
  */
 export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0) {
-    const MAX_RECURSION_DEPTH = 5;
-    const WARNING_DEPTH = 3;
-
-    if (recursionDepth >= WARNING_DEPTH) {
-        console.warn(`[openAi] 工具调用递归深度接近限制: ${recursionDepth}/${MAX_RECURSION_DEPTH}`);
-    }
+    const MAX_RECURSION_DEPTH = 15;
 
     if (recursionDepth > MAX_RECURSION_DEPTH) {
         console.error(`[openAi] 工具调用递归深度超过限制: ${recursionDepth} > ${MAX_RECURSION_DEPTH}`);
