@@ -164,7 +164,7 @@ export async function sendMusicCard(e, songInfo, platform) {
                 if (segment) {
                     const recordMsg = await createVoiceWithTimeout(segment, songInfo.url);
                     await e.reply(recordMsg);
-                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist} | 时长:${duration > 0 ? duration + '秒' : '未知'}`);
+                    logger.info(`[点歌] 发送语音成功 | 平台:${platformName} | ${songInfo.name} - ${songInfo.artist} | 时长:${formatDuration(duration)}`);
                     return;
                 }
             } catch (recordError) {
