@@ -25,59 +25,47 @@ export const interactTools = [
         type: "function",
         function: {
             name: "generate_meme",
-            description: `生成并发送表情包。这是一个可选的互动工具，用于在合适的时机增加对话趣味性。
+            description: `生成表情包图片，用头像制作趣味动态表情。这是一个增强互动体验的工具。
 
-【重要原则】
-- 表情包是可选的，不是每次对话都需要使用
-- 大多数情况下，用文字回复就足够了
-- 只在真正合适的时机使用，不要强行使用
-- 如果用户只是普通聊天、提问、讨论问题，不需要发表情
+【主动使用场景】你应该主动使用表情包来增强互动：
+- 用户情绪低落、难过、委屈时 → 发送"摸头"安慰
+- 用户在开玩笑、调侃你时 → 发送"打拳"、"爬"等调侃回应
+- 用户说喜欢你、表达好感时 → 发送"亲亲"、"贴贴"回应
+- 用户在撒娇、卖萌时 → 发送"摸头"、"抱抱"配合
+- 用户生气、抱怨时 → 发送"摸头"安抚
+- 想要表达某种情绪但文字不够生动时
 
-【合适的时机】
-- 用户情绪低落、需要安慰时（发送petpet摸头）
-- 用户在开玩笑、调侃时，可以配合回应（发送punch打拳、crawl爬）
-- 用户明确要求或期待互动时
-- 想要表达某种强烈情绪时
+【表情关键词】
+- 安慰/关心：摸头、petpet、抱抱、加油
+- 调侃/互动：爬、打拳、锤、扔、弹、踢、撕
+- 亲密/好感：亲亲、贴贴、kiss、rub（双头像）
+- 其他：玩、拍、结婚申请、小天使
 
-【不合适的时机】
-- 用户在认真提问或讨论问题
-- 用户需要信息或帮助
-- 对话内容严肃或正式
-- 用户只是简单打招呼
-
-【表情类型】
-安慰类: petpet(摸头), always(一直), support(加油), little_angel(小天使)
-调侃类: punch(打拳), crawl(爬), throw(扔), flick(弹), hammer(锤), knock(敲), pound(捣)
-互动类: kiss(亲亲), rub(贴贴), play(玩), pat(拍), make_friend(交个朋友), marriage(结婚申请)
-【双头像表情】kiss和rub需要两个用户头像，可使用user_id_2指定第二个用户，不填则默认使用你的头像`,
+【参数说明】
+- keyword: 表情关键词
+- user_id: 目标用户QQ号（系统自动获取头像）
+- user_id_2: 第二个用户QQ号（仅亲亲、贴贴等双头像表情需要）`,
             parameters: {
                 type: "object",
                 properties: {
-                    meme_type: {
+                    keyword: {
                         type: "string",
-                        description: "表情包类型",
-                        "enum": [
-                            "petpet", "crawl", "play", "pat", "punch", "always", "jump", "eat", "bite", "support", "throw",
-                            "prpr", "look_flat", "symmetric", "confuse", "dinosaur", "flick", "hammer", "knock", "pound",
-                            "jiji_king", "kirby_hammer", "little_angel", "make_friend", "marriage", "need", "look_this_icon",
-                            "printing", "pyramid", "perfect", "pinch", "pixelate", "police", "potato", "pass_the_buck",
-                            "painter", "paint", "out", "my_friend", "kiss", "rub"
-                        ]
+                        description: "表情关键词，如：摸头、petpet、爬、打拳、亲亲、贴贴等"
                     },
                     user_id: {
                         type: "string",
-                        description: "目标用户ID，可以使用用户的QQ号码"
+                        description: "目标用户的QQ号码，系统会自动获取该用户的头像"
                     },
                     user_id_2: {
                         type: "string",
-                        description: "第二个用户的QQ号（仅kiss、rub双头像表情需要）。主动使用场景：当你想调侃两个群友、撮合两人互动、或表达两人关系时，可主动填入另一个群友的QQ号。不填则默认使用你的头像作为第二人"
+                        description: "第二个用户的QQ号码（仅kiss、贴贴等双头像表情需要）"
                     },
                     text: {
                         type: "string",
-                        description: "文字参数。my_friend必填名字；petpet/kirby_hammer可选'圆'；always可选'循环'/'套娃'；crawl可选数字(1-92)；symmetric可选'左'/'右'/'上'/'下'；look_flat可选数字(缩放倍数)"
+                        description: "附加文字参数（部分表情支持，如'交个朋友'需要填名字）"
                     }
                 },
-                required: ["meme_type", "user_id"]
+                required: ["keyword", "user_id"]
             }
         }
     }

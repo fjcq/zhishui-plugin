@@ -13,15 +13,75 @@ const logger = global.logger || console;
 const MEME_API_BASE = 'https://h.winterqkl.cn/memes';
 
 /**
+ * 关键词到表情key的映射表
+ * 包含热门表情的中英文关键词映射
+ */
+const KEYWORD_MAP = {
+    '摸头': 'petpet', '摸摸': 'petpet', '摸': 'petpet', 'petpet': 'petpet',
+    '爬': 'crawl', '爬行': 'crawl', 'crawl': 'crawl',
+    '玩': 'play', 'play': 'play',
+    '拍': 'pat', 'pat': 'pat',
+    '打拳': 'punch', 'punch': 'punch',
+    '一直': 'always', 'always': 'always',
+    '跳': 'jump', 'jump': 'jump',
+    '吃': 'eat', 'eat': 'eat',
+    '啃': 'bite', 'bite': 'bite',
+    '加油': 'support', 'support': 'support',
+    '扔': 'throw', 'throw': 'throw',
+    '舔': 'prpr', '舔屏': 'prpr', 'prpr': 'prpr',
+    '看扁': 'look_flat', 'look_flat': 'look_flat',
+    '对称': 'symmetric', 'symmetric': 'symmetric',
+    '迷惑': 'confuse', 'confuse': 'confuse',
+    '恐龙': 'dinosaur', 'dinosaur': 'dinosaur',
+    '弹': 'flick', 'flick': 'flick',
+    '锤': 'hammer', 'hammer': 'hammer',
+    '敲': 'knock', 'knock': 'knock',
+    '捣': 'pound', 'pound': 'pound',
+    '急急国王': 'jiji_king', 'jiji_king': 'jiji_king',
+    '卡比锤': 'kirby_hammer', 'kirby_hammer': 'kirby_hammer',
+    '小天使': 'little_angel', 'little_angel': 'little_angel',
+    '交个朋友': 'make_friend', 'make_friend': 'make_friend',
+    '结婚申请': 'marriage', 'marriage': 'marriage',
+    '你需要': 'need', 'need': 'need',
+    '看图标': 'look_this_icon', 'look_this_icon': 'look_this_icon',
+    '打印': 'printing', 'printing': 'printing',
+    '金字塔': 'pyramid', 'pyramid': 'pyramid',
+    '完美': 'perfect', 'perfect': 'perfect',
+    '捏': 'pinch', 'pinch': 'pinch',
+    '像素化': 'pixelate', 'pixelate': 'pixelate',
+    '出警': 'police', 'police': 'police',
+    '土豆': 'potato', 'potato': 'potato',
+    '甩锅': 'pass_the_buck', 'pass_the_buck': 'pass_the_buck',
+    '小画家': 'painter', 'painter': 'painter',
+    '这像画吗': 'paint', 'paint': 'paint',
+    'out': 'out',
+    '我朋友说': 'my_friend', 'my_friend': 'my_friend',
+    '亲亲': 'kiss', '亲': 'kiss', 'kiss': 'kiss',
+    '贴贴': 'rub', '贴': 'rub', 'rub': 'rub',
+    '抱抱': 'support', '抱': 'support',
+    '踢': 'kick', 'kick': 'kick',
+    '撕': 'tear', 'tear': 'tear',
+    '滚': 'roll', 'roll': 'roll',
+    '冲': 'rush', 'rush': 'rush',
+    '顶': 'push', 'push': 'push',
+    '哭': 'cry', 'cry': 'cry',
+    '笑': 'laugh', 'laugh': 'laugh',
+    '发疯': 'crazy', 'crazy': 'crazy',
+    '急': 'jiji_king',
+    '敲打': 'knock',
+    '捶': 'hammer',
+    '搓': 'rub'
+};
+
+/**
  * 表情包类型配置
  * @property {string} name - 表情包中文名称
  * @property {number} minImages - 需要的头像数量（1=单个用户头像，2=两个用户头像）
  * @property {boolean} needsAvatar - 是否需要用户ID来获取头像
  * @property {boolean} needsText - 是否必须提供文字
- * @property {string} textHint - 文字输入提示，告诉AI应该输入什么内容
+ * @property {string} textHint - 文字输入提示
  */
 const MEME_CONFIG = {
-    // === 单头像表情 ===
     petpet: { name: '摸头', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入"圆"让头像为圆形' },
     crawl: { name: '爬', minImages: 1, needsAvatar: true, needsText: false, textHint: '可选：输入数字指定爬行样式(1-92)' },
     play: { name: '玩', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
@@ -60,12 +120,29 @@ const MEME_CONFIG = {
     painter: { name: '小画家', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     paint: { name: '这像画吗', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
     out: { name: 'out', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
-    // === 文字类表情 ===
     my_friend: { name: '我朋友说', minImages: 1, needsAvatar: true, needsText: true, textHint: '必须输入朋友的名字' },
-    // === 双头像表情 ===
     kiss: { name: '亲亲', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，不填第二个则使用你的头像' },
-    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，不填第二个则使用你的头像' }
+    rub: { name: '贴贴', minImages: 2, needsAvatar: true, needsText: false, textHint: '需要两个头像，不填第二个则使用你的头像' },
+    kick: { name: '踢', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    tear: { name: '撕', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    roll: { name: '滚', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    rush: { name: '冲', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    push: { name: '顶', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    cry: { name: '哭', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    laugh: { name: '笑', minImages: 1, needsAvatar: true, needsText: false, textHint: '' },
+    crazy: { name: '发疯', minImages: 1, needsAvatar: true, needsText: false, textHint: '' }
 };
+
+/**
+ * 根据关键词获取表情key
+ * @param {string} keyword - 关键词
+ * @returns {string|null} 表情key
+ */
+function getMemeKeyByKeyword(keyword) {
+    if (!keyword) return null;
+    const normalizedKeyword = keyword.toLowerCase().trim();
+    return KEYWORD_MAP[normalizedKeyword] || KEYWORD_MAP[keyword.trim()] || null;
+}
 
 /**
  * 处理表情包工具调用
@@ -96,23 +173,29 @@ export async function handleMemeToolCall(toolName, params, e, currentUserId) {
 /**
  * 处理生成表情包
  * @param {object} params - 参数对象
- * @param {string} params.meme_type - 表情包类型
- * @param {string} params.user_id - 目标用户ID
+ * @param {string} params.keyword - 表情关键词
+ * @param {string} params.user_id - 目标用户QQ号
+ * @param {string} params.user_id_2 - 第二个用户QQ号（双头像表情）
  * @param {string} params.text - 文字内容
  * @param {object} e - 事件对象
  * @param {string} currentUserId - 当前用户ID
  * @returns {Promise<object>} 执行结果
  */
 async function handleGenerateMeme(params, e, currentUserId) {
-    const { meme_type, user_id, user_id_2, text = '' } = params;
+    const { keyword, user_id, user_id_2, text = '' } = params;
 
-    if (!meme_type) {
-        return { error: true, error_message: '缺少表情包类型参数' };
+    if (!keyword) {
+        return { error: true, error_message: '缺少表情关键词参数' };
     }
 
-    const memeConfig = MEME_CONFIG[meme_type];
+    const memeKey = getMemeKeyByKeyword(keyword);
+    if (!memeKey) {
+        return { error: true, error_message: `不支持的表情关键词: ${keyword}。支持的关键词包括：摸头、爬、打拳、亲亲、贴贴等` };
+    }
+
+    const memeConfig = MEME_CONFIG[memeKey];
     if (!memeConfig) {
-        return { error: true, error_message: `不支持的表情包类型: ${meme_type}` };
+        return { error: true, error_message: `表情配置缺失: ${memeKey}` };
     }
 
     if (memeConfig.needsText && !text) {
@@ -121,7 +204,7 @@ async function handleGenerateMeme(params, e, currentUserId) {
 
     const targetUserId = user_id || currentUserId;
     if (!targetUserId) {
-        return { error: true, error_message: '缺少目标用户ID参数' };
+        return { error: true, error_message: '缺少目标用户QQ号参数' };
     }
 
     if (!e) {
@@ -158,14 +241,14 @@ async function handleGenerateMeme(params, e, currentUserId) {
             formData.append('images', new Blob([avatarBuffer]));
         }
 
-        if (text) {
-            formData.append('texts', text);
+        if (text && text.trim()) {
+            formData.append('texts', text.trim());
         }
 
-        const args = buildMemeArgs(meme_type, text, userName);
+        const args = buildMemeArgs(memeKey, text, userName);
         formData.set('args', args);
 
-        const response = await fetch(`${MEME_API_BASE}/${meme_type}/`, {
+        const response = await fetch(`${MEME_API_BASE}/${memeKey}/`, {
             method: 'POST',
             body: formData
         });
@@ -186,11 +269,12 @@ async function handleGenerateMeme(params, e, currentUserId) {
             await e.reply({ type: 'image', file: `base64://${resultBuffer.toString('base64')}` });
         }
 
-        logger.info(`[表情包] 生成成功 | 类型:${meme_type} | 用户:${targetUserId}`);
+        logger.info(`[表情包] 生成成功 | 关键词:${keyword} | key:${memeKey} | 用户:${targetUserId}`);
 
         return {
             success: true,
-            meme_type: meme_type,
+            keyword: keyword,
+            meme_key: memeKey,
             meme_name: memeConfig.name,
             user_id: String(targetUserId)
         };
@@ -291,16 +375,16 @@ async function fetchImageBuffer(url) {
 }
 
 /**
- * 构建表情包参数（参考土块插件实现）
- * @param {string} memeType - 表情包类型
+ * 构建表情包参数
+ * @param {string} memeKey - 表情包key
  * @param {string} text - 文字
  * @param {string} userName - 用户昵称
  * @returns {string} JSON字符串参数
  */
-function buildMemeArgs(memeType, text, userName) {
+function buildMemeArgs(memeKey, text, userName) {
     let argsObj = {};
 
-    switch (memeType) {
+    switch (memeKey) {
         case 'crawl':
             argsObj.number = parseInt(text) || Math.floor(Math.random() * 92) + 1;
             break;

@@ -11,6 +11,7 @@ import { musicTools } from './musicTools.js';
 import { messageTools } from './messageTools.js';
 import { interactTools } from './interactTools.js';
 import { memoryTools } from './memoryTools.js';
+import { outputTools } from './outputTools.js';
 
 /**
  * 敏感度等级（本地定义，避免循环依赖）
@@ -32,7 +33,8 @@ export const allTools = [
     ...musicTools,
     ...messageTools,
     ...interactTools,
-    ...memoryTools
+    ...memoryTools,
+    ...outputTools
 ];
 
 /**
@@ -45,7 +47,8 @@ export const toolsByCategory = {
     music: musicTools,
     message: messageTools,
     interact: interactTools,
-    memory: memoryTools
+    memory: memoryTools,
+    output: outputTools
 };
 
 /**
@@ -93,7 +96,8 @@ const TOOL_CATEGORY_FIELDS = [
     'music_tools',
     'message_tools',
     'interact_tools',
-    'memory_tools'
+    'memory_tools',
+    'output_tools'
 ];
 
 /**
@@ -204,4 +208,4 @@ export function getToolSensitivity(toolName) {
     return SensitivityLevel.LOW;
 }
 
-export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools };
+export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools, outputTools };

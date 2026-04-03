@@ -381,6 +381,14 @@ export function shouldShowFeedback(toolName, result) {
         'recall_user_info'
     ];
 
+    const ALWAYS_SILENT_TOOLS = [
+        'generate_meme'
+    ];
+
+    if (ALWAYS_SILENT_TOOLS.includes(toolName)) {
+        return false;
+    }
+
     if (SILENT_TOOLS.includes(toolName) && !result.error) {
         return false;
     }

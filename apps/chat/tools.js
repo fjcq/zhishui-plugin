@@ -3,4 +3,4 @@
  * 导出工具定义和处理函数
  */
 
-export { allTools, favorTools, groupTools, interactTools, memoryTools, handleToolCall } from './tools/index.js';
+export { allTools, favorTools, groupTools, interactTools, memoryTools, outputTools, handleToolCall } from './tools/index.js';

@@ -8,6 +8,7 @@ import { handleFriendToolCall } from './friendHandler.js';
 import { handleGroupToolCall } from './groupHandler.js';
 import { handleInteractToolCall } from './interactHandler.js';
 import { handleMemoryToolCall } from './memoryHandler.js';
+import { handleCodeToolCall } from './codeHandler.js';
 import { makeDecision, DecisionResult } from '../decisionEngine.js';
 import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../definitions/index.js';
 import { getUserFavor } from '../../user/index.js';
@@ -100,6 +101,13 @@ const FAVOR_TOOLS = [
 const FRIEND_TOOLS = [
     'get_friend_list',
     'get_friend_info'
+];
+
+/**
+ * 输出工具名称列表
+ */
+const OUTPUT_TOOLS = [
+    'output_code'
 ];
 
 /**
@@ -227,6 +235,12 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
             return result;
         }
 
+        if (OUTPUT_TOOLS.includes(toolName)) {
+            const result = await handleCodeToolCall(toolName, params, e);
+            logToolResult(toolName, result);
+            return result;
+        }
+
         return {
             error: true,
             error_message: `未知的工具: ${toolName}`
@@ -303,11 +317,13 @@ export {
     handleGroupToolCall,
     handleInteractToolCall,
     handleMemoryToolCall,
+    handleCodeToolCall,
     GROUP_TOOLS,
     MUSIC_TOOLS,
     MESSAGE_TOOLS,
     INTERACT_TOOLS,
     MEMORY_TOOLS,
     FAVOR_TOOLS,
-    FRIEND_TOOLS
+    FRIEND_TOOLS,
+    OUTPUT_TOOLS
 };

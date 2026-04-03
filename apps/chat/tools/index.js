@@ -10,6 +10,7 @@ export {
     groupTools,
     interactTools,
     memoryTools,
+    outputTools,
     toolsByCategory,
     getEnabledTools,
     isToolEnabled,
