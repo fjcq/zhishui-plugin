@@ -135,26 +135,19 @@ async function handleGetUserFavor(params) {
 
 /**
  * 处理设置用户好感度
+ * 此工具仅限管理员使用，AI请使用 change_user_favor 进行渐进式调整
  */
 async function handleSetUserFavor(params) {
-    const { user_id, favor, reason = "AI主动调整" } = params;
-    if (!user_id || favor === undefined) {
-        return { error: true, error_message: "缺少用户ID或好感度参数" };
-    }
-
-    const oldFavor = await getUserFavor(user_id);
-    const success = await setUserFavor(user_id, favor, reason, 'AI');
-
-    if (success) {
-        return {
-            success: true,
-            user_id: user_id,
-            old_favor: oldFavor,
-            new_favor: favor
-        };
-    } else {
-        return { error: true, error_message: "设置好感度失败" };
-    }
+    const { user_id, favor } = params;
+    
+    logger.warn(`[好感度] AI尝试调用 set_user_favor（仅管理员可用），已拒绝。user_id: ${user_id}, favor: ${favor}`);
+    
+    return {
+        error: true,
+        error_message: "set_user_favor 工具仅限管理员使用。AI请使用 change_user_favor 工具进行好感度调整，每次最多变化10点。",
+        hint: "请使用 change_user_favor 工具",
+        tool_available: "change_user_favor"
+    };
 }
 
 /**

@@ -50,7 +50,7 @@ export const favorTools = [
         type: "function",
         function: {
             name: "set_user_favor",
-            description: "设置用户好感度为指定值（绝对值）。仅在需要精确设置时使用。favor是目标值（-100到100）。",
+            description: "[仅管理员可用] 设置用户好感度为指定值。AI请勿调用此工具，请使用change_user_favor进行渐进式调整。",
             parameters: {
                 type: "object",
                 properties: {
