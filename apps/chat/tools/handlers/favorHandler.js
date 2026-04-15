@@ -142,7 +142,8 @@ async function handleGetUserFavor(params) {
 async function handleSetUserFavor(params, e) {
     const { user_id, favor, reason = "管理员设置" } = params;
 
-    if (!e || !e.isMaster) {
+    const isAdmin = e && (e.isMaster || e.isAdmin);
+    if (!isAdmin) {
         logger.warn(`[好感度] 非管理员尝试调用 set_user_favor，已拒绝。user_id: ${user_id}, favor: ${favor}`);
         return {
             error: true,
@@ -163,17 +164,18 @@ async function handleSetUserFavor(params, e) {
 
     const clampedTargetFavor = Math.max(-100, Math.min(100, targetFavor));
     const oldFavor = await getUserFavor(user_id);
-    const success = await setUserFavor(user_id, clampedTargetFavor, reason, '主人');
+    const operator = e.isMaster ? '主人' : '管理员';
+    const success = await setUserFavor(user_id, clampedTargetFavor, reason, operator);
 
     if (success) {
-        logger.info(`[好感度] 主人设置用户 ${user_id} 好感度: ${oldFavor} -> ${clampedTargetFavor}`);
+        logger.info(`[好感度] ${operator}设置用户 ${user_id} 好感度: ${oldFavor} -> ${clampedTargetFavor}`);
         return {
             success: true,
             user_id: user_id,
             old_favor: oldFavor,
             new_favor: clampedTargetFavor,
             change: clampedTargetFavor - oldFavor,
-            operator: "主人"
+            operator: operator
         };
     } else {
         return { error: true, error_message: "设置好感度失败" };
