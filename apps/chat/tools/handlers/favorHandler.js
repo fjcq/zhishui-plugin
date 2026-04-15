@@ -44,7 +44,7 @@ export async function handleFavorToolCall(toolName, toolParams, e = null, curren
                 result = await handleGetUserFavor(params);
                 break;
             case "set_user_favor":
-                result = await handleSetUserFavor(params);
+                result = await handleSetUserFavor(params, e);
                 break;
             case "get_user_info":
                 result = await handleGetUserInfo(params);
@@ -136,18 +136,48 @@ async function handleGetUserFavor(params) {
 /**
  * 处理设置用户好感度
  * 此工具仅限管理员使用，AI请使用 change_user_favor 进行渐进式调整
+ * @param {object} params - 工具参数
+ * @param {object} e - 事件对象（用于权限检查）
  */
-async function handleSetUserFavor(params) {
-    const { user_id, favor } = params;
-    
-    logger.warn(`[好感度] AI尝试调用 set_user_favor（仅管理员可用），已拒绝。user_id: ${user_id}, favor: ${favor}`);
-    
-    return {
-        error: true,
-        error_message: "set_user_favor 工具仅限管理员使用。AI请使用 change_user_favor 工具进行好感度调整，每次最多变化10点。",
-        hint: "请使用 change_user_favor 工具",
-        tool_available: "change_user_favor"
-    };
+async function handleSetUserFavor(params, e) {
+    const { user_id, favor, reason = "管理员设置" } = params;
+
+    if (!e || !e.isMaster) {
+        logger.warn(`[好感度] 非管理员尝试调用 set_user_favor，已拒绝。user_id: ${user_id}, favor: ${favor}`);
+        return {
+            error: true,
+            error_message: "set_user_favor 工具仅限管理员使用。AI请使用 change_user_favor 工具进行好感度调整，每次最多变化10点。",
+            hint: "请使用 change_user_favor 工具",
+            tool_available: "change_user_favor"
+        };
+    }
+
+    if (!user_id || favor === undefined) {
+        return { error: true, error_message: "缺少用户ID或好感度参数" };
+    }
+
+    const targetFavor = Number(favor);
+    if (isNaN(targetFavor)) {
+        return { error: true, error_message: "好感度必须是数字" };
+    }
+
+    const clampedTargetFavor = Math.max(-100, Math.min(100, targetFavor));
+    const oldFavor = await getUserFavor(user_id);
+    const success = await setUserFavor(user_id, clampedTargetFavor, reason, '主人');
+
+    if (success) {
+        logger.info(`[好感度] 主人设置用户 ${user_id} 好感度: ${oldFavor} -> ${clampedTargetFavor}`);
+        return {
+            success: true,
+            user_id: user_id,
+            old_favor: oldFavor,
+            new_favor: clampedTargetFavor,
+            change: clampedTargetFavor - oldFavor,
+            operator: "主人"
+        };
+    } else {
+        return { error: true, error_message: "设置好感度失败" };
+    }
 }
 
 /**
