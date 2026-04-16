@@ -6,6 +6,28 @@
 const logger = global.logger || console;
 
 /**
+ * 使用 SCAN 命令安全地获取匹配模式的所有键
+ * 避免使用 KEYS 命令阻塞 Redis
+ * @param {string} pattern - 键匹配模式
+ * @param {number} count - 每次迭代返回的键数量（默认100）
+ * @returns {Promise<string[]>} 匹配的键数组
+ */
+async function scanKeys(pattern, count = 100) {
+    const keys = [];
+    let cursor = 0;
+    
+    do {
+        const result = await redis.scan(cursor, { MATCH: pattern, COUNT: count });
+        cursor = result.cursor;
+        if (result.keys && result.keys.length > 0) {
+            keys.push(...result.keys);
+        }
+    } while (cursor !== 0);
+    
+    return keys;
+}
+
+/**
  * 获取用户好感度
  * @param {string} userId - 用户ID
  * @returns {Promise<number>} 好感度值，默认0
@@ -15,7 +37,6 @@ export async function getUserFavor(userId) {
         const normalizedUserId = String(userId);
         const key = `zhishui:chat:favor:${normalizedUserId}`;
         const value = await redis.get(key);
-        logger.debug(`[好感度] 读取用户 ${normalizedUserId} 好感度, 键: ${key}, 值: ${value}`);
         return value ? parseInt(value) : 0;
     } catch (error) {
         logger.error(`获取用户好感度失败: ${error.message}`);
@@ -169,71 +190,54 @@ export async function clearAllFavor(userFilter = null) {
         let totalDeleted = 0;
 
         const pattern = 'zhishui:chat:favor:*';
-        let keys = await redis.keys(pattern);
+        const keys = await scanKeys(pattern);
 
-        logger.info(`[好感度] 清空操作 - 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}`);
-        logger.info(`[好感度] redis.keys 返回类型: ${typeof keys}, 是否数组: ${Array.isArray(keys)}, 值: ${JSON.stringify(keys)}`);
+        logger.info(`[好感度] 清空操作 - 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}, 找到键: ${keys.length}个`);
 
-        if (!keys || (Array.isArray(keys) && keys.length === 0)) {
-            const testKey = 'zhishui:chat:favor:test_key_for_debug';
-            await redis.set(testKey, '1');
-            keys = await redis.keys(pattern);
-            logger.info(`[好感度] 写入测试键后重新查询, 返回类型: ${typeof keys}, 是否数组: ${Array.isArray(keys)}, 值: ${JSON.stringify(keys)}`);
-            await redis.del(testKey);
-            if (!keys || (Array.isArray(keys) && keys.length === 0)) {
-                return {
-                    success: true,
-                    count: 0,
-                    message: '没有找到任何好感度数据'
-                };
-            }
+        if (keys.length === 0) {
+            return {
+                success: true,
+                count: 0,
+                message: '没有找到任何好感度数据'
+            };
         }
 
-        if (keys && Array.isArray(keys) && keys.length > 0) {
-            const keysToDelete = [];
+        const keysToDelete = [];
 
-            for (const key of keys) {
-                const userId = key.split(':').pop();
+        for (const key of keys) {
+            const userId = key.split(':').pop();
 
-                if (userFilter && !userFilter.has(userId)) {
-                    continue;
-                }
-
-                keysToDelete.push(key);
+            if (userFilter && !userFilter.has(userId)) {
+                continue;
             }
 
-            logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}, 示例键: ${keysToDelete.slice(0, 3).join(', ')}`);
+            keysToDelete.push(key);
+        }
 
-            if (keysToDelete.length > 0) {
-                const BATCH_SIZE = 100;
+        logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}`);
 
-                for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
-                    const batch = keysToDelete.slice(i, i + BATCH_SIZE);
+        if (keysToDelete.length > 0) {
+            const BATCH_SIZE = 100;
 
-                    try {
-                        if (typeof redis.unlink === 'function') {
-                            const deleted = await redis.unlink(...batch);
-                            logger.info(`[好感度] unlink 删除结果: ${deleted}, 批次大小: ${batch.length}`);
-                            totalDeleted += deleted || batch.length;
-                        } else if (typeof redis.del === 'function') {
-                            const deleted = await redis.del(...batch);
-                            logger.info(`[好感度] del 删除结果: ${deleted}, 批次大小: ${batch.length}`);
-                            totalDeleted += deleted || batch.length;
-                        } else {
-                            for (const key of batch) {
-                                const result = await redis.del(key);
-                                if (result) totalDeleted++;
-                            }
-                        }
-                    } catch (batchError) {
-                        logger.warn(`[好感度] 批量删除失败，降级为逐个删除: ${batchError.message}`);
-                        for (const key of batch) {
-                            try {
-                                const result = await redis.del(key);
-                                if (result) totalDeleted++;
-                            } catch (e) {
-                                logger.warn(`[好感度] 删除键失败: ${key}`);
-                            }
+            for (let i = 0; i < keysToDelete.length; i += BATCH_SIZE) {
+                const batch = keysToDelete.slice(i, i + BATCH_SIZE);
+
+                try {
+                    if (typeof redis.unlink === 'function') {
+                        const deleted = await redis.unlink(...batch);
+                        totalDeleted += deleted || batch.length;
+                    } else {
+                        const deleted = await redis.del(...batch);
+                        totalDeleted += deleted || batch.length;
+                    }
+                } catch (batchError) {
+                    logger.warn(`[好感度] 批量删除失败，降级为逐个删除: ${batchError.message}`);
+                    for (const key of batch) {
+                        try {
+                            const result = await redis.del(key);
+                            if (result) totalDeleted++;
+                        } catch (e) {
+                            logger.warn(`[好感度] 删除键失败: ${key}`);
                         }
                     }
                 }
@@ -269,11 +273,11 @@ export async function getFavorRank(userFilter = null, limit = 10) {
         const favorMap = new Map();
 
         const pattern = 'zhishui:chat:favor:*';
-        const keys = await redis.keys(pattern);
+        const keys = await scanKeys(pattern);
 
-        logger.info(`[好感度排名] 查询键模式: ${pattern}, 找到 ${keys ? keys.length : 0} 个键, 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}`);
+        logger.info(`[好感度排名] 查询键模式: ${pattern}, 找到 ${keys.length} 个键, 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}`);
 
-        if (keys && keys.length > 0) {
+        if (keys.length > 0) {
             let filteredCount = 0;
             for (const key of keys) {
                 const userId = key.split(':').pop();
@@ -318,8 +322,8 @@ export async function getFavorRank(userFilter = null, limit = 10) {
 export async function getFavorTotalCount() {
     try {
         const pattern = 'zhishui:chat:favor:*';
-        const keys = await redis.keys(pattern);
-        return keys ? keys.length : 0;
+        const keys = await scanKeys(pattern);
+        return keys.length;
     } catch (error) {
         logger.error(`获取好感度总数失败: ${error.message}`);
         return 0;
