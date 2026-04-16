@@ -190,14 +190,14 @@ async function callApiWithRetry(apiCall, e, maxRetries = 3) {
         try {
             return await apiCall();
         } catch (apiError) {
-            console.error(`[止水对话] API调用失败 (重试${retryCount}/${maxRetries}):`, apiError.message);
+            logger.error(`[止水对话] API调用失败 (重试${retryCount}/${maxRetries}): ${apiError.message}`);
             
             const strategy = getRetryStrategy(apiError);
             
             if (strategy && retryCount < maxRetries) {
                 retryCount++;
                 const waitTime = strategy.getWaitTime(retryCount);
-                console.log(`[止水对话] ${strategy.getLogMessage(apiError)}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
+                logger.info(`[止水对话] ${strategy.getLogMessage(apiError)}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
 
                 if (retryCount === 1) {
                     await e.reply(strategy.getUserMessage());
@@ -484,9 +484,9 @@ export async function handleChat(e, chatNickname) {
         const chatMsg = await loadChatMsg(e);
 
         if (!chatMsg || chatMsg.length === 0) {
-            console.log('[止水对话] 首次构建上下文，系统提示词:');
-            console.log(systemMessage);
-            console.log('[止水对话] 系统提示词结束');
+            logger.info('[止水对话] 首次构建上下文，系统提示词:');
+            logger.info(systemMessage);
+            logger.info('[止水对话] 系统提示词结束');
         }
 
         let response;
@@ -521,7 +521,7 @@ export async function handleChat(e, chatNickname) {
                 logger.warn('[止水对话] JSON对象缺少message字段，使用原始内容');
             }
         } catch (error) {
-            console.log(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
+            logger.warn(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
             replyObj = {
                 message: content,
                 favor_changes: []
@@ -532,11 +532,11 @@ export async function handleChat(e, chatNickname) {
 
         const favorLogs = await handleFavorChanges(replyObj.favor_changes, e);
         if (favorLogs.length > 0) {
-            console.log('[好感度变更]', favorLogs.join(' | '));
+            logger.info(`[好感度变更] ${favorLogs.join(' | ')}`);
         }
 
         let finalReply = replyObj.message ?? '';
-        console.log(`[止水对话] <- AI回复: ${finalReply}`);
+        logger.info(`[止水对话] <- AI回复: ${finalReply}`);
 
         const { codeText, msgWithoutCode } = extractCodeBlocks(finalReply);
         const finalCodeText = codeText || (replyObj.code_example?.trim() || '');
@@ -546,7 +546,8 @@ export async function handleChat(e, chatNickname) {
         chatActiveMap[sessionId] = 0;
         return true;
     } catch (error) {
-        console.error('对话处理过程中发生错误:', error);
+        logger.error(`对话处理过程中发生错误: ${error.message}`);
+        logger.error(error.stack);
         chatActiveMap[sessionId] = 0;
         await sendErrorReply(e, '发生错误，无法进行对话。请稍后再试。');
         return false;

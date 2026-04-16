@@ -9,7 +9,7 @@ import { puppeteer } from '../../../model/index.js';
 /**
  * 查看用户好感度
  * @param {Object} e - 事件对象
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 export async function handleShowFavor(e) {
     let isAdmin = e.isMaster || e.isAdmin;
@@ -22,7 +22,7 @@ export async function handleShowFavor(e) {
 
     if (atUser && !isAdmin) {
         e.reply('只有主人或管理员可以查看他人好感度。');
-        return;
+        return true;
     }
 
     const favor = await getUserFavor(targetId);
@@ -31,18 +31,19 @@ export async function handleShowFavor(e) {
     } else {
         e.reply(`你的好感度为：${favor}`);
     }
+    return true;
 }
 
 /**
  * 设置好感度
  * @param {Object} e - 事件对象
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 export async function handleSetUserFavor(e) {
     let isAdmin = e.isMaster || e.isAdmin;
     if (!isAdmin) {
         e.reply('只有主人或管理员可以设置好感度。');
-        return;
+        return true;
     }
 
     let targetId = null;
@@ -53,14 +54,14 @@ export async function handleSetUserFavor(e) {
         const numbers = e.msg.match(/(-?\d+)/g);
         if (!numbers || numbers.length === 0) {
             e.reply('请指定好感度数值，例如：#设置好感度 @某人 50');
-            return;
+            return true;
         }
         favor = parseInt(numbers[numbers.length - 1]);
     } else {
         const numbers = e.msg.match(/(-?\d+)/g);
         if (!numbers || numbers.length === 0) {
             e.reply('请指定好感度数值，例如：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）\n#设置好感度 @某人 50（艾特设置）');
-            return;
+            return true;
         }
 
         if (numbers.length >= 2) {
@@ -75,7 +76,7 @@ export async function handleSetUserFavor(e) {
                 favor = parseInt(secondNum);
             } else {
                 e.reply(`参数格式错误。QQ号应为5-11位数字。\n正确格式：\n#设置好感度 50（设置自己）\n#设置好感度 12345678 50（设置指定用户）`);
-                return;
+                return true;
             }
         } else {
             targetId = e.user_id;
@@ -85,7 +86,7 @@ export async function handleSetUserFavor(e) {
 
     if (isNaN(favor)) {
         e.reply('好感度数值无效。');
-        return;
+        return true;
     }
 
     favor = Math.max(-100, Math.min(100, favor));
@@ -109,17 +110,18 @@ export async function handleSetUserFavor(e) {
     } else {
         e.reply(`已将你的好感度设置为：${favor} (原因: ${reason})`);
     }
+    return true;
 }
 
 /**
  * 查看好感度排名
  * @param {Object} e - 事件对象
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 export async function handleShowFavorRank(e) {
     if (!e.group_id && !e.isMaster) {
         e.reply('私聊查看好感度排名仅限主人使用。');
-        return;
+        return true;
     }
 
     let userFilter = null;
@@ -152,7 +154,7 @@ export async function handleShowFavorRank(e) {
         } catch (err) {
             logger.error(`获取群成员列表失败: ${err.message}`);
             e.reply('获取群成员列表失败，请稍后重试。');
-            return;
+            return true;
         }
     }
 
@@ -182,12 +184,13 @@ export async function handleShowFavorRank(e) {
         e,
         scale: 1.4
     });
+    return true;
 }
 
 /**
  * 查看好感度变化历史
  * @param {Object} e - 事件对象
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 export async function handleShowFavorHistory(e) {
     let targetUserId = String(e.user_id);
@@ -261,17 +264,18 @@ export async function handleShowFavorHistory(e) {
         e,
         scale: 1.4
     });
+    return true;
 }
 
 /**
  * 清空好感度
  * @param {Object} e - 事件对象
- * @returns {Promise<void>}
+ * @returns {Promise<boolean>}
  */
 export async function handleClearAllFavor(e) {
     if (!e.isMaster) {
         e.reply('只有主人可以清空好感度。');
-        return;
+        return true;
     }
 
     let userFilter = null;
@@ -292,10 +296,11 @@ export async function handleClearAllFavor(e) {
         } catch (err) {
             logger.error(`获取群成员列表失败: ${err.message}`);
             e.reply('获取群成员列表失败，请稍后重试。');
-            return;
+            return true;
         }
     }
 
     const result = await clearAllFavor(userFilter);
     e.reply(`已清空${targetDesc}的好感度数据，共删除 ${result.count} 条记录。`);
+    return true;
 }

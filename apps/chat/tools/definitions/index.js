@@ -52,13 +52,24 @@ export const toolsByCategory = {
 };
 
 /**
- * 工具名称到定义的映射
+ * 工具名称到定义的映射（懒加载）
  */
-const TOOL_NAME_MAP = new Map();
-for (const tool of allTools) {
-    if (tool.function?.name) {
-        TOOL_NAME_MAP.set(tool.function.name, tool);
+let TOOL_NAME_MAP = null;
+
+/**
+ * 获取工具名称映射（懒加载）
+ * @returns {Map} 工具名称映射
+ */
+function getToolNameMap() {
+    if (!TOOL_NAME_MAP) {
+        TOOL_NAME_MAP = new Map();
+        for (const tool of allTools) {
+            if (tool.function?.name) {
+                TOOL_NAME_MAP.set(tool.function.name, tool);
+            }
+        }
     }
+    return TOOL_NAME_MAP;
 }
 
 /**
@@ -187,7 +198,7 @@ export function getEnabledTools() {
  * @returns {object|null} 工具定义
  */
 export function getToolDefinition(toolName) {
-    return TOOL_NAME_MAP.get(toolName) || null;
+    return getToolNameMap().get(toolName) || null;
 }
 
 /**

@@ -3,7 +3,27 @@
  * 处理用户请求频率限制
  */
 
+import { Config } from '../../../components/index.js';
+
 const logger = global.logger || console;
+
+/**
+ * 获取频率限制配置
+ * @returns {Object} 频率限制配置对象
+ */
+function getRateLimitConfig() {
+    const config = Config.Chat?.RateLimit || {};
+    return {
+        minuteLimit: config.MinuteLimit || 10,
+        hourLimit: config.HourLimit || 50,
+        dayLimit: config.DayLimit || 200,
+        messages: {
+            minuteExceeded: config.Messages?.MinuteExceeded || '您说话太快了，请稍后再试~',
+            hourExceeded: config.Messages?.HourExceeded || '今天聊得太多了，休息一下吧~',
+            dayExceeded: config.Messages?.DayExceeded || '今天的对话次数已用完，明天再来吧~'
+        }
+    };
+}
 
 /**
  * 检查频率限制
@@ -12,6 +32,7 @@ const logger = global.logger || console;
  */
 export async function checkRateLimit(userId) {
     try {
+        const rateLimitConfig = getRateLimitConfig();
         const now = Date.now();
         const minuteKey = `zhishui:chat:ratelimit:minute:${userId}`;
         const hourKey = `zhishui:chat:ratelimit:hour:${userId}`;
@@ -21,27 +42,27 @@ export async function checkRateLimit(userId) {
         const hourCount = await redis.get(hourKey) || 0;
         const dayCount = await redis.get(dayKey) || 0;
 
-        if (parseInt(minuteCount) >= 10) {
+        if (parseInt(minuteCount) >= rateLimitConfig.minuteLimit) {
             return {
                 allowed: false,
                 reason: 'minute',
-                message: '您说话太快了，请稍后再试~'
+                message: rateLimitConfig.messages.minuteExceeded
             };
         }
 
-        if (parseInt(hourCount) >= 50) {
+        if (parseInt(hourCount) >= rateLimitConfig.hourLimit) {
             return {
                 allowed: false,
                 reason: 'hour',
-                message: '今天聊得太多了，休息一下吧~'
+                message: rateLimitConfig.messages.hourExceeded
             };
         }
 
-        if (parseInt(dayCount) >= 200) {
+        if (parseInt(dayCount) >= rateLimitConfig.dayLimit) {
             return {
                 allowed: false,
                 reason: 'day',
-                message: '今天的对话次数已用完，明天再来吧~'
+                message: rateLimitConfig.messages.dayExceeded
             };
         }
 

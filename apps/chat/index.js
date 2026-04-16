@@ -23,6 +23,10 @@ let chatNickname = await Config.Chat.NickName;
 const lastRawResponseMap = {};
 
 export class ChatHandler extends plugin {
+    /**
+     * 构造函数
+     * 初始化对话处理器，配置指令规则
+     */
     constructor() {
         super({
             name: '[止水插件]对话',
@@ -70,148 +74,328 @@ export class ChatHandler extends plugin {
         });
     }
 
+    /**
+     * 重置对话
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ResetChat(e) {
         if (!e.isMaster) return;
         await handlers.handleResetChat(e);
     }
 
+    /**
+     * 处理对话消息
+     * @param {Object} e - 事件对象
+     * @returns {Promise<boolean>} 是否处理成功
+     */
     async chat(e) {
         return await handlers.handleChat(e, chatNickname);
     }
 
+    /**
+     * 设置语音开关
+     * @param {Object} e - 事件对象
+     * @returns {Promise<boolean>} 是否处理成功
+     */
     async SetVoiceEnable(e) {
         return await handlers.handleSetVoiceEnable(e);
     }
 
+    /**
+     * 设置语音发音人
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetVoiceId(e) {
         return await handlers.handleSetVoiceId(e);
     }
 
+    /**
+     * 显示语音发音人
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowVoiceId(e) {
         await handlers.handleShowVoiceId(e);
     }
 
+    /**
+     * 设置艾特开关
+     * @param {Object} e - 事件对象
+     * @returns {Promise<boolean>} 是否处理成功
+     */
     async SetAtEnable(e) {
         return await handlers.handleSetAtEnable(e);
     }
 
+    /**
+     * 设置对话身份
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetContext(e) {
         if (!e.isMaster) return;
         await handlers.handleSetContext(e);
     }
 
+    /**
+     * 显示对话角色
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowContext(e) {
         await handlers.handleShowContext(e);
     }
 
+    /**
+     * 设置对话场景
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetChatScene(e) {
         await handlers.handleSetChatScene(e);
     }
 
+    /**
+     * 显示对话场景
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowChatScene(e) {
         await handlers.handleShowChatScene(e);
     }
 
+    /**
+     * 显示好感度
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowFavor(e) {
         await handlers.handleShowFavor(e);
     }
 
+    /**
+     * 设置用户好感度
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetUserFavor(e) {
         await handlers.handleSetUserFavor(e);
     }
 
+    /**
+     * 显示好感度排名
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowFavorRank(e) {
         await handlers.handleShowFavorRank(e);
     }
 
+    /**
+     * 显示好感度历史
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowFavorHistory(e) {
         await handlers.handleShowFavorHistory(e);
     }
 
+    /**
+     * 清空所有好感度
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ClearAllFavor(e) {
         await handlers.handleClearAllFavor(e);
     }
 
+    /**
+     * 设置主人
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetMaster(e) {
         await handlers.handleSetMaster(e);
     }
 
+    /**
+     * 设置代理
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetProxy(e) {
         await handlers.handleSetProxy(e);
     }
 
+    /**
+     * 设置链接模式
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetLinkMode(e) {
         await handlers.handleSetLinkMode(e);
     }
 
+    /**
+     * 设置API
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SetApi(e) {
         await handlers.handleSetApi(e);
     }
 
+    /**
+     * 切换API
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SwitchApi(e) {
         await handlers.handleSwitchApi(e);
     }
 
+    /**
+     * 显示API配置
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowApi(e) {
         await handlers.handleShowApi(e);
     }
 
+    /**
+     * 测试对话
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async talkTest(e) {
         await handlers.handleTalkTest(e);
     }
 
+    /**
+     * 显示角色列表
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowRoleList(e) {
         await handlers.handleShowRoleList(e);
     }
 
+    /**
+     * 切换角色
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SwitchRole(e) {
         await handlers.handleSwitchRole(e);
     }
 
+    /**
+     * 添加角色
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async AddRole(e) {
         await handlers.handleAddRole(e);
     }
 
+    /**
+     * 设置私聊回复开关
+     * @param {Object} e - 事件对象
+     * @returns {Promise<boolean>} 是否处理成功
+     */
     async SetPrivateChatEnable(e) {
         return await handlers.handleSetPrivateChatEnable(e);
     }
 
+    /**
+     * 显示对话历史
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowChatHistory(e) {
         await handlers.handleShowChatHistory(e);
     }
 
+    /**
+     * 重置个人配置
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ResetUserConfig(e) {
         await handlers.handleResetUserConfig(e);
     }
 
+    /**
+     * 显示个人配置
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowUserConfig(e) {
         await handlers.handleShowUserConfig(e);
     }
 
+    /**
+     * 显示其他用户配置
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowOtherUserConfig(e) {
         await handlers.handleShowOtherUserConfig(e);
     }
 
+    /**
+     * 重置其他用户配置
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ResetOtherUserConfig(e) {
         await handlers.handleResetOtherUserConfig(e);
     }
 
+    /**
+     * 显示用户配置统计
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowUserConfigStats(e) {
         await handlers.handleShowUserConfigStats(e);
     }
 
+    /**
+     * 显示原始响应
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowRawResponse(e) {
         await handlers.handleShowRawResponse(e, lastRawResponseMap);
     }
 
+    /**
+     * 显示上下文模式
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async ShowContextMode(e) {
         await handlers.handleShowContextMode(e);
     }
 
+    /**
+     * 切换到角色模式
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SwitchContextModeRole(e) {
         await handlers.handleSwitchContextMode(e, 'role');
     }
 
+    /**
+     * 切换到隔离模式
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
     async SwitchContextModeIsolated(e) {
         await handlers.handleSwitchContextMode(e, 'isolated');
     }

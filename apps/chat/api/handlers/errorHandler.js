@@ -2,6 +2,8 @@
  * 错误处理器
  */
 
+const logger = global.logger || console;
+
 /**
  * 处理通信错误
  * @param {Error} error - 错误对象
@@ -9,7 +11,7 @@
  * @returns {Promise<never>} 抛出详细错误
  */
 export async function handleCommunicationError(error, apiType) {
-    console.error('[openAi] 与 AI 通信时发生错误:', error.message);
+    logger.error(`[openAi] 与 AI 通信时发生错误: ${error.message}`);
 
     let errorType = '未知错误';
     let errorMessage = '与 AI 通信时发生错误，请稍后重试。';
@@ -43,7 +45,7 @@ export async function handleCommunicationError(error, apiType) {
         errorMessage = `【模型错误】${apiType.toUpperCase()} API不支持当前模型，请检查模型名称是否正确`;
     }
 
-    console.error(`[错误分析] 类型: ${errorType}, API: ${apiType}, 错误: ${error.message}`);
+    logger.error(`[错误分析] 类型: ${errorType}, API: ${apiType}, 错误: ${error.message}`);
 
     const detailedError = new Error(errorMessage);
     detailedError.type = errorType;

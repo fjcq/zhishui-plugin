@@ -67,3 +67,17 @@ GroupRoleIndex:
   - group: 987654321
     index: 2
     apiIndex: 1
+
+# 频率限制配置
+RateLimit:
+  # 每分钟最大请求次数
+  MinuteLimit: 10
+  # 每小时最大请求次数
+  HourLimit: 50
+  # 每天最大请求次数
+  DayLimit: 200
+  # 提示消息
+  Messages:
+    MinuteExceeded: "您说话太快了，请稍后再试~"
+    HourExceeded: "今天聊得太多了，休息一下吧~"
+    DayExceeded: "今天的对话次数已用完，明天再来吧~"
