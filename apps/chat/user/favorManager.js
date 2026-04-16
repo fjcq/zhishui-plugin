@@ -6,6 +6,17 @@
 const logger = global.logger || console;
 
 /**
+ * 获取Redis客户端
+ * @returns {object|null} Redis客户端实例，未初始化时返回null
+ */
+function getRedis() {
+    if (typeof redis !== 'undefined') {
+        return redis;
+    }
+    return null;
+}
+
+/**
  * 使用 SCAN 命令安全地获取匹配模式的所有键
  * 避免使用 KEYS 命令阻塞 Redis
  * @param {string} pattern - 键匹配模式
@@ -13,11 +24,16 @@ const logger = global.logger || console;
  * @returns {Promise<string[]>} 匹配的键数组
  */
 async function scanKeys(pattern, count = 100) {
+    const redisClient = getRedis();
+    if (!redisClient) {
+        throw new Error('Redis客户端未初始化');
+    }
+    
     const keys = [];
     let cursor = 0;
     
     do {
-        const result = await redis.scan(cursor, { MATCH: pattern, COUNT: count });
+        const result = await redisClient.scan(cursor, { MATCH: pattern, COUNT: count });
         cursor = result.cursor;
         if (result.keys && result.keys.length > 0) {
             keys.push(...result.keys);
