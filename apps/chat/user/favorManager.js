@@ -28,18 +28,29 @@ async function scanKeys(pattern, count = 100) {
     if (!redisClient) {
         throw new Error('Redis客户端未初始化');
     }
-    
+
     const keys = [];
     let cursor = 0;
-    
+    let iterations = 0;
+    const maxIterations = 1000;
+
     do {
+        iterations++;
+        if (iterations > maxIterations) {
+            logger.warn(`[好感度] scanKeys 超过最大迭代次数 ${maxIterations}，已收集 ${keys.length} 个键`);
+            break;
+        }
+
         const result = await redisClient.scan(cursor, { MATCH: pattern, COUNT: count });
+        logger.debug(`[好感度] scan 迭代 ${iterations}: cursor=${result.cursor}, keys数量=${result.keys?.length || 0}`);
+
         cursor = result.cursor;
         if (result.keys && result.keys.length > 0) {
             keys.push(...result.keys);
         }
     } while (cursor !== 0);
-    
+
+    logger.info(`[好感度] scanKeys 完成: 共 ${iterations} 次迭代, 收集 ${keys.length} 个键`);
     return keys;
 }
 
@@ -50,9 +61,15 @@ async function scanKeys(pattern, count = 100) {
  */
 export async function getUserFavor(userId) {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            logger.error('获取用户好感度失败: Redis客户端未初始化');
+            return 0;
+        }
+
         const normalizedUserId = String(userId);
         const key = `zhishui:chat:favor:${normalizedUserId}`;
-        const value = await redis.get(key);
+        const value = await redisClient.get(key);
         return value ? parseInt(value) : 0;
     } catch (error) {
         logger.error(`获取用户好感度失败: ${error.message}`);
@@ -70,13 +87,19 @@ export async function getUserFavor(userId) {
  */
 export async function setUserFavor(userId, favor, reason = '', operator = 'AI') {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            logger.error('设置用户好感度失败: Redis客户端未初始化');
+            return false;
+        }
+
         const normalizedUserId = String(userId);
         const key = `zhishui:chat:favor:${normalizedUserId}`;
         const clampedFavor = Math.max(-100, Math.min(100, favor));
 
         const favorBefore = await getUserFavor(normalizedUserId);
 
-        await redis.set(key, String(clampedFavor));
+        await redisClient.set(key, String(clampedFavor));
 
         logger.info(`[好感度] 设置用户 ${normalizedUserId} 好感度为 ${clampedFavor}`);
 
@@ -104,12 +127,18 @@ export async function setUserFavor(userId, favor, reason = '', operator = 'AI') 
  */
 export async function addFavorHistory(userId, change, reason, favorBefore, favorAfter, operator = 'AI') {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            logger.error('添加好感度历史失败: Redis客户端未初始化');
+            return false;
+        }
+
         const normalizedUserId = String(userId);
-        if (typeof redis.lpush !== 'function') {
+        if (typeof redisClient.lpush !== 'function') {
             const key = `zhishui:chat:history:${normalizedUserId}`;
             let history = [];
 
-            const existing = await redis.get(key);
+            const existing = await redisClient.get(key);
             if (existing) {
                 try {
                     history = JSON.parse(existing);
@@ -135,7 +164,7 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
                 history = history.slice(0, 100);
             }
 
-            await redis.set(key, JSON.stringify(history), { EX: 86400 * 180 });
+            await redisClient.set(key, JSON.stringify(history), { EX: 86400 * 180 });
             return true;
         }
 
@@ -149,9 +178,9 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
             operator
         };
 
-        await redis.lpush(key, JSON.stringify(record));
-        await redis.ltrim(key, 0, 99);
-        await redis.expire(key, 86400 * 180);
+        await redisClient.lpush(key, JSON.stringify(record));
+        await redisClient.ltrim(key, 0, 99);
+        await redisClient.expire(key, 86400 * 180);
 
         return true;
     } catch (error) {
@@ -168,11 +197,17 @@ export async function addFavorHistory(userId, change, reason, favorBefore, favor
  */
 export async function getFavorHistory(userId, limit = 10) {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            logger.error('获取好感度历史失败: Redis客户端未初始化');
+            return [];
+        }
+
         const normalizedUserId = String(userId);
         const key = `zhishui:chat:history:${normalizedUserId}`;
 
-        if (typeof redis.lrange !== 'function') {
-            const existing = await redis.get(key);
+        if (typeof redisClient.lrange !== 'function') {
+            const existing = await redisClient.get(key);
             if (!existing) {
                 return [];
             }
@@ -188,7 +223,7 @@ export async function getFavorHistory(userId, limit = 10) {
             }
         }
 
-        const records = await redis.lrange(key, 0, limit - 1);
+        const records = await redisClient.lrange(key, 0, limit - 1);
         return records.map(record => JSON.parse(record));
     } catch (error) {
         logger.error(`获取好感度历史失败: ${error.message}`);
@@ -203,6 +238,15 @@ export async function getFavorHistory(userId, limit = 10) {
  */
 export async function clearAllFavor(userFilter = null) {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            return {
+                success: false,
+                count: 0,
+                message: 'Redis客户端未初始化'
+            };
+        }
+
         let totalDeleted = 0;
 
         const pattern = 'zhishui:chat:favor:*';
@@ -230,7 +274,7 @@ export async function clearAllFavor(userFilter = null) {
             keysToDelete.push(key);
         }
 
-        logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}`);
+        logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}, 前5个键: ${keysToDelete.slice(0, 5).join(', ')}`);
 
         if (keysToDelete.length > 0) {
             const BATCH_SIZE = 100;
@@ -239,18 +283,20 @@ export async function clearAllFavor(userFilter = null) {
                 const batch = keysToDelete.slice(i, i + BATCH_SIZE);
 
                 try {
-                    if (typeof redis.unlink === 'function') {
-                        const deleted = await redis.unlink(...batch);
+                    if (typeof redisClient.unlink === 'function') {
+                        const deleted = await redisClient.unlink(...batch);
+                        logger.info(`[好感度] unlink 批次 ${Math.floor(i / BATCH_SIZE) + 1}: 删除 ${batch.length} 个键, 返回值: ${deleted}`);
                         totalDeleted += deleted || batch.length;
                     } else {
-                        const deleted = await redis.del(...batch);
+                        const deleted = await redisClient.del(...batch);
+                        logger.info(`[好感度] del 批次 ${Math.floor(i / BATCH_SIZE) + 1}: 删除 ${batch.length} 个键, 返回值: ${deleted}`);
                         totalDeleted += deleted || batch.length;
                     }
                 } catch (batchError) {
                     logger.warn(`[好感度] 批量删除失败，降级为逐个删除: ${batchError.message}`);
                     for (const key of batch) {
                         try {
-                            const result = await redis.del(key);
+                            const result = await redisClient.del(key);
                             if (result) totalDeleted++;
                         } catch (e) {
                             logger.warn(`[好感度] 删除键失败: ${key}`);
@@ -286,6 +332,12 @@ export async function clearAllFavor(userFilter = null) {
  */
 export async function getFavorRank(userFilter = null, limit = 10) {
     try {
+        const redisClient = getRedis();
+        if (!redisClient) {
+            logger.error('获取好感度排名失败: Redis客户端未初始化');
+            return [];
+        }
+
         const favorMap = new Map();
 
         const pattern = 'zhishui:chat:favor:*';
@@ -303,7 +355,7 @@ export async function getFavorRank(userFilter = null, limit = 10) {
                     continue;
                 }
 
-                const value = await redis.get(key);
+                const value = await redisClient.get(key);
                 if (value !== null && value !== undefined) {
                     favorMap.set(userId, parseInt(value));
                 }
