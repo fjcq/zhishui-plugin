@@ -9,6 +9,7 @@ import { handleGroupToolCall } from './groupHandler.js';
 import { handleInteractToolCall } from './interactHandler.js';
 import { handleMemoryToolCall } from './memoryHandler.js';
 import { handleCodeToolCall } from './codeHandler.js';
+import { handleMessageToolCall, MESSAGE_TOOLS as NEW_MESSAGE_TOOLS } from './messageHandler.js';
 import { makeDecision, DecisionResult } from '../decisionEngine.js';
 import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../definitions/index.js';
 import { getUserFavor } from '../../user/index.js';
@@ -40,14 +41,22 @@ const MUSIC_TOOLS = [
 ];
 
 /**
- * 消息工具名称列表
+ * 消息工具名称列表（旧版，保留兼容）
  */
-const MESSAGE_TOOLS = [
+const MESSAGE_TOOLS_LEGACY = [
     'send_image',
     'send_voice',
     'send_private_message',
     'forward_message',
     'set_essence_message'
+];
+
+/**
+ * 消息工具名称列表（新版）
+ */
+const MESSAGE_TOOLS = [
+    ...MESSAGE_TOOLS_LEGACY,
+    ...NEW_MESSAGE_TOOLS
 ];
 
 /**
@@ -223,6 +232,12 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
             return result;
         }
 
+        if (NEW_MESSAGE_TOOLS.includes(toolName)) {
+            const result = await handleMessageToolCall(toolName, params, e, currentUserId);
+            logToolResult(toolName, result);
+            return result;
+        }
+
         if (INTERACT_HANDLER_TOOLS.has(toolName)) {
             const result = await handleInteractToolCall(toolName, params, e, currentUserId);
             logToolResult(toolName, result);
@@ -318,6 +333,7 @@ export {
     handleInteractToolCall,
     handleMemoryToolCall,
     handleCodeToolCall,
+    handleMessageToolCall,
     GROUP_TOOLS,
     MUSIC_TOOLS,
     MESSAGE_TOOLS,

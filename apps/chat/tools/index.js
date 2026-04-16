@@ -18,7 +18,7 @@ export {
 } from './definitions/index.js';
 
 // 导出工具处理函数
-export { handleToolCall, handleFavorToolCall, handleGroupToolCall, handleInteractToolCall, handleMemoryToolCall } from './handlers/index.js';
+export { handleToolCall, handleFavorToolCall, handleGroupToolCall, handleInteractToolCall, handleMemoryToolCall, handleMessageToolCall } from './handlers/index.js';
 
 // 导出权限控制模块
 export {

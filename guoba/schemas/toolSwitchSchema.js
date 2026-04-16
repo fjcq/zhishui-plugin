@@ -57,11 +57,17 @@ const TOOL_CATEGORIES = [
         label: '消息工具',
         field: 'message_tools',
         tools: [
+            { value: 'send_message', label: '发送消息', desc: '允许AI发送混合消息（文本、@、图片、回复）' },
             { value: 'send_image', label: '发送图片', desc: '允许AI发送图片消息' },
             { value: 'send_voice', label: '发送语音', desc: '允许AI发送语音消息' },
             { value: 'send_private_message', label: '发送私聊', desc: '允许AI发送私聊消息' },
+            { value: 'send_group_message', label: '发送群消息', desc: '允许AI发送群消息到指定群组' },
             { value: 'forward_message', label: '转发消息', desc: '允许AI转发消息到其他群' },
-            { value: 'set_essence_message', label: '设为精华', desc: '允许AI设置精华消息（需Bot是管理员）' }
+            { value: 'recall_message', label: '撤回消息', desc: '允许AI撤回消息' },
+            { value: 'set_essence_message', label: '设为精华', desc: '允许AI设置精华消息（需Bot是管理员）' },
+            { value: 'get_scene_info', label: '获取场景信息', desc: '允许AI获取当前对话场景信息' },
+            { value: 'get_group_member_info', label: '获取群成员信息', desc: '允许AI获取群成员详细信息' },
+            { value: 'get_group_info', label: '获取群组信息', desc: '允许AI获取群组详细信息' }
         ]
     },
     {
@@ -127,11 +133,17 @@ const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
         'get_playlist'
     ],
     message_tools: [
+        'send_message',
         'send_image',
         'send_voice',
         'send_private_message',
+        'send_group_message',
         'forward_message',
-        'set_essence_message'
+        'recall_message',
+        'set_essence_message',
+        'get_scene_info',
+        'get_group_member_info',
+        'get_group_info'
     ],
     interact_tools: [
         'poke_user',

@@ -1,6 +1,6 @@
 /**
- * AT格式解析模块
- * 处理消息中的艾特格式转换
+ * 消息格式解析模块
+ * 处理消息中的各种格式标记转换（@、图片、回复等）
  */
 
 const logger = global.logger || console;
@@ -42,7 +42,7 @@ async function getUserNickname(e, userId) {
             }
         }
     } catch (err) {
-        logger.debug(`[AT解析] 获取用户${userId}昵称失败: ${err.message}`);
+        logger.debug(`[消息解析] 获取用户${userId}昵称失败: ${err.message}`);
     }
 
     nickname = nickname || `用户${userId}`;
@@ -51,33 +51,125 @@ async function getUserNickname(e, userId) {
 }
 
 /**
- * 将消息中的 [CQ:at,qq=用户ID] 格式转换为 segment.at() 对象数组
+ * 将消息中的各种格式标记转换为消息段对象
+ * 支持的格式：
+ * - [CQ:at,qq=用户ID] -> @某人
+ * - [CQ:image,url=URL] -> 图片
+ * - [CQ:reply,id=消息ID] -> 回复消息
+ * - @[用户ID] -> @某人（简化格式）
+ * - [image:URL] -> 图片（简化格式）
  * @param {string} message - 原始消息内容
  * @returns {Array} 转换后的消息数组，包含文本和segment对象
  */
-export function convertAtFormat(message) {
+export function convertMessageFormat(message) {
     if (!message || typeof message !== 'string') {
         return [message];
     }
 
     const result = [];
-    const atRegex = /\[CQ:at,qq=(\d+)\]/g;
-    let lastIndex = 0;
+    const markers = [];
+
+    const atCqRegex = /\[CQ:at,qq=(\d+)\]/g;
+    const imageCqRegex = /\[CQ:image,url=([^\]]+)\]/g;
+    const replyCqRegex = /\[CQ:reply,id=([^\]]+)\]/g;
+    const atSimpleRegex = /@\[(\d+)\]/g;
+    const imageSimpleRegex = /\[image:([^\]]+)\]/g;
+
     let match;
 
-    while ((match = atRegex.exec(message)) !== null) {
-        if (match.index > lastIndex) {
-            result.push(message.substring(lastIndex, match.index));
+    while ((match = atCqRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'at',
+            userId: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    while ((match = imageCqRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'image',
+            url: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    while ((match = replyCqRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'reply',
+            messageId: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    while ((match = atSimpleRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'at',
+            userId: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    while ((match = imageSimpleRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'image',
+            url: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    markers.sort((a, b) => a.start - b.start);
+
+    const filteredMarkers = [];
+    for (let i = 0; i < markers.length; i++) {
+        let isOverlapped = false;
+        for (let j = 0; j < filteredMarkers.length; j++) {
+            if (markers[i].start >= filteredMarkers[j].start &&
+                markers[i].end <= filteredMarkers[j].end) {
+                isOverlapped = true;
+                break;
+            }
+        }
+        if (!isOverlapped) {
+            filteredMarkers.push(markers[i]);
+        }
+    }
+
+    let lastIndex = 0;
+    for (const marker of filteredMarkers) {
+        if (marker.start > lastIndex) {
+            const textPart = message.substring(lastIndex, marker.start);
+            if (textPart) {
+                result.push(textPart);
+            }
         }
 
-        const userId = match[1];
-        result.push(segment.at(userId));
+        switch (marker.type) {
+            case 'at':
+                result.push(segment.at(marker.userId));
+                break;
 
-        lastIndex = match.index + match[0].length;
+            case 'image':
+                result.push(segment.image(marker.url));
+                break;
+
+            case 'reply':
+                result.push(segment.reply(marker.messageId));
+                break;
+        }
+
+        lastIndex = marker.end;
     }
 
     if (lastIndex < message.length) {
-        result.push(message.substring(lastIndex));
+        const textPart = message.substring(lastIndex);
+        if (textPart) {
+            result.push(textPart);
+        }
     }
 
     if (result.length === 0) {
@@ -85,6 +177,15 @@ export function convertAtFormat(message) {
     }
 
     return result;
+}
+
+/**
+ * 将消息中的 [CQ:at,qq=用户ID] 格式转换为 segment.at() 对象数组
+ * @param {string} message - 原始消息内容
+ * @returns {Array} 转换后的消息数组，包含文本和segment对象
+ */
+export function convertAtFormat(message) {
+    return convertMessageFormat(message);
 }
 
 /**
@@ -100,7 +201,8 @@ export async function convertAtToNames(message, e) {
     }
 
     const atRegex = /\[CQ:at,qq=(\d+)\]/g;
-    const matches = [...message.matchAll(atRegex)];
+    const atSimpleRegex = /@\[(\d+)\]/g;
+    const matches = [...message.matchAll(atRegex), ...message.matchAll(atSimpleRegex)];
 
     if (matches.length === 0) {
         return message;
@@ -117,7 +219,44 @@ export async function convertAtToNames(message, e) {
     let result = message;
     for (const [userId, nickname] of nicknameMap) {
         result = result.replace(new RegExp(`\\[CQ:at,qq=${userId}\\]`, 'g'), `@${nickname}`);
+        result = result.replace(new RegExp(`@\\[${userId}\\]`, 'g'), `@${nickname}`);
     }
+
+    const imageCqRegex = /\[CQ:image,url=[^\]]+\]/g;
+    const imageSimpleRegex = /\[image:[^\]]+\]/g;
+    result = result.replace(imageCqRegex, '[图片]');
+    result = result.replace(imageSimpleRegex, '[图片]');
+
+    const replyCqRegex = /\[CQ:reply,id=[^\]]+\]/g;
+    result = result.replace(replyCqRegex, '[回复]');
 
     return result;
 }
+
+/**
+ * 检查消息是否包含混合消息段（非纯文本）
+ * @param {string} message - 消息内容
+ * @returns {boolean} 是否包含混合消息段
+ */
+export function hasMixedSegments(message) {
+    if (!message || typeof message !== 'string') {
+        return false;
+    }
+
+    const patterns = [
+        /\[CQ:at,qq=\d+\]/,
+        /\[CQ:image,url=/,
+        /\[CQ:reply,id=/,
+        /@\[\d+\]/,
+        /\[image:/
+    ];
+
+    return patterns.some(pattern => pattern.test(message));
+}
+
+export default {
+    convertMessageFormat,
+    convertAtFormat,
+    convertAtToNames,
+    hasMixedSegments
+};
