@@ -15,6 +15,7 @@ export async function getUserFavor(userId) {
         const normalizedUserId = String(userId);
         const key = `zhishui:chat:favor:${normalizedUserId}`;
         const value = await redis.get(key);
+        logger.debug(`[好感度] 读取用户 ${normalizedUserId} 好感度, 键: ${key}, 值: ${value}`);
         return value ? parseInt(value) : 0;
     } catch (error) {
         logger.error(`获取用户好感度失败: ${error.message}`);
@@ -168,11 +169,27 @@ export async function clearAllFavor(userFilter = null) {
         let totalDeleted = 0;
 
         const pattern = 'zhishui:chat:favor:*';
-        const keys = await redis.keys(pattern);
+        let keys = await redis.keys(pattern);
 
-        logger.info(`[好感度] 清空操作 - 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}, 找到键: ${keys ? keys.length : 0}个`);
+        logger.info(`[好感度] 清空操作 - 筛选条件: ${userFilter ? `Set(${userFilter.size}人)` : '无'}`);
+        logger.info(`[好感度] redis.keys 返回类型: ${typeof keys}, 是否数组: ${Array.isArray(keys)}, 值: ${JSON.stringify(keys)}`);
 
-        if (keys && keys.length > 0) {
+        if (!keys || (Array.isArray(keys) && keys.length === 0)) {
+            const testKey = 'zhishui:chat:favor:test_key_for_debug';
+            await redis.set(testKey, '1');
+            keys = await redis.keys(pattern);
+            logger.info(`[好感度] 写入测试键后重新查询, 返回类型: ${typeof keys}, 是否数组: ${Array.isArray(keys)}, 值: ${JSON.stringify(keys)}`);
+            await redis.del(testKey);
+            if (!keys || (Array.isArray(keys) && keys.length === 0)) {
+                return {
+                    success: true,
+                    count: 0,
+                    message: '没有找到任何好感度数据'
+                };
+            }
+        }
+
+        if (keys && Array.isArray(keys) && keys.length > 0) {
             const keysToDelete = [];
 
             for (const key of keys) {
@@ -185,7 +202,7 @@ export async function clearAllFavor(userFilter = null) {
                 keysToDelete.push(key);
             }
 
-            logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}`);
+            logger.info(`[好感度] 待删除键数量: ${keysToDelete.length}, 示例键: ${keysToDelete.slice(0, 3).join(', ')}`);
 
             if (keysToDelete.length > 0) {
                 const BATCH_SIZE = 100;
@@ -196,9 +213,11 @@ export async function clearAllFavor(userFilter = null) {
                     try {
                         if (typeof redis.unlink === 'function') {
                             const deleted = await redis.unlink(...batch);
+                            logger.info(`[好感度] unlink 删除结果: ${deleted}, 批次大小: ${batch.length}`);
                             totalDeleted += deleted || batch.length;
                         } else if (typeof redis.del === 'function') {
                             const deleted = await redis.del(...batch);
+                            logger.info(`[好感度] del 删除结果: ${deleted}, 批次大小: ${batch.length}`);
                             totalDeleted += deleted || batch.length;
                         } else {
                             for (const key of batch) {
@@ -230,6 +249,7 @@ export async function clearAllFavor(userFilter = null) {
         };
     } catch (error) {
         logger.error(`清空好感度失败: ${error.message}`);
+        logger.error(error.stack);
         return {
             success: false,
             count: 0,
