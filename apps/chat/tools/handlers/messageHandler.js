@@ -3,8 +3,8 @@
  * 支持灵活的消息组合，包括多个@、图片、文本混合发送
  */
 
-import { SceneAdapter, SceneType } from './sceneAdapter.js';
-import { MessageValidator, MessageSender, MessageResult, MessageBuilder } from './messageUtils.js';
+import { SceneAdapter } from './sceneAdapter.js';
+import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType } from './messageUtils.js';
 import { getSegment } from './musicCore.js';
 import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
