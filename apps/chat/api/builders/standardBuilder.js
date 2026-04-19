@@ -7,6 +7,53 @@ import { isToolCallingSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
 
 /**
+ * 验证并清理消息数组
+ * 仅验证基本格式，保留消息序列完整性，让API处理语义验证
+ * @param {Array} messages - 原始消息数组
+ * @returns {Array} 清理后的消息数组
+ */
+function validateAndSanitizeMessages(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return [];
+    }
+
+    const sanitized = [];
+
+    for (const msg of messages) {
+        if (!msg || !msg.role) continue;
+
+        const validRoles = ['system', 'user', 'assistant', 'tool', 'function'];
+        if (!validRoles.includes(msg.role)) continue;
+
+        const hasContent = msg.content !== null && msg.content !== undefined &&
+            ((typeof msg.content === 'string' && msg.content.trim().length > 0) ||
+             Array.isArray(msg.content));
+        const hasToolCalls = Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0;
+        const hasToolCallId = (msg.role === 'tool' || msg.role === 'function') && msg.tool_call_id;
+        const hasFunctionCall = msg.function_call !== undefined;
+
+        if (msg.role === 'user') {
+            if (!hasContent) continue;
+            sanitized.push(msg);
+        }
+        else if (msg.role === 'assistant') {
+            if (!hasContent && !hasToolCalls && !hasFunctionCall) continue;
+            sanitized.push(msg);
+        }
+        else if (msg.role === 'tool' || msg.role === 'function') {
+            if (!hasToolCallId) continue;
+            sanitized.push(msg);
+        }
+        else if (msg.role === 'system') {
+            if (!msg.content || (typeof msg.content === 'string' && msg.content.trim().length === 0)) continue;
+            sanitized.push(msg);
+        }
+    }
+
+    return sanitized;
+}
+
+/**
  * 构建标准OpenAI格式请求数据
  * @param {string} aiModel - AI模型名称
  * @param {string} systemMessage - 系统消息
@@ -71,6 +118,8 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
         const { fullUserMsg } = buildUserMessageContent(msg);
         messages.push({ role: 'user', content: fullUserMsg });
     }
+
+    messages = validateAndSanitizeMessages(messages);
 
     let requestData = {
         model: aiModel,
