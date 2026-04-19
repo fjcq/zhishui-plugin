@@ -41,7 +41,7 @@ function validateAndSanitizeMessages(messages) {
             sanitized.push(msg);
         }
         else if (msg.role === 'tool' || msg.role === 'function') {
-            if (!hasToolCallId) continue;
+            if (!hasToolCallId || !hasContent) continue;
             sanitized.push(msg);
         }
         else if (msg.role === 'system') {
