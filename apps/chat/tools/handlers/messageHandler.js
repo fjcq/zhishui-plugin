@@ -24,8 +24,7 @@ export const MESSAGE_TOOLS = [
     'recall_message',
     'set_essence_message',
     'get_scene_info',
-    'get_group_member_info',
-    'get_group_info'
+    'get_group_member_info'
 ];
 
 /**
@@ -80,10 +79,6 @@ export async function handleMessageToolCall(toolName, params, e, currentUserId) 
 
             case 'get_group_member_info':
                 result = await handleGetGroupMemberInfo(params, adapter);
-                break;
-
-            case 'get_group_info':
-                result = await handleGetGroupInfo(params, adapter);
                 break;
 
             default:
@@ -612,26 +607,6 @@ async function handleGetGroupMemberInfo(params, adapter) {
     return {
         success: true,
         member: memberInfo
-    };
-}
-
-/**
- * 处理获取群组信息
- */
-async function handleGetGroupInfo(params, adapter) {
-    if (adapter.context.isPrivate()) {
-        return { error: true, error_message: '私聊场景无法获取群组信息' };
-    }
-
-    const groupInfo = await adapter.context.getGroupInfo();
-
-    if (!groupInfo) {
-        return { error: true, error_message: '无法获取群组信息' };
-    }
-
-    return {
-        success: true,
-        group: groupInfo
     };
 }
 
