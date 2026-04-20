@@ -21,6 +21,8 @@ const logger = global.logger || console;
  * 群管理工具名称列表
  */
 const GROUP_TOOLS = [
+    'get_group_list',
+    'get_group_info',
     'mute_group_member',
     'set_group_card',
     'set_group_title',
@@ -99,7 +101,6 @@ const FAVOR_TOOLS = [
     'get_user_favor',
     'set_user_favor',
     'get_user_info',
-    'get_group_info',
     'get_user_profile',
     'get_group_members'
 ];

@@ -34,7 +34,7 @@ export const TOOLS = {
     change_user_favor: {
         name: 'change_user_favor',
         label: '调整好感度',
-        desc: '允许AI增减用户好感度',
+        desc: '增减用户好感度',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -53,7 +53,7 @@ export const TOOLS = {
     get_user_favor: {
         name: 'get_user_favor',
         label: '获取好感度',
-        desc: '允许AI查询用户好感度数值',
+        desc: '查询用户好感度数值',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -70,7 +70,7 @@ export const TOOLS = {
     set_user_favor: {
         name: 'set_user_favor',
         label: '设置好感度',
-        desc: '允许AI精确设置好感度值',
+        desc: '精确设置好感度值',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -89,7 +89,7 @@ export const TOOLS = {
     get_user_info: {
         name: 'get_user_info',
         label: '获取用户信息',
-        desc: '允许AI获取用户详细数据',
+        desc: '获取用户详细数据',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -106,15 +106,15 @@ export const TOOLS = {
     get_group_info: {
         name: 'get_group_info',
         label: '获取群信息',
-        desc: '允许AI获取群组基本信息',
-        category: 'favor',
+        desc: '获取群组详细信息',
+        category: 'group',
         defaultEnabled: true,
         definition: {
-            description: "获取群组信息（群名、群号、成员数量等）。",
+            description: "查询指定群的详细信息。包括群号、群名称、群成员数量、群主等信息。不传group_id时默认查询当前群。",
             parameters: {
                 type: "object",
                 properties: {
-                    group_id: { type: "string", description: "群组ID，可省略，默认使用当前群组" }
+                    group_id: { type: "string", description: "要查询的群号，不传则查询当前群" }
                 },
                 required: []
             }
@@ -123,7 +123,7 @@ export const TOOLS = {
     get_user_profile: {
         name: 'get_user_profile',
         label: '获取QQ资料',
-        desc: '允许AI获取用户QQ资料',
+        desc: '获取用户QQ资料',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -141,7 +141,7 @@ export const TOOLS = {
     get_group_members: {
         name: 'get_group_members',
         label: '获取群成员',
-        desc: '允许AI获取群成员列表',
+        desc: '获取群成员列表',
         category: 'favor',
         defaultEnabled: true,
         definition: {
@@ -159,7 +159,7 @@ export const TOOLS = {
     get_friend_list: {
         name: 'get_friend_list',
         label: '获取好友列表',
-        desc: '允许AI获取Bot的全部好友列表',
+        desc: '获取全部好友列表',
         category: 'friend',
         defaultEnabled: true,
         definition: {
@@ -174,7 +174,7 @@ export const TOOLS = {
     get_friend_info: {
         name: 'get_friend_info',
         label: '查询好友信息',
-        desc: '允许AI查询指定好友的详细信息',
+        desc: '查询指定好友的详细信息',
         category: 'friend',
         defaultEnabled: true,
         definition: {
@@ -189,10 +189,26 @@ export const TOOLS = {
         }
     },
 
+    get_group_list: {
+        name: 'get_group_list',
+        label: '获取群列表',
+        desc: '获取加入的全部群列表',
+        category: 'group',
+        defaultEnabled: true,
+        definition: {
+            description: "获取Bot加入的全部群列表。返回群数量和每个群的基本信息（群号、群名称）。",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
+    },
+
     mute_group_member: {
         name: 'mute_group_member',
         label: '禁言成员',
-        desc: '允许AI禁言/解禁群成员（需Bot是管理员）',
+        desc: '禁言或解禁群成员（需Bot是管理员）',
         category: 'group',
         defaultEnabled: false,
         definition: {
@@ -211,7 +227,7 @@ export const TOOLS = {
     set_group_card: {
         name: 'set_group_card',
         label: '修改群名片',
-        desc: '允许AI修改群成员名片（需Bot是管理员）',
+        desc: '修改群成员名片（需Bot是管理员）',
         category: 'group',
         defaultEnabled: true,
         definition: {
@@ -229,7 +245,7 @@ export const TOOLS = {
     set_group_title: {
         name: 'set_group_title',
         label: '设置专属头衔',
-        desc: '允许AI设置群成员专属头衔（需Bot是群主）',
+        desc: '设置群成员专属头衔（需Bot是群主）',
         category: 'group',
         defaultEnabled: true,
         definition: {
@@ -247,7 +263,7 @@ export const TOOLS = {
     kick_group_member: {
         name: 'kick_group_member',
         label: '移出成员',
-        desc: '允许AI将成员移出群组（需Bot是管理员）',
+        desc: '将成员移出群组（需Bot是管理员）',
         category: 'group',
         defaultEnabled: false,
         definition: {
@@ -266,7 +282,7 @@ export const TOOLS = {
     delete_message: {
         name: 'delete_message',
         label: '撤回消息',
-        desc: '允许AI撤回群消息（需Bot是管理员）',
+        desc: '撤回群消息（需Bot是管理员）',
         category: 'group',
         defaultEnabled: true,
         definition: {
@@ -283,7 +299,7 @@ export const TOOLS = {
     set_group_name: {
         name: 'set_group_name',
         label: '修改群名称',
-        desc: '允许AI修改群名称（需Bot是管理员）',
+        desc: '修改群名称（需Bot是管理员）',
         category: 'group',
         defaultEnabled: true,
         definition: {
@@ -300,7 +316,7 @@ export const TOOLS = {
     set_group_announcement: {
         name: 'set_group_announcement',
         label: '发布公告',
-        desc: '允许AI发布群公告（需Bot是管理员）',
+        desc: '发布群公告（需Bot是管理员）',
         category: 'group',
         defaultEnabled: true,
         definition: {
@@ -319,7 +335,7 @@ export const TOOLS = {
     search_music: {
         name: 'search_music',
         label: '搜索音乐',
-        desc: '允许AI搜索音乐并返回列表',
+        desc: '搜索音乐并返回列表',
         category: 'music',
         defaultEnabled: true,
         definition: {
@@ -345,7 +361,7 @@ export const TOOLS = {
     play_music: {
         name: 'play_music',
         label: '播放音乐',
-        desc: '允许AI播放指定音乐',
+        desc: '播放指定音乐',
         category: 'music',
         defaultEnabled: true,
         definition: {
@@ -372,7 +388,7 @@ song_id和platform来自search_music的返回结果`,
     get_lyrics: {
         name: 'get_lyrics',
         label: '获取歌词',
-        desc: '允许AI获取歌曲歌词',
+        desc: '获取歌曲歌词',
         category: 'music',
         defaultEnabled: true,
         definition: {
@@ -391,7 +407,7 @@ song_id和platform来自search_music的返回结果`,
     get_playlist: {
         name: 'get_playlist',
         label: '获取歌单',
-        desc: '允许AI获取歌单内容',
+        desc: '获取歌单内容',
         category: 'music',
         defaultEnabled: true,
         definition: {
@@ -429,7 +445,7 @@ song_id和platform来自search_music的返回结果`,
     send_voice: {
         name: 'send_voice',
         label: '发送语音',
-        desc: '允许AI发送语音消息',
+        desc: '发送语音消息',
         category: 'message',
         defaultEnabled: true,
         definition: {
@@ -446,7 +462,7 @@ song_id和platform来自search_music的返回结果`,
     send_private_message: {
         name: 'send_private_message',
         label: '发送私聊',
-        desc: '允许AI发送私聊消息',
+        desc: '发送私聊消息',
         category: 'message',
         defaultEnabled: true,
         definition: {
@@ -464,7 +480,7 @@ song_id和platform来自search_music的返回结果`,
     forward_message: {
         name: 'forward_message',
         label: '转发消息',
-        desc: '允许AI转发消息到其他群',
+        desc: '转发消息到其他群',
         category: 'message',
         defaultEnabled: true,
         definition: {
@@ -482,7 +498,7 @@ song_id和platform来自search_music的返回结果`,
     set_essence_message: {
         name: 'set_essence_message',
         label: '设为精华',
-        desc: '允许AI设置精华消息（需Bot是管理员）',
+        desc: '设置精华消息（需Bot是管理员）',
         category: 'message',
         defaultEnabled: true,
         definition: {
@@ -500,7 +516,7 @@ song_id和platform来自search_music的返回结果`,
     poke_user: {
         name: 'poke_user',
         label: '戳一戳',
-        desc: '允许AI戳一戳用户',
+        desc: '戳一戳用户',
         category: 'interact',
         defaultEnabled: true,
         definition: {
@@ -517,7 +533,7 @@ song_id和platform来自search_music的返回结果`,
     generate_meme: {
         name: 'generate_meme',
         label: '表情包生成',
-        desc: '允许AI使用用户头像生成表情包',
+        desc: '使用用户头像生成表情包',
         category: 'interact',
         defaultEnabled: true,
         definition: {
@@ -568,7 +584,7 @@ song_id和platform来自search_music的返回结果`,
     remember_user_info: {
         name: 'remember_user_info',
         label: '记录用户信息',
-        desc: '允许AI记录用户信息到记忆库',
+        desc: '记录用户信息到记忆库',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -588,7 +604,7 @@ song_id和platform来自search_music的返回结果`,
     recall_user_info: {
         name: 'recall_user_info',
         label: '获取记忆',
-        desc: '允许AI从记忆库获取用户信息',
+        desc: '从记忆库获取用户信息',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -606,7 +622,7 @@ song_id和platform来自search_music的返回结果`,
     forget_user_info: {
         name: 'forget_user_info',
         label: '删除记忆',
-        desc: '允许AI删除记忆库中的用户信息',
+        desc: '删除记忆库中的用户信息',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -643,7 +659,7 @@ song_id和platform来自search_music的返回结果`,
     get_reminders: {
         name: 'get_reminders',
         label: '获取提醒',
-        desc: '允许AI获取用户的提醒列表',
+        desc: '获取用户的提醒列表',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -660,7 +676,7 @@ song_id和platform来自search_music的返回结果`,
     cancel_reminder: {
         name: 'cancel_reminder',
         label: '取消提醒',
-        desc: '允许AI取消用户的提醒',
+        desc: '取消用户的提醒',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -677,7 +693,7 @@ song_id和platform来自search_music的返回结果`,
     record_interaction: {
         name: 'record_interaction',
         label: '记录互动',
-        desc: '允许AI记录与用户的重要互动',
+        desc: '记录与用户的重要互动',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -696,7 +712,7 @@ song_id和platform来自search_music的返回结果`,
     get_interaction_history: {
         name: 'get_interaction_history',
         label: '获取互动历史',
-        desc: '允许AI获取与用户的历史互动记录',
+        desc: '获取与用户的历史互动记录',
         category: 'memory',
         defaultEnabled: true,
         definition: {
@@ -716,7 +732,7 @@ song_id和platform来自search_music的返回结果`,
     output_code: {
         name: 'output_code',
         label: '输出代码',
-        desc: '允许AI以结构化方式输出代码示例',
+        desc: '以结构化方式输出代码示例',
         category: 'output',
         defaultEnabled: true,
         definition: {

@@ -26,7 +26,7 @@ export async function handleFavorToolCall(toolName, toolParams, e = null, curren
             }
         }
 
-        const toolsNeedGroupId = ['get_group_info', 'get_group_members', 'get_user_profile'];
+        const toolsNeedGroupId = ['get_group_members', 'get_user_profile'];
         if (toolsNeedGroupId.includes(toolName) && params.group_id === undefined) {
             if (e && e.group_id) {
                 params.group_id = String(e.group_id);
@@ -48,9 +48,6 @@ export async function handleFavorToolCall(toolName, toolParams, e = null, curren
                 break;
             case "get_user_info":
                 result = await handleGetUserInfo(params);
-                break;
-            case "get_group_info":
-                result = await handleGetGroupInfo(params, e);
                 break;
             case "get_user_profile":
                 result = await handleGetUserProfile(params, e);
@@ -197,44 +194,6 @@ async function handleGetUserInfo(params) {
         user_id: user_id,
         user_data: userData
     };
-}
-
-/**
- * 处理获取群组信息
- */
-async function handleGetGroupInfo(params, e) {
-    if (!e) {
-        return { error: true, error_message: "无法访问群组信息：缺少事件对象" };
-    }
-
-    const group_id = params.group_id || e.group_id;
-    if (!group_id) {
-        return { error: true, error_message: "当前不在群组环境中，无法获取群组信息" };
-    }
-
-    try {
-        const groupInfo = await e.bot?.pickGroup?.(group_id)?.getInfo?.() ||
-            await e.group?.getInfo?.();
-
-        if (groupInfo) {
-            return {
-                success: true,
-                group_id: String(group_id),
-                group_name: groupInfo.group_name || groupInfo.name || "未知群组",
-                member_count: groupInfo.member_count || groupInfo.memberCount || 0,
-                max_member_count: groupInfo.max_member_count || groupInfo.maxMemberCount || 0,
-                create_time: groupInfo.create_time || groupInfo.createTime || null
-            };
-        }
-
-        return {
-            success: true,
-            group_id: String(group_id),
-            group_name: "当前群组"
-        };
-    } catch (error) {
-        return { error: true, error_message: `获取群组信息失败: ${error.message}` };
-    }
 }
 
 /**

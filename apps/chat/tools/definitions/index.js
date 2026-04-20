@@ -12,7 +12,7 @@ import { messageTools } from './messageTools.js';
 import { interactTools } from './interactTools.js';
 import { memoryTools } from './memoryTools.js';
 import { outputTools } from './outputTools.js';
-import { ALL_TOOL_NAMES, DEFAULT_DISABLED_TOOLS } from '../../../guoba/schemas/toolSwitchSchema.js';
+import { ALL_TOOL_NAMES, DEFAULT_DISABLED_TOOLS } from '../../../../guoba/schemas/toolSwitchSchema.js';
 
 /**
  * 敏感度等级（本地定义，避免循环依赖）
