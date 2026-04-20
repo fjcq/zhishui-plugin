@@ -12,6 +12,7 @@ import { messageTools } from './messageTools.js';
 import { interactTools } from './interactTools.js';
 import { memoryTools } from './memoryTools.js';
 import { outputTools } from './outputTools.js';
+import { ALL_TOOL_NAMES, DEFAULT_DISABLED_TOOLS } from '../../../guoba/schemas/toolSwitchSchema.js';
 
 /**
  * 敏感度等级（本地定义，避免循环依赖）
@@ -98,7 +99,7 @@ export function isToolCallingEnabled(toolsConfig = null) {
 }
 
 /**
- * 工具分类字段映射
+ * 工具分类字段映射（兼容旧配置）
  */
 const TOOL_CATEGORY_FIELDS = [
     'favor_tools',
@@ -112,7 +113,7 @@ const TOOL_CATEGORY_FIELDS = [
 ];
 
 /**
- * 从分类配置中获取所有启用的工具
+ * 从分类配置中获取所有启用的工具（兼容旧配置格式）
  * @param {object} toolsConfig - 工具配置
  * @returns {Array} 启用的工具名称列表
  */
@@ -130,10 +131,31 @@ function getEnabledToolsFromCategories(toolsConfig) {
 }
 
 /**
+ * 根据黑名单/白名单模式计算启用的工具列表
+ * @param {object} toolsConfig - 工具配置
+ * @returns {Array} 启用的工具名称列表
+ */
+function getEnabledToolsByMode(toolsConfig) {
+    const mode = toolsConfig.ToolManageMode || 'blacklist';
+    const toolList = Array.isArray(toolsConfig.ToolList) ? toolsConfig.ToolList : [];
+
+    if (mode === 'whitelist') {
+        if (toolList.length === 0) {
+            return [];
+        }
+        return toolList.filter(name => ALL_TOOL_NAMES.includes(name));
+    }
+
+    const disabledTools = toolList.length > 0 ? toolList : DEFAULT_DISABLED_TOOLS;
+    return ALL_TOOL_NAMES.filter(name => !disabledTools.includes(name));
+}
+
+/**
  * 检查工具是否启用
- * 支持两种配置格式：
- * 1. 新格式：按分类配置 (favor_tools, interact_tools 等)
- * 2. 旧格式：单一数组 (EnabledTools)
+ * 支持三种配置格式：
+ * 1. 新格式：黑名单/白名单模式 (ToolManageMode + ToolList)
+ * 2. 分类格式：按分类配置 (favor_tools, interact_tools 等)
+ * 3. 旧格式：单一数组 (EnabledTools)
  * @param {string} toolName - 工具名称
  * @param {object} toolsConfig - 工具配置对象
  * @returns {boolean} 是否启用
@@ -143,10 +165,14 @@ export function isToolEnabled(toolName, toolsConfig = null) {
         toolsConfig = getToolsConfig();
     }
 
-    const enabledTools = getEnabledToolsFromCategories(toolsConfig);
-
-    if (enabledTools.length > 0) {
+    if (toolsConfig.ToolManageMode || toolsConfig.ToolList) {
+        const enabledTools = getEnabledToolsByMode(toolsConfig);
         return enabledTools.includes(toolName);
+    }
+
+    const enabledToolsFromCategories = getEnabledToolsFromCategories(toolsConfig);
+    if (enabledToolsFromCategories.length > 0) {
+        return enabledToolsFromCategories.includes(toolName);
     }
 
     const legacyEnabledTools = toolsConfig.EnabledTools;
@@ -170,10 +196,15 @@ export function getEnabledTools() {
             return [];
         }
 
-        let enabledToolsList = getEnabledToolsFromCategories(toolsConfig);
+        let enabledToolsList = [];
 
-        if (enabledToolsList.length === 0) {
-            enabledToolsList = toolsConfig.EnabledTools || [];
+        if (toolsConfig.ToolManageMode || toolsConfig.ToolList) {
+            enabledToolsList = getEnabledToolsByMode(toolsConfig);
+        } else {
+            enabledToolsList = getEnabledToolsFromCategories(toolsConfig);
+            if (enabledToolsList.length === 0) {
+                enabledToolsList = toolsConfig.EnabledTools || [];
+            }
         }
 
         const enabledTools = [];

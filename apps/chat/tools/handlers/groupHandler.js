@@ -18,8 +18,8 @@ import {
  * @returns {Promise<object>} 工具执行结果
  */
 export async function handleGroupToolCall(toolName, params, e) {
-    if (!e || !e.group_id) {
-        return { error: true, error_message: '此功能仅在群组中可用' };
+    if (!e || !e.bot) {
+        return { error: true, error_message: '缺少必要的事件对象或Bot实例' };
     }
 
     const permission = await checkToolPermission(toolName, e, params);
@@ -29,6 +29,10 @@ export async function handleGroupToolCall(toolName, params, e) {
 
     try {
         switch (toolName) {
+            case 'get_group_list':
+                return await handleGetGroupList(params, e);
+            case 'get_group_info':
+                return await handleGetGroupInfo(params, e);
             case 'mute_group_member':
                 return await handleMuteMember(params, e);
             case 'set_group_card':
@@ -56,6 +60,10 @@ export async function handleGroupToolCall(toolName, params, e) {
  * 处理禁言成员
  */
 async function handleMuteMember(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '禁言功能仅在群组中可用' };
+    }
+
     const { user_id, duration = 60, reason = '' } = params;
 
     if (!user_id) {
@@ -99,6 +107,10 @@ async function handleMuteMember(params, e) {
  * 处理设置群名片
  */
 async function handleSetGroupCard(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '修改群名片功能仅在群组中可用' };
+    }
+
     const { user_id, card } = params;
 
     if (!user_id) {
@@ -132,6 +144,10 @@ async function handleSetGroupCard(params, e) {
  * 处理设置群头衔
  */
 async function handleSetGroupTitle(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '设置群头衔功能仅在群组中可用' };
+    }
+
     const { user_id, title } = params;
 
     if (!user_id) {
@@ -166,6 +182,10 @@ async function handleSetGroupTitle(params, e) {
  * 处理移出群成员
  */
 async function handleKickMember(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '移出成员功能仅在群组中可用' };
+    }
+
     const { user_id, reason = '', reject_add_request = false } = params;
 
     if (!user_id) {
@@ -195,6 +215,10 @@ async function handleKickMember(params, e) {
  * 处理撤回消息
  */
 async function handleDeleteMessage(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '撤回消息功能仅在群组中可用' };
+    }
+
     const { message_id } = params;
 
     if (!message_id) {
@@ -223,6 +247,10 @@ async function handleDeleteMessage(params, e) {
  * 处理修改群名称
  */
 async function handleSetGroupName(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '修改群名称功能仅在群组中可用' };
+    }
+
     const { group_name } = params;
 
     if (!group_name) {
@@ -251,6 +279,10 @@ async function handleSetGroupName(params, e) {
  * 处理发布群公告
  */
 async function handleSetGroupAnnouncement(params, e) {
+    if (!e.group_id) {
+        return { error: true, error_message: '发布群公告功能仅在群组中可用' };
+    }
+
     const { content, image } = params;
 
     if (!content) {
@@ -276,5 +308,137 @@ async function handleSetGroupAnnouncement(params, e) {
         };
     } catch (error) {
         return { error: true, error_message: `发布公告失败: ${error.message}` };
+    }
+}
+
+/**
+ * 处理获取群列表
+ * @param {object} params - 工具参数
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleGetGroupList(params, e) {
+    if (!e || !e.bot) {
+        return { error: true, error_message: '无法访问群列表：缺少Bot实例' };
+    }
+
+    try {
+        let groupList = [];
+
+        // 方式1: 使用 bot.gl Map 获取完整群信息（推荐）
+        if (e.bot.gl instanceof Map && e.bot.gl.size > 0) {
+            for (const [groupId, groupInfo] of e.bot.gl) {
+                groupList.push({
+                    group_id: String(groupId),
+                    group_name: groupInfo.group_name || groupInfo.name || '未知群'
+                });
+            }
+        }
+        // 方式2: 使用 getGroupArray 获取群数组
+        else if (typeof e.bot.getGroupArray === 'function') {
+            const groupArray = await e.bot.getGroupArray();
+            if (Array.isArray(groupArray)) {
+                groupList = groupArray.map(group => ({
+                    group_id: String(group.group_id || group.groupId),
+                    group_name: group.group_name || group.name || '未知群'
+                }));
+            }
+        }
+        // 方式3: getGroupList 返回 group_id 数组，需要逐个获取信息
+        else if (typeof e.bot.getGroupList === 'function') {
+            const groupIds = await e.bot.getGroupList();
+            if (Array.isArray(groupIds)) {
+                for (const groupId of groupIds) {
+                    // 尝试从 gl Map 获取详细信息
+                    const groupInfo = e.bot.gl?.get?.(groupId);
+                    groupList.push({
+                        group_id: String(groupId),
+                        group_name: groupInfo?.group_name || groupInfo?.name || '未知群'
+                    });
+                }
+            }
+        }
+
+        if (groupList.length === 0) {
+            return {
+                success: true,
+                group_count: 0,
+                groups: []
+            };
+        }
+
+        logger.info(`[群管理] 获取群列表 | 数量:${groupList.length}`);
+
+        return {
+            success: true,
+            group_count: groupList.length,
+            groups: groupList
+        };
+    } catch (error) {
+        logger.error(`[群管理] 获取群列表失败: ${error.message}`);
+        return { error: true, error_message: `获取群列表失败: ${error.message}` };
+    }
+}
+
+/**
+ * 处理获取群详细信息
+ * @param {object} params - 工具参数
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleGetGroupInfo(params, e) {
+    const { group_id } = params;
+    const targetGroupId = group_id || e.group_id;
+
+    if (!targetGroupId) {
+        return { error: true, error_message: '缺少群号参数，且不在群聊环境中' };
+    }
+
+    if (!e || !e.bot) {
+        return { error: true, error_message: '无法访问群信息：缺少Bot实例' };
+    }
+
+    try {
+        const group = e.bot.pickGroup?.(targetGroupId);
+
+        if (!group) {
+            return { error: true, error_message: `群 ${targetGroupId} 不存在或Bot未加入` };
+        }
+
+        // 获取群信息
+        let groupInfo = null;
+        if (typeof group.getInfo === 'function') {
+            groupInfo = await group.getInfo();
+        }
+
+        // 获取群成员数量
+        let memberCount = null;
+        if (typeof group.getMemberMap === 'function') {
+            const memberMap = await group.getMemberMap();
+            memberCount = memberMap instanceof Map ? memberMap.size : (Array.isArray(memberMap) ? memberMap.length : null);
+        } else if (groupInfo?.member_count !== undefined) {
+            memberCount = groupInfo.member_count;
+        }
+
+        // 从 gl Map 获取基本信息作为备用
+        const basicInfo = e.bot.gl?.get?.(targetGroupId);
+
+        const result = {
+            success: true,
+            group_id: String(targetGroupId),
+            group_name: groupInfo?.group_name || groupInfo?.name || basicInfo?.group_name || basicInfo?.name || '未知群',
+            member_count: memberCount,
+            owner_id: groupInfo?.owner_id || groupInfo?.ownerId || basicInfo?.owner_id || null,
+            max_member_count: groupInfo?.max_member_count || groupInfo?.maxMemberCount || null,
+            create_time: groupInfo?.create_time || null,
+            group_memo: groupInfo?.group_memo || groupInfo?.memo || null
+        };
+
+        logger.info(`[群管理] 获取群信息 | 群:${targetGroupId} | 名称:${result.group_name} | 成员:${memberCount || '未知'}`);
+
+        return result;
+    } catch (error) {
+        logger.error(`[群管理] 获取群信息失败: ${error.message}`);
+        return { error: true, error_message: `获取群信息失败: ${error.message}` };
     }
 }

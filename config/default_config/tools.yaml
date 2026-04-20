@@ -1,61 +1,15 @@
 # 工具调用全局开关
 EnableToolCalling: true
 
-# 好感度工具
-favor_tools:
-    - change_user_favor
-    - get_user_favor
-    - set_user_favor
-    - get_user_info
-    - get_group_info
-    - get_user_profile
-    - get_group_members
+# 工具管理模式
+# blacklist: 黑名单模式 - 启用所有工具，排除 ToolList 中的工具（推荐）
+# whitelist: 白名单模式 - 只启用 ToolList 中的工具
+ToolManageMode: blacklist
 
-# 好友工具
-friend_tools:
-    - get_friend_list
-    - get_friend_info
-
-# 群管理工具
-# 禁言和踢人工具默认关闭，其他开启
-group_tools:
-    - set_group_card
-    - set_group_title
-    - delete_message
-    - set_group_name
-    - set_group_announcement
-
-# 音乐工具
-music_tools:
-    - search_music
-    - play_music
-    - get_lyrics
-    - get_playlist
-
-# 消息工具
-message_tools:
-    - send_image
-    - send_voice
-    - send_private_message
-    - forward_message
-    - set_essence_message
-
-# 互动工具
-interact_tools:
-    - poke_user
-    - generate_meme
-
-# 记忆工具
-memory_tools:
-    - remember_user_info
-    - recall_user_info
-    - forget_user_info
-    - set_reminder
-    - get_reminders
-    - cancel_reminder
-    - record_interaction
-    - get_interaction_history
-
-# 输出工具
-output_tools:
-    - output_code
+# 工具列表
+# 黑名单模式：填写要禁用的工具
+# 白名单模式：填写要启用的工具
+# 默认禁用敏感工具：禁言成员(mute_group_member)、移出成员(kick_group_member)
+ToolList:
+    - mute_group_member
+    - kick_group_member

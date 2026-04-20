@@ -26,12 +26,11 @@ export const CATEGORIES = [
  * - desc: 描述说明
  * - category: 所属分类ID
  * - definition: AI调用时的工具定义
- * - defaultEnabled: 是否默认启用
+ * - defaultEnabled: 是否默认启用（黑名单模式下）
  * - deprecated: 是否已废弃
  * - migrateTo: 废弃后迁移到哪个工具
  */
 export const TOOLS = {
-    // ==================== 好感度工具 ====================
     change_user_favor: {
         name: 'change_user_favor',
         label: '调整好感度',
@@ -157,7 +156,6 @@ export const TOOLS = {
         }
     },
 
-    // ==================== 好友工具 ====================
     get_friend_list: {
         name: 'get_friend_list',
         label: '获取好友列表',
@@ -191,7 +189,6 @@ export const TOOLS = {
         }
     },
 
-    // ==================== 群管理工具 ====================
     mute_group_member: {
         name: 'mute_group_member',
         label: '禁言成员',
@@ -319,7 +316,6 @@ export const TOOLS = {
         }
     },
 
-    // ==================== 音乐工具 ====================
     search_music: {
         name: 'search_music',
         label: '搜索音乐',
@@ -412,7 +408,6 @@ song_id和platform来自search_music的返回结果`,
         }
     },
 
-    // ==================== 消息工具 ====================
     send_image: {
         name: 'send_image',
         label: '发送图片',
@@ -502,7 +497,6 @@ song_id和platform来自search_music的返回结果`,
         }
     },
 
-    // ==================== 互动工具 ====================
     poke_user: {
         name: 'poke_user',
         label: '戳一戳',
@@ -571,7 +565,6 @@ song_id和platform来自search_music的返回结果`,
         }
     },
 
-    // ==================== 记忆工具 ====================
     remember_user_info: {
         name: 'remember_user_info',
         label: '记录用户信息',
@@ -720,7 +713,6 @@ song_id和platform来自search_music的返回结果`,
         }
     },
 
-    // ==================== 输出工具 ====================
     output_code: {
         name: 'output_code',
         label: '输出代码',
@@ -806,7 +798,27 @@ export function getCategory(categoryId) {
 }
 
 /**
- * 获取默认启用的工具列表
+ * 获取默认禁用的工具列表（黑名单模式的默认值）
+ * @returns {string[]} 默认禁用的工具名称数组
+ */
+export function getDefaultDisabledTools() {
+    return Object.values(TOOLS)
+        .filter(tool => !tool.defaultEnabled)
+        .map(tool => tool.name);
+}
+
+/**
+ * 获取默认启用的工具列表（黑名单模式下的默认值）
+ * @returns {string[]} 默认启用的工具名称数组
+ */
+export function getDefaultEnabledTools() {
+    return Object.values(TOOLS)
+        .filter(tool => tool.defaultEnabled)
+        .map(tool => tool.name);
+}
+
+/**
+ * 获取默认启用的工具列表（按分类，兼容旧配置）
  * @returns {object} 按分类的默认启用工具 { favor_tools: [...], ... }
  */
 export function getDefaultEnabledToolsByCategory() {
@@ -817,16 +829,6 @@ export function getDefaultEnabledToolsByCategory() {
             .map(tool => tool.name);
     }
     return result;
-}
-
-/**
- * 获取默认启用的所有工具名称
- * @returns {string[]} 工具名称数组
- */
-export function getDefaultEnabledTools() {
-    return Object.values(TOOLS)
-        .filter(tool => tool.defaultEnabled)
-        .map(tool => tool.name);
 }
 
 /**
@@ -875,32 +877,61 @@ export function generateToolDefinitionsByCategory() {
 }
 
 /**
- * 迁移旧配置中的工具名称
+ * 迁移旧配置到新格式
  * 处理废弃工具、分组变更等情况
- * @param {object} oldConfig - 旧配置 { favor_tools: [...], ... }
- * @returns {object} 迁移后的配置
+ * @param {object} oldConfig - 旧配置
+ * @returns {object} 迁移后的配置 { ToolManageMode, ToolList }
  */
 export function migrateToolConfig(oldConfig) {
     if (!oldConfig || typeof oldConfig !== 'object') {
-        return getDefaultEnabledToolsByCategory();
+        return {
+            ToolManageMode: 'blacklist',
+            ToolList: getDefaultDisabledTools()
+        };
     }
 
-    const newConfig = {};
-    const validToolNames = new Set(Object.keys(TOOLS));
+    if (oldConfig.ToolManageMode || oldConfig.ToolList) {
+        return {
+            ToolManageMode: oldConfig.ToolManageMode || 'blacklist',
+            ToolList: Array.isArray(oldConfig.ToolList) ? oldConfig.ToolList : getDefaultDisabledTools()
+        };
+    }
 
-    for (const category of CATEGORIES) {
-        const field = category.field;
-        const oldTools = oldConfig[field];
+    const TOOL_CATEGORY_FIELDS = [
+        'favor_tools', 'friend_tools', 'group_tools', 'music_tools',
+        'message_tools', 'interact_tools', 'memory_tools', 'output_tools'
+    ];
 
-        if (Array.isArray(oldTools)) {
-            const validTools = oldTools.filter(toolName => validToolNames.has(toolName));
-            newConfig[field] = validTools;
-        } else {
-            newConfig[field] = [];
+    const enabledTools = [];
+    for (const field of TOOL_CATEGORY_FIELDS) {
+        const tools = oldConfig[field];
+        if (Array.isArray(tools)) {
+            enabledTools.push(...tools);
         }
     }
 
-    return newConfig;
+    if (enabledTools.length > 0) {
+        const allTools = Object.keys(TOOLS);
+        const disabledTools = allTools.filter(name => !enabledTools.includes(name));
+        return {
+            ToolManageMode: 'blacklist',
+            ToolList: disabledTools
+        };
+    }
+
+    if (Array.isArray(oldConfig.EnabledTools)) {
+        const allTools = Object.keys(TOOLS);
+        const disabledTools = allTools.filter(name => !oldConfig.EnabledTools.includes(name));
+        return {
+            ToolManageMode: 'blacklist',
+            ToolList: disabledTools
+        };
+    }
+
+    return {
+        ToolManageMode: 'blacklist',
+        ToolList: getDefaultDisabledTools()
+    };
 }
 
 export default {
@@ -911,8 +942,9 @@ export default {
     getToolLabel,
     getToolsByCategory,
     getCategory,
-    getDefaultEnabledToolsByCategory,
+    getDefaultDisabledTools,
     getDefaultEnabledTools,
+    getDefaultEnabledToolsByCategory,
     generateToolDefinition,
     generateToolDefinitions,
     generateToolDefinitionsByCategory,

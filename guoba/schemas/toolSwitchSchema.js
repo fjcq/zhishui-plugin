@@ -1,17 +1,16 @@
 /**
  * 工具开关设置Schema
  * 用户可以通过锅巴面板控制每个工具的启用状态
- * 按分类分成多个独立的下拉框，便于用户操作
+ * 支持黑名单/白名单两种管理模式
  */
 
 /**
  * 工具分类配置
- * 每个分类包含 label（显示名称）、field（配置字段）和 tools（工具列表）
+ * 每个分类包含 label（显示名称）和 tools（工具列表）
  */
 const TOOL_CATEGORIES = [
     {
         label: '好感度工具',
-        field: 'favor_tools',
         tools: [
             { value: 'change_user_favor', label: '调整好感度', desc: '允许AI增减用户好感度' },
             { value: 'get_user_favor', label: '获取好感度', desc: '允许AI查询用户好感度数值' },
@@ -24,7 +23,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '好友工具',
-        field: 'friend_tools',
         tools: [
             { value: 'get_friend_list', label: '获取好友列表', desc: '允许AI获取Bot的全部好友列表' },
             { value: 'get_friend_info', label: '查询好友信息', desc: '允许AI查询指定好友的详细信息' }
@@ -32,7 +30,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '群管理工具',
-        field: 'group_tools',
         tools: [
             { value: 'mute_group_member', label: '禁言成员', desc: '允许AI禁言/解禁群成员（需Bot是管理员）' },
             { value: 'set_group_card', label: '修改群名片', desc: '允许AI修改群成员名片（需Bot是管理员）' },
@@ -45,7 +42,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '音乐工具',
-        field: 'music_tools',
         tools: [
             { value: 'search_music', label: '搜索音乐', desc: '允许AI搜索音乐并返回列表' },
             { value: 'play_music', label: '播放音乐', desc: '允许AI播放指定音乐' },
@@ -55,7 +51,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '消息工具',
-        field: 'message_tools',
         tools: [
             { value: 'send_message', label: '发送消息', desc: '允许AI发送混合消息（文本、@、图片、回复）' },
             { value: 'send_image', label: '发送图片', desc: '允许AI发送图片消息' },
@@ -72,7 +67,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '互动工具',
-        field: 'interact_tools',
         tools: [
             { value: 'poke_user', label: '戳一戳', desc: '允许AI戳一戳用户' },
             { value: 'generate_meme', label: '表情包生成', desc: '允许AI使用用户头像生成表情包' }
@@ -80,7 +74,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '记忆工具',
-        field: 'memory_tools',
         tools: [
             { value: 'remember_user_info', label: '记录用户信息', desc: '允许AI记录用户信息到记忆库' },
             { value: 'recall_user_info', label: '获取记忆', desc: '允许AI从记忆库获取用户信息' },
@@ -94,7 +87,6 @@ const TOOL_CATEGORIES = [
     },
     {
         label: '输出工具',
-        field: 'output_tools',
         tools: [
             { value: 'output_code', label: '输出代码', desc: '允许AI以结构化方式输出代码示例' }
         ]
@@ -102,75 +94,36 @@ const TOOL_CATEGORIES = [
 ];
 
 /**
- * 默认启用的工具（按分类）
- * 禁言和踢人工具默认关闭，其他工具默认开启
+ * 默认禁用的工具（黑名单模式的默认值）
+ * 敏感操作默认禁用，需要用户手动开启
  */
-const DEFAULT_ENABLED_TOOLS_BY_CATEGORY = {
-    favor_tools: [
-        'change_user_favor',
-        'get_user_favor',
-        'set_user_favor',
-        'get_user_info',
-        'get_group_info',
-        'get_user_profile',
-        'get_group_members'
-    ],
-    friend_tools: [
-        'get_friend_list',
-        'get_friend_info'
-    ],
-    group_tools: [
-        'set_group_card',
-        'set_group_title',
-        'delete_message',
-        'set_group_name',
-        'set_group_announcement'
-    ],
-    music_tools: [
-        'search_music',
-        'play_music',
-        'get_lyrics',
-        'get_playlist'
-    ],
-    message_tools: [
-        'send_message',
-        'send_image',
-        'send_voice',
-        'send_private_message',
-        'send_group_message',
-        'forward_message',
-        'recall_message',
-        'set_essence_message',
-        'get_scene_info',
-        'get_group_member_info',
-        'get_group_info'
-    ],
-    interact_tools: [
-        'poke_user',
-        'generate_meme'
-    ],
-    memory_tools: [
-        'remember_user_info',
-        'recall_user_info',
-        'forget_user_info',
-        'set_reminder',
-        'get_reminders',
-        'cancel_reminder',
-        'record_interaction',
-        'get_interaction_history'
-    ],
-    output_tools: [
-        'output_code'
-    ]
-};
+const DEFAULT_DISABLED_TOOLS = [
+    'mute_group_member',
+    'kick_group_member'
+];
+
+/**
+ * 获取所有工具选项（扁平化）
+ * @returns {Array} 工具选项数组
+ */
+function getAllToolOptions() {
+    return TOOL_CATEGORIES.flatMap(cat =>
+        cat.tools.map(tool => ({
+            value: tool.value,
+            label: `[${cat.label}] ${tool.label}`
+        }))
+    );
+}
 
 /**
  * 获取工具开关设置Schema
- * 按分类生成多个独立的下拉框
+ * 支持黑名单/白名单两种管理模式
  * @returns {Array} Schema配置
  */
 export function getToolSwitchSchemas() {
-    const schemas = [
+    const allToolOptions = getAllToolOptions();
+
+    return [
         {
             label: '🔧 工具管理',
             component: 'SOFT_GROUP_BEGIN'
@@ -180,32 +133,36 @@ export function getToolSwitchSchemas() {
             label: '启用工具调用',
             bottomHelpMessage: '开启后AI可以调用工具执行各种操作，关闭后所有工具都将禁用',
             component: 'Switch'
-        }
-    ];
-
-    for (const category of TOOL_CATEGORIES) {
-        schemas.push({
-            field: `tools.${category.field}`,
-            label: category.label,
-            bottomHelpMessage: `选择允许AI调用的${category.label}，支持多选`,
+        },
+        {
+            field: 'tools.ToolManageMode',
+            label: '管理模式',
+            bottomHelpMessage: '黑名单：启用所有工具，排除列表中的工具；白名单：只启用列表中的工具',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'blacklist', label: '黑名单模式（推荐）' },
+                    { value: 'whitelist', label: '白名单模式' }
+                ]
+            }
+        },
+        {
+            field: 'tools.ToolList',
+            label: '工具列表',
+            bottomHelpMessage: '黑名单模式：填写要禁用的工具；白名单模式：填写要启用的工具。支持搜索和多选。',
             component: 'Select',
             componentProps: {
                 mode: 'multiple',
                 allowClear: true,
                 showSearch: true,
-                options: category.tools.map(tool => ({
-                    value: tool.value,
-                    label: tool.label
-                })),
+                options: allToolOptions,
                 filterOption: (input, option) => {
                     const label = option.label || '';
                     return label.toLowerCase().includes(input.toLowerCase());
                 }
             }
-        });
-    }
-
-    return schemas;
+        }
+    ];
 }
 
 /**
@@ -214,11 +171,19 @@ export function getToolSwitchSchemas() {
 export const ALL_TOOL_NAMES = TOOL_CATEGORIES.flatMap(cat => cat.tools.map(t => t.value));
 
 /**
- * 获取默认启用的工具列表（兼容旧格式）
+ * 获取默认禁用的工具列表
+ * @returns {Array} 默认禁用的工具名称数组
+ */
+export function getDefaultDisabledTools() {
+    return [...DEFAULT_DISABLED_TOOLS];
+}
+
+/**
+ * 获取默认启用的工具列表（黑名单模式下的默认值）
  * @returns {Array} 默认启用的工具名称数组
  */
 export function getDefaultEnabledTools() {
-    return Object.values(DEFAULT_ENABLED_TOOLS_BY_CATEGORY).flat();
+    return ALL_TOOL_NAMES.filter(name => !DEFAULT_DISABLED_TOOLS.includes(name));
 }
 
 /**
@@ -235,18 +200,20 @@ export function getToolCategories() {
 }
 
 /**
- * 获取按分类的默认启用工具
- * @returns {object} 按分类的默认启用工具
+ * 获取默认禁用的工具
+ * @returns {Array} 默认禁用的工具名称数组
  */
-export function getDefaultEnabledToolsByCategory() {
-    return DEFAULT_ENABLED_TOOLS_BY_CATEGORY;
+export function getDefaultDisabledToolsList() {
+    return DEFAULT_DISABLED_TOOLS;
 }
 
 export default {
     getToolSwitchSchemas,
     ALL_TOOL_NAMES,
     DEFAULT_ENABLED_TOOLS,
-    DEFAULT_ENABLED_TOOLS_BY_CATEGORY,
+    DEFAULT_DISABLED_TOOLS,
     getDefaultEnabledTools,
+    getDefaultDisabledTools,
+    getDefaultDisabledToolsList,
     getToolCategories
 };

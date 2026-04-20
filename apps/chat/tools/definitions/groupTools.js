@@ -7,6 +7,35 @@ export const groupTools = [
     {
         type: "function",
         function: {
+            name: "get_group_list",
+            description: "获取Bot加入的全部群列表。返回群数量和每个群的基本信息（群号、群名称）。",
+            parameters: {
+                type: "object",
+                properties: {},
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_group_info",
+            description: "查询指定群的详细信息。包括群号、群名称、群成员数量、群主等信息。不传group_id时默认查询当前群。",
+            parameters: {
+                type: "object",
+                properties: {
+                    group_id: {
+                        type: "string",
+                        description: "要查询的群号，不传则查询当前群"
+                    }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
             name: "mute_group_member",
             description: "禁言群成员（需要Bot是管理员）。duration为禁言时长（秒），0表示解除禁言。最长30天。",
             parameters: {
