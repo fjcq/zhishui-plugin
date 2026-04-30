@@ -18,11 +18,7 @@ export function checkJsonFormatSupport(apiType, aiModel) {
         return model.includes('gpt-4') ||
             model.includes('gpt-3.5-turbo') ||
             model.includes('gpt-4o') ||
-            model.includes('gpt-4-turbo');
-    }
-
-    if (apiType === ApiTypes.SILICONFLOW || apiType === ApiTypes.DEEPSEEK || apiType === ApiTypes.ZHIPU) {
-        return model.includes('gpt') ||
+            model.includes('gpt-4-turbo') ||
             model.includes('deepseek') ||
             model.includes('qwen') ||
             model.includes('glm') ||

@@ -17,24 +17,27 @@ Master: 主人
 MasterQQ: 10000
 
 # API配置数组，每个API为一个对象，包含类型、地址、密钥、模型等
-# 支持的API类型：openai, siliconflow, deepseek, zhipu, tencent, gemini
+# API类型说明：
+#   - openai: OpenAI兼容格式，支持OpenAI、DeepSeek、智谱AI、硅基流动等绝大多数模型服务商
+#   - tencent: 腾讯元器API，需要配置助手ID
+#   - gemini: Google Gemini API，支持多模态和联网搜索
 ApiList:
   - ApiType: "openai"
     TencentAssistantId: ""
     ApiUrl: "https://api.openai.com/v1/chat/completions"
     ApiKey: "你的OpenAI API Key"
     ApiModel: "gpt-3.5-turbo"
-  - ApiType: "siliconflow"
-    TencentAssistantId: ""
-    ApiUrl: "https://api.siliconflow.cn/v1/chat/completions"
-    ApiKey: "你的siliconflow key"
-    ApiModel: "Qwen/Qwen2.5-7B-Instruct"
-  - ApiType: "deepseek"
+  - ApiType: "openai"
     TencentAssistantId: ""
     ApiUrl: "https://api.deepseek.com/v1/chat/completions"
     ApiKey: "你的DeepSeek API Key"
     ApiModel: "deepseek-chat"
-  - ApiType: "zhipu"
+  - ApiType: "openai"
+    TencentAssistantId: ""
+    ApiUrl: "https://api.siliconflow.cn/v1/chat/completions"
+    ApiKey: "你的硅基流动 API Key"
+    ApiModel: "Qwen/Qwen2.5-7B-Instruct"
+  - ApiType: "openai"
     TencentAssistantId: ""
     ApiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
     ApiKey: "你的智谱AI API Key"
@@ -42,7 +45,7 @@ ApiList:
   - ApiType: "tencent"
     TencentAssistantId: "你的腾讯助手ID"
     ApiUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
-    ApiKey: "你的腾讯元器key"
+    ApiKey: "你的腾讯元器 API Key"
     ApiModel: "hunyuan-lite"
   - ApiType: "gemini"
     TencentAssistantId: ""

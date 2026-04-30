@@ -58,7 +58,7 @@ export function getDefaultParams(apiType) {
         max_tokens: 2048
     };
 
-    if (apiType === ApiTypes.OPENAI || apiType === ApiTypes.SILICONFLOW || apiType === ApiTypes.DEEPSEEK || apiType === ApiTypes.ZHIPU) {
+    if (apiType === ApiTypes.OPENAI) {
         defaultParams.presence_penalty = 0.2;
         defaultParams.frequency_penalty = 0.3;
     }

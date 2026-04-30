@@ -36,7 +36,7 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
 
     const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
 
-    const apiType = apiConfig.ApiType || 'siliconflow';
+    const apiType = apiConfig.ApiType || 'openai';
     const apiKey = apiConfig.ApiKey || '';
     const aiModel = apiConfig.ApiModel || 'gpt-3.5-turbo';
     const apiUrl = apiConfig.ApiUrl || '';
@@ -61,7 +61,7 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
         (aiModel || '').toLowerCase().includes('qwen2.5-vl');
 
     const enableThinking = await Config.Chat.EnableThinking;
-    const isThinkingMode = enableThinking && apiType === ApiTypes.DEEPSEEK;
+    const isThinkingMode = enableThinking && (aiModel || '').toLowerCase().includes('deepseek');
 
     const { headers, requestData } = await buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL, isThinkingMode);
 

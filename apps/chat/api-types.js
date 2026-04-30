@@ -1,6 +1,11 @@
 /**
  * API类型常量定义
  * 统一管理所有支持的API类型及其配置
+ * 
+ * 简化设计：按API格式分类而非服务商
+ * - openai: OpenAI兼容格式（覆盖90%的模型服务商）
+ * - tencent: 腾讯元器（独立格式）
+ * - gemini: Google Gemini（独立格式）
  */
 
 /**
@@ -8,9 +13,6 @@
  */
 export const ApiTypes = {
     OPENAI: 'openai',
-    SILICONFLOW: 'siliconflow',
-    DEEPSEEK: 'deepseek',
-    ZHIPU: 'zhipu',
     TENCENT: 'tencent',
     GEMINI: 'gemini'
 };
@@ -20,10 +22,7 @@ export const ApiTypes = {
  * 这些API支持OpenAI风格的Function Calling
  */
 export const TOOL_SUPPORTED_APIS = [
-    ApiTypes.OPENAI,
-    ApiTypes.SILICONFLOW,
-    ApiTypes.DEEPSEEK,
-    ApiTypes.ZHIPU
+    ApiTypes.OPENAI
 ];
 
 /**
@@ -39,23 +38,17 @@ export function isToolCallingSupported(apiType) {
  * API类型显示名称
  */
 export const ApiTypeLabels = {
-    [ApiTypes.OPENAI]: 'OpenAI',
-    [ApiTypes.SILICONFLOW]: '硅基流动',
-    [ApiTypes.DEEPSEEK]: 'DeepSeek',
-    [ApiTypes.ZHIPU]: '智谱AI',
+    [ApiTypes.OPENAI]: 'OpenAI兼容',
     [ApiTypes.TENCENT]: '腾讯元器',
-    [ApiTypes.GEMINI]: 'Gemini'
+    [ApiTypes.GEMINI]: 'Google Gemini'
 };
 
 /**
  * API类型描述
  */
 export const ApiTypeDescriptions = {
-    [ApiTypes.OPENAI]: 'OpenAI官方API，支持GPT系列模型',
-    [ApiTypes.SILICONFLOW]: '硅基流动API，兼容OpenAI格式，支持多种开源模型',
-    [ApiTypes.DEEPSEEK]: 'DeepSeek API，兼容OpenAI格式，支持DeepSeek系列模型',
-    [ApiTypes.ZHIPU]: '智谱AI API，兼容OpenAI格式，支持GLM系列模型',
-    [ApiTypes.TENCENT]: '腾讯元器API，支持混元系列模型',
+    [ApiTypes.OPENAI]: 'OpenAI兼容格式，支持OpenAI、DeepSeek、智谱AI、硅基流动等绝大多数模型服务商',
+    [ApiTypes.TENCENT]: '腾讯元器API，支持混元系列模型，需要配置助手ID',
     [ApiTypes.GEMINI]: 'Google Gemini API，支持Gemini系列模型，支持多模态和联网搜索'
 };
 
@@ -64,9 +57,6 @@ export const ApiTypeDescriptions = {
  */
 export const ApiTypeSupportedParams = {
     [ApiTypes.OPENAI]: ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'response_format'],
-    [ApiTypes.SILICONFLOW]: ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'response_format'],
-    [ApiTypes.DEEPSEEK]: ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'response_format'],
-    [ApiTypes.ZHIPU]: ['temperature', 'top_p', 'max_tokens', 'presence_penalty', 'frequency_penalty', 'response_format'],
     [ApiTypes.TENCENT]: ['temperature', 'top_p', 'max_tokens'],
     [ApiTypes.GEMINI]: ['temperature', 'top_p', 'max_tokens', 'response_mime_type', 'systemInstruction', 'tools']
 };
@@ -79,22 +69,7 @@ export const ApiTypeFeatures = {
     [ApiTypes.OPENAI]: {
         multimodal: true,
         webSearch: false,
-        features: ['多模态']
-    },
-    [ApiTypes.SILICONFLOW]: {
-        multimodal: false,
-        webSearch: false,
-        features: []
-    },
-    [ApiTypes.DEEPSEEK]: {
-        multimodal: false,
-        webSearch: false,
-        features: []
-    },
-    [ApiTypes.ZHIPU]: {
-        multimodal: false,
-        webSearch: false,
-        features: []
+        features: ['多模态', '工具调用']
     },
     [ApiTypes.TENCENT]: {
         multimodal: false,
@@ -109,39 +84,12 @@ export const ApiTypeFeatures = {
 };
 
 /**
- * API类型支持的模型格式
- */
-export const ApiTypeModelFormats = {
-    [ApiTypes.OPENAI]: 'openai',
-    [ApiTypes.SILICONFLOW]: 'openai',
-    [ApiTypes.DEEPSEEK]: 'openai',
-    [ApiTypes.ZHIPU]: 'openai',
-    [ApiTypes.TENCENT]: 'tencent',
-    [ApiTypes.GEMINI]: 'gemini'
-};
-
-/**
  * API类型默认配置
  */
 export const ApiTypeDefaults = {
     [ApiTypes.OPENAI]: {
         ApiUrl: 'https://api.openai.com/v1/chat/completions',
         ApiModel: 'gpt-3.5-turbo',
-        TencentAssistantId: ''
-    },
-    [ApiTypes.SILICONFLOW]: {
-        ApiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
-        ApiModel: 'Qwen/Qwen2.5-7B-Instruct',
-        TencentAssistantId: ''
-    },
-    [ApiTypes.DEEPSEEK]: {
-        ApiUrl: 'https://api.deepseek.com/v1/chat/completions',
-        ApiModel: 'deepseek-chat',
-        TencentAssistantId: ''
-    },
-    [ApiTypes.ZHIPU]: {
-        ApiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        ApiModel: 'glm-4',
         TencentAssistantId: ''
     },
     [ApiTypes.TENCENT]: {
@@ -155,6 +103,55 @@ export const ApiTypeDefaults = {
         TencentAssistantId: ''
     }
 };
+
+/**
+ * API预设模板
+ * 提供常用服务商的快速配置
+ */
+export const ApiPresets = [
+    {
+        name: 'OpenAI',
+        apiType: ApiTypes.OPENAI,
+        ApiUrl: 'https://api.openai.com/v1/chat/completions',
+        ApiModel: 'gpt-3.5-turbo',
+        description: 'OpenAI官方API，支持GPT系列模型'
+    },
+    {
+        name: 'DeepSeek',
+        apiType: ApiTypes.OPENAI,
+        ApiUrl: 'https://api.deepseek.com/v1/chat/completions',
+        ApiModel: 'deepseek-chat',
+        description: 'DeepSeek API，支持DeepSeek系列模型'
+    },
+    {
+        name: '智谱AI',
+        apiType: ApiTypes.OPENAI,
+        ApiUrl: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+        ApiModel: 'glm-4',
+        description: '智谱AI API，支持GLM系列模型'
+    },
+    {
+        name: '硅基流动',
+        apiType: ApiTypes.OPENAI,
+        ApiUrl: 'https://api.siliconflow.cn/v1/chat/completions',
+        ApiModel: 'Qwen/Qwen2.5-7B-Instruct',
+        description: '硅基流动API，支持多种开源模型'
+    },
+    {
+        name: '腾讯元器',
+        apiType: ApiTypes.TENCENT,
+        ApiUrl: 'https://yuanqi.tencent.com/openapi/v1/agent/chat/completions',
+        ApiModel: 'hunyuan-lite',
+        description: '腾讯元器API，支持混元系列模型'
+    },
+    {
+        name: 'Google Gemini',
+        apiType: ApiTypes.GEMINI,
+        ApiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        ApiModel: 'gemini-2.5-flash',
+        description: 'Google Gemini API，支持多模态和联网搜索'
+    }
+];
 
 /**
  * 检查API类型是否有效
@@ -252,4 +249,25 @@ export function isFeatureSupported(apiType, feature) {
 export function getApiTypeFeatureLabels(apiType) {
     const features = ApiTypeFeatures[apiType];
     return features ? features.features : [];
+}
+
+/**
+ * 获取所有API预设模板
+ * @returns {Array} 预设模板数组
+ */
+export function getApiPresets() {
+    return ApiPresets.map(preset => ({
+        ...preset,
+        label: preset.name,
+        value: preset.name
+    }));
+}
+
+/**
+ * 根据预设名称获取预设配置
+ * @param {string} presetName - 预设名称
+ * @returns {Object|null} 预设配置
+ */
+export function getPresetByName(presetName) {
+    return ApiPresets.find(p => p.name === presetName) || null;
 }
