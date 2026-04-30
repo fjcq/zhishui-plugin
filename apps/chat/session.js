@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode, getCurrentRoleIndex, getUserRoleIndex } from './config.js';
 import { filterMessagesByPrivacy, DEFAULT_PRIVACY_CONFIG } from './privacy/sceneFilter.js';
+import { Config } from '../../components/index.js';
 
 const logger = global.logger || console;
 
@@ -226,6 +227,21 @@ function computeStats(messages) {
 }
 
 /**
+ * 修剪历史消息数组，保持在最大限制内
+ * @param {Array} messages - 消息数组
+ * @param {number} maxHistory - 最大历史消息数量
+ * @returns {Array} 修剪后的消息数组
+ */
+function trimHistory(messages, maxHistory) {
+    const limit = maxHistory ?? Config.Chat.MaxHistory ?? 50;
+    if (messages.length > limit) {
+        const removeCount = messages.length - limit;
+        messages.splice(0, removeCount);
+    }
+    return messages;
+}
+
+/**
  * 添加消息到聊天历史（自动适配当前模式）
  * @param {Object} msg - 消息对象 {role, content}
  * @param {Object} e - 事件对象
@@ -250,6 +266,7 @@ async function addMessageV1(msg, e) {
     const sessionId = generateSessionIdV1(e);
     const chatMsg = await loadChatMsgV1(sessionId);
     chatMsg.push(msg);
+    trimHistory(chatMsg);
     await saveChatMsgV1(sessionId, chatMsg);
 }
 
@@ -293,6 +310,8 @@ async function addMessageV2(msg, e) {
     }
 
     sessionData.messages.push(enhancedMessage);
+    trimHistory(sessionData.messages);
+    
     sessionData.updatedAt = Date.now();
     sessionData.stats = computeStats(sessionData.messages);
 
