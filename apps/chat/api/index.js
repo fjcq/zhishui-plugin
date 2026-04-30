@@ -6,10 +6,30 @@
 import { Config } from '../../../components/index.js';
 import { getCurrentApiConfig, getCurrentRoleIndex } from '../config.js';
 import { validateRequestParams } from '../parsers/index.js';
-import { ApiTypes } from '../api-types.js';
+import { ApiTypes, isValidApiType, isOpenAICompatibleType } from '../api-types.js';
 import { buildHeaders, getDefaultParams } from './utils/requestUtils.js';
 import { buildTencentRequest, buildGeminiRequest, buildQwenVLRequest, buildStandardRequest } from './builders/index.js';
 import { handleApiResponse, handleCommunicationError } from './handlers/index.js';
+
+/**
+ * 规范化API类型
+ * 将非标准API类型映射到标准类型
+ * @param {string} apiType - 原始API类型
+ * @returns {string} 规范化后的API类型
+ */
+function normalizeApiType(apiType) {
+    if (isValidApiType(apiType)) {
+        return apiType;
+    }
+
+    // 检查是否为OpenAI兼容类型
+    if (isOpenAICompatibleType(apiType)) {
+        return ApiTypes.OPENAI;
+    }
+
+    // 默认当作OpenAI兼容格式处理
+    return ApiTypes.OPENAI;
+}
 
 /**
  * 调用 AI API 进行对话
@@ -36,7 +56,8 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
 
     const { apiIndex, apiConfig } = await getCurrentApiConfig(e);
 
-    const apiType = apiConfig.ApiType || 'openai';
+    const rawApiType = apiConfig.ApiType || 'openai';
+    const apiType = normalizeApiType(rawApiType);
     const apiKey = apiConfig.ApiKey || '';
     const aiModel = apiConfig.ApiModel || 'gpt-3.5-turbo';
     const apiUrl = apiConfig.ApiUrl || '';

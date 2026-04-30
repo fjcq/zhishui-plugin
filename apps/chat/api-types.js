@@ -26,12 +26,56 @@ export const TOOL_SUPPORTED_APIS = [
 ];
 
 /**
+ * OpenAI兼容API类型列表
+ * 这些API服务商使用OpenAI兼容的API格式
+ */
+export const OPENAI_COMPATIBLE_TYPES = [
+    // 国内服务商
+    'siliconflow',   // 硅基流动
+    'deepseek',      // DeepSeek
+    'zhipu',         // 智谱AI
+    'moonshot',      // Moonshot
+    'kimi',          // Kimi (Moonshot)
+    'qwen',          // 通义千问
+    'doubao',        // 豆包
+    'baichuan',      // 百川
+    'yi',            // 零一万物
+    'minimax',       // Minimax
+    'stepfun',       // 阶跃星辰
+    '01ai',          // 零一万物
+    
+    // 国外服务商
+    'openrouter',    // OpenRouter
+    'together',      // Together AI
+    'fireworks',     // Fireworks AI
+    'groq',          // Groq
+    'perplexity',    // Perplexity AI
+    'replicate',     // Replicate
+    'anthropic',     // Anthropic (兼容模式)
+    'cohere',        // Cohere (兼容模式)
+    'mistral',       // Mistral AI
+    'deepinfra',     // DeepInfra
+    'novita',        // Novita AI
+    'lingyi',        // 灵弈
+    'xai'            // xAI
+];
+
+/**
  * 检查API类型是否支持工具调用
  * @param {string} apiType - API类型
  * @returns {boolean} 是否支持工具调用
  */
 export function isToolCallingSupported(apiType) {
     return TOOL_SUPPORTED_APIS.includes(apiType);
+}
+
+/**
+ * 检查API类型是否为OpenAI兼容类型
+ * @param {string} apiType - API类型
+ * @returns {boolean} 是否为OpenAI兼容类型
+ */
+export function isOpenAICompatibleType(apiType) {
+    return OPENAI_COMPATIBLE_TYPES.includes(apiType?.toLowerCase());
 }
 
 /**

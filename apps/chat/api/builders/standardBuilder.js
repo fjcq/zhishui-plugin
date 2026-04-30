@@ -2,9 +2,11 @@
  * 标准OpenAI格式请求构建器
  */
 
-import { buildUserMessageContent, getDefaultParams, addToolCallingConfig, addJsonFormatConfig } from '../utils/requestUtils.js';
-import { isToolCallingSupported } from '../../api-types.js';
+import { buildUserMessageContent, getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from '../utils/requestUtils.js';
+import { isToolCallingSupported, isFeatureSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
+
+const logger = global.logger || console;
 
 /**
  * 验证并清理消息数组
@@ -115,8 +117,17 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
     const isToolFollowUp = lastMsg && lastMsg.role === 'tool';
 
     if (!isToolFollowUp) {
-        const { fullUserMsg } = buildUserMessageContent(msg);
-        messages.push({ role: 'user', content: fullUserMsg });
+        const { fullUserMsg, images: extractedImages } = await extractMessageWithImages(msg, e, apiType);
+        
+        if (extractedImages && extractedImages.length > 0) {
+            const multimodalContent = [
+                { type: 'text', text: fullUserMsg },
+                ...extractedImages
+            ];
+            messages.push({ role: 'user', content: multimodalContent });
+        } else {
+            messages.push({ role: 'user', content: fullUserMsg });
+        }
     }
 
     messages = validateAndSanitizeMessages(messages);
@@ -163,4 +174,66 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
     }
 
     return requestData;
+}
+
+/**
+ * 从消息中提取文本和图片内容
+ * @param {string} msg - JSON格式的消息字符串
+ * @param {Object} e - 事件对象
+ * @param {string} apiType - API类型
+ * @returns {Promise<{fullUserMsg: string, images: Array}>} 提取结果
+ */
+async function extractMessageWithImages(msg, e, apiType) {
+    const { fullUserMsg } = buildUserMessageContent(msg);
+    let images = [];
+    
+    const supportsMultimodal = isFeatureSupported(apiType, 'multimodal');
+    if (!supportsMultimodal) {
+        return { fullUserMsg, images: [] };
+    }
+
+    try {
+        const msgObj = JSON.parse(msg);
+        
+        if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
+            const failedImages = [];
+            
+            for (const imgUrl of msgObj.images) {
+                try {
+                    const { base64, mime } = await downloadImageAsBase64(imgUrl);
+                    images.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: `data:${mime};base64,${base64}`
+                        }
+                    });
+                    logger.info(`[多模态] 图片下载成功: ${imgUrl.substring(0, 50)}...`);
+                } catch (err) {
+                    logger.error(`[多模态] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
+                    failedImages.push({ url: imgUrl, error: err.message });
+                }
+            }
+
+            if (failedImages.length > 0 && typeof e?.reply === 'function') {
+                const failedCount = failedImages.length;
+                const totalCount = msgObj.images.length;
+                const successCount = totalCount - failedCount;
+                
+                let errorMsg = `【图片处理提示】`;
+                if (successCount > 0) {
+                    errorMsg += `成功处理${successCount}张图片，`;
+                }
+                errorMsg += `${failedCount}张图片下载失败\n`;
+                errorMsg += failedImages.map((item, index) => 
+                    `${index + 1}. ${item.url.substring(0, 30)}...\n   原因: ${item.error}`
+                ).join('\n');
+                
+                await e.reply(errorMsg);
+            }
+        }
+    } catch (err) {
+        logger.debug(`[多模态] 消息解析失败，作为纯文本处理: ${err.message}`);
+    }
+
+    return { fullUserMsg, images };
 }

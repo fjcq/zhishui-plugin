@@ -5,6 +5,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import { KeyvFile } from 'keyv-file';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode } from './config.js';
 import { sessionStrategyFactory } from './strategies/SessionStrategy.js';
 
@@ -41,7 +42,6 @@ export async function generateSessionId(e) {
  * @deprecated 请使用策略模式，此函数保留用于向后兼容
  */
 export function getSessionKeyv(sessionId) {
-    const { KeyvFile } = require('keyv-file');
     return new KeyvFile({
         filename: path.join(CHAT_CONTEXT_PATH, `${sessionId}.json`),
         writeDelay: 100,
@@ -57,7 +57,6 @@ export function getSessionKeyv(sessionId) {
  * @deprecated 请使用策略模式，此函数保留用于向后兼容
  */
 export function getSessionKeyvV2(sessionId) {
-    const { KeyvFile } = require('keyv-file');
     if (!fs.existsSync(CHAT_CONTEXT_V2_PATH)) {
         fs.mkdirSync(CHAT_CONTEXT_V2_PATH, { recursive: true });
     }
