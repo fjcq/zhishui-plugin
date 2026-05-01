@@ -187,6 +187,7 @@ async function extractMessageWithImages(msg, e, apiType) {
     let userMsg = msg;
     let userInfo = null;
     let replyInfo = null;
+    let msgImages = [];
     let images = [];
     
     try {
@@ -194,6 +195,7 @@ async function extractMessageWithImages(msg, e, apiType) {
         userMsg = msgObj.message || msg;
         userInfo = msgObj.additional_info || null;
         replyInfo = msgObj.reply || null;
+        msgImages = Array.isArray(msgObj.images) ? msgObj.images : [];
         
         if (replyInfo) {
             let replyText = `\n【引用的消息】`;
@@ -232,55 +234,46 @@ async function extractMessageWithImages(msg, e, apiType) {
         return { fullUserMsg, images: [] };
     }
 
-    try {
-        const msgObj = JSON.parse(msg);
+    const allImageUrls = [...msgImages];
+    if (replyInfo && Array.isArray(replyInfo.images) && replyInfo.images.length > 0) {
+        allImageUrls.push(...replyInfo.images);
+    }
+    
+    if (allImageUrls.length > 0) {
+        const failedImages = [];
         
-        const allImageUrls = [];
-        if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
-            allImageUrls.push(...msgObj.images);
-        }
-        if (replyInfo && Array.isArray(replyInfo.images) && replyInfo.images.length > 0) {
-            allImageUrls.push(...replyInfo.images);
-        }
-        
-        if (allImageUrls.length > 0) {
-            const failedImages = [];
-            
-            for (const imgUrl of allImageUrls) {
-                try {
-                    const { base64, mime } = await downloadImageAsBase64(imgUrl);
-                    images.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${mime};base64,${base64}`
-                        }
-                    });
-                    logger.info(`[多模态] 图片下载成功: ${imgUrl.substring(0, 50)}...`);
-                } catch (err) {
-                    logger.error(`[多模态] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
-                    failedImages.push({ url: imgUrl, error: err.message });
-                }
+        for (const imgUrl of allImageUrls) {
+            try {
+                const { base64, mime } = await downloadImageAsBase64(imgUrl);
+                images.push({
+                    type: 'image_url',
+                    image_url: {
+                        url: `data:${mime};base64,${base64}`
+                    }
+                });
+                logger.info(`[多模态] 图片下载成功: ${imgUrl.substring(0, 50)}...`);
+            } catch (err) {
+                logger.error(`[多模态] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
+                failedImages.push({ url: imgUrl, error: err.message });
             }
+        }
 
-            if (failedImages.length > 0 && typeof e?.reply === 'function') {
-                const failedCount = failedImages.length;
-                const totalCount = allImageUrls.length;
-                const successCount = totalCount - failedCount;
-                
-                let errorMsg = `【图片处理提示】`;
-                if (successCount > 0) {
-                    errorMsg += `成功处理${successCount}张图片，`;
-                }
-                errorMsg += `${failedCount}张图片下载失败\n`;
-                errorMsg += failedImages.map((item, index) => 
-                    `${index + 1}. ${item.url.substring(0, 30)}...\n   原因: ${item.error}`
-                ).join('\n');
-                
-                await e.reply(errorMsg);
+        if (failedImages.length > 0 && typeof e?.reply === 'function') {
+            const failedCount = failedImages.length;
+            const totalCount = allImageUrls.length;
+            const successCount = totalCount - failedCount;
+            
+            let errorMsg = `【图片处理提示】`;
+            if (successCount > 0) {
+                errorMsg += `成功处理${successCount}张图片，`;
             }
+            errorMsg += `${failedCount}张图片下载失败\n`;
+            errorMsg += failedImages.map((item, index) => 
+                `${index + 1}. ${item.url.substring(0, 30)}...\n   原因: ${item.error}`
+            ).join('\n');
+            
+            await e.reply(errorMsg);
         }
-    } catch (err) {
-        logger.debug(`[多模态] 消息解析失败，作为纯文本处理: ${err.message}`);
     }
 
     return { fullUserMsg, images };

@@ -111,7 +111,7 @@ async function checkSessionAndRateLimit(sessionId) {
 /**
  * 解析消息内容
  * @param {Object} e - 事件对象
- * @returns {{processedMsg: string, images: string[], files: string[], replyContent: Object|null}} 解析结果
+ * @returns {Promise<{processedMsg: string, images: string[], files: string[], replyContent: Object|null}>} 解析结果
  */
 async function parseMessage(e) {
     let images = [];
