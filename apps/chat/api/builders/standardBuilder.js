@@ -2,7 +2,7 @@
  * 标准OpenAI格式请求构建器
  */
 
-import { buildUserMessageContent, getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from '../utils/requestUtils.js';
+import { getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from '../utils/requestUtils.js';
 import { isToolCallingSupported, isFeatureSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
 
@@ -184,9 +184,49 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
  * @returns {Promise<{fullUserMsg: string, images: Array}>} 提取结果
  */
 async function extractMessageWithImages(msg, e, apiType) {
-    const { fullUserMsg } = buildUserMessageContent(msg);
+    let userMsg = msg;
+    let userInfo = null;
+    let replyInfo = null;
     let images = [];
     
+    try {
+        const msgObj = JSON.parse(msg);
+        userMsg = msgObj.message || msg;
+        userInfo = msgObj.additional_info || null;
+        replyInfo = msgObj.reply || null;
+        
+        if (replyInfo) {
+            let replyText = `\n【引用的消息】`;
+            if (replyInfo.sender) {
+                replyText += ` 发送者: ${replyInfo.sender}`;
+            }
+            if (replyInfo.text) {
+                replyText += `\n内容: ${replyInfo.text}`;
+            }
+            if (replyInfo.images && replyInfo.images.length > 0) {
+                replyText += `\n(引用消息中包含 ${replyInfo.images.length} 张图片)`;
+            }
+            userMsg = userMsg + replyText;
+        }
+    } catch (err) {
+    }
+
+    let fullUserMsg;
+    if (userInfo) {
+        const userRequestFormat = {
+            message: userMsg,
+            additional_info: {
+                name: userInfo.name || '未知用户',
+                user_id: userInfo.user_id || '',
+                group_id: userInfo.group_id || 0,
+                favor: userInfo.favor
+            }
+        };
+        fullUserMsg = JSON.stringify(userRequestFormat);
+    } else {
+        fullUserMsg = userMsg;
+    }
+
     const supportsMultimodal = isFeatureSupported(apiType, 'multimodal');
     if (!supportsMultimodal) {
         return { fullUserMsg, images: [] };
@@ -195,10 +235,18 @@ async function extractMessageWithImages(msg, e, apiType) {
     try {
         const msgObj = JSON.parse(msg);
         
+        const allImageUrls = [];
         if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
+            allImageUrls.push(...msgObj.images);
+        }
+        if (replyInfo && Array.isArray(replyInfo.images) && replyInfo.images.length > 0) {
+            allImageUrls.push(...replyInfo.images);
+        }
+        
+        if (allImageUrls.length > 0) {
             const failedImages = [];
             
-            for (const imgUrl of msgObj.images) {
+            for (const imgUrl of allImageUrls) {
                 try {
                     const { base64, mime } = await downloadImageAsBase64(imgUrl);
                     images.push({
@@ -216,7 +264,7 @@ async function extractMessageWithImages(msg, e, apiType) {
 
             if (failedImages.length > 0 && typeof e?.reply === 'function') {
                 const failedCount = failedImages.length;
-                const totalCount = msgObj.images.length;
+                const totalCount = allImageUrls.length;
                 const successCount = totalCount - failedCount;
                 
                 let errorMsg = `【图片处理提示】`;

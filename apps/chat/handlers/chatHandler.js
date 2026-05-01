@@ -111,12 +111,13 @@ async function checkSessionAndRateLimit(sessionId) {
 /**
  * 解析消息内容
  * @param {Object} e - 事件对象
- * @returns {{processedMsg: string, images: string[], files: string[]}} 解析结果
+ * @returns {{processedMsg: string, images: string[], files: string[], replyContent: Object|null}} 解析结果
  */
-function parseMessage(e) {
+async function parseMessage(e) {
     let images = [];
     let files = [];
-    let processedMsg = e.msg;
+    let replyContent = null;
+    let processedMsg = e.msg || '';
     const botId = Bot?.uin || e.bot?.uin || e.bot?.id;
 
     if (Array.isArray(e.message)) {
@@ -134,6 +135,21 @@ function parseMessage(e) {
                 images.push(seg.url);
             } else if (seg.type === 'file' && seg.file) {
                 files.push(seg.file);
+            } else if (seg.type === 'reply' && seg.id) {
+                try {
+                    const replyMsg = await getReplyMessage(e, seg.id);
+                    if (replyMsg) {
+                        replyContent = replyMsg;
+                        if (replyMsg.text) {
+                            msgParts.push(`[引用消息: ${replyMsg.text.substring(0, 100)}${replyMsg.text.length > 100 ? '...' : ''}]`);
+                        }
+                        if (replyMsg.images && replyMsg.images.length > 0) {
+                            images.push(...replyMsg.images);
+                        }
+                    }
+                } catch (err) {
+                    logger.warn(`[解析消息] 获取引用消息失败: ${err.message}`);
+                }
             }
         }
         if (msgParts.length > 0) {
@@ -141,7 +157,55 @@ function parseMessage(e) {
         }
     }
 
-    return { processedMsg, images, files };
+    return { processedMsg, images, files, replyContent };
+}
+
+/**
+ * 获取引用消息内容
+ * @param {Object} e - 事件对象
+ * @param {string} messageId - 消息ID
+ * @returns {Promise<Object|null>} 引用消息内容
+ */
+async function getReplyMessage(e, messageId) {
+    try {
+        let reply = null;
+
+        if (typeof e.getReply === 'function') {
+            reply = await e.getReply();
+        } else if (e.source) {
+            if (e.group?.getChatHistory) {
+                reply = (await e.group.getChatHistory(e.source.seq, 1)).pop();
+            } else if (e.friend?.getChatHistory) {
+                reply = (await e.friend.getChatHistory(e.source.time, 1)).pop();
+            }
+        }
+
+        if (!reply) {
+            return null;
+        }
+
+        const result = {
+            text: '',
+            images: [],
+            sender: reply.sender?.nickname || '未知用户',
+            sender_id: reply.sender?.user_id || ''
+        };
+
+        if (reply.message) {
+            for (const msg of reply.message) {
+                if (msg.type === 'text' && msg.text) {
+                    result.text += msg.text;
+                } else if (msg.type === 'image' && msg.url) {
+                    result.images.push(msg.url);
+                }
+            }
+        }
+
+        return result;
+    } catch (error) {
+        logger.warn(`[获取引用消息] 失败: ${error.message}`);
+        return null;
+    }
 }
 
 /**
@@ -308,8 +372,9 @@ async function sendVoiceMessage(e, voiceResult) {
  */
 async function sendTextOrImageMessage(e, text) {
     const replyContent = convertMessageFormat(text);
+    const msg = e.msg || '';
 
-    if (shouldResponseAsImage(e.msg)) {
+    if (shouldResponseAsImage(msg)) {
         const imageSuccess = await textToImage(e, text, {
             showFooter: true
         });
@@ -317,8 +382,8 @@ async function sendTextOrImageMessage(e, text) {
             await e.reply(replyContent);
         }
     } else {
-        const hasImageAttempt = e.msg.includes('图片') || e.msg.includes('图像') || e.msg.includes('画');
-        if (hasImageAttempt && !shouldResponseAsImage(e.msg)) {
+        const hasImageAttempt = msg.includes('图片') || msg.includes('图像') || msg.includes('画');
+        if (hasImageAttempt && !shouldResponseAsImage(msg)) {
             const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
             await e.reply([segment.at(e.user_id), notification]);
         }
@@ -445,7 +510,7 @@ export async function handleChat(e, chatNickname) {
     lastRequestTime[sessionId] = Date.now();
 
     try {
-        const { processedMsg, images, files } = parseMessage(e);
+        const { processedMsg, images, files, replyContent } = await parseMessage(e);
         const finalMsg = processedMsg.replace(new RegExp(`^#?${escapeRegExp(chatNickname)}\\s*`), '').trim();
 
         let actualUserId = e.user_id;
@@ -470,6 +535,12 @@ export async function handleChat(e, chatNickname) {
             message: finalMsg,
             images: images,
             files: files,
+            reply: replyContent ? {
+                text: replyContent.text,
+                images: replyContent.images,
+                sender: replyContent.sender,
+                sender_id: replyContent.sender_id
+            } : null,
             additional_info: {
                 name: e.sender.nickname,
                 user_id: actualUserId,

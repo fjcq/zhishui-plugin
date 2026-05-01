@@ -51,7 +51,10 @@ export async function textToImage(e, text, options = {}) {
  * @returns {boolean} - 返回是否应该转换为图片
  */
 export function shouldResponseAsImage(command) {
-  // 只有以下特定命令才需要转换为图片
+  if (!command || typeof command !== 'string') {
+    return false;
+  }
+
   const imageCommands = [
     '#生成图片',
     '#创建图像',
@@ -61,7 +64,6 @@ export function shouldResponseAsImage(command) {
     '#创建图片'
   ];
 
-  // 检查命令是否在图片命令列表中
   return imageCommands.some(cmd => command.startsWith(cmd));
 }
 
