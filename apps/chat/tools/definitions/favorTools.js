@@ -91,23 +91,6 @@ export const favorTools = [
     {
         type: "function",
         function: {
-            name: "get_group_info",
-            description: "获取群组信息（群名、群号、成员数量等）。",
-            parameters: {
-                type: "object",
-                properties: {
-                    group_id: {
-                        type: "string",
-                        description: "群组ID，可省略，默认使用当前群组"
-                    }
-                },
-                required: []
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
             name: "get_user_profile",
             description: "获取用户的QQ资料（昵称、头像、等级等）。",
             parameters: {

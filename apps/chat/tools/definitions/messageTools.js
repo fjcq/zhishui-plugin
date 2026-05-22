@@ -218,18 +218,6 @@ export const messageTools = [
                 required: []
             }
         }
-    },
-    {
-        type: "function",
-        function: {
-            name: "get_group_info",
-            description: "获取群组信息（仅群聊）。",
-            parameters: {
-                type: "object",
-                properties: {},
-                required: []
-            }
-        }
     }
 ];
 
