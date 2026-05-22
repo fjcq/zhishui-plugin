@@ -5,12 +5,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import logger from './logger.js';
 
 const Path = process.cwd();
 const Plugin_Name = 'zhishui-plugin';
 const Plugin_Path = path.join(Path, 'plugins', Plugin_Name);
-
-const logger = global.logger || console;
 
 /**
  * 读取JSON配置文件

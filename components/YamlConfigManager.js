@@ -8,12 +8,11 @@ import chokidar from 'chokidar';
 import fs from 'node:fs';
 import path from 'node:path';
 import YamlReader from './YamlReader.js';
+import logger from './logger.js';
 
 const Path = process.cwd();
 const Plugin_Name = 'zhishui-plugin';
 const Plugin_Path = path.join(Path, 'plugins', Plugin_Name);
-
-const logger = global.logger || console;
 
 /**
  * YAML配置管理类

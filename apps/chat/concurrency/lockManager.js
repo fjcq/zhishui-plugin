@@ -4,7 +4,7 @@
  * 使用轻量级互斥锁防止数据竞争
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../components/index.js';
 
 /**
  * 简易互斥锁实现

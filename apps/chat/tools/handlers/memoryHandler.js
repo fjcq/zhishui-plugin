@@ -5,8 +5,7 @@
 
 import { handleReminderToolCall } from './reminderHandler.js';
 import { getRedis } from './shared/utils.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 记忆存储键前缀

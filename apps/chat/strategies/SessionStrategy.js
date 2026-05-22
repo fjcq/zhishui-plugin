@@ -8,9 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getUserRoleIndex } from '../config.js';
 import { filterMessagesByPrivacy, DEFAULT_PRIVACY_CONFIG } from '../privacy/sceneFilter.js';
-import { Config } from '../../../components/index.js';
-
-const logger = global.logger || console;
+import { Config, logger } from '../../../components/index.js';
 
 /**
  * 会话策略基类

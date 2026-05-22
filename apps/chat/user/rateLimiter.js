@@ -3,9 +3,7 @@
  * 处理用户请求频率限制
  */
 
-import { Config } from '../../../components/index.js';
-
-const logger = global.logger || console;
+import { Config, logger } from '../../../components/index.js';
 
 /**
  * 获取频率限制配置

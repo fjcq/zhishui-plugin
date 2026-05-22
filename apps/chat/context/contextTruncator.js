@@ -4,7 +4,7 @@
  * 提供智能截断策略，在不超过API token限制的前提下保留最有价值的内容
  */
 
-const logger = global.logger || console;
+import { logger } from '../../components/index.js';
 
 /**
  * 默认截断配置

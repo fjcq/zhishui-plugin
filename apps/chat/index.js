@@ -4,7 +4,7 @@
  */
 
 import { plugin } from '../../adapter/index.js';
-import { Config, Plugin_Path } from '../../components/index.js';
+import { Config, Plugin_Path, logger } from '../../components/index.js';
 import Data from '../../components/Data.js';
 import { puppeteer } from '../../model/index.js';
 
@@ -14,8 +14,6 @@ import { textToImage, shouldResponseAsImage } from './chatHelper.js';
 import voiceManager from '../voice/voiceManager.js';
 
 import * as handlers from './handlers/index.js';
-
-const logger = global.logger || console;
 
 const voiceList = await Data.readVoiceList();
 let chatNickname = await Config.Chat.NickName;

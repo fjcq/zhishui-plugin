@@ -3,7 +3,7 @@
  * 在V2角色整合模式下，控制跨场景数据的可见性
  */
 
-const logger = global.logger || console;
+import { logger } from '../../components/index.js';
 
 /**
  * 默认敏感关键词列表

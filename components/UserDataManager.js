@@ -3,7 +3,7 @@
  * 处理Redis中的用户数据存储和读取
  */
 
-const logger = global.logger || console;
+import logger from './logger.js';
 
 /**
  * 获取用户搜剧配置

@@ -8,8 +8,7 @@ import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneTy
 import { getSegment } from './musicCore.js';
 import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 消息工具名称列表

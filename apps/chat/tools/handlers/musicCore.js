@@ -3,7 +3,7 @@
  * 提供Meting加载、平台验证、segment加载等基础功能
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 支持的音乐平台列表

@@ -3,7 +3,7 @@
  * 处理消息中的各种格式标记转换（@、图片、回复等）
  */
 
-const logger = global.logger || console;
+import { logger } from '../../components/index.js';
 
 /**
  * 用户昵称缓存

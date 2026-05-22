@@ -3,7 +3,7 @@
  * 处理对话的主要逻辑
  */
 
-import { Config } from '../../../components/index.js';
+import { Config, logger } from '../../../components/index.js';
 import { chatActiveMap, lastRequestTime, API_INTERVALS } from '../config.js';
 import { convertAtFormat, convertAtToNames, convertMessageFormat } from '../parsers/index.js';
 import { textToImage, shouldResponseAsImage } from '../chatHelper.js';
@@ -11,8 +11,6 @@ import voiceManager from '../../voice/voiceManager.js';
 import { isToolCallingSupported } from '../api-types.js';
 import { checkRateLimit, getUserFavor, setUserFavor } from '../user/index.js';
 import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
-
-const logger = global.logger || console;
 
 /**
  * 转义正则表达式特殊字符

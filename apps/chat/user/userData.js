@@ -3,7 +3,7 @@
  * 处理用户完整信息的存储和读取
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../components/index.js';
 
 /**
  * 获取用户完整信息

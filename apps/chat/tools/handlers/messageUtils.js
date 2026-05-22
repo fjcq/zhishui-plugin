@@ -4,8 +4,7 @@
  */
 
 import { getSegment } from './musicCore.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 消息类型枚举

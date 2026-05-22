@@ -2,7 +2,7 @@
  * 错误处理器
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 处理通信错误

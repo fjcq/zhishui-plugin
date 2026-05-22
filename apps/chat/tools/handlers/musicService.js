@@ -13,8 +13,7 @@ import {
     getPlatformLink,
     getPlatformName
 } from './musicCore.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 搜索音乐列表

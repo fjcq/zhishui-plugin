@@ -5,8 +5,7 @@
 import { getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from '../utils/requestUtils.js';
 import { isToolCallingSupported, isFeatureSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 验证并清理消息数组

@@ -10,8 +10,7 @@ import { getSegment } from './musicCore.js';
 import { PokeStrategyFactory } from './pokeStrategies.js';
 import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 处理互动工具调用

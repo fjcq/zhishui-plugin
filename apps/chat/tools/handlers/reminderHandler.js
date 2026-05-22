@@ -4,8 +4,7 @@
  */
 
 import { getRedis } from './shared/utils.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 提醒存储键前缀

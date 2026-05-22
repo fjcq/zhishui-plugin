@@ -6,6 +6,8 @@ import Data from './Data.js'
 import Config from './Config.js'
 // 导入YAML文件读取器
 import YamlReader from './YamlReader.js'
+// 导入统一日志模块
+import logger from './logger.js'
 // 导入node.js的路径处理模块，并设置当前工作目录
 import _path from 'path'
 const Path = process.cwd() // 当前工作目录
@@ -13,7 +15,7 @@ const Path = process.cwd() // 当前工作目录
 const Plugin_Name = 'zhishui-plugin'
 // 计算插件的完整路径
 const Plugin_Path = _path.join(Path, 'plugins', Plugin_Name);
-// 导出配置、数据、版本、路径、插件名和插件路径以及YamlReader
+// 导出配置、数据、版本、路径、插件名和插件路径、YamlReader以及logger
 export {
     Config,
     Data,
@@ -21,5 +23,6 @@ export {
     Path,
     Plugin_Name,
     Plugin_Path,
-    YamlReader
+    YamlReader,
+    logger
 }

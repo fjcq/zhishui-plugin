@@ -3,7 +3,7 @@
  * 处理用户好感度的存储和读取
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../components/index.js';
 
 /**
  * 获取Redis客户端

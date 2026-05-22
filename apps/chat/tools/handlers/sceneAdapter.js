@@ -5,8 +5,7 @@
 
 import { SceneType, MessageResult } from './messageUtils.js';
 import { isBotAdmin, isUserAdmin } from '../permissions.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 场景上下文

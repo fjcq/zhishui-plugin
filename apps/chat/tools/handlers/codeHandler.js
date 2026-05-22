@@ -3,7 +3,7 @@
  * 处理AI调用的代码输出相关工具
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 语言映射表（用于语法高亮标识）

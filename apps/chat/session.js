@@ -8,8 +8,7 @@ import fs from 'fs';
 import { KeyvFile } from 'keyv-file';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getContextMode } from './config.js';
 import { sessionStrategyFactory } from './strategies/SessionStrategy.js';
-
-const logger = global.logger || console;
+import { logger } from '../../components/index.js';
 
 /**
  * 获取当前场景信息

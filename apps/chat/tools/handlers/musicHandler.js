@@ -15,8 +15,7 @@ import {
     getPlaylist,
     findBestTranslation
 } from './musicService.js';
-
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 处理音乐工具调用

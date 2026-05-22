@@ -3,7 +3,7 @@
  * 为不同的QQ机器人实现提供统一的API调用接口
  */
 
-const logger = global.logger || console;
+import { logger } from '../../../../components/index.js';
 
 /**
  * 戳一戳策略基类
