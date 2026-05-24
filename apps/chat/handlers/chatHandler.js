@@ -647,10 +647,15 @@ export async function handleResetChat(e) {
     const { clearAllSessions } = await import('../session.js');
     const sessionId = await generateSessionId(e);
     const lockId = generateLockId(e);
+    
     chatActiveMap[lockId] = 0;
+    chatActiveMap[sessionId] = 0;
 
     if (lastRequestTime[lockId]) {
         delete lastRequestTime[lockId];
+    }
+    if (lastRequestTime[sessionId]) {
+        delete lastRequestTime[sessionId];
     }
 
     if (/全部/.test(e.msg)) {
