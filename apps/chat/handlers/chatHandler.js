@@ -72,17 +72,30 @@ async function validateMessageTrigger(e, chatNickname) {
 }
 
 /**
- * 检查会话状态和频率限制
- * @param {string} sessionId - 会话ID
+ * 生成并发控制锁ID
+ * 用于区分不同用户/群的并发请求，允许多用户并行处理
+ * @param {Object} e - 事件对象
+ * @returns {string} 锁ID
+ */
+function generateLockId(e) {
+    if (e.group_id) {
+        return `group_${e.group_id}_user_${e.user_id}`;
+    }
+    return `user_${e.user_id}`;
+}
+
+/**
+ * 检查并发状态和频率限制
+ * @param {string} lockId - 并发控制锁ID
  * @returns {Promise<{allowed: boolean, reason?: string, waitTime?: number}>} 检查结果
  */
-async function checkSessionAndRateLimit(sessionId) {
-    if (chatActiveMap[sessionId] === 1) {
+async function checkConcurrencyAndRateLimit(lockId) {
+    if (chatActiveMap[lockId] === 1) {
         return { allowed: false, reason: 'processing' };
     }
 
     const now = Date.now();
-    const lastTime = lastRequestTime[sessionId] || 0;
+    const lastTime = lastRequestTime[lockId] || 0;
 
     const ApiList = await Config.Chat.ApiList || [];
     const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
@@ -480,32 +493,33 @@ async function sendErrorReply(e, errorMsg) {
  */
 export async function handleChat(e, chatNickname) {
     const sessionId = await generateSessionId(e);
+    const lockId = generateLockId(e);
 
     const triggerValidation = await validateMessageTrigger(e, chatNickname);
     if (!triggerValidation.triggered) {
-        chatActiveMap[sessionId] = 0;
+        chatActiveMap[lockId] = 0;
         return false;
     }
 
-    const sessionCheck = await checkSessionAndRateLimit(sessionId);
-    if (!sessionCheck.allowed) {
-        chatActiveMap[sessionId] = 0;
+    const concurrencyCheck = await checkConcurrencyAndRateLimit(lockId);
+    if (!concurrencyCheck.allowed) {
+        chatActiveMap[lockId] = 0;
         
-        if (sessionCheck.reason === 'processing') {
+        if (concurrencyCheck.reason === 'processing') {
             if (e.group_id) {
                 await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
             } else {
                 await e.reply('稍等哦，正在处理上一个请求~');
             }
-        } else if (sessionCheck.reason === 'rate_limit') {
-            await e.reply(`请稍等 ${sessionCheck.waitTime} 秒后再试，避免请求过于频繁~`);
+        } else if (concurrencyCheck.reason === 'rate_limit') {
+            await e.reply(`请稍等 ${concurrencyCheck.waitTime} 秒后再试，避免请求过于频繁~`);
         }
         
         return false;
     }
 
-    chatActiveMap[sessionId] = 1;
-    lastRequestTime[sessionId] = Date.now();
+    chatActiveMap[lockId] = 1;
+    lastRequestTime[lockId] = Date.now();
 
     try {
         const { processedMsg, images, files, replyContent } = await parseMessage(e);
@@ -519,7 +533,7 @@ export async function handleChat(e, chatNickname) {
         const rateCheck = await checkRateLimit(actualUserId);
         if (!rateCheck.allowed) {
             await e.reply(rateCheck.message);
-            chatActiveMap[sessionId] = 0;
+            chatActiveMap[lockId] = 0;
             return false;
         }
 
@@ -566,13 +580,13 @@ export async function handleChat(e, chatNickname) {
                 3
             );
         } catch (apiError) {
-            chatActiveMap[sessionId] = 0;
+            chatActiveMap[lockId] = 0;
             await handleApiError(e, apiError, apiType);
             return false;
         }
 
         if (!response) {
-            chatActiveMap[sessionId] = 0;
+            chatActiveMap[lockId] = 0;
             await e.reply('服务器繁忙，请稍后再试');
             return false;
         }
@@ -612,12 +626,12 @@ export async function handleChat(e, chatNickname) {
 
         await sendResponse(e, msgWithoutCode || finalReply, finalCodeText);
 
-        chatActiveMap[sessionId] = 0;
+        chatActiveMap[lockId] = 0;
         return true;
     } catch (error) {
         logger.error(`对话处理过程中发生错误: ${error.message}`);
         logger.error(error.stack);
-        chatActiveMap[sessionId] = 0;
+        chatActiveMap[lockId] = 0;
         await sendErrorReply(e, '发生错误，无法进行对话。请稍后再试。');
         return false;
     }
@@ -632,10 +646,11 @@ export async function handleResetChat(e) {
     const { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH } = await import('../config.js');
     const { clearAllSessions } = await import('../session.js');
     const sessionId = await generateSessionId(e);
-    chatActiveMap[sessionId] = 0;
+    const lockId = generateLockId(e);
+    chatActiveMap[lockId] = 0;
 
-    if (lastRequestTime[sessionId]) {
-        delete lastRequestTime[sessionId];
+    if (lastRequestTime[lockId]) {
+        delete lastRequestTime[lockId];
     }
 
     if (/全部/.test(e.msg)) {
