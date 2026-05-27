@@ -3,6 +3,7 @@
  * 导出openAi主函数
  */
 
+import fetch from 'node-fetch';
 import { Config } from '../../../components/index.js';
 import { getCurrentApiConfig, getCurrentRoleIndex } from '../config.js';
 import { validateRequestParams } from '../parsers/index.js';

@@ -275,7 +275,7 @@ async function callApiWithRetry(apiCall, e, maxRetries = 3) {
                 logger.info(`[止水对话] ${strategy.getLogMessage(apiError)}，等待 ${waitTime / 1000} 秒后重试 (${retryCount}/${maxRetries})`);
 
                 if (retryCount === 1) {
-                    await e.reply(strategy.getUserMessage());
+                    await safeReply(e, strategy.getUserMessage());
                 }
 
                 await new Promise(resolve => setTimeout(resolve, waitTime));
@@ -352,6 +352,46 @@ function extractCodeBlocks(content) {
 }
 
 /**
+ * 带重试机制的安全消息发送
+ * 处理 NTQQ 客户端超时问题
+ * @param {Object} e - 事件对象
+ * @param {*} content - 消息内容
+ * @param {number} maxRetries - 最大重试次数
+ * @param {number} retryDelay - 重试延迟(ms)
+ * @param {Object|boolean} options - 发送选项
+ * @returns {Promise<{success: boolean, error?: Error}>}
+ */
+async function safeReply(e, content, maxRetries = 2, retryDelay = 1000, options = {}) {
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+        try {
+            await e.reply(content, options);
+            if (attempt > 1) {
+                logger.info(`[止水对话] 消息发送重试成功 (第${attempt}次)`);
+            }
+            return { success: true };
+        } catch (error) {
+            lastError = error;
+            const isTimeout = error.message?.includes('Timeout') || 
+                             error.message?.includes('NTEvent') ||
+                             error.error?.retcode === 1200;
+            
+            if (isTimeout && attempt <= maxRetries) {
+                logger.warn(`[止水对话] 消息发送超时，${retryDelay}ms后重试 (第${attempt}/${maxRetries}次)`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                retryDelay *= 1.5;
+            } else {
+                logger.error(`[止水对话] 消息发送失败: ${error.message}`);
+                break;
+            }
+        }
+    }
+    
+    return { success: false, error: lastError };
+}
+
+/**
  * 发送语音消息
  * @param {Object} e - 事件对象
  * @param {string|Buffer|Array<Buffer>} voiceResult - 语音结果
@@ -359,14 +399,14 @@ function extractCodeBlocks(content) {
  */
 async function sendVoiceMessage(e, voiceResult) {
     if (typeof voiceResult === 'string') {
-        await e.reply([segment.record(voiceResult)]);
+        await safeReply(e, [segment.record(voiceResult)]);
     } else if (Buffer.isBuffer(voiceResult)) {
-        await e.reply([segment.record(voiceResult)]);
+        await safeReply(e, [segment.record(voiceResult)]);
     } else if (Array.isArray(voiceResult)) {
         for (let i = 0; i < voiceResult.length; i++) {
             const buffer = voiceResult[i];
             if (Buffer.isBuffer(buffer)) {
-                await e.reply([segment.record(buffer)]);
+                await safeReply(e, [segment.record(buffer)]);
                 if (i < voiceResult.length - 1) {
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
@@ -390,15 +430,15 @@ async function sendTextOrImageMessage(e, text) {
             showFooter: true
         });
         if (!imageSuccess) {
-            await e.reply(replyContent);
+            await safeReply(e, replyContent);
         }
     } else {
         const hasImageAttempt = msg.includes('图片') || msg.includes('图像') || msg.includes('画');
         if (hasImageAttempt && !shouldResponseAsImage(msg)) {
             const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
-            await e.reply([segment.at(e.user_id), notification]);
+            await safeReply(e, [segment.at(e.user_id), notification]);
         }
-        await e.reply(replyContent);
+        await safeReply(e, replyContent);
     }
 }
 
@@ -411,7 +451,7 @@ async function sendTextOrImageMessage(e, text) {
  */
 async function sendResponse(e, finalReply, codeText) {
     if (codeText) {
-        await e.reply(codeText, true);
+        await safeReply(e, codeText, 2, 1000, true);
     }
 
     let msgWithoutCode = finalReply;
@@ -478,10 +518,10 @@ async function sendErrorReply(e, errorMsg) {
             showFooter: true
         });
         if (!imageSuccess) {
-            await e.reply(errorMsg);
+            await safeReply(e, errorMsg);
         }
     } else {
-        await e.reply(errorMsg);
+        await safeReply(e, errorMsg);
     }
 }
 
@@ -507,12 +547,12 @@ export async function handleChat(e, chatNickname) {
         
         if (concurrencyCheck.reason === 'processing') {
             if (e.group_id) {
-                await e.reply([segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], true);
+                await safeReply(e, [segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], 2, 1000, true);
             } else {
-                await e.reply('稍等哦，正在处理上一个请求~');
+                await safeReply(e, '稍等哦，正在处理上一个请求~');
             }
         } else if (concurrencyCheck.reason === 'rate_limit') {
-            await e.reply(`请稍等 ${concurrencyCheck.waitTime} 秒后再试，避免请求过于频繁~`);
+            await safeReply(e, `请稍等 ${concurrencyCheck.waitTime} 秒后再试，避免请求过于频繁~`);
         }
         
         return false;
@@ -532,7 +572,7 @@ export async function handleChat(e, chatNickname) {
 
         const rateCheck = await checkRateLimit(actualUserId);
         if (!rateCheck.allowed) {
-            await e.reply(rateCheck.message);
+            await safeReply(e, rateCheck.message);
             chatActiveMap[lockId] = 0;
             return false;
         }
@@ -587,7 +627,7 @@ export async function handleChat(e, chatNickname) {
 
         if (!response) {
             chatActiveMap[lockId] = 0;
-            await e.reply('服务器繁忙，请稍后再试');
+            await safeReply(e, '服务器繁忙，请稍后再试');
             return false;
         }
 
