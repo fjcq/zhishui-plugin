@@ -49,6 +49,7 @@ export class ChatHandler extends plugin {
                 { reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`, fnc: 'SetMaster' },
                 { reg: `^#?(止水)?(插件|对话)?(设置|查看|开启|关闭)代理(.*)$`, fnc: 'SetProxy' },
                 { reg: `^#?(止水)?(插件|对话)?[链|连]接模式(开启|关闭)$`, fnc: 'SetLinkMode' },
+                { reg: `^#?(止水)?(插件|对话)?回复模式\\s*(文本|图片|text|image)?$`, fnc: 'SetResponseMode' },
                 { reg: `^#?(止水)?(插件|对话)?设置(对话)?(API|api)(.*)$`, fnc: 'SetApi' },
                 { reg: `^#?(止水)?(插件|对话)?切换(对话)?(API|api)(.*)$`, fnc: 'SwitchApi' },
                 { reg: `^#?(止水)?(插件|对话)?查看(对话)?(API|api)$`, fnc: 'ShowApi' },
@@ -234,6 +235,15 @@ export class ChatHandler extends plugin {
      */
     async SetLinkMode(e) {
         await handlers.handleSetLinkMode(e);
+    }
+
+    /**
+     * 设置回复模式
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
+    async SetResponseMode(e) {
+        await handlers.handleSetResponseMode(e);
     }
 
     /**

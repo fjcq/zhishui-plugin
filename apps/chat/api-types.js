@@ -113,7 +113,7 @@ export const ApiTypeFeatures = {
     [ApiTypes.OPENAI]: {
         multimodal: true,
         webSearch: false,
-        features: ['多模态', '工具调用']
+        features: ['多模态', '工具调用', '思维链']
     },
     [ApiTypes.TENCENT]: {
         multimodal: false,

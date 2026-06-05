@@ -171,20 +171,22 @@ async function handleStandardResponse(responseData, apiType, msg, e, fullUserMsg
  * @returns {Promise<string>} 处理后的响应内容
  */
 async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatMsg, systemMessage, recursionDepth, openAiCallback) {
+    const { textContent, reasoningContent } = extractMessageContent(message);
+
     const assistantMessage = {
         role: 'assistant',
-        content: message.content || null,
+        content: textContent || null,
         tool_calls: message.tool_calls
     };
 
-    if (message.reasoning_content) {
-        assistantMessage.reasoning_content = message.reasoning_content;
+    if (reasoningContent) {
+        assistantMessage.reasoning_content = reasoningContent;
     }
 
     // 如果AI返回了文本内容，立即发送给用户
-    if (message.content && message.content.trim()) {
+    if (textContent && textContent.trim()) {
         try {
-            await e.reply(message.content.trim());
+            await e.reply(textContent.trim());
         } catch (replyError) {
             logger.error(`[工具调用] 发送消息失败: ${replyError.message}`);
         }
@@ -274,6 +276,52 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
 }
 
 /**
+ * 从消息对象中提取文本内容和推理内容
+ * 兼容不同模型的响应格式：
+ * - DeepSeek: message.reasoning_content + message.content(字符串)
+ * - OpenAI o1/o3: message.content为数组，含thinking和text类型块
+ * - Claude: message.content为数组，含thinking和text类型块
+ * - 其他模型: message.reasoning + message.content(字符串)
+ * @param {Object} message - 消息对象
+ * @returns {{textContent: string, reasoningContent: string|null}} 提取的文本和推理内容
+ */
+function extractMessageContent(message) {
+    let textContent = '';
+    let reasoningContent = null;
+
+    // 优先处理 content 为数组的情况（OpenAI o1/o3、Claude等模型）
+    if (Array.isArray(message.content)) {
+        const textParts = [];
+        const thinkingParts = [];
+
+        for (const block of message.content) {
+            if (block.type === 'text' && block.text) {
+                textParts.push(block.text);
+            } else if (block.type === 'thinking' && block.thinking) {
+                thinkingParts.push(block.thinking);
+            }
+        }
+
+        textContent = textParts.join('\n');
+        if (thinkingParts.length > 0) {
+            reasoningContent = thinkingParts.join('\n');
+        }
+    } else {
+        // content 为字符串的情况
+        textContent = (message.content && typeof message.content === 'string')
+            ? message.content.trim()
+            : '';
+    }
+
+    // 提取推理内容：兼容不同字段名
+    if (!reasoningContent) {
+        reasoningContent = message.reasoning_content || message.reasoning || null;
+    }
+
+    return { textContent, reasoningContent };
+}
+
+/**
  * 处理常规响应
  * @param {Object} message - 消息对象
  * @param {string} apiType - API类型
@@ -283,8 +331,8 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
  * @returns {Promise<string>} 处理后的响应内容
  */
 async function handleRegularResponse(message, apiType, e, fullUserMsg, responseData) {
-    let rawContent = message.content ? message.content.trim() : '';
-    const reasoningContent = message.reasoning_content || null;
+    const { textContent, reasoningContent } = extractMessageContent(message);
+    let rawContent = textContent;
 
     const parseResult = parseJsonResponse(rawContent, apiType);
 

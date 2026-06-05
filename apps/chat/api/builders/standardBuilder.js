@@ -155,21 +155,27 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
         requestData.max_tokens = validatedParams.max_tokens;
     }
 
-    if (isToolCallingSupported(apiType)) {
+    if (!isThinkingMode && isToolCallingSupported(apiType)) {
         requestData.tools = getEnabledTools();
         requestData.tool_choice = 'auto';
     }
 
     const { checkJsonFormatSupport } = await import('../../parsers/index.js');
     const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
-    const hasTools = isToolCallingSupported(apiType);
+    const hasTools = !isThinkingMode && isToolCallingSupported(apiType);
 
-    if (supportsJsonFormat && !hasTools) {
+    if (supportsJsonFormat && !hasTools && !isThinkingMode) {
         requestData.response_format = { type: 'json_object' };
     }
 
     if (isThinkingMode) {
-        requestData.thinking = { type: 'enabled' };
+        // 根据模型类型设置思维链参数
+        const modelLower = (aiModel || '').toLowerCase();
+        // OpenAI o系列模型自带推理能力，无需额外参数
+        const isOpenAIReasoning = /\bo[134]-/.test(modelLower) || modelLower.includes('o1-mini') || modelLower.includes('o1-preview');
+        if (!isOpenAIReasoning) {
+            requestData.thinking = { type: 'enabled' };
+        }
     }
 
     return requestData;

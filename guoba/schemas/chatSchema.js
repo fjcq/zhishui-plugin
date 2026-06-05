@@ -40,6 +40,20 @@ export function getChatBasicSchemas() {
             component: 'Switch'
         },
         {
+            field: 'chat.ResponseMode',
+            label: '回复模式',
+            helpMessage: '控制AI回复的展示方式。纯文本：直接发送文字消息；图片模式：将回复转换为图片发送',
+            bottomHelpMessage: '选择AI回复的展示方式',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { label: '纯文本（默认）', value: 'text' },
+                    { label: '图片模式', value: 'image' }
+                ],
+                placeholder: '选择回复模式'
+            }
+        },
+        {
             component: 'Divider',
             label: '高级设置'
         },
@@ -58,15 +72,15 @@ export function getChatBasicSchemas() {
         {
             field: 'chat.ShowReasoning',
             label: '显示推理过程',
-            helpMessage: '开启后，AI会在回复前先展示其推理思考过程（仅部分模型支持）',
+            helpMessage: '开启后，AI会在回复前先展示其推理思考过程（支持DeepSeek、OpenAI o1/o3、QwQ、Qwen3、GLM-Z1等模型）',
             bottomHelpMessage: '是否在回复中显示AI的推理过程',
             component: 'Switch'
         },
         {
             field: 'chat.EnableThinking',
             label: '启用思考模式',
-            helpMessage: '启用DeepSeek的思考模式，模型会先进行深度思考再给出回答。注意：此模式下不支持temperature等参数',
-            bottomHelpMessage: '启用DeepSeek思考模式，模型会先输出思维链再给出回答',
+            helpMessage: '启用后，模型会先进行深度思考再给出回答。支持DeepSeek、OpenAI o1/o3、QwQ、Qwen3、GLM-Z1等模型。注意：思考模式下不支持temperature等参数和工具调用',
+            bottomHelpMessage: '启用思考模式，模型会先输出思维链再给出回答',
             component: 'Switch'
         },
         {

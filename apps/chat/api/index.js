@@ -33,6 +33,29 @@ function normalizeApiType(apiType) {
 }
 
 /**
+ * 判断模型是否支持思维链
+ * 基于模型名称关键词匹配
+ * @param {string} modelName - 模型名称
+ * @returns {boolean} 是否支持思维链
+ */
+function isThinkingModel(modelName) {
+    const lower = (modelName || '').toLowerCase();
+    // DeepSeek系列
+    if (lower.includes('deepseek')) return true;
+    // OpenAI o1/o3/o4系列
+    if (/\bo[134]-/.test(lower) || lower.includes('o1-mini') || lower.includes('o1-preview')) return true;
+    // QwQ系列
+    if (lower.includes('qwq')) return true;
+    // Qwen3思考模式
+    if (lower.includes('qwen3') || lower.includes('qwen-3')) return true;
+    // Claude extended thinking（通过anthropic兼容接口）
+    if (lower.includes('claude') && (lower.includes('extended') || lower.includes('thinking'))) return true;
+    // GLM-Z1系列
+    if (lower.includes('glm-z1') || lower.includes('glmz1')) return true;
+    return false;
+}
+
+/**
  * 调用 AI API 进行对话
  * @param {string} msg - 用户消息
  * @param {Object} e - 事件对象
@@ -83,7 +106,7 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
         (aiModel || '').toLowerCase().includes('qwen2.5-vl');
 
     const enableThinking = await Config.Chat.EnableThinking;
-    const isThinkingMode = enableThinking && (aiModel || '').toLowerCase().includes('deepseek');
+    const isThinkingMode = enableThinking && isThinkingModel(aiModel);
 
     const { headers, requestData } = await buildRequestData(apiType, apiKey, aiModel, apiUrl, tencentAssistantId, systemMessage, chatMsg, msg, e, roleRequestParams, isQwenVL, isThinkingMode);
 

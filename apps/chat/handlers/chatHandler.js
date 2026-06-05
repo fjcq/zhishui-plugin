@@ -425,6 +425,18 @@ async function sendTextOrImageMessage(e, text) {
     const replyContent = convertMessageFormat(text);
     const msg = e.msg || '';
 
+    // 获取配置的回复模式
+    const responseMode = await Config.Chat.ResponseMode || 'text';
+
+    // 如果配置为图片模式，则将回复转换为图片
+    if (responseMode === 'image') {
+        const imageSuccess = await textToImage(e, text, {
+            showFooter: true
+        });
+        if (imageSuccess) return;
+    }
+
+    // 原有逻辑：根据消息内容判断是否需要转换为图片
     if (shouldResponseAsImage(msg)) {
         const imageSuccess = await textToImage(e, text, {
             showFooter: true

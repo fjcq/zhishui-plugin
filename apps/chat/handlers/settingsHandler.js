@@ -156,6 +156,33 @@ export async function handleSetLinkMode(e) {
 }
 
 /**
+ * 设置回复模式
+ * @param {Object} e - 事件对象
+ * @returns {Promise<void>}
+ */
+export async function handleSetResponseMode(e) {
+    if (!e.isMaster) {
+        e.reply('只有主人可以设置回复模式');
+        return;
+    }
+
+    const match = e.msg.match(/回复模式\s*(文本|图片|text|image)/i);
+    if (!match) {
+        const currentMode = await Config.Chat.ResponseMode || 'text';
+        const currentLabel = currentMode === 'text' ? '纯文本' : '图片模式';
+        e.reply(`【回复模式设置】\n当前模式：${currentLabel}\n\n可用命令：\n• #回复模式文本 - 设置为纯文本回复\n• #回复模式图片 - 设置为图片回复\n\n也可在锅巴设置面板中修改`);
+        return;
+    }
+
+    const [, mode] = match;
+    const modeValue = mode.toLowerCase() === '文本' || mode.toLowerCase() === 'text' ? 'text' : 'image';
+    const modeLabel = modeValue === 'text' ? '纯文本' : '图片模式';
+
+    await Config.modify('chat', 'ResponseMode', modeValue);
+    e.reply(`已将回复模式设置为：${modeLabel}`);
+}
+
+/**
  * 测试指令
  * @param {Object} e - 事件对象
  * @returns {Promise<void>}
