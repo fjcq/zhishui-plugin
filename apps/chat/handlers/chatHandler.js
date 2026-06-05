@@ -439,12 +439,7 @@ async function sendTextOrImageMessage(e, text) {
         return;
     }
 
-    // 文本模式下，用户尝试请求图片但非有效命令时给出提示
-    const hasImageAttempt = msg.includes('图片') || msg.includes('图像') || msg.includes('画');
-    if (hasImageAttempt) {
-        const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
-        await safeReply(e, [segment.at(e.user_id), notification]);
-    }
+    // 文本模式，直接发送文本回复
     await safeReply(e, replyContent);
 }
 
