@@ -428,30 +428,24 @@ async function sendTextOrImageMessage(e, text) {
     // 获取配置的回复模式
     const responseMode = await Config.Chat.ResponseMode || 'text';
 
-    // 如果配置为图片模式，则将回复转换为图片
-    if (responseMode === 'image') {
+    // 如果配置为图片模式，或原有条件判断需要转换为图片
+    if (responseMode === 'image' || shouldResponseAsImage(msg)) {
         const imageSuccess = await textToImage(e, text, {
             showFooter: true
         });
         if (imageSuccess) return;
+        // 图片转换失败，回退到文本回复
+        await safeReply(e, replyContent);
+        return;
     }
 
-    // 原有逻辑：根据消息内容判断是否需要转换为图片
-    if (shouldResponseAsImage(msg)) {
-        const imageSuccess = await textToImage(e, text, {
-            showFooter: true
-        });
-        if (!imageSuccess) {
-            await safeReply(e, replyContent);
-        }
-    } else {
-        const hasImageAttempt = msg.includes('图片') || msg.includes('图像') || msg.includes('画');
-        if (hasImageAttempt && !shouldResponseAsImage(msg)) {
-            const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
-            await safeReply(e, [segment.at(e.user_id), notification]);
-        }
-        await safeReply(e, replyContent);
+    // 文本模式下，用户尝试请求图片但非有效命令时给出提示
+    const hasImageAttempt = msg.includes('图片') || msg.includes('图像') || msg.includes('画');
+    if (hasImageAttempt) {
+        const notification = '根据通信规范，常规对话内容默认使用文本格式。\n如需生成图片，请使用特定命令如：#生成图片 [描述]';
+        await safeReply(e, [segment.at(e.user_id), notification]);
     }
+    await safeReply(e, replyContent);
 }
 
 /**
