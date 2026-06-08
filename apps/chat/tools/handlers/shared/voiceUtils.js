@@ -3,7 +3,7 @@
  * 提供语音相关的共享功能
  */
 
-import Config from '../../../../components/Config.js';
+import Config from '../../../../../components/Config.js';
 
 /**
  * 检查语音系统是否已配置
