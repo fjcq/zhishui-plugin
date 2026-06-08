@@ -12,6 +12,7 @@ import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 import { checkVoiceConfig } from './shared/voiceUtils.js';
+import { applyResponseMode } from '../../chatHelper.js';
 
 /**
  * 处理互动工具调用
@@ -256,7 +257,10 @@ async function handleSendPrivateMessage(params, e) {
             return { error: true, error_message: `用户 ${user_id} 不是好友，无法发送私聊消息` };
         }
 
-        await friend.sendMsg?.(message);
+        // 根据回复模式处理消息内容
+        const processedMessage = await applyResponseMode(message);
+
+        await friend.sendMsg?.(processedMessage);
         logger.info(`[互动] 发送私聊 | 用户:${user_id} | 内容:${message.substring(0, 30)}...`);
 
         return {
@@ -288,7 +292,10 @@ async function handleForwardMessage(params, e) {
             return { error: true, error_message: `无法访问群组 ${target_group_id}` };
         }
 
-        await targetGroup.sendMsg?.(message);
+        // 根据回复模式处理消息内容
+        const processedMessage = await applyResponseMode(message);
+
+        await targetGroup.sendMsg?.(processedMessage);
         logger.info(`[互动] 转发消息 | 目标群:${target_group_id} | 内容:${message.substring(0, 30)}...`);
 
         return {

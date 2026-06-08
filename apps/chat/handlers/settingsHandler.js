@@ -133,29 +133,6 @@ export async function handleSetProxy(e) {
 }
 
 /**
- * 设置连接模式
- * @param {Object} e - 事件对象
- * @returns {Promise<void>}
- */
-export async function handleSetLinkMode(e) {
-    if (!e.isMaster) {
-        e.reply('只有主人可以设置连接模式');
-        return;
-    }
-
-    const match = e.msg.match(/[链|连]接模式(开启|关闭)/);
-    if (!match) {
-        e.reply('请使用正确的连接模式指令：#连接模式开启 或 #连接模式关闭');
-        return;
-    }
-
-    const [, mode] = match;
-    const enable = mode === '开启';
-    await Config.modify('chat', 'LinkMode', enable);
-    e.reply(`已${enable ? '开启' : '关闭'}连接模式`);
-}
-
-/**
  * 设置回复模式
  * @param {Object} e - 事件对象
  * @returns {Promise<void>}

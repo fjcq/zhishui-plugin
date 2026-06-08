@@ -43,6 +43,58 @@ export async function textToImage(e, text, options = {}) {
 }
 
 /**
+ * 将文本渲染为图片段（不自动发送）
+ * 用于工具发送私聊/群聊消息时，根据回复模式决定是否转换为图片
+ * @param {string} text - 要转换的文本内容
+ * @param {Object} options - 可选配置
+ * @param {string} [options.title] - 图片标题
+ * @param {boolean} [options.showFooter] - 是否显示页脚
+ * @param {number} [options.scale] - 缩放比例
+ * @returns {Promise<Object|null>} - 返回图片消息段，失败返回null
+ */
+export async function textToImageSegment(text, options = {}) {
+  try {
+    if (!text || typeof text !== 'string') {
+      logger.error('[文本转图片段] 无效的文本内容');
+      return null;
+    }
+
+    const params = {
+      title: options.title || '',
+      content: text,
+      showFooter: options.showFooter !== false,
+    };
+
+    const cfg = {
+      scale: options.scale || 1,
+    };
+
+    const imgSegment = await puppeteer.renderToSegment('chat/text_to_image', params, cfg);
+    return imgSegment;
+  } catch (error) {
+    logger.error('[文本转图片段] 渲染失败:', error);
+    return null;
+  }
+}
+
+/**
+ * 根据回复模式处理消息内容
+ * 图片模式下将文本转换为图片段，文本模式下返回原始消息
+ * @param {string} message - 消息内容
+ * @returns {Promise<string|Object>} - 图片模式返回图片段，文本模式返回原始消息
+ */
+export async function applyResponseMode(message) {
+  const responseMode = Config.Chat.ResponseMode || 'text';
+  if (responseMode === 'image' && typeof message === 'string') {
+    const imgSegment = await textToImageSegment(message, { showFooter: true });
+    if (imgSegment) {
+      return imgSegment;
+    }
+  }
+  return message;
+}
+
+/**
  * 判断是否应该将响应转换为图片
  * @param {string} command - 命令名称
  * @returns {boolean} - 返回是否应该转换为图片

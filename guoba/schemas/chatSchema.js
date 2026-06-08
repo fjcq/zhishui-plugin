@@ -70,24 +70,10 @@ export function getChatBasicSchemas() {
             }
         },
         {
-            field: 'chat.ShowReasoning',
-            label: '显示推理过程',
-            helpMessage: '开启后，AI会在回复前先展示其推理思考过程（支持DeepSeek、OpenAI o1/o3、QwQ、Qwen3、GLM-Z1等模型）',
-            bottomHelpMessage: '是否在回复中显示AI的推理过程',
-            component: 'Switch'
-        },
-        {
             field: 'chat.EnableThinking',
             label: '启用思考模式',
-            helpMessage: '启用后，模型会先进行深度思考再给出回答。支持DeepSeek、OpenAI o1/o3、QwQ、Qwen3、GLM-Z1等模型。注意：思考模式下不支持temperature等参数和工具调用',
+            helpMessage: '启用后，模型会先进行深度思考再给出回答，并展示推理过程。支持DeepSeek、OpenAI o1/o3、QwQ、Qwen3、GLM-Z1等模型。注意：思考模式下不支持temperature等参数和工具调用',
             bottomHelpMessage: '启用思考模式，模型会先输出思维链再给出回答',
-            component: 'Switch'
-        },
-        {
-            field: 'chat.LinkMode',
-            label: '链接模式',
-            helpMessage: '开启后，AI回复中的链接会以可点击的形式展示',
-            bottomHelpMessage: '是否开启对话链接模式',
             component: 'Switch'
         },
         {

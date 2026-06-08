@@ -62,8 +62,7 @@ export const helpList = [
     list: [
       { icon: 83, title: "#代理(开启|关闭)", desc: "开启或关闭代理" },
       { icon: 83, title: "#设置代理 <代理地址>", desc: "设置http代理，例如：#设置代理http://127.0.0.1:7890" },
-      { icon: 83, title: "#查看代理", desc: "查看当前代理设置" },
-      { icon: 87, title: "#链接模式(开启|关闭)", desc: "开启或关闭链接模式" }
+      { icon: 83, title: "#查看代理", desc: "查看当前代理设置" }
     ]
   },
   {

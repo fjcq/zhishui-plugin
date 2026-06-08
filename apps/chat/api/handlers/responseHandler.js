@@ -341,11 +341,11 @@ async function handleRegularResponse(message, apiType, e, fullUserMsg, responseD
         console.log(`[${apiType}] API原始响应: ${JSON.stringify(responseData, null, 2)}`);
     }
 
-    const showReasoning = await Config.Chat.ShowReasoning;
+    const enableThinking = await Config.Chat.EnableThinking;
     let content = typeof parseResult.content === 'string' ? parseResult.content : String(parseResult.content || '');
     content = content.replace(/(（\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?）|\u63a8\u7406\u8fc7\u7a0b[：:][\s\S]*?)(?=\n\u7ed3\u8bba|\u7b54\u6848|$)/gi, '');
 
-    if (showReasoning && reasoningContent) {
+    if (enableThinking && reasoningContent) {
         content = `【思维链】\n${reasoningContent}\n\n【回答】\n${content}`;
     }
 
