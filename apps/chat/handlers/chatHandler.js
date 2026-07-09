@@ -660,7 +660,38 @@ export async function handleChat(e, chatNickname) {
         }
 
         let finalReply = replyObj.message ?? '';
+
+        // 去除已通过工具调用阶段发送的内容，避免重复推送
+        // handleToolCalls 在工具调用前会立即发送 textContent，AI 在 followUp 中常会重复这部分内容
+        if (e._sentTexts && e._sentTexts.length > 0) {
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (const sent of e._sentTexts) {
+                    if (!finalReply) break;
+                    // 完全相同，直接清空
+                    if (finalReply === sent) {
+                        finalReply = '';
+                        changed = true;
+                        break;
+                    }
+                    // finalReply 以已发送内容开头，去除前缀
+                    if (finalReply.startsWith(sent)) {
+                        finalReply = finalReply.substring(sent.length).trim();
+                        changed = true;
+                    }
+                }
+            }
+        }
+
         logger.info(`[止水对话] <- AI回复: ${finalReply}`);
+
+        // 如果最终回复为空（已通过工具调用阶段发送），跳过重复发送
+        if (!finalReply) {
+            logger.info('[止水对话] 最终回复已通过工具调用阶段发送，跳过重复发送');
+            chatActiveMap[lockId] = 0;
+            return true;
+        }
 
         const { codeText, msgWithoutCode } = extractCodeBlocks(finalReply);
         const finalCodeText = codeText || (replyObj.code_example?.trim() || '');

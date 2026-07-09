@@ -45,5 +45,18 @@ for (let i in files) {
     // 取模块默认导出或第一个导出
     apps[name] = ret[i].value[Object.keys(ret[i].value)[0]];
 }
+
+// 启动自建音乐 API 服务（异步执行，不阻塞插件加载）
+import('./apps/chat/tools/server/index.js')
+    .then(({ startMusicApiServer }) => startMusicApiServer())
+    .catch(err => logger.error(`[自建API] 模块加载失败: ${err.message}`));
+
+// 进程退出时关闭自建API服务
+process.on('beforeExit', () => {
+    import('./apps/chat/tools/server/index.js')
+        .then(({ stopMusicApiServer }) => stopMusicApiServer())
+        .catch(() => { /* 忽略退出错误 */ });
+});
+
 logger.info(chalk.yellow(`止水插件 加载完成~！`));
 export { apps };

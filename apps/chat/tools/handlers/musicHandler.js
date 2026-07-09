@@ -10,7 +10,7 @@ import {
 import {
     searchMusicList,
     getSongDetail,
-    sendMusicCard,
+    sendMusic,
     getLyrics,
     getPlaylist,
     findBestTranslation
@@ -61,7 +61,7 @@ export async function handleMusicToolCall(toolName, params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleSearchMusic(params, e) {
-    const { keyword, platform = 'kugou', limit = 5 } = params;
+    const { keyword, platform = 'netease', limit = 5 } = params;
 
     if (!keyword) {
         return { error: true, error_message: '缺少歌曲关键词参数' };
@@ -101,11 +101,12 @@ async function handleSearchMusic(params, e) {
  * @param {string} params.platform - 音乐平台 netease/tencent/kugou/kuwo
  * @param {string} params.song_name - 歌曲名称（可选）
  * @param {string} params.artist - 歌手名称（可选）
+ * @param {string} [params.media_mid] - QQ音乐 media_mid（可选，来自搜索结果）
  * @param {object} e - 事件对象
  * @returns {Promise<object>} 执行结果
  */
 async function handlePlayMusic(params, e) {
-    const { song_id, platform, song_name = '', artist = '' } = params;
+    const { song_id, platform, song_name = '', artist = '', media_mid = '' } = params;
 
     if (!song_id) {
         return { error: true, error_message: '缺少歌曲ID参数' };
@@ -123,13 +124,17 @@ async function handlePlayMusic(params, e) {
     }
 
     try {
-        const songInfo = await getSongDetail(song_id, platform, { songName: song_name, artist });
+        const songInfo = await getSongDetail(song_id, platform, {
+            songName: song_name,
+            artist,
+            mediaMid: media_mid
+        });
 
         if (!songInfo) {
             return { error: true, error_message: `无法获取歌曲信息，ID: ${song_id}` };
         }
 
-        await sendMusicCard(e, songInfo, platform);
+        await sendMusic(e, songInfo, platform);
 
         logger.info(`[互动] 播放音乐 | 平台:${platform} | 歌曲:${songInfo.name} - ${songInfo.artist}`);
 
@@ -156,7 +161,7 @@ async function handlePlayMusic(params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGetLyrics(params, e) {
-    const { keyword, platform = 'kugou', show_translation = true } = params;
+    const { keyword, platform = 'netease', show_translation = true } = params;
 
     if (!keyword) {
         return { error: true, error_message: '缺少歌曲关键词参数' };
@@ -199,7 +204,7 @@ async function handleGetLyrics(params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGetPlaylist(params, e) {
-    const { playlist_id, platform = 'kugou', limit = 10 } = params;
+    const { playlist_id, platform = 'netease', limit = 10 } = params;
 
     if (!playlist_id) {
         return { error: true, error_message: '缺少歌单ID参数' };

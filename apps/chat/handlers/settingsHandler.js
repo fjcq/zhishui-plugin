@@ -160,30 +160,6 @@ export async function handleSetResponseMode(e) {
 }
 
 /**
- * 测试指令
- * @param {Object} e - 事件对象
- * @returns {Promise<void>}
- */
-export async function handleTalkTest(e) {
-    if (!e.isMaster) {
-        e.reply('只有主人可以使用测试指令');
-        return;
-    }
-
-    const testContent = e.msg.replace(/^#?(止水)?(插件|对话)?测试/, '').trim();
-    if (!testContent) {
-        e.reply('请输入测试内容：#测试 <内容>');
-        return;
-    }
-
-    try {
-        e.reply(`测试内容：${testContent}\n测试成功！`);
-    } catch (error) {
-        e.reply(`测试失败：${error.message}`);
-    }
-}
-
-/**
  * 查看上次对话的API原始返回数据
  * @param {Object} e - 事件对象
  * @param {Object} lastRawResponseMap - 原始响应映射

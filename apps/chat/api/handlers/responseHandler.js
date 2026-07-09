@@ -184,11 +184,36 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
     }
 
     // 如果AI返回了文本内容，立即发送给用户
+    // 但需要避免重复发送：AI 在 followUp 中常会重复之前的 textContent
     if (textContent && textContent.trim()) {
-        try {
-            await e.reply(textContent.trim());
-        } catch (replyError) {
-            logger.error(`[工具调用] 发送消息失败: ${replyError.message}`);
+        const trimmedText = textContent.trim();
+        // 初始化已发送文本记录
+        if (!e._sentTexts) {
+            e._sentTexts = [];
+        }
+        // 检查是否已经发送过相同内容，或与已发送内容存在包含关系
+        // 避免对同一会话重复推送相同/相近的文本
+        // 只对长度>=10的文本检查 endsWith，避免短文本误判
+        const isDuplicate = e._sentTexts.some(sent => {
+            if (trimmedText === sent) return true;
+            if (trimmedText.startsWith(sent)) return true;
+            if (sent.startsWith(trimmedText)) return true;
+            // 检查当前文本是否是已发送文本的后缀（AI 重复发送结尾片段的情况）
+            if (trimmedText.length >= 10 && sent.endsWith(trimmedText)) return true;
+            // 检查当前文本是否是已发送文本的子串（AI 重复发送中间片段的情况）
+            if (trimmedText.length >= 10 && sent.includes(trimmedText)) return true;
+            return false;
+        });
+
+        if (!isDuplicate) {
+            try {
+                await e.reply(trimmedText);
+                e._sentTexts.push(trimmedText);
+            } catch (replyError) {
+                logger.error(`[工具调用] 发送消息失败: ${replyError.message}`);
+            }
+        } else {
+            logger.debug(`[工具调用] 检测到重复文本，跳过发送: ${trimmedText.substring(0, 50)}...`);
         }
     }
 
@@ -281,6 +306,7 @@ async function handleToolCalls(message, finishReason, msg, e, fullUserMsg, chatM
  * - DeepSeek: message.reasoning_content + message.content(字符串)
  * - OpenAI o1/o3: message.content为数组，含thinking和text类型块
  * - Claude: message.content为数组，含thinking和text类型块
+ * - DeepSeek-R1-distill 等: message.content(字符串)中嵌入 <think>...</think> 块
  * - 其他模型: message.reasoning + message.content(字符串)
  * @param {Object} message - 消息对象
  * @returns {{textContent: string, reasoningContent: string|null}} 提取的文本和推理内容
@@ -311,6 +337,49 @@ function extractMessageContent(message) {
         textContent = (message.content && typeof message.content === 'string')
             ? message.content.trim()
             : '';
+    }
+
+    // 处理 content 字符串中嵌入的 <think>...</think> 块
+    // 某些模型（如 DeepSeek-R1-distill）会将思考内容直接嵌入 content 字符串
+    if (textContent) {
+        // 先处理完整的 <think>...</think> 块
+        const thinkBlockRegex = /<think>([\s\S]*?)<\/think>/g;
+        const thinkBlocks = [];
+        let thinkMatch;
+        while ((thinkMatch = thinkBlockRegex.exec(textContent)) !== null) {
+            thinkBlocks.push(thinkMatch[1].trim());
+        }
+        if (thinkBlocks.length > 0) {
+            reasoningContent = reasoningContent || thinkBlocks.join('\n');
+            textContent = textContent.replace(thinkBlockRegex, '').trim();
+        }
+
+        // 处理未配对的闭合标签 </think>（某些模型只输出闭合标签）
+        // </think> 之前的内容视为思考内容，之后的内容视为正式回复
+        if (textContent.includes('</think>')) {
+            const parts = textContent.split('</think>');
+            if (parts.length > 1) {
+                const thinkPart = parts[0].trim();
+                if (thinkPart) {
+                    reasoningContent = reasoningContent
+                        ? `${reasoningContent}\n${thinkPart}`
+                        : thinkPart;
+                }
+                textContent = parts.slice(1).join('</think>').trim();
+            }
+        }
+
+        // 处理未配对的开启标签 <think>（残留的未闭合标签）
+        const openThinkIndex = textContent.indexOf('<think>');
+        if (openThinkIndex !== -1) {
+            const afterOpen = textContent.substring(openThinkIndex + 7).trim();
+            if (afterOpen) {
+                reasoningContent = reasoningContent
+                    ? `${reasoningContent}\n${afterOpen}`
+                    : afterOpen;
+            }
+            textContent = textContent.substring(0, openThinkIndex).trim();
+        }
     }
 
     // 提取推理内容：兼容不同字段名

@@ -4,6 +4,7 @@
  */
 
 import { getVoiceSettingSchemas } from './voiceSchema.js';
+import { getMusicApiSchemas } from './musicApiSchema.js';
 
 /**
  * 获取网络设置Schema
@@ -83,6 +84,7 @@ export function getSystemSchemas() {
     return [
         ...getNetworkSchemas(),
         ...getVoiceSettingSchemas(),
+        ...getMusicApiSchemas(),
         ...getPermissionSchemas()
     ];
 }

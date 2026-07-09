@@ -52,7 +52,6 @@ export class ChatHandler extends plugin {
                 { reg: `^#?(止水)?(插件|对话)?设置(对话)?(API|api)(.*)$`, fnc: 'SetApi' },
                 { reg: `^#?(止水)?(插件|对话)?切换(对话)?(API|api)(.*)$`, fnc: 'SwitchApi' },
                 { reg: `^#?(止水)?(插件|对话)?查看(对话)?(API|api)$`, fnc: 'ShowApi' },
-                { reg: `^#?(止水)?(插件|对话)?测试(.*)$`, fnc: 'talkTest' },
                 { reg: '^#?(止水)?(插件|对话)?角色列表$', fnc: 'ShowRoleList' },
                 { reg: '^#?(止水)?(插件|对话)?切换(对话)?角色(.+)$', fnc: 'SwitchRole' },
                 { reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)', fnc: 'AddRole' },
@@ -261,15 +260,6 @@ export class ChatHandler extends plugin {
      */
     async ShowApi(e) {
         await handlers.handleShowApi(e);
-    }
-
-    /**
-     * 测试对话
-     * @param {Object} e - 事件对象
-     * @returns {Promise<void>}
-     */
-    async talkTest(e) {
-        await handlers.handleTalkTest(e);
     }
 
     /**

@@ -14,8 +14,22 @@ export const musicTools = [
 - 用户想听歌时，搜索后根据结果选择最合适的歌曲调用play_music播放
 - 用户只想看歌曲列表时，只搜索不播放，展示结果让用户选择
 
+【数据源策略】
+- 网易云：使用官方API（ncmService）
+- QQ/酷狗/酷我：使用自建API（musicApi，可获取真实音频直链）
+- 失败时自动降级到 @meting/core
+
 【返回内容】
-返回歌曲列表，每首包含：id(歌曲ID)、name(歌名)、artist(歌手)、album(专辑)、duration(时长)、link(链接)`,
+返回歌曲列表，每首包含：
+- id(歌曲ID，用于play_music的song_id参数)
+- name(歌名)
+- artist(歌手)
+- album(专辑)
+- duration(时长，秒)
+- pic(封面URL)
+- link(链接)
+- media_mid(QQ音乐专用，用于play_music的media_mid参数，必须原样传回)
+- platform(平台代码)`,
             parameters: {
                 type: "object",
                 properties: {
@@ -26,7 +40,7 @@ export const musicTools = [
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
                     },
                     limit: {
                         type: "integer",
@@ -41,14 +55,23 @@ export const musicTools = [
         type: "function",
         function: {
             name: "play_music",
-            description: `播放指定音乐。根据歌曲ID播放音乐，发送音乐卡片或语音。
+            description: `播放指定音乐。根据歌曲ID播放音乐，优先发送语音消息，失败时降级为文本+链接。
+
+【发送策略】
+1. 有音频直链且时长≤5分钟：发送语音消息
+2. 无法发送语音：发送歌名+链接文本
+
+【数据源策略】
+- 网易云：使用官方API获取真实音频直链
+- QQ音乐：使用自建API获取真实音频直链（免费歌曲可播放，VIP歌曲返回链接）
+- 酷狗/酷我：使用自建API获取真实音频直链
 
 【调用时机】
 - 用户想听歌时，在search_music搜索后选择最合适的歌曲播放
 - 用户指定了某首歌时，播放用户指定的那首
 
 【参数来源】
-song_id和platform来自search_music的返回结果`,
+song_id、platform、media_mid 均来自 search_music 的返回结果，必须原样传回`,
             parameters: {
                 type: "object",
                 properties: {
@@ -59,7 +82,7 @@ song_id和platform来自search_music的返回结果`,
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
                     },
                     song_name: {
                         type: "string",
@@ -68,6 +91,10 @@ song_id和platform来自search_music的返回结果`,
                     artist: {
                         type: "string",
                         description: "歌手名称（可选，用于日志显示）"
+                    },
+                    media_mid: {
+                        type: "string",
+                        description: "QQ音乐 media_mid（来自search_music返回结果中的media_mid字段），tencent平台必填以保证获取真实音频直链"
                     }
                 },
                 required: ["song_id", "platform"]
@@ -89,7 +116,7 @@ song_id和platform来自search_music的返回结果`,
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
                     },
                     show_translation: {
                         type: "boolean",
@@ -115,7 +142,7 @@ song_id和platform来自search_music的返回结果`,
                     platform: {
                         type: "string",
                         enum: ["netease", "tencent", "kugou", "kuwo"],
-                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认kugou"
+                        description: "音乐平台：netease(网易云音乐)、tencent(QQ音乐)、kugou(酷狗音乐)、kuwo(酷我音乐)，默认netease"
                     },
                     limit: {
                         type: "integer",

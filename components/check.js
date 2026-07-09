@@ -12,6 +12,7 @@ export const needPackage = [
 /** 可选依赖库列表（缺失时仅影响部分功能） */
 export const optionalPackage = [
     { name: '@meting/core', feature: '音乐搜索' },
+    { name: 'express', feature: '自建音乐API' }
 ];
 
 /** 可选依赖检查结果 */
@@ -52,7 +53,7 @@ export async function checkOptionalPackage() {
     }
     
     if (hasMissing) {
-        loggerMark('可执行安装命令: pnpm add @meting/core -w');
+        loggerMark('可执行安装命令: pnpm add @meting/core express -w');
         loggerMark('---------------------');
     }
 }

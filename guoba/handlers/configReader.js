@@ -81,6 +81,7 @@ export async function getConfigData() {
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},
+            musicApi: Config.getDefOrConfig('musicApi') || {},
             roleList: roleList || [],
             userRoleList: userRoleList || [],
             userResourceList: userResourceList || []
@@ -93,6 +94,7 @@ export async function getConfigData() {
             voice: {},
             proxy: {},
             tools: {},
+            musicApi: {},
             roleList: []
         };
     }
@@ -141,6 +143,7 @@ export function getLatestConfigData() {
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},
+            musicApi: Config.getDefOrConfig('musicApi') || {},
             roleList: roleList || []
         };
     } catch (err) {
@@ -151,6 +154,7 @@ export function getLatestConfigData() {
             voice: {},
             proxy: {},
             tools: {},
+            musicApi: {},
             roleList: []
         };
     }

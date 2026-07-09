@@ -9,4 +9,4 @@ export { handleShowFavor, handleSetUserFavor, handleShowFavorRank, handleShowFav
 export { handleSetApi, handleSwitchApi, handleShowApi } from './apiHandler.js';
 export { handleShowContext, handleShowRoleList, handleSwitchRole, handleAddRole } from './roleHandler.js';
 export { handleShowChatHistory, handleResetUserConfig, handleShowUserConfig, handleShowOtherUserConfig, handleResetOtherUserConfig, handleShowUserConfigStats, handleSetPrivateChatEnable } from './userConfigHandler.js';
-export { handleSetContext, handleSetChatScene, handleShowChatScene, handleSetMaster, handleSetProxy, handleSetResponseMode, handleTalkTest, handleShowRawResponse } from './settingsHandler.js';
+export { handleSetContext, handleSetChatScene, handleShowChatScene, handleSetMaster, handleSetProxy, handleSetResponseMode, handleShowRawResponse } from './settingsHandler.js';

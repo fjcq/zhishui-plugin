@@ -66,7 +66,6 @@ export const helpList = [
             { "icon": 85, "title": "#设置API<地址>", "desc": "配置API地址" },
             { "icon": 83, "title": "#查看API", "desc": "查看当前API" },
             { "icon": 29, "title": "#切换API<编号>", "desc": "切换API接口" },
-            { "icon": 86, "title": "#测试<内容>", "desc": "测试API连接" },
             { "icon": 83, "title": "#连接模式开启/关闭", "desc": "开关连接模式" }
         ]
     },

@@ -176,7 +176,8 @@ async function getPttBuffer(file, ffmpeg = "ffmpeg", transcoding = true) {
  */
 async function getAudioTime(file, ffmpeg = "ffmpeg") {
     return new Promise((resolve, _reject) => {
-        (0, child_process.exec)(`${ffmpeg} -i "${file}"`, async (_error, _stdout, stderr) => {
+        // windowsHide: true 避免 Windows 上弹出 ffmpeg 的 conhost 控制台窗口（白色幽灵窗口）
+        (0, child_process.exec)(`${ffmpeg} -i "${file}"`, { windowsHide: true }, async (_error, _stdout, stderr) => {
             try {
                 let time = stderr.split("Duration:")[1]?.split(",")[0].trim()
                 let arr = time?.split(":")
@@ -210,7 +211,8 @@ async function getAudioTime(file, ffmpeg = "ffmpeg") {
 async function audioTrans(file, ffmpeg = "ffmpeg") {
     return new Promise((resolve, reject) => {
         const tmpfile = path.join(TMP_DIR, (0, uuid)());
-        (0, child_process.exec)(`${ffmpeg} -y -i "${file}" -ac 1 -ar 8000 -f amr "${tmpfile}"`, async (_error, _stdout, _stderr) => {
+        // windowsHide: true 避免 Windows 上弹出 ffmpeg 的 conhost 控制台窗口（白色幽灵窗口）
+        (0, child_process.exec)(`${ffmpeg} -y -i "${file}" -ac 1 -ar 8000 -f amr "${tmpfile}"`, { windowsHide: true }, async (_error, _stdout, _stderr) => {
             try {
                 const amr = await fs.promises.readFile(tmpfile)
                 resolve(amr)

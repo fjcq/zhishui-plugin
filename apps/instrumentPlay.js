@@ -88,10 +88,11 @@ export class InstrumentPlayer extends plugin {
         let hasStarted = false
         let startTime = 0
 
+        // windowsHide: true 避免 Windows 上弹出 ffmpeg 的 conhost 控制台窗口（白色幽灵窗口）
         const ffmpegProc = spawn(
             "ffmpeg",
             ffmpegArgs,
-            { cwd: currentInstrumentDir }
+            { cwd: currentInstrumentDir, windowsHide: true }
         )
 
         ffmpegProc.on('spawn', () => {

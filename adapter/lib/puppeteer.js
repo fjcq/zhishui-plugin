@@ -24,7 +24,8 @@ class Puppeteer {
     /** 截图次数 */
     this.renderNum = 0
     this.config = {
-      headless: true,
+      // 'new' headless 模式不会闪现控制台窗口；保留旧版兼容性
+      headless: 'new',
       args: [
         '--disable-gpu',
         '--disable-dev-shm-usage',
@@ -32,8 +33,19 @@ class Puppeteer {
         '--no-first-run',
         '--no-sandbox',
         '--no-zygote',
-        '--single-process'
-      ]
+        '--single-process',
+        // 隐藏启动窗口，避免 Windows 上出现白色 conhost 幽灵窗口
+        '--no-startup-window',
+        '--disable-features=RendererCodeIntegrity,TranslateUI',
+        '--disable-extensions',
+        '--disable-component-extensions-with-background-pages'
+      ],
+      // 不让 puppeteer 接管系统信号，避免 Chromium 进程残留
+      handleSIGINT: false,
+      handleSIGTERM: false,
+      handleSIGHUP: false,
+      // 使用 pipe 而非 WebSocket 通信，减少一个监听端口
+      pipe: true
     }
 
     this.html = {}

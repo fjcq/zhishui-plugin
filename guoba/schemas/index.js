@@ -14,6 +14,9 @@ export { getVideoSearchSchemas } from './videoSearchSchema.js';
 // 系统设置模块
 export { getSystemSchemas, getNetworkSchemas, getPermissionSchemas } from './systemSchema.js';
 
+// 自建音乐API设置
+export { getMusicApiSchemas } from './musicApiSchema.js';
+
 // 工具开关
 export { getToolSwitchSchemas } from './toolSwitchSchema.js';
 
