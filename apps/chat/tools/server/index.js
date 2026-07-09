@@ -22,8 +22,20 @@ let serverInstance = null;
 /** 当前监听端口 */
 let currentPort = null;
 
+/** 频率限制清理定时器句柄 */
+let rateLimitCleanupTimer = null;
+
 /** 端口冲突时最大重试次数 */
 const MAX_PORT_RETRY = 3;
+
+/** 频率限制窗口（毫秒），单IP每秒最多5次 */
+const RATE_LIMIT_WINDOW = 1000;
+
+/** 频率限制窗口内最大请求数 */
+const RATE_LIMIT_MAX = 5;
+
+/** 频率限制条目清理间隔（毫秒），定期移除已过期IP记录避免内存泄漏 */
+const RATE_LIMIT_CLEANUP_INTERVAL = 30 * 1000;
 
 /**
  * 获取 musicApi 配置
@@ -64,13 +76,39 @@ function createExpressApp(config) {
 
     // 频率限制（单IP每秒最多5次）
     const rateLimitMap = new Map();
+
+    /**
+     * 清理已过期的IP频率限制条目
+     * 移除窗口内无请求的IP，避免长期运行后 rateLimitMap 累积驻留条目导致内存增长
+     */
+    const cleanupRateLimitMap = () => {
+        const cutoff = Date.now() - RATE_LIMIT_WINDOW;
+        for (const [ip, timestamps] of rateLimitMap) {
+            const recent = timestamps.filter(t => t > cutoff);
+            if (recent.length === 0) {
+                rateLimitMap.delete(ip);
+            } else if (recent.length !== timestamps.length) {
+                rateLimitMap.set(ip, recent);
+            }
+        }
+    };
+
+    // 启动定时清理，使用 unref 避免阻止进程退出
+    if (rateLimitCleanupTimer) {
+        clearInterval(rateLimitCleanupTimer);
+    }
+    rateLimitCleanupTimer = setInterval(cleanupRateLimitMap, RATE_LIMIT_CLEANUP_INTERVAL);
+    if (rateLimitCleanupTimer.unref) {
+        rateLimitCleanupTimer.unref();
+    }
+
     app.use('/api', (req, res, next) => {
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
         const now = Date.now();
-        const windowStart = now - 1000;
+        const windowStart = now - RATE_LIMIT_WINDOW;
         const entry = rateLimitMap.get(ip) || [];
         const recent = entry.filter(t => t > windowStart);
-        if (recent.length >= 5) {
+        if (recent.length >= RATE_LIMIT_MAX) {
             return res.status(429).json({ code: 429, message: '请求过于频繁', data: null });
         }
         recent.push(now);
@@ -193,6 +231,12 @@ export async function stopMusicApiServer() {
     serverInstance = null;
     const port = currentPort;
     currentPort = null;
+
+    // 停止频率限制清理定时器
+    if (rateLimitCleanupTimer) {
+        clearInterval(rateLimitCleanupTimer);
+        rateLimitCleanupTimer = null;
+    }
 
     cache.stopCleanup();
 
