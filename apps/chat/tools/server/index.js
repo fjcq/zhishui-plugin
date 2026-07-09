@@ -19,11 +19,11 @@ import cache from './utils/cache.js';
 /** 服务单例 */
 let serverInstance = null;
 
+/** Express 应用单例，供 stopMusicApiServer 调用挂载的清理函数 */
+let appInstance = null;
+
 /** 当前监听端口 */
 let currentPort = null;
-
-/** 频率限制清理定时器句柄 */
-let rateLimitCleanupTimer = null;
 
 /** 端口冲突时最大重试次数 */
 const MAX_PORT_RETRY = 3;
@@ -93,14 +93,17 @@ function createExpressApp(config) {
         }
     };
 
-    // 启动定时清理，使用 unref 避免阻止进程退出
-    if (rateLimitCleanupTimer) {
-        clearInterval(rateLimitCleanupTimer);
-    }
-    rateLimitCleanupTimer = setInterval(cleanupRateLimitMap, RATE_LIMIT_CLEANUP_INTERVAL);
+    // 定时器作用域限定在 createExpressApp 内，生命周期与 app 实例绑定
+    // 使用 unref 避免阻止进程退出
+    const rateLimitCleanupTimer = setInterval(cleanupRateLimitMap, RATE_LIMIT_CLEANUP_INTERVAL);
     if (rateLimitCleanupTimer.unref) {
         rateLimitCleanupTimer.unref();
     }
+
+    // 暴露清理函数，供 stopMusicApiServer 和启动失败路径调用
+    app.locals.cleanupRateLimit = () => {
+        clearInterval(rateLimitCleanupTimer);
+    };
 
     app.use('/api', (req, res, next) => {
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -203,17 +206,24 @@ export async function startMusicApiServer() {
 
         if (listenPort !== null) {
             serverInstance = app.locals.server;
+            appInstance = app;
             currentPort = listenPort;
 
             // 进程退出时自动关闭
             serverInstance.on('close', () => {
                 serverInstance = null;
+                appInstance = null;
                 currentPort = null;
             });
 
             logger.info(`[自建API] 服务启动成功 | 地址:http://${config.host}:${listenPort}`);
             return true;
         }
+    }
+
+    // 所有端口重试均失败，清理已创建的频率限制定时器，避免泄漏
+    if (app.locals.cleanupRateLimit) {
+        app.locals.cleanupRateLimit();
     }
 
     logger.warn(`[自建API] 连续 ${MAX_PORT_RETRY} 次启动失败，放弃启动。降级到 @meting/core`);
@@ -228,14 +238,15 @@ export async function stopMusicApiServer() {
     if (!serverInstance) return;
 
     const server = serverInstance;
+    const app = appInstance;
     serverInstance = null;
+    appInstance = null;
     const port = currentPort;
     currentPort = null;
 
     // 停止频率限制清理定时器
-    if (rateLimitCleanupTimer) {
-        clearInterval(rateLimitCleanupTimer);
-        rateLimitCleanupTimer = null;
+    if (app?.locals?.cleanupRateLimit) {
+        app.locals.cleanupRateLimit();
     }
 
     cache.stopCleanup();
