@@ -97,6 +97,14 @@ const TOOL_CATEGORIES = [
         tools: [
             { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' }
         ]
+    },
+    {
+        label: '搜剧工具',
+        tools: [
+            { value: 'search_videos', label: '搜索影视', desc: '搜索电影、电视剧、动漫、综艺等作品' },
+            { value: 'get_video_episodes', label: '获取剧集列表', desc: '获取指定影视作品的线路与剧集列表' },
+            { value: 'get_video_play_url', label: '获取播放链接', desc: '获取指定集数的可观看播放链接' }
+        ]
     }
 ];
 

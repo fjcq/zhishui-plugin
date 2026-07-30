@@ -3,7 +3,7 @@
  * 导出所有工具定义
  */
 
-import { Config } from '../../../../components/index.js';
+import { Config, logger } from '../../../../components/index.js';
 import { favorTools } from './favorTools.js';
 import { friendTools } from './friendTools.js';
 import { groupTools } from './groupTools.js';
@@ -13,6 +13,7 @@ import { interactTools } from './interactTools.js';
 import { memoryTools } from './memoryTools.js';
 import { outputTools } from './outputTools.js';
 import { searchTools } from './searchTools.js';
+import { videoTools } from './videoTools.js';
 import { ALL_TOOL_NAMES, DEFAULT_DISABLED_TOOLS } from '../../../../guoba/schemas/toolSwitchSchema.js';
 
 /**
@@ -37,7 +38,8 @@ export const allTools = [
     ...interactTools,
     ...memoryTools,
     ...outputTools,
-    ...searchTools
+    ...searchTools,
+    ...videoTools
 ];
 
 /**
@@ -52,7 +54,8 @@ export const toolsByCategory = {
     interact: interactTools,
     memory: memoryTools,
     output: outputTools,
-    search: searchTools
+    search: searchTools,
+    video: videoTools
 };
 
 /**
@@ -113,7 +116,8 @@ const TOOL_CATEGORY_FIELDS = [
     'interact_tools',
     'memory_tools',
     'output_tools',
-    'search_tools'
+    'search_tools',
+    'video_tools'
 ];
 
 /**
@@ -254,4 +258,4 @@ export function getToolSensitivity(toolName) {
     return SensitivityLevel.LOW;
 }
 
-export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools, outputTools, searchTools };
+export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools, outputTools, searchTools, videoTools };

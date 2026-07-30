@@ -289,6 +289,30 @@ function testEmptyHtml() {
 }
 
 /**
+ * 测试缺 snippet 时不会跨结果错位（新分离式解析的关键边界）
+ */
+function testMissingSnippet() {
+    console.log('\n--- 测试缺 snippet 不串结果 ---');
+
+    // 第2条结果缺 snippet，应返回空字符串而不是跨越到第3条的 snippet
+    const html = `
+        <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fa.com">A</a>
+        <a class="result__snippet">Snippet A</a>
+        <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fb.com">B</a>
+        <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fc.com">C</a>
+        <a class="result__snippet">Snippet C</a>
+    `;
+
+    const results = parseDuckDuckGoResults(html, 5);
+    assertTrue('3条标题被全部解析', results.length === 3);
+    if (results.length === 3) {
+        assertEqual('第2条 snippet 为空（未串到第3条）', results[1].snippet, '');
+        assertEqual('第3条 snippet 正确', results[2].snippet, 'Snippet C');
+        assertEqual('第2条 URL 正确', results[1].url, 'https://b.com');
+    }
+}
+
+/**
  * 主测试函数
  */
 function main() {
@@ -302,6 +326,7 @@ function main() {
     testParseResults();
     testMaxResultsLimit();
     testEmptyHtml();
+    testMissingSnippet();
 
     console.log('\n========================================');
     console.log(`  测试结果: ${passed}/${total} 通过`);

@@ -63,7 +63,7 @@ async function handleWebSearch(params) {
     if (!html) {
         return {
             error: true,
-            error_message: '无法连接到 DuckDuckGo 搜索接口。可能原因：网络不通或被屏蔽。若服务器在中国大陆，请在 plugins/zhishui-plugin/config/default_config/proxy.yaml 中开启 switchProxy 并配置可用代理地址（如 http://127.0.0.1:7890），或将 duckduckgo.com 加入代理白名单'
+            error_message: '无法连接到 DuckDuckGo 搜索接口。可能原因：网络不通或被屏蔽。若服务器在中国大陆，请在 plugins/zhishui-plugin/config/config/proxy.yaml 中开启 switchProxy 并配置可用代理地址（如 http://127.0.0.1:7890），或将 *.duckduckgo.com 加入代理白名单'
         };
     }
 
@@ -138,6 +138,10 @@ async function fetchDuckDuckGoHtml(query) {
 
 /**
  * 解析 DuckDuckGo HTML 结果页
+ * 采用流式聚合：按出现顺序匹配 result__a 和 result__snippet，
+ * 遇到 result__a 即开启新结果，遇到 result__snippet 则填入当前结果的摘要。
+ * 无论是否有外层 <div class="result"> 包裹都能正确工作，
+ * 即使某条缺 snippet 也不会跨越到下一个结果的 snippet
  * @param {string} html - HTML 内容
  * @param {number} maxResults - 最大返回结果数
  * @returns {Array<object>} 解析出的搜索结果列表
@@ -145,33 +149,38 @@ async function fetchDuckDuckGoHtml(query) {
 function parseDuckDuckGoResults(html, maxResults) {
     const results = [];
 
-    /**
-     * 匹配每条搜索结果的链接和摘要块
-     * 结果块结构：
-     *   <a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=...">标题</a>
-     *   <a class="result__snippet">摘要</a>
-     */
-    const resultBlockRegex = /<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+    // 第一步：匹配所有 <a class="result__a|result__snippet" ...>...</a> 标签
+    // 仅捕获类型与完整属性段，href 留待第二步提取，避免 [^>]* 贪婪吃掉 href 属性
+    const tagRegex = /<a([^>]*)class="[^"]*result__(a|snippet)[^"]*"([^>]*)>([\s\S]*?)<\/a>/g;
+    const hrefRegex = /\bhref\s*=\s*"([^"]+)"/i;
 
-    let match;
-    while ((match = resultBlockRegex.exec(html)) !== null && results.length < maxResults) {
-        const rawUrl = match[1];
-        const titleHtml = match[2];
-        const snippetHtml = match[3];
+    let current = null;
+    let tagMatch;
+    while ((tagMatch = tagRegex.exec(html)) !== null) {
+        const attrsBefore = tagMatch[1] || '';
+        const kind = tagMatch[2];
+        const attrsAfter = tagMatch[3] || '';
+        const innerHtml = tagMatch[4];
 
-        const url = extractRealUrl(rawUrl);
-        const title = cleanHtmlText(titleHtml);
-        const snippet = cleanHtmlText(snippetHtml);
-
-        if (!title || !url) {
-            continue;
+        if (kind === 'a') {
+            if (results.length >= maxResults) {
+                break;
+            }
+            const hrefMatch = hrefRegex.exec(attrsBefore + ' ' + attrsAfter);
+            const href = hrefMatch ? hrefMatch[1] : '';
+            const url = extractRealUrl(href);
+            const title = cleanHtmlText(innerHtml);
+            if (!title || !url) {
+                current = null;
+                continue;
+            }
+            current = { title, url, snippet: '' };
+            results.push(current);
+        } else if (kind === 'snippet') {
+            if (current && !current.snippet) {
+                current.snippet = cleanHtmlText(innerHtml);
+            }
         }
-
-        results.push({
-            title: title,
-            url: url,
-            snippet: snippet || ''
-        });
     }
 
     return results;
