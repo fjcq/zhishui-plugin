@@ -91,6 +91,12 @@ const TOOL_CATEGORIES = [
         tools: [
             { value: 'output_code', label: '输出代码', desc: '以结构化方式输出代码示例' }
         ]
+    },
+    {
+        label: '联网搜索工具',
+        tools: [
+            { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' }
+        ]
     }
 ];
 

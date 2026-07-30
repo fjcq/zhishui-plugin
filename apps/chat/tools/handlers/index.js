@@ -10,6 +10,7 @@ import { handleInteractToolCall } from './interactHandler.js';
 import { handleMemoryToolCall } from './memoryHandler.js';
 import { handleCodeToolCall } from './codeHandler.js';
 import { handleMessageToolCall, MESSAGE_TOOLS as NEW_MESSAGE_TOOLS } from './messageHandler.js';
+import { handleSearchToolCall, SEARCH_TOOLS } from './searchHandler.js';
 import { makeDecision, DecisionResult } from '../decisionEngine.js';
 import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../definitions/index.js';
 import { getUserFavor } from '../../user/index.js';
@@ -118,6 +119,11 @@ const FRIEND_TOOLS = [
 const OUTPUT_TOOLS = [
     'output_code'
 ];
+
+/**
+ * 联网搜索工具名称列表
+ */
+const SEARCH_TOOLS_LIST = SEARCH_TOOLS;
 
 /**
  * 需要决策判断的工具列表
@@ -256,6 +262,12 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
             return result;
         }
 
+        if (SEARCH_TOOLS_LIST.includes(toolName)) {
+            const result = await handleSearchToolCall(toolName, params);
+            logToolResult(toolName, result);
+            return result;
+        }
+
         return {
             error: true,
             error_message: `未知的工具: ${toolName}`
@@ -334,6 +346,7 @@ export {
     handleMemoryToolCall,
     handleCodeToolCall,
     handleMessageToolCall,
+    handleSearchToolCall,
     GROUP_TOOLS,
     MUSIC_TOOLS,
     MESSAGE_TOOLS,
@@ -341,5 +354,6 @@ export {
     MEMORY_TOOLS,
     FAVOR_TOOLS,
     FRIEND_TOOLS,
-    OUTPUT_TOOLS
+    OUTPUT_TOOLS,
+    SEARCH_TOOLS_LIST
 };
