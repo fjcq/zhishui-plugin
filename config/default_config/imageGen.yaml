@@ -7,7 +7,7 @@
 Enable: false
 
 # 默认服务商
-# 可选：tongyi（通义万相）、dall_e（DALL-E）、wenxin（文心一格）
+# 可选：tongyi（通义万相）、dall_e（DALL-E）、wenxin（文心一格）、custom（自定义 OpenAI 兼容接口）
 DefaultProvider: tongyi
 
 # 请求超时时间（毫秒），生图通常较慢，建议 60000 以上
@@ -65,3 +65,37 @@ Wenxin:
   Model: "wenxin-yige-2.0"
   # access_token 缓存时间（秒），默认 86400（1天）
   TokenCacheTTL: 86400
+
+# 自定义服务商配置（OpenAI 兼容接口）
+# 适用于火山引擎 ARK、SiliconFlow、Together AI、Replicate 等第三方平台
+# 这些平台均兼容 OpenAI 的 /images/generations 接口格式
+Custom:
+  # API Key
+  ApiKey: ""
+  # 接口基础地址（不含 API 路径部分）
+  # 火山引擎 ARK：https://ark.cn-beijing.volces.com/api/v3
+  # SiliconFlow：https://api.siliconflow.cn/v1
+  # OpenAI：https://api.openai.com/v1
+  # Together AI：https://api.together.xyz/v1
+  BaseUrl: ""
+  # API 路径，默认 /images/generations
+  # 火山引擎 ARK：/images/generations
+  # SiliconFlow：/images/generations
+  ApiPath: "/images/generations"
+  # 模型名称（根据平台填写）
+  # 火山引擎 ARK：doubao-seedream-3-0-t2i-250415（豆包 Seedream 3.0）
+  # SiliconFlow：Kwai-Kolors/Kolors、black-forest-labs/FLUX.1-schnell、stabilityai/stable-diffusion-3-5-large 等
+  # Together AI：black-forest-labs/FLUX.1-schnell
+  Model: ""
+  # 图片质量（部分模型支持）：standard、hd
+  Quality: "standard"
+  # 返回格式：url（返回链接）、b64_json（返回base64）
+  # 注意：部分平台仅支持其中一种格式
+  ResponseFormat: "url"
+  # 尺寸分隔符：x（OpenAI/Together 等）、*（部分国内平台）
+  # 设置后会将传入的 size 参数统一转换为此分隔符
+  SizeSeparator: "x"
+  # 额外请求参数（JSON 字符串）
+  # 部分平台需要额外参数（如 guidance_scale、num_inference_steps 等）
+  # 示例：{"guidance_scale": 7.5, "num_inference_steps": 30}
+  ExtraParams: ""

@@ -68,21 +68,6 @@ export function getMeting(platform) {
 }
 
 /**
- * 动态加载segment模块
- * @returns {Promise<object|null>} segment模块或null
- */
-export async function getSegment() {
-    try {
-        return await import('oicq').then(m => m.segment).catch(() =>
-            import('icqq').then(m => m.segment)
-        );
-    } catch (error) {
-        logger.warn(`[互动] 加载segment模块失败: ${error.message}`);
-        return null;
-    }
-}
-
-/**
  * 带超时控制的语音生成
  * @param {object} segment - segment模块
  * @param {string} source - 文本或URL

@@ -3,7 +3,7 @@
  * 封装消息发送的底层逻辑，提供统一的消息处理接口
  */
 
-import { getSegment } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import { logger } from '../../../../components/index.js';
 
 /**

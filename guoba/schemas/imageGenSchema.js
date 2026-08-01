@@ -31,7 +31,8 @@ export function getImageGenSchemas() {
                 options: [
                     { value: 'tongyi', label: '通义万相（阿里云 DashScope）' },
                     { value: 'dall_e', label: 'DALL-E（OpenAI）' },
-                    { value: 'wenxin', label: '文心一格（百度千帆）' }
+                    { value: 'wenxin', label: '文心一格（百度千帆）' },
+                    { value: 'custom', label: '自定义（OpenAI 兼容接口：火山/SiliconFlow 等）' }
                 ]
             }
         },
@@ -218,6 +219,102 @@ export function getImageGenSchemas() {
             componentProps: {
                 placeholder: 'wenxin-yige-2.0',
                 disabled: true
+            }
+        },
+        {
+            component: 'Divider',
+            label: '自定义服务商（OpenAI 兼容接口）'
+        },
+        {
+            field: 'imageGen.Custom.ApiKey',
+            label: 'ApiKey',
+            helpMessage: '第三方平台 API Key',
+            bottomHelpMessage: '自定义服务商 API Key',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx',
+                type: 'password'
+            }
+        },
+        {
+            field: 'imageGen.Custom.BaseUrl',
+            label: '接口基础地址',
+            helpMessage: '不含 API 路径的基础地址。火山引擎 ARK：https://ark.cn-beijing.volces.com/api/v3；SiliconFlow：https://api.siliconflow.cn/v1；Together AI：https://api.together.xyz/v1',
+            bottomHelpMessage: '自定义服务商接口基础地址',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'https://ark.cn-beijing.volces.com/api/v3'
+            }
+        },
+        {
+            field: 'imageGen.Custom.ApiPath',
+            label: 'API 路径',
+            helpMessage: '生图接口路径，默认 /images/generations。火山 ARK、SiliconFlow、Together AI 均使用此路径',
+            bottomHelpMessage: '自定义服务商 API 路径',
+            component: 'Input',
+            componentProps: {
+                placeholder: '/images/generations'
+            }
+        },
+        {
+            field: 'imageGen.Custom.Model',
+            label: '模型',
+            helpMessage: '火山引擎 ARK：doubao-seedream-3-0-t2i-250415（豆包 Seedream 3.0）；SiliconFlow：Kwai-Kolors/Kolors、black-forest-labs/FLUX.1-schnell、stabilityai/stable-diffusion-3-5-large 等；Together AI：black-forest-labs/FLUX.1-schnell',
+            bottomHelpMessage: '自定义服务商模型名称',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'doubao-seedream-3-0-t2i-250415'
+            }
+        },
+        {
+            field: 'imageGen.Custom.Quality',
+            label: '图片质量',
+            helpMessage: '部分模型支持。standard 标准质量；hd 高清质量',
+            bottomHelpMessage: '自定义服务商图片质量',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'standard', label: 'standard（标准）' },
+                    { value: 'hd', label: 'hd（高清）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Custom.ResponseFormat',
+            label: '返回格式',
+            helpMessage: 'url 返回图片链接；b64_json 返回 base64 数据。部分平台仅支持其中一种',
+            bottomHelpMessage: '自定义服务商返回格式',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'url', label: 'url（链接）' },
+                    { value: 'b64_json', label: 'b64_json（base64）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Custom.SizeSeparator',
+            label: '尺寸分隔符',
+            helpMessage: 'OpenAI/Together/SiliconFlow 使用 x（如 1024x1024），部分国内平台使用 *（如 1024*1024）',
+            bottomHelpMessage: '尺寸参数分隔符',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'x', label: 'x（OpenAI 风格）' },
+                    { value: '*', label: '*（国内平台风格）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Custom.ExtraParams',
+            label: '额外参数',
+            helpMessage: 'JSON 字符串格式。部分平台需要额外参数，如 SiliconFlow 的 FLUX 模型可设置 {"guidance_scale": 7.5, "num_inference_steps": 30}。无需额外参数时留空',
+            bottomHelpMessage: '额外请求参数（JSON 字符串，可留空）',
+            component: 'Input',
+            componentProps: {
+                placeholder: '{"guidance_scale": 7.5, "num_inference_steps": 30}',
+                type: 'textarea',
+                rows: 3
             }
         }
     ];

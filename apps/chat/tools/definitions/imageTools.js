@@ -28,6 +28,7 @@ export const imageTools = [
   - tongyi：通义万相（阿里云），国内访问稳定，中文理解好
   - dall_e：DALL-E（OpenAI），需要代理，国际通用
   - wenxin：文心一格（百度），国内服务，中文场景友好
+  - custom：自定义 OpenAI 兼容接口（火山 ARK、SiliconFlow、Together AI 等第三方平台）
 - size：图片尺寸，不填则使用默认尺寸 1024*1024
 - style：图片风格（仅通义万相 wanx-v1 模型有效）
 
@@ -48,8 +49,8 @@ export const imageTools = [
                     },
                     provider: {
                         type: "string",
-                        enum: ["tongyi", "dall_e", "wenxin"],
-                        description: "生图服务商。不填则使用配置的默认服务商。tongyi=通义万相，dall_e=DALL-E，wenxin=文心一格"
+                        enum: ["tongyi", "dall_e", "wenxin", "custom"],
+                        description: "生图服务商。不填则使用配置的默认服务商。tongyi=通义万相，dall_e=DALL-E，wenxin=文心一格，custom=自定义OpenAI兼容接口（火山/SiliconFlow等）"
                     },
                     size: {
                         type: "string",

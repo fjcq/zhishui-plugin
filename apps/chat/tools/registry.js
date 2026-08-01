@@ -793,6 +793,7 @@ song_id和platform来自search_music的返回结果`,
   - tongyi：通义万相（阿里云），国内访问稳定，中文理解好
   - dall_e：DALL-E（OpenAI），需要代理，国际通用
   - wenxin：文心一格（百度），国内服务，中文场景友好
+  - custom：自定义 OpenAI 兼容接口（火山 ARK、SiliconFlow、Together AI 等第三方平台）
 - size：图片尺寸，不填则使用默认尺寸 1024*1024
 - style：图片风格（仅通义万相 wanx-v1 模型有效）
 
@@ -808,7 +809,7 @@ song_id和platform来自search_music的返回结果`,
                 type: "object",
                 properties: {
                     prompt: { type: "string", description: "图片描述提示词。建议详细描述：主体对象、艺术风格、构图视角、光线氛围等。例如：'一只橘色的猫坐在窗台上，阳光透过玻璃洒下，写实风格，柔和光线'" },
-                    provider: { type: "string", enum: ["tongyi", "dall_e", "wenxin"], description: "生图服务商。不填则使用配置的默认服务商。tongyi=通义万相，dall_e=DALL-E，wenxin=文心一格" },
+                    provider: { type: "string", enum: ["tongyi", "dall_e", "wenxin", "custom"], description: "生图服务商。不填则使用配置的默认服务商。tongyi=通义万相，dall_e=DALL-E，wenxin=文心一格，custom=自定义OpenAI兼容接口（火山/SiliconFlow等）" },
                     size: { type: "string", description: "图片尺寸。通义万相支持 1024*1024、720*1280、1280*720；DALL-E 支持 1024x1024、1792x1024、1024x1792；文心一格支持 1024*1024、1024*1536、1536*1024。不填则使用默认尺寸" },
                     style: { type: "string", description: "图片风格，仅通义万相 wanx-v1 模型有效。可选：<auto>、<photography>、<portrait>、<3d cartoon>、<anime>、<oil painting>、<watercolor>、<sketch>、<chinese painting>、<flat illustration>" }
                 },

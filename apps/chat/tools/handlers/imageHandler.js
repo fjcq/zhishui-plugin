@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import request from '../../../../lib/request/request.js';
-import { getSegment } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 
@@ -22,7 +22,7 @@ const rateLimitMap = new Map();
 let wenxinTokenCache = { token: '', expireAt: 0 };
 
 /** 支持的服务商列表 */
-const SUPPORTED_PROVIDERS = ['tongyi', 'dall_e', 'wenxin'];
+const SUPPORTED_PROVIDERS = ['tongyi', 'dall_e', 'wenxin', 'custom'];
 
 /** 通义万相接口端点 */
 const TONGYI_SUBMIT_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
@@ -127,6 +127,9 @@ async function handleGenerateImage(params, e, currentUserId) {
                 break;
             case 'wenxin':
                 imageUrl = await generateWithWenxin(prompt, finalSize, config);
+                break;
+            case 'custom':
+                imageUrl = await generateWithCustom(prompt, finalSize, config);
                 break;
         }
 
@@ -353,6 +356,94 @@ async function generateWithWenxin(prompt, size, config) {
 }
 
 /**
+ * 自定义服务商生图（OpenAI 兼容接口）
+ * 适用于火山引擎 ARK、SiliconFlow、Together AI 等第三方平台
+ * 这些平台均兼容 OpenAI 的 /images/generations 接口格式
+ * @param {string} prompt - 提示词
+ * @param {string} size - 图片尺寸
+ * @param {object} config - 全局配置
+ * @returns {Promise<string>} 图片URL或data URL
+ */
+async function generateWithCustom(prompt, size, config) {
+    const customConfig = config.Custom || {};
+    const apiKey = customConfig.ApiKey;
+    const baseUrl = String(customConfig.BaseUrl || '').replace(/\/$/, '');
+    const apiPath = customConfig.ApiPath || '/images/generations';
+    const model = customConfig.Model;
+    const quality = customConfig.Quality || 'standard';
+    const responseFormat = customConfig.ResponseFormat || 'url';
+    const sizeSeparator = customConfig.SizeSeparator || 'x';
+    const extraParamsStr = customConfig.ExtraParams || '';
+
+    // 尺寸分隔符转换：将传入的 size 统一转换为配置的分隔符
+    // 同时支持 OpenAI 风格 1024x1024 和国内平台 1024*1024 两种输入
+    const finalSize = size.replace(/[*x]/g, sizeSeparator);
+
+    // 构造请求体（OpenAI 兼容格式）
+    const body = {
+        model,
+        prompt,
+        n: 1,
+        size: finalSize,
+        response_format: responseFormat
+    };
+    if (quality) {
+        body.quality = quality;
+    }
+
+    // 解析并合并额外参数（部分平台需要 guidance_scale、num_inference_steps 等）
+    if (extraParamsStr && extraParamsStr.trim()) {
+        try {
+            const extra = JSON.parse(extraParamsStr);
+            if (extra && typeof extra === 'object' && !Array.isArray(extra)) {
+                Object.assign(body, extra);
+            }
+        } catch (error) {
+            logger.warn(`[生图工具] Custom.ExtraParams JSON 解析失败，已忽略: ${error.message}`);
+        }
+    }
+
+    const url = baseUrl + apiPath;
+    const resp = await request.post(url, {
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        data: body,
+        responseType: 'json',
+        outErrorLog: false
+    });
+
+    // 错误信息处理（OpenAI 兼容格式）
+    if (resp?.error?.message) {
+        throw new Error(`自定义服务商接口错误: ${resp.error.message}`);
+    }
+
+    if (!resp?.data || !Array.isArray(resp.data) || resp.data.length === 0) {
+        throw new Error(`自定义服务商返回数据为空: ${safeStringify(resp)}`);
+    }
+
+    const item = resp.data[0];
+
+    // base64 格式直接构造 data URL
+    if (responseFormat === 'b64_json' && item.b64_json) {
+        return `data:image/png;base64,${item.b64_json}`;
+    }
+
+    // 优先返回 URL
+    if (item.url) {
+        return item.url;
+    }
+
+    // 部分 SiliconFlow 模型可能返回 b64_image 字段
+    if (item.b64_image) {
+        return `data:image/png;base64,${item.b64_image}`;
+    }
+
+    throw new Error('自定义服务商返回数据中未找到图片URL或base64');
+}
+
+/**
  * 获取文心一格 access_token（带缓存）
  * 缓存默认 1 天，提前 5 分钟过期避免边界问题
  * @param {string} apiKey - API Key（AK）
@@ -464,6 +555,17 @@ function checkProviderConfig(provider, config) {
         const c = config.Wenxin || {};
         if (!c.ApiKey || !c.SecretKey) {
             return { error: true, error_message: '文心一格未配置 ApiKey 或 SecretKey，请在 imageGen.yaml 中填写 Wenxin.ApiKey 和 Wenxin.SecretKey' };
+        }
+    } else if (provider === 'custom') {
+        const c = config.Custom || {};
+        if (!c.ApiKey) {
+            return { error: true, error_message: '自定义服务商未配置 ApiKey，请在 imageGen.yaml 中填写 Custom.ApiKey' };
+        }
+        if (!c.BaseUrl) {
+            return { error: true, error_message: '自定义服务商未配置 BaseUrl，请在 imageGen.yaml 中填写 Custom.BaseUrl' };
+        }
+        if (!c.Model) {
+            return { error: true, error_message: '自定义服务商未配置 Model，请在 imageGen.yaml 中填写 Custom.Model' };
         }
     }
     return { ok: true };

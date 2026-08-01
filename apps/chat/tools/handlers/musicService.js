@@ -12,13 +12,13 @@ import {
     validateMusicPlatform,
     loadMeting,
     getMeting,
-    getSegment,
     createVoiceWithTimeout,
     formatDuration,
     getPlatformLink,
     getPlatformName,
     downloadAudioFile
 } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import {
     ncmSearch,
     ncmSongUrl,

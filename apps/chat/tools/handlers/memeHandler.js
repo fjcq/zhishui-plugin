@@ -3,7 +3,7 @@
  * 处理AI调用的表情包相关工具
  */
 
-import { getSegment } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import { logger } from '../../../../components/index.js';
 
 /**

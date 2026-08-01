@@ -5,7 +5,7 @@
 
 import { SceneAdapter } from './sceneAdapter.js';
 import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType } from './messageUtils.js';
-import { getSegment } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';

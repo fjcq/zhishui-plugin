@@ -6,7 +6,7 @@
 import { isBotAdmin } from '../permissions.js';
 import { handleMusicToolCall } from './musicHandler.js';
 import { handleMemeToolCall } from './memeHandler.js';
-import { getSegment } from './musicCore.js';
+import { getSegment } from './shared/utils.js';
 import { PokeStrategyFactory } from './pokeStrategies.js';
 import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
