@@ -91,7 +91,9 @@ async function handleGenerateImage(params, e, currentUserId) {
         return { error: true, error_message: `调用过于频繁，请 ${remain} 秒后再试` };
     }
 
-    // 确定服务商：优先使用 DefaultProvider，若未配置则自动降级到第一个可用服务商
+    // 确定服务商：
+    // - DefaultProvider 为空（默认）= 自动模式，静默使用第一个可用服务商
+    // - DefaultProvider 指定了具体服务商：若已配置则使用，否则回退到第一个可用服务商并提示
     const availableProviders = getAvailableProviders(config);
     if (availableProviders.length === 0) {
         return {
@@ -100,15 +102,18 @@ async function handleGenerateImage(params, e, currentUserId) {
         };
     }
 
-    const defaultProvider = config.DefaultProvider;
+    const defaultProvider = (config.DefaultProvider || '').trim();
     let finalProvider;
     if (defaultProvider && availableProviders.includes(defaultProvider)) {
+        // 用户明确指定了服务商且已配置
         finalProvider = defaultProvider;
-    } else {
+    } else if (!defaultProvider) {
+        // 自动模式：静默使用第一个可用服务商（只配置一个时即用户的唯一选择）
         finalProvider = availableProviders[0];
-        if (defaultProvider && defaultProvider !== finalProvider) {
-            logger.warn(`[生图工具] 默认服务商 ${defaultProvider} 未配置，自动切换到 ${finalProvider}`);
-        }
+    } else {
+        // 用户指定的服务商未配置，回退到第一个可用服务商
+        finalProvider = availableProviders[0];
+        logger.warn(`[生图工具] 默认服务商 ${defaultProvider} 未配置，自动使用 ${finalProvider}`);
     }
 
     // 记录调用时间，避免失败后立即重试刷接口

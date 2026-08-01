@@ -7,8 +7,11 @@
 Enable: false
 
 # 默认服务商
-# 可选：tongyi（通义万相）、dall_e（DALL-E）、wenxin（文心一格）、custom（自定义 OpenAI 兼容接口）
-DefaultProvider: tongyi
+# 留空（默认）= 自动选择：系统自动使用已配置可用的服务商
+#   - 只配置了一个服务商时，无需手动指定，自动使用该服务商
+#   - 配置了多个服务商时，按 tongyi → dall_e → wenxin → custom 的顺序自动选择第一个
+# 可选值：tongyi、dall_e、wenxin、custom（仅当配置了多个服务商且需要指定时才填写）
+DefaultProvider: ""
 
 # 请求超时时间（毫秒），生图通常较慢，建议 60000 以上
 Timeout: 120000

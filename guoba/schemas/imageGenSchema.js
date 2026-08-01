@@ -24,11 +24,12 @@ export function getImageGenSchemas() {
         {
             field: 'imageGen.DefaultProvider',
             label: '默认服务商',
-            helpMessage: 'AI 未指定服务商时使用此默认值',
-            bottomHelpMessage: '默认调用的生图服务商',
+            helpMessage: '留空（推荐）= 自动选择：只配置一个服务商时自动使用该服务商，配置多个时按 tongyi → dall_e → wenxin → custom 顺序选择第一个。仅当配置了多个服务商且需要指定时才手动选择',
+            bottomHelpMessage: '默认调用的生图服务商（留空则自动选择）',
             component: 'Select',
             componentProps: {
                 options: [
+                    { value: '', label: '自动选择（推荐：按已配置的服务商自动决定）' },
                     { value: 'tongyi', label: '通义万相（阿里云 DashScope）' },
                     { value: 'dall_e', label: 'DALL-E（OpenAI）' },
                     { value: 'wenxin', label: '文心一格（百度千帆）' },
