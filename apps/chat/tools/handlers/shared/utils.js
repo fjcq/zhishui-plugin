@@ -3,7 +3,7 @@
  * 提供各Handler共用的基础功能
  */
 
-import { logger } from '../../../../components/index.js';
+import { logger } from '../../../../../components/index.js';
 
 /**
  * 获取Redis客户端

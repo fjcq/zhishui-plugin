@@ -21,9 +21,6 @@ const rateLimitMap = new Map();
 /** 文心一格 access_token 缓存 */
 let wenxinTokenCache = { token: '', expireAt: 0 };
 
-/** 支持的服务商列表 */
-const SUPPORTED_PROVIDERS = ['tongyi', 'dall_e', 'wenxin', 'custom'];
-
 /** 通义万相接口端点 */
 const TONGYI_SUBMIT_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
 const TONGYI_QUERY_BASE = 'https://dashscope.aliyuncs.com/api/v1/tasks/';
@@ -56,9 +53,9 @@ export async function handleImageToolCall(toolName, params, e, currentUserId) {
 
 /**
  * 处理生成图片
+ * 服务商由系统按 DefaultProvider 配置自动选择，AI 无需也无法指定
  * @param {object} params - 工具参数
  * @param {string} params.prompt - 图片描述提示词
- * @param {string} [params.provider] - 生图服务商
  * @param {string} [params.size] - 图片尺寸
  * @param {string} [params.style] - 图片风格
  * @param {object} e - 事件对象
@@ -66,7 +63,7 @@ export async function handleImageToolCall(toolName, params, e, currentUserId) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleGenerateImage(params, e, currentUserId) {
-    const { prompt, provider, size, style } = params;
+    const { prompt, size, style } = params;
 
     // 参数校验
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -94,16 +91,24 @@ async function handleGenerateImage(params, e, currentUserId) {
         return { error: true, error_message: `调用过于频繁，请 ${remain} 秒后再试` };
     }
 
-    // 确定服务商
-    const finalProvider = provider || config.DefaultProvider || 'tongyi';
-    if (!SUPPORTED_PROVIDERS.includes(finalProvider)) {
-        return { error: true, error_message: `不支持的服务商: ${finalProvider}，可选：tongyi、dall_e、wenxin` };
+    // 确定服务商：优先使用 DefaultProvider，若未配置则自动降级到第一个可用服务商
+    const availableProviders = getAvailableProviders(config);
+    if (availableProviders.length === 0) {
+        return {
+            error: true,
+            error_message: '尚未配置任何可用的生图服务商。请在 imageGen.yaml 或锅巴面板中配置至少一个服务商的 API Key（支持 tongyi、dall_e、wenxin、custom 四种，推荐使用 custom 接入火山/SiliconFlow 等 OpenAI 兼容接口）'
+        };
     }
 
-    // 检查服务商配置
-    const providerCheck = checkProviderConfig(finalProvider, config);
-    if (providerCheck.error) {
-        return providerCheck;
+    const defaultProvider = config.DefaultProvider;
+    let finalProvider;
+    if (defaultProvider && availableProviders.includes(defaultProvider)) {
+        finalProvider = defaultProvider;
+    } else {
+        finalProvider = availableProviders[0];
+        if (defaultProvider && defaultProvider !== finalProvider) {
+            logger.warn(`[生图工具] 默认服务商 ${defaultProvider} 未配置，自动切换到 ${finalProvider}`);
+        }
     }
 
     // 记录调用时间，避免失败后立即重试刷接口
@@ -140,7 +145,10 @@ async function handleGenerateImage(params, e, currentUserId) {
         // 下载图片到本地
         const localPath = await downloadImage(imageUrl, config);
         if (!localPath) {
-            return { error: true, error_message: '图片生成成功但下载失败，请稍后重试' };
+            return {
+                error: true,
+                error_message: '图片已在服务商端生成成功，但下载到本地失败（可能是网络或代理问题）。请不要重试此工具，直接告知用户图片生成遇到网络问题，建议稍后再试或检查代理配置'
+            };
         }
 
         // 发送图片到对话
@@ -167,7 +175,10 @@ async function handleGenerateImage(params, e, currentUserId) {
         };
     } catch (error) {
         logger.error(`[生图工具] 生图失败: ${error.message}`);
-        return { error: true, error_message: `生图失败: ${error.message}` };
+        return {
+            error: true,
+            error_message: `生图失败: ${error.message}。请不要重试此工具，直接告知用户遇到的错误`
+        };
     }
 }
 
@@ -385,11 +396,9 @@ async function generateWithCustom(prompt, size, config) {
         prompt,
         n: 1,
         size: finalSize,
-        response_format: responseFormat
+        response_format: responseFormat,
+        quality
     };
-    if (quality) {
-        body.quality = quality;
-    }
 
     // 解析并合并额外参数（部分平台需要 guidance_scale、num_inference_steps 等）
     if (extraParamsStr && extraParamsStr.trim()) {
@@ -481,6 +490,7 @@ async function getWenxinAccessToken(apiKey, secretKey, ttl = 86400) {
 /**
  * 下载图片到本地
  * 支持远程 URL 和 data URL 两种格式
+ * 使用 request 模块自动遵循 proxy.yaml 代理配置
  * @param {string} imageUrl - 图片URL或 data URL
  * @param {object} config - 全局配置
  * @returns {Promise<string|null>} 本地文件路径，失败返回 null
@@ -495,20 +505,26 @@ async function downloadImage(imageUrl, config) {
         const filename = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.png`;
         const filePath = path.join(saveDir, filename);
 
-        // 处理 data URL
+        // 处理 data URL（base64 内联图片）
         if (imageUrl.startsWith('data:')) {
             const base64Data = imageUrl.split(',')[1];
             fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
             return filePath;
         }
 
-        // 下载远程图片
-        const buffer = await request.get(imageUrl, {
-            responseType: 'buffer',
+        // 下载远程图片：使用 arrayBuffer 避免 node-fetch v3 无 buffer() 方法的问题
+        // request 模块会自动处理代理，responseType:'arrayBuffer' 调用 res.arrayBuffer()
+        const arrayBuffer = await request.get(imageUrl, {
+            responseType: 'arrayBuffer',
             outErrorLog: false
         });
 
-        if (!buffer || buffer.length === 0) {
+        if (!arrayBuffer) {
+            return null;
+        }
+
+        const buffer = Buffer.from(arrayBuffer);
+        if (buffer.length === 0) {
             return null;
         }
 
@@ -535,40 +551,39 @@ function getSaveDir(config) {
 }
 
 /**
- * 检查服务商配置是否完整
- * @param {string} provider - 服务商标识
+ * 获取已配置可用的服务商列表
+ * 按预置顺序检查每个服务商的必要配置项是否完整
  * @param {object} config - 全局配置
- * @returns {object} 检查结果，包含 error 字段表示失败
+ * @returns {string[]} 已配置可用的服务商标识数组
  */
-function checkProviderConfig(provider, config) {
-    if (provider === 'tongyi') {
-        const c = config.Tongyi || {};
-        if (!c.ApiKey) {
-            return { error: true, error_message: '通义万相未配置 ApiKey，请在 imageGen.yaml 中填写 Tongyi.ApiKey' };
-        }
-    } else if (provider === 'dall_e') {
-        const c = config.DallE || {};
-        if (!c.ApiKey) {
-            return { error: true, error_message: 'DALL-E 未配置 ApiKey，请在 imageGen.yaml 中填写 DallE.ApiKey' };
-        }
-    } else if (provider === 'wenxin') {
-        const c = config.Wenxin || {};
-        if (!c.ApiKey || !c.SecretKey) {
-            return { error: true, error_message: '文心一格未配置 ApiKey 或 SecretKey，请在 imageGen.yaml 中填写 Wenxin.ApiKey 和 Wenxin.SecretKey' };
-        }
-    } else if (provider === 'custom') {
-        const c = config.Custom || {};
-        if (!c.ApiKey) {
-            return { error: true, error_message: '自定义服务商未配置 ApiKey，请在 imageGen.yaml 中填写 Custom.ApiKey' };
-        }
-        if (!c.BaseUrl) {
-            return { error: true, error_message: '自定义服务商未配置 BaseUrl，请在 imageGen.yaml 中填写 Custom.BaseUrl' };
-        }
-        if (!c.Model) {
-            return { error: true, error_message: '自定义服务商未配置 Model，请在 imageGen.yaml 中填写 Custom.Model' };
-        }
+function getAvailableProviders(config) {
+    const available = [];
+
+    // 通义万相：需要 ApiKey
+    const tongyi = config.Tongyi || {};
+    if (tongyi.ApiKey) {
+        available.push('tongyi');
     }
-    return { ok: true };
+
+    // DALL-E：需要 ApiKey
+    const dallE = config.DallE || {};
+    if (dallE.ApiKey) {
+        available.push('dall_e');
+    }
+
+    // 文心一格：需要 ApiKey 和 SecretKey
+    const wenxin = config.Wenxin || {};
+    if (wenxin.ApiKey && wenxin.SecretKey) {
+        available.push('wenxin');
+    }
+
+    // 自定义：需要 ApiKey、BaseUrl、Model
+    const custom = config.Custom || {};
+    if (custom.ApiKey && custom.BaseUrl && custom.Model) {
+        available.push('custom');
+    }
+
+    return available;
 }
 
 /**
