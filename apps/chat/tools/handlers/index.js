@@ -12,6 +12,7 @@ import { handleCodeToolCall } from './codeHandler.js';
 import { handleMessageToolCall, MESSAGE_TOOLS as NEW_MESSAGE_TOOLS } from './messageHandler.js';
 import { handleSearchToolCall, SEARCH_TOOLS } from './searchHandler.js';
 import { handleVideoToolCall, VIDEO_TOOLS } from './videoHandler.js';
+import { handleImageToolCall, IMAGE_TOOLS } from './imageHandler.js';
 import { makeDecision, DecisionResult } from '../decisionEngine.js';
 import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../definitions/index.js';
 import { getUserFavor } from '../../user/index.js';
@@ -130,6 +131,11 @@ const SEARCH_TOOLS_LIST = SEARCH_TOOLS;
  * 搜剧工具名称列表
  */
 const VIDEO_TOOLS_LIST = VIDEO_TOOLS;
+
+/**
+ * 生图工具名称列表
+ */
+const IMAGE_TOOLS_LIST = IMAGE_TOOLS;
 
 /**
  * 需要决策判断的工具列表
@@ -280,6 +286,12 @@ export async function handleToolCall(toolName, toolParams, e = null, currentUser
             return result;
         }
 
+        if (IMAGE_TOOLS_LIST.includes(toolName)) {
+            const result = await handleImageToolCall(toolName, params, e, currentUserId);
+            logToolResult(toolName, result);
+            return result;
+        }
+
         return {
             error: true,
             error_message: `未知的工具: ${toolName}`
@@ -360,6 +372,7 @@ export {
     handleMessageToolCall,
     handleSearchToolCall,
     handleVideoToolCall,
+    handleImageToolCall,
     GROUP_TOOLS,
     MUSIC_TOOLS,
     MESSAGE_TOOLS,
@@ -369,5 +382,6 @@ export {
     FRIEND_TOOLS,
     OUTPUT_TOOLS,
     SEARCH_TOOLS_LIST,
-    VIDEO_TOOLS_LIST
+    VIDEO_TOOLS_LIST,
+    IMAGE_TOOLS_LIST
 };

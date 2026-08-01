@@ -105,6 +105,12 @@ const TOOL_CATEGORIES = [
             { value: 'get_video_episodes', label: '获取剧集列表', desc: '获取指定影视作品的线路与剧集列表' },
             { value: 'get_video_play_url', label: '获取播放链接', desc: '获取指定集数的可观看播放链接' }
         ]
+    },
+    {
+        label: '生图工具',
+        tools: [
+            { value: 'generate_image', label: '生成图片', desc: '调用 AI 生图服务按提示词生成图片（需配置 imageGen.yaml 中的 API Key）' }
+        ]
     }
 ];
 
@@ -114,7 +120,8 @@ const TOOL_CATEGORIES = [
  */
 export const DEFAULT_DISABLED_TOOLS = [
     'mute_group_member',
-    'kick_group_member'
+    'kick_group_member',
+    'generate_image'
 ];
 
 /**

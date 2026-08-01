@@ -14,6 +14,7 @@ import { memoryTools } from './memoryTools.js';
 import { outputTools } from './outputTools.js';
 import { searchTools } from './searchTools.js';
 import { videoTools } from './videoTools.js';
+import { imageTools } from './imageTools.js';
 import { ALL_TOOL_NAMES, DEFAULT_DISABLED_TOOLS } from '../../../../guoba/schemas/toolSwitchSchema.js';
 
 /**
@@ -39,7 +40,8 @@ export const allTools = [
     ...memoryTools,
     ...outputTools,
     ...searchTools,
-    ...videoTools
+    ...videoTools,
+    ...imageTools
 ];
 
 /**
@@ -55,7 +57,8 @@ export const toolsByCategory = {
     memory: memoryTools,
     output: outputTools,
     search: searchTools,
-    video: videoTools
+    video: videoTools,
+    image: imageTools
 };
 
 /**
@@ -117,7 +120,8 @@ const TOOL_CATEGORY_FIELDS = [
     'memory_tools',
     'output_tools',
     'search_tools',
-    'video_tools'
+    'video_tools',
+    'image_tools'
 ];
 
 /**
@@ -258,4 +262,4 @@ export function getToolSensitivity(toolName) {
     return SensitivityLevel.LOW;
 }
 
-export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools, outputTools, searchTools, videoTools };
+export { favorTools, friendTools, groupTools, musicTools, messageTools, interactTools, memoryTools, outputTools, searchTools, videoTools, imageTools };

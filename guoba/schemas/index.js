@@ -20,5 +20,8 @@ export { getMusicApiSchemas } from './musicApiSchema.js';
 // 工具开关
 export { getToolSwitchSchemas } from './toolSwitchSchema.js';
 
+// AI 生图设置
+export { getImageGenSchemas } from './imageGenSchema.js';
+
 // 兼容旧API
 export { getVoiceSchemas } from './voiceSchema.js';

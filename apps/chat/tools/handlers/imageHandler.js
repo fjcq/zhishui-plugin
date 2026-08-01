@@ -1,0 +1,533 @@
+/**
+ * 生图工具处理器
+ * 处理 AI 调用的 generate_image 工具
+ * 支持通义万相（阿里云）、DALL-E（OpenAI）、文心一格（百度）三种服务商
+ * 通过项目封装的 request 模块发起请求，自动遵循 proxy.yaml 代理配置
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import request from '../../../../lib/request/request.js';
+import { getSegment } from './musicCore.js';
+import Config from '../../../../components/Config.js';
+import { logger } from '../../../../components/index.js';
+
+/** 生图工具名称列表 */
+export const IMAGE_TOOLS = ['generate_image'];
+
+/** 频率限制记录：用户ID -> 上次调用时间戳 */
+const rateLimitMap = new Map();
+
+/** 文心一格 access_token 缓存 */
+let wenxinTokenCache = { token: '', expireAt: 0 };
+
+/** 支持的服务商列表 */
+const SUPPORTED_PROVIDERS = ['tongyi', 'dall_e', 'wenxin'];
+
+/** 通义万相接口端点 */
+const TONGYI_SUBMIT_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
+const TONGYI_QUERY_BASE = 'https://dashscope.aliyuncs.com/api/v1/tasks/';
+
+/** 文心一格接口端点 */
+const WENXIN_TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token';
+const WENXIN_API_BASE = 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/text2image/';
+
+/**
+ * 处理生图工具调用
+ * @param {string} toolName - 工具名称
+ * @param {object} params - 工具参数
+ * @param {object} e - 事件对象
+ * @param {string} currentUserId - 当前对话用户ID
+ * @returns {Promise<object>} 工具执行结果
+ */
+export async function handleImageToolCall(toolName, params, e, currentUserId) {
+    try {
+        switch (toolName) {
+            case 'generate_image':
+                return await handleGenerateImage(params, e, currentUserId);
+            default:
+                return { error: true, error_message: `未知的生图工具: ${toolName}` };
+        }
+    } catch (error) {
+        logger.error(`[生图工具] ${toolName} 执行失败: ${error.message}`);
+        return { error: true, error_message: `生图失败: ${error.message}` };
+    }
+}
+
+/**
+ * 处理生成图片
+ * @param {object} params - 工具参数
+ * @param {string} params.prompt - 图片描述提示词
+ * @param {string} [params.provider] - 生图服务商
+ * @param {string} [params.size] - 图片尺寸
+ * @param {string} [params.style] - 图片风格
+ * @param {object} e - 事件对象
+ * @param {string} currentUserId - 当前对话用户ID
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleGenerateImage(params, e, currentUserId) {
+    const { prompt, provider, size, style } = params;
+
+    // 参数校验
+    if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        return { error: true, error_message: '图片描述提示词不能为空' };
+    }
+
+    // 读取配置
+    const config = Config.getDefOrConfig('imageGen') || {};
+
+    // 检查全局开关
+    if (!config.Enable) {
+        return { error: true, error_message: '生图功能未启用，请在锅巴面板或 imageGen.yaml 中开启 Enable 选项' };
+    }
+
+    // 校验事件对象
+    if (!e || !e.reply) {
+        return { error: true, error_message: '无法获取对话事件对象，生图工具仅可在对话中使用' };
+    }
+
+    // 频率限制
+    const userId = currentUserId || (e && e.user_id ? String(e.user_id) : 'unknown');
+    const rateLimitSec = Number(config.RateLimit) || 0;
+    if (rateLimitSec > 0 && !checkRateLimit(userId, rateLimitSec)) {
+        const remain = getRateLimitRemain(userId, rateLimitSec);
+        return { error: true, error_message: `调用过于频繁，请 ${remain} 秒后再试` };
+    }
+
+    // 确定服务商
+    const finalProvider = provider || config.DefaultProvider || 'tongyi';
+    if (!SUPPORTED_PROVIDERS.includes(finalProvider)) {
+        return { error: true, error_message: `不支持的服务商: ${finalProvider}，可选：tongyi、dall_e、wenxin` };
+    }
+
+    // 检查服务商配置
+    const providerCheck = checkProviderConfig(finalProvider, config);
+    if (providerCheck.error) {
+        return providerCheck;
+    }
+
+    // 记录调用时间，避免失败后立即重试刷接口
+    recordRateLimit(userId);
+
+    const finalSize = size || config.DefaultSize || '1024*1024';
+    const timeout = Number(config.Timeout) || 120000;
+    const startTime = Date.now();
+
+    logger.info(`[生图工具] 开始生图 | 用户:${userId} | 服务商:${finalProvider} | 提示词:"${prompt.substring(0, 50)}..."`);
+
+    try {
+        // 调用对应服务商获取图片URL或data URL
+        let imageUrl;
+        switch (finalProvider) {
+            case 'tongyi':
+                imageUrl = await generateWithTongyi(prompt, finalSize, style, config, timeout);
+                break;
+            case 'dall_e':
+                imageUrl = await generateWithDallE(prompt, finalSize, config);
+                break;
+            case 'wenxin':
+                imageUrl = await generateWithWenxin(prompt, finalSize, config);
+                break;
+        }
+
+        if (!imageUrl) {
+            return { error: true, error_message: '生图接口未返回图片数据' };
+        }
+
+        // 下载图片到本地
+        const localPath = await downloadImage(imageUrl, config);
+        if (!localPath) {
+            return { error: true, error_message: '图片生成成功但下载失败，请稍后重试' };
+        }
+
+        // 发送图片到对话
+        const segment = await getSegment();
+        if (!segment) {
+            return { error: true, error_message: 'segment模块加载失败，无法发送图片。请检查oicq或icqq模块是否正确安装。' };
+        }
+
+        // 转换为 file:/// 协议路径，确保跨平台兼容
+        const fileUri = `file:///${localPath.replace(/\\/g, '/')}`;
+        await e.reply(segment.image(fileUri));
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
+        logger.info(`[生图工具] 生图成功 | 耗时:${elapsed}s | 本地路径:${localPath}`);
+
+        return {
+            success: true,
+            message: '图片已生成并发送到对话',
+            provider: finalProvider,
+            prompt,
+            size: finalSize,
+            elapsed_sec: parseFloat(elapsed),
+            local_path: localPath
+        };
+    } catch (error) {
+        logger.error(`[生图工具] 生图失败: ${error.message}`);
+        return { error: true, error_message: `生图失败: ${error.message}` };
+    }
+}
+
+/**
+ * 通义万相生图（异步任务模式）
+ * 提交任务后轮询任务状态，直到任务完成或超时
+ * @param {string} prompt - 提示词
+ * @param {string} size - 图片尺寸
+ * @param {string} [style] - 图片风格（仅 wanx-v1 有效）
+ * @param {object} config - 全局配置
+ * @param {number} timeout - 超时时间（毫秒）
+ * @returns {Promise<string>} 图片URL
+ */
+async function generateWithTongyi(prompt, size, style, config, timeout) {
+    const tongyiConfig = config.Tongyi || {};
+    const apiKey = tongyiConfig.ApiKey;
+    const model = tongyiConfig.Model || 'wanx2.1-t2i-turbo';
+    const pollInterval = Number(tongyiConfig.PollInterval) || 2000;
+
+    // 构造提交任务请求体
+    const submitBody = {
+        model,
+        input: { prompt },
+        parameters: { size, n: 1 }
+    };
+    // 仅 wanx-v1 支持 style 参数
+    if (model === 'wanx-v1' && style) {
+        submitBody.parameters.style = style;
+    }
+
+    // 提交异步任务
+    const submitResp = await request.post(TONGYI_SUBMIT_URL, {
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'X-DashScope-Async': 'enable',
+            'Content-Type': 'application/json'
+        },
+        data: submitBody,
+        responseType: 'json',
+        outErrorLog: false
+    });
+
+    const taskId = submitResp?.output?.task_id;
+    if (!taskId) {
+        throw new Error(`通义万相提交任务失败: ${safeStringify(submitResp)}`);
+    }
+    logger.info(`[生图工具] 通义万相任务已提交 | task_id:${taskId}`);
+
+    // 轮询任务状态
+    const queryUrl = TONGYI_QUERY_BASE + taskId;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeout) {
+        await sleep(pollInterval);
+
+        const queryResp = await request.get(queryUrl, {
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            responseType: 'json',
+            outErrorLog: false
+        });
+
+        const status = queryResp?.output?.task_status;
+
+        if (status === 'SUCCEEDED') {
+            const results = queryResp.output.results;
+            if (Array.isArray(results) && results.length > 0 && results[0].url) {
+                return results[0].url;
+            }
+            throw new Error('通义万相任务成功但未返回图片URL');
+        }
+
+        if (status === 'FAILED') {
+            throw new Error(`通义万相任务失败: ${queryResp?.output?.message || '未知错误'}`);
+        }
+        // PENDING / RUNNING 继续轮询
+    }
+
+    throw new Error('通义万相任务超时，未在规定时间内完成');
+}
+
+/**
+ * DALL-E 生图（同步模式，直接返回结果）
+ * @param {string} prompt - 提示词
+ * @param {string} size - 图片尺寸
+ * @param {object} config - 全局配置
+ * @returns {Promise<string>} 图片URL或data URL
+ */
+async function generateWithDallE(prompt, size, config) {
+    const dallEConfig = config.DallE || {};
+    const apiKey = dallEConfig.ApiKey;
+    const baseUrl = (dallEConfig.BaseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
+    const model = dallEConfig.Model || 'dall-e-3';
+    const quality = dallEConfig.Quality || 'standard';
+    const responseFormat = dallEConfig.ResponseFormat || 'url';
+
+    // DALL-E 尺寸使用 x 分隔符（1024x1024），统一转换
+    const dallESize = size.replace('*', 'x');
+
+    const body = {
+        model,
+        prompt,
+        n: 1,
+        size: dallESize,
+        response_format: responseFormat
+    };
+    // 仅 dall-e-3 支持 quality 参数
+    if (model === 'dall-e-3') {
+        body.quality = quality;
+    }
+
+    const resp = await request.post(`${baseUrl}/images/generations`, {
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+        },
+        data: body,
+        responseType: 'json',
+        outErrorLog: false
+    });
+
+    if (resp?.error?.message) {
+        throw new Error(`DALL-E 接口错误: ${resp.error.message}`);
+    }
+
+    if (!resp?.data || !Array.isArray(resp.data) || resp.data.length === 0) {
+        throw new Error(`DALL-E 返回数据为空: ${safeStringify(resp)}`);
+    }
+
+    const item = resp.data[0];
+
+    // base64 格式直接构造 data URL
+    if (responseFormat === 'b64_json' && item.b64_json) {
+        return `data:image/png;base64,${item.b64_json}`;
+    }
+
+    if (item.url) {
+        return item.url;
+    }
+
+    throw new Error('DALL-E 返回数据中未找到图片URL或base64');
+}
+
+/**
+ * 文心一格生图（同步阻塞模式，返回 base64）
+ * @param {string} prompt - 提示词
+ * @param {string} size - 图片尺寸
+ * @param {object} config - 全局配置
+ * @returns {Promise<string>} data URL
+ */
+async function generateWithWenxin(prompt, size, config) {
+    const wenxinConfig = config.Wenxin || {};
+    const apiKey = wenxinConfig.ApiKey;
+    const secretKey = wenxinConfig.SecretKey;
+    const model = wenxinConfig.Model || 'wenxin-yige-2.0';
+
+    // 获取 access_token（带缓存）
+    const accessToken = await getWenxinAccessToken(apiKey, secretKey, wenxinConfig.TokenCacheTTL);
+
+    // 调用生图接口（百度文心一格采用同步阻塞模式，会等到图片生成完才返回）
+    const url = `${WENXIN_API_BASE}${model}?access_token=${accessToken}`;
+    const body = { prompt, size, n: 1 };
+
+    const resp = await request.post(url, {
+        headers: { 'Content-Type': 'application/json' },
+        data: body,
+        responseType: 'json',
+        outErrorLog: false
+    });
+
+    if (!resp) {
+        throw new Error('文心一格返回数据为空');
+    }
+
+    if (resp.error_code) {
+        throw new Error(`文心一格错误[${resp.error_code}]: ${resp.error_msg || '未知错误'}`);
+    }
+
+    if (Array.isArray(resp.data) && resp.data.length > 0) {
+        const b64 = resp.data[0].b64_image;
+        if (b64) {
+            return `data:image/png;base64,${b64}`;
+        }
+    }
+
+    throw new Error(`文心一格返回数据格式异常: ${safeStringify(resp)}`);
+}
+
+/**
+ * 获取文心一格 access_token（带缓存）
+ * 缓存默认 1 天，提前 5 分钟过期避免边界问题
+ * @param {string} apiKey - API Key（AK）
+ * @param {string} secretKey - Secret Key（SK）
+ * @param {number} [ttl=86400] - 缓存时间（秒）
+ * @returns {Promise<string>} access_token
+ */
+async function getWenxinAccessToken(apiKey, secretKey, ttl = 86400) {
+    const now = Date.now();
+    if (wenxinTokenCache.token && now < wenxinTokenCache.expireAt) {
+        return wenxinTokenCache.token;
+    }
+
+    const url = `${WENXIN_TOKEN_URL}?grant_type=client_credentials&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`;
+
+    const resp = await request.post(url, {
+        headers: { 'Content-Type': 'application/json' },
+        responseType: 'json',
+        outErrorLog: false
+    });
+
+    if (!resp?.access_token) {
+        throw new Error(`获取文心一格 access_token 失败: ${safeStringify(resp)}`);
+    }
+
+    const cacheTTL = (Number(ttl) || 86400) * 1000;
+    wenxinTokenCache = {
+        token: resp.access_token,
+        expireAt: now + cacheTTL - 5 * 60 * 1000
+    };
+
+    return resp.access_token;
+}
+
+/**
+ * 下载图片到本地
+ * 支持远程 URL 和 data URL 两种格式
+ * @param {string} imageUrl - 图片URL或 data URL
+ * @param {object} config - 全局配置
+ * @returns {Promise<string|null>} 本地文件路径，失败返回 null
+ */
+async function downloadImage(imageUrl, config) {
+    try {
+        const saveDir = getSaveDir(config);
+        if (!fs.existsSync(saveDir)) {
+            fs.mkdirSync(saveDir, { recursive: true });
+        }
+
+        const filename = `img_${Date.now()}_${Math.floor(Math.random() * 10000)}.png`;
+        const filePath = path.join(saveDir, filename);
+
+        // 处理 data URL
+        if (imageUrl.startsWith('data:')) {
+            const base64Data = imageUrl.split(',')[1];
+            fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+            return filePath;
+        }
+
+        // 下载远程图片
+        const buffer = await request.get(imageUrl, {
+            responseType: 'buffer',
+            outErrorLog: false
+        });
+
+        if (!buffer || buffer.length === 0) {
+            return null;
+        }
+
+        fs.writeFileSync(filePath, buffer);
+        return filePath;
+    } catch (error) {
+        logger.error(`[生图工具] 下载图片失败: ${error.message}`);
+        return null;
+    }
+}
+
+/**
+ * 获取图片保存目录
+ * 优先使用配置的 SaveDir，否则使用默认目录 resources/output/imagegen
+ * @param {object} config - 全局配置
+ * @returns {string} 保存目录绝对路径
+ */
+function getSaveDir(config) {
+    const pluginPath = path.join(process.cwd(), 'plugins', 'zhishui-plugin');
+    if (config.SaveDir && typeof config.SaveDir === 'string' && config.SaveDir.trim()) {
+        return path.isAbsolute(config.SaveDir) ? config.SaveDir : path.join(pluginPath, config.SaveDir);
+    }
+    return path.join(pluginPath, 'resources', 'output', 'imagegen');
+}
+
+/**
+ * 检查服务商配置是否完整
+ * @param {string} provider - 服务商标识
+ * @param {object} config - 全局配置
+ * @returns {object} 检查结果，包含 error 字段表示失败
+ */
+function checkProviderConfig(provider, config) {
+    if (provider === 'tongyi') {
+        const c = config.Tongyi || {};
+        if (!c.ApiKey) {
+            return { error: true, error_message: '通义万相未配置 ApiKey，请在 imageGen.yaml 中填写 Tongyi.ApiKey' };
+        }
+    } else if (provider === 'dall_e') {
+        const c = config.DallE || {};
+        if (!c.ApiKey) {
+            return { error: true, error_message: 'DALL-E 未配置 ApiKey，请在 imageGen.yaml 中填写 DallE.ApiKey' };
+        }
+    } else if (provider === 'wenxin') {
+        const c = config.Wenxin || {};
+        if (!c.ApiKey || !c.SecretKey) {
+            return { error: true, error_message: '文心一格未配置 ApiKey 或 SecretKey，请在 imageGen.yaml 中填写 Wenxin.ApiKey 和 Wenxin.SecretKey' };
+        }
+    }
+    return { ok: true };
+}
+
+/**
+ * 检查频率限制是否通过
+ * @param {string} userId - 用户ID
+ * @param {number} rateLimitSec - 限制间隔（秒）
+ * @returns {boolean} 是否允许调用
+ */
+function checkRateLimit(userId, rateLimitSec) {
+    if (rateLimitSec <= 0) return true;
+    const now = Date.now();
+    const lastTime = rateLimitMap.get(userId) || 0;
+    return (now - lastTime) >= rateLimitSec * 1000;
+}
+
+/**
+ * 获取剩余冷却秒数
+ * @param {string} userId - 用户ID
+ * @param {number} rateLimitSec - 限制间隔（秒）
+ * @returns {number} 剩余秒数
+ */
+function getRateLimitRemain(userId, rateLimitSec) {
+    const now = Date.now();
+    const lastTime = rateLimitMap.get(userId) || 0;
+    const remain = Math.ceil((rateLimitSec * 1000 - (now - lastTime)) / 1000);
+    return Math.max(remain, 0);
+}
+
+/**
+ * 记录用户调用时间
+ * @param {string} userId - 用户ID
+ */
+function recordRateLimit(userId) {
+    rateLimitMap.set(userId, Date.now());
+}
+
+/**
+ * 安全的 JSON 序列化，避免循环引用和超大对象
+ * @param {any} obj - 待序列化对象
+ * @param {number} [maxLen=200] - 最大返回长度
+ * @returns {string} 序列化后的字符串
+ */
+function safeStringify(obj, maxLen = 200) {
+    try {
+        const str = JSON.stringify(obj) || '';
+        return str.substring(0, maxLen);
+    } catch {
+        return '[无法序列化的对象]';
+    }
+}
+
+/**
+ * sleep 工具函数
+ * @param {number} ms - 毫秒
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export default {
+    handleImageToolCall,
+    IMAGE_TOOLS
+};

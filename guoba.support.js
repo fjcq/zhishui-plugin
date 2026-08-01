@@ -19,7 +19,8 @@ import {
     getRoleSchemas,
     getVideoSearchSchemas,
     getSystemSchemas,
-    getToolSwitchSchemas
+    getToolSwitchSchemas,
+    getImageGenSchemas
 } from './guoba/schemas/index.js';
 
 import { getConfigData, setConfigData } from './guoba/handlers/index.js';
@@ -59,6 +60,8 @@ export function supportGuoba() {
                     ...getToolSwitchSchemas(),
                     // 搜剧设置（合并所有搜剧相关）
                     ...getVideoSearchSchemas(),
+                    // AI 生图设置
+                    ...getImageGenSchemas(),
                     // 系统设置（网络+语音+权限）
                     ...getSystemSchemas()
                 ];
