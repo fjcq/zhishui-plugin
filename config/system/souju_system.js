@@ -1,7 +1,7 @@
 export const helpCfg = {
   themeSet: true,
   title: "止水搜剧帮助",
-  subTitle: "搜剧资源由 http://zj.qxyys.com 提供",
+  subTitle: "搜剧资源由量子/非凡/光速等多家资源站提供",
   colWidth: 350,
   colCount: 3,
   bgBlur: true,

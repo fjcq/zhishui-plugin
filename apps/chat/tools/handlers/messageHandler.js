@@ -97,7 +97,7 @@ export async function handleMessageToolCall(toolName, params, e, currentUserId) 
  * 处理通用消息发送
  * 支持两种方式：
  * 1. segments 数组：自由组合消息段
- * 2. text 文本：支持特殊标记 @[用户ID] 和 [image:URL]
+ * 2. text 文本：支持特殊标记 [CQ:at,qq=用户ID]、@[用户ID]、[CQ:image,url=URL]、[image:URL]
  */
 async function handleSendMessage(params, adapter) {
     const { segments, text, reply_to } = params;
@@ -251,7 +251,7 @@ async function parseSegments(segments, segment, adapter) {
 
 /**
  * 解析文本中的特殊标记
- * 支持 @[用户ID] 和 [image:URL]
+ * 支持 [CQ:at,qq=用户ID]、@[用户ID] 和 [image:URL]、[CQ:image,url=URL]
  * @param {string} text - 文本内容
  * @param {object} segment - segment模块
  * @param {object} adapter - 场景适配器
@@ -260,13 +260,16 @@ async function parseSegments(segments, segment, adapter) {
 async function parseTextWithMarkers(text, segment, adapter) {
     const messageParts = [];
 
-    const atRegex = /@\[(\d+)\]/g;
-    const imageRegex = /\[image:([^\]]+)\]/g;
+    // 同时兼容 CQ 码格式与简化格式，避免 AI 按系统提示词输出 CQ 码时原样露出
+    const atCqRegex = /\[CQ:at,qq=(\d+)\]/g;
+    const atSimpleRegex = /@\[(\d+)\]/g;
+    const imageCqRegex = /\[CQ:image,url=([^\]]+)\]/g;
+    const imageSimpleRegex = /\[image:([^\]]+)\]/g;
 
     const markers = [];
     let match;
 
-    while ((match = atRegex.exec(text)) !== null) {
+    while ((match = atCqRegex.exec(text)) !== null) {
         markers.push({
             type: 'at',
             user_id: match[1],
@@ -276,7 +279,27 @@ async function parseTextWithMarkers(text, segment, adapter) {
         });
     }
 
-    while ((match = imageRegex.exec(text)) !== null) {
+    while ((match = atSimpleRegex.exec(text)) !== null) {
+        markers.push({
+            type: 'at',
+            user_id: match[1],
+            start: match.index,
+            end: match.index + match[0].length,
+            fullMatch: match[0]
+        });
+    }
+
+    while ((match = imageCqRegex.exec(text)) !== null) {
+        markers.push({
+            type: 'image',
+            url: match[1],
+            start: match.index,
+            end: match.index + match[0].length,
+            fullMatch: match[0]
+        });
+    }
+
+    while ((match = imageSimpleRegex.exec(text)) !== null) {
         markers.push({
             type: 'image',
             url: match[1],

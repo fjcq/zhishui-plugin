@@ -430,7 +430,9 @@ async function sendTextOrImageMessage(e, text) {
 
     // 如果配置为图片模式，或原有条件判断需要转换为图片
     if (responseMode === 'image' || shouldResponseAsImage(msg)) {
-        const imageSuccess = await textToImage(e, text, {
+        // 图片模式下先将 [CQ:at,qq=xxx] 转换为昵称文本再渲染，避免 CQ 码原样露出图片
+        const textForImage = await convertAtToNames(text, e);
+        const imageSuccess = await textToImage(e, textForImage, {
             showFooter: true
         });
         if (imageSuccess) return;

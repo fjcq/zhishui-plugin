@@ -8,7 +8,21 @@ export const messageTools = [
         type: "function",
         function: {
             name: "send_message",
-            description: "发送消息到当前对话。支持两种方式：1) 使用消息段数组(segments)可以自由组合文本、@、图片等；2) 使用文本(text)可以在文本中用 @[用户ID] 格式插入@，用 [image:URL] 格式插入图片。",
+            description: `给当前对话发消息，可以混合发文本、@、图片等。
+
+【什么时候用】
+- 需要发复杂消息（同时有文本和图片、@ 多人等）
+- 需要回复某条消息
+- 单纯发文本或单张图片可以用更简单的 send_image 等
+
+【两种用法】
+1. 用 segments 数组自由组合：按顺序放文本、@、图片、回复等
+2. 用 text 文本：在文本里用 [CQ:at,qq=用户ID] 表示@，用 [image:URL] 表示图片
+
+【参数】
+- segments：消息段数组，每段含 type（text/at/image/reply）和对应内容
+- text：纯文本消息，支持特殊标记插@和图片
+- reply_to：要回复哪条消息（可选，填消息ID）`,
             parameters: {
                 type: "object",
                 properties: {
@@ -45,7 +59,7 @@ export const messageTools = [
                     },
                     text: {
                         type: "string",
-                        description: "文本消息。支持特殊标记：@[用户ID] 表示@某人，[image:URL] 表示插入图片。示例：\"@[123456] 你好，请问你认识 @[789012] 吗？\" 或 \"看看这张图片 [image:http://example.com/img.jpg]\""
+                        description: "文本消息。支持特殊标记：[CQ:at,qq=用户ID] 或 @[用户ID] 表示@某人，[CQ:image,url=URL] 或 [image:URL] 表示插入图片。示例：\"[CQ:at,qq=123456] 你好，请问你认识 @[789012] 吗？\" 或 \"看看这张图片 [image:http://example.com/img.jpg]\""
                     },
                     reply_to: {
                         type: "string",
@@ -59,7 +73,18 @@ export const messageTools = [
         type: "function",
         function: {
             name: "send_image",
-            description: "快速发送图片消息。如果需要发送复杂的消息（如同时发送文本和图片），建议使用 send_message 工具。",
+            description: `发一张图片给用户。
+
+【什么时候用】
+- 只想发一张图，不带别的
+- 想快速发图，不需要复杂组合
+
+【参数】
+- url：图片地址，可以是网址、本地路径或 base64 数据
+- caption：图片说明文字（可选）
+
+【提示】
+- 如果还要带文字、@ 等其他内容，用 send_message 更合适`,
             parameters: {
                 type: "object",
                 properties: {
@@ -80,7 +105,19 @@ export const messageTools = [
         type: "function",
         function: {
             name: "send_voice",
-            description: "发送语音消息。将文本转换为语音发送，需要配置语音系统。",
+            description: `把一段文字用语音发出去，让用户能听到你的声音。
+
+【什么时候用】
+- 想让用户听到你说的话，而不只是看文字
+- 表达情感时语音更生动
+- 用户请求语音消息
+
+【参数】
+- text：要说的话（最多500字符）
+
+【提示】
+- 需要系统配置好语音才能用，没配置会失败
+- 文字不要太长，否则转换慢`,
             parameters: {
                 type: "object",
                 properties: {

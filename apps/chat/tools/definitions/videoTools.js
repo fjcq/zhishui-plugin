@@ -9,21 +9,25 @@ export const videoTools = [
         type: "function",
         function: {
             name: "search_videos",
-            description: `影视资源搜索工具。用于查找电影、电视剧、动漫、综艺等影视作品。
+            description: `找电影、电视剧、动漫、综艺等影视作品。
 
-【使用场景】
-- 用户询问"有什么好看的电影/电视剧"
+【什么时候用】
+- 用户问"有什么好看的电影/电视剧"
 - 用户想找某部影视作品
-- 用户想知道某部剧的基本信息（年代、分类、简介、主演）
-- 用户想找儿童/动画/纪录片等特定类型内容
+- 用户想知道某部剧的简介、年代、分类等信息
+- 用户想找儿童/动画/纪录片等特定类型
 
-【返回内容】
-返回作品列表，每条包含：vod_id（作品ID，用于后续获取剧集）、vod_name（标题）、type_name（分类）、vod_year（年份）、vod_remarks（备注，如"HD中字"）、vod_pic（封面URL）、vod_content（简介）。
+【参数】
+- keyword：影视作品名字，用全名效果最好。留空则看最近有什么新片
+- page：第几页，默认第1页
+- site_index：用哪个资源站（一般不填，用默认的）
 
-【注意事项】
-- 不要用此工具搜索音乐MV或短视频
-- 若用户询问某部剧的播放链接，请先用此工具搜索，再用 get_video_episodes 获取剧集，最后用 get_video_play_url 获取链接
-- 搜索词应简洁明确，使用影视作品的全名效果最佳`,
+【结果说明】
+返回作品列表，含名字、分类、年份、简介、封面等。每条结果带一个 vod_id，后续查剧集和播放链接会用到。
+
+【提示】
+- 找音乐 MV 或短视频用搜歌能力，不是这里
+- 用户想看某部剧时，先用这里搜索，再问有哪些剧集，最后拿播放链接`,
             parameters: {
                 type: "object",
                 properties: {
@@ -48,19 +52,20 @@ export const videoTools = [
         type: "function",
         function: {
             name: "get_video_episodes",
-            description: `获取指定影视作品的剧集列表与可用播放线路。
+            description: `查某部影视作品有哪些线路和集数。
 
-【使用场景】
+【什么时候用】
 - 用户想看某部剧，需要知道有哪些线路和集数
-- 用户询问某部剧更新到第几集、总共有多少集
-- 已通过 search_videos 获取到 vod_id 后，进一步获取播放信息
+- 用户问某部剧更新到第几集、总共多少集
+- 已经搜到作品后，进一步了解播放信息
 
-【返回内容】
-返回该作品的所有播放线路及每条线路下的剧集列表。包含：vod_name（作品名）、routes（线路数组，每条含 route_name 和 episode_names 集数名称数组）。
+【参数】
+- vod_id：作品 ID（搜剧时返回的那个），优先用这个
+- vod_name：作品名（没有 vod_id 时按名字再找一下）
+- site_index：资源站（一般不填）
 
-【注意事项】
-- 必须先通过 search_videos 获取 vod_id，或使用用户当前已搜索并选中的作品
-- 不同线路可能对应不同的播放源，画质与可用性可能不同`,
+【结果说明】
+返回这部作品的所有播放线路，每条线路下列出所有集数。不同线路画质和可用性可能不同。`,
             parameters: {
                 type: "object",
                 properties: {
@@ -85,20 +90,24 @@ export const videoTools = [
         type: "function",
         function: {
             name: "get_video_play_url",
-            description: `获取指定影视作品指定集数的可观看播放链接。
+            description: `拿到某部影视作品某一集的播放链接，可以发给用户去看。
 
-【使用场景】
-- 用户明确表示"我想看第X集"
-- 用户已通过 search_videos 或 get_video_episodes 了解作品后，请求播放链接
+【什么时候用】
+- 用户明确说"我想看第X集"
+- 已经搜到作品并了解剧集后，用户想要播放链接
 
-【返回内容】
-返回可直接复制到浏览器观看的完整播放链接（包含解析接口前缀）。包含：vod_name、episode_name、play_url、route_name。
+【参数】
+- vod_id：作品 ID（优先用），或 vod_name 作品名
+- episode：第几集，从1开始，不填默认第1集
+- route_index：第几条线路，从1开始，不填默认第1条
+- site_index：资源站（一般不填）
 
-【注意事项】
-- 链接需复制到浏览器打开，部分资源可能需要在 PC 端观看
-- 若未指定集数，默认返回第1集
-- 若指定的线路或集数不存在，将返回错误提示
-- 不要将此工具用于非影视类内容`,
+【结果说明】
+返回该集的播放链接，用户可以复制到浏览器打开观看。
+
+【提示】
+- 没指定集数就默认给第1集
+- 线路或集数不存在时会失败，换一条线路试试`,
             parameters: {
                 type: "object",
                 properties: {

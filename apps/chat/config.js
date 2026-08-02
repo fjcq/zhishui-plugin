@@ -7,6 +7,7 @@ import path from 'path';
 import { Plugin_Path, Config } from '../../components/index.js';
 import { ReadScene } from './sceneManager.js';
 import { getDecisionPrompt } from './tools/decisionEngine.js';
+import { getToolNaturalnessGuide, shouldInjectToolGuide } from './tools/toolNaturalnessGuide.js';
 
 export const CHAT_CONTEXT_PATH = path.join(Plugin_Path, 'data', 'chatContext');
 
@@ -200,6 +201,11 @@ export async function mergeSystemMessage(e, supportsToolCalling = false) {
                 masterQQ,
                 description: '主人是系统的唯一所有者，是角色最重要的人'
             };
+        }
+
+        // 工具调用模式下注入自然化使用规范，约束 AI 用角色视角表达而非技术化措辞
+        if (shouldInjectToolGuide(supportsToolCalling)) {
+            systemConfig.工具使用规范 = getToolNaturalnessGuide();
         }
 
         return JSON.stringify(systemConfig, null, 2) || '你是一个有帮助的AI助手。';

@@ -13,17 +13,65 @@ resources:
                   # 是否显示海报
                   showpic: true
                   # 站点标题
-                  title: 七星资源
+                  title: 量子资源
                   # 站点链接
-                  url: https://zj.qxyys.com/api.php/provide/vod/
+                  url: https://cj.lziapi.com/api.php/provide/vod/
 
         - site:
                   # 是否显示海报
-                  showpic: false
+                  showpic: true
                   # 站点标题
-                  title: 皇冠资源
+                  title: 非凡资源
                   # 站点链接
-                  url: https://www.partnersky-horoskop.com/api.php/provide/vod/
+                  url: https://cj.ffzyapi.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 光速资源
+                  # 站点链接
+                  url: https://api.guangsuapi.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 红牛资源
+                  # 站点链接
+                  url: https://www.hongniuzy2.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 暴风资源
+                  # 站点链接
+                  url: https://bfzyapi.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 新浪资源
+                  # 站点链接
+                  url: https://api.xinlangapi.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 闪电资源
+                  # 站点链接
+                  url: https://www.sdzyapi.com/api.php/provide/vod/
+
+        - site:
+                  # 是否显示海报
+                  showpic: true
+                  # 站点标题
+                  title: 卧龙资源
+                  # 站点链接
+                  url: https://collect.wolongzyw.com/api.php/provide/vod/
 
 # 全局默认资源站索引（对应resources的下标）
 CurrentResourceIndex: 0

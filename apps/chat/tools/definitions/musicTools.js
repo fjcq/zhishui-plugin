@@ -8,28 +8,20 @@ export const musicTools = [
         type: "function",
         function: {
             name: "search_music",
-            description: `搜索音乐。根据歌曲名称或歌手搜索音乐，返回匹配的歌曲列表。
+            description: `搜歌。根据歌名或歌手找歌，返回匹配的歌曲列表。
 
-【使用场景】
-- 用户想听歌时，搜索后根据结果选择最合适的歌曲调用play_music播放
-- 用户只想看歌曲列表时，只搜索不播放，展示结果让用户选择
+【什么时候用】
+- 用户想听歌时，先搜出匹配的歌，再选一首播放
+- 用户只想看看有哪些歌时，搜出来让用户挑
 
-【数据源策略】
-- 网易云：使用官方API（ncmService）
-- QQ/酷狗/酷我：使用自建API（musicApi，可获取真实音频直链）
-- 失败时自动降级到 @meting/core
+【参数】
+- keyword：搜索关键词，可以是歌名、歌手名或两者组合
+- platform：在哪个平台搜（netease 网易云、tencent QQ音乐、kugou 酷狗、kuwo 酷我），默认网易云
+- limit：返回几首，默认5首，最多10首
 
-【返回内容】
-返回歌曲列表，每首包含：
-- id(歌曲ID，用于play_music的song_id参数)
-- name(歌名)
-- artist(歌手)
-- album(专辑)
-- duration(时长，秒)
-- pic(封面URL)
-- link(链接)
-- media_mid(QQ音乐专用，用于play_music的media_mid参数，必须原样传回)
-- platform(平台代码)`,
+【结果说明】
+返回歌曲列表，每首含歌曲 ID、歌名、歌手、专辑、时长、封面等。
+注意：返回结果里如果有 media_mid 字段（QQ音乐专用），播放时需要原样传回，否则可能拿不到音频。`,
             parameters: {
                 type: "object",
                 properties: {
@@ -55,23 +47,22 @@ export const musicTools = [
         type: "function",
         function: {
             name: "play_music",
-            description: `播放指定音乐。根据歌曲ID播放音乐，优先发送语音消息，失败时降级为文本+链接。
+            description: `播放指定的歌曲。会优先用语音形式发出去，发不了语音就发歌名和链接。
 
-【发送策略】
-1. 有音频直链且时长≤5分钟：发送语音消息
-2. 无法发送语音：发送歌名+链接文本
+【什么时候用】
+- 用户想听歌时，先搜歌，再选最合适的一首播放
+- 用户指定了某首歌时，播放那一首
 
-【数据源策略】
-- 网易云：使用官方API获取真实音频直链
-- QQ音乐：使用自建API获取真实音频直链（免费歌曲可播放，VIP歌曲返回链接）
-- 酷狗/酷我：使用自建API获取真实音频直链
+【参数】
+- song_id：要播放哪首歌（来自搜歌结果中的歌曲 ID）
+- platform：在哪个平台（要和搜歌时一致）
+- song_name：歌名（可选，方便日志显示）
+- artist：歌手（可选，方便日志显示）
+- media_mid：QQ音乐专用字段，搜歌结果里如果有就必须原样传回
 
-【调用时机】
-- 用户想听歌时，在search_music搜索后选择最合适的歌曲播放
-- 用户指定了某首歌时，播放用户指定的那首
-
-【参数来源】
-song_id、platform、media_mid 均来自 search_music 的返回结果，必须原样传回`,
+【提示】
+- song_id、platform、media_mid 都来自搜歌结果，必须原样传回，不要自己编
+- VIP 歌曲可能只能发链接，发不了语音，这是正常的`,
             parameters: {
                 type: "object",
                 properties: {

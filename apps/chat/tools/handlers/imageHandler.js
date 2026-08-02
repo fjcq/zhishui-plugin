@@ -31,6 +31,8 @@ const WENXIN_API_BASE = 'https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinwor
 
 /**
  * 处理生图工具调用
+ * 注意：返回给 AI 的 message/error_message 必须使用中性自然语言，不暴露技术细节
+ *       技术细节（接口名、配置项、错误代码等）只通过 logger 记录到日志
  * @param {string} toolName - 工具名称
  * @param {object} params - 工具参数
  * @param {object} e - 事件对象
@@ -43,11 +45,11 @@ export async function handleImageToolCall(toolName, params, e, currentUserId) {
             case 'generate_image':
                 return await handleGenerateImage(params, e, currentUserId);
             default:
-                return { error: true, error_message: `未知的生图工具: ${toolName}` };
+                return { error: true, error_message: '未知操作' };
         }
     } catch (error) {
         logger.error(`[生图工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, error_message: `生图失败: ${error.message}` };
+        return { error: true, error_message: '暂时画不出来，请稍后再试' };
     }
 }
 
@@ -67,7 +69,7 @@ async function handleGenerateImage(params, e, currentUserId) {
 
     // 参数校验
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
-        return { error: true, error_message: '图片描述提示词不能为空' };
+        return { error: true, error_message: '想画什么呢？请告诉我具体的画面内容' };
     }
 
     // 读取配置
@@ -75,12 +77,14 @@ async function handleGenerateImage(params, e, currentUserId) {
 
     // 检查全局开关
     if (!config.Enable) {
-        return { error: true, error_message: '生图功能未启用，请在锅巴面板或 imageGen.yaml 中开启 Enable 选项' };
+        logger.warn('[生图工具] 生图功能未开启（imageGen.Enable = false）');
+        return { error: true, error_message: '画图功能还没开启呢' };
     }
 
     // 校验事件对象
     if (!e || !e.reply) {
-        return { error: true, error_message: '无法获取对话事件对象，生图工具仅可在对话中使用' };
+        logger.error('[生图工具] 缺少事件对象 e.reply，无法发送图片');
+        return { error: true, error_message: '暂时画不出来，请在对话中使用' };
     }
 
     // 频率限制
@@ -88,7 +92,7 @@ async function handleGenerateImage(params, e, currentUserId) {
     const rateLimitSec = Number(config.RateLimit) || 0;
     if (rateLimitSec > 0 && !checkRateLimit(userId, rateLimitSec)) {
         const remain = getRateLimitRemain(userId, rateLimitSec);
-        return { error: true, error_message: `调用过于频繁，请 ${remain} 秒后再试` };
+        return { error: true, error_message: `画累了，${remain} 秒后再画好吗` };
     }
 
     // 确定服务商：
@@ -96,9 +100,10 @@ async function handleGenerateImage(params, e, currentUserId) {
     // - DefaultProvider 指定了具体服务商：若已配置则使用，否则回退到第一个可用服务商并提示
     const availableProviders = getAvailableProviders(config);
     if (availableProviders.length === 0) {
+        logger.warn('[生图工具] 未配置任何可用的生图服务商（请在 imageGen.yaml 或锅巴面板配置 Tongyi/DallE/Wenxin/Custom 任一）');
         return {
             error: true,
-            error_message: '尚未配置任何可用的生图服务商。请在 imageGen.yaml 或锅巴面板中配置至少一个服务商的 API Key（支持 tongyi、dall_e、wenxin、custom 四种，推荐使用 custom 接入火山/SiliconFlow 等 OpenAI 兼容接口）'
+            error_message: '画具还没准备好，暂时画不出来'
         };
     }
 
@@ -144,22 +149,22 @@ async function handleGenerateImage(params, e, currentUserId) {
         }
 
         if (!imageUrl) {
-            return { error: true, error_message: '生图接口未返回图片数据' };
+            logger.error('[生图工具] 服务商未返回图片URL');
+            return { error: true, error_message: '没画出来，请稍后再试' };
         }
 
         // 下载图片到本地
         const localPath = await downloadImage(imageUrl, config);
         if (!localPath) {
-            return {
-                error: true,
-                error_message: '图片已在服务商端生成成功，但下载到本地失败（可能是网络或代理问题）。请不要重试此工具，直接告知用户图片生成遇到网络问题，建议稍后再试或检查代理配置'
-            };
+            logger.error(`[生图工具] 图片下载失败 | 服务商URL: ${imageUrl.substring(0, 100)}...`);
+            return { error: true, error_message: '画作生成中遇到网络问题，没拿到图片，请稍后再试' };
         }
 
         // 发送图片到对话
         const segment = await getSegment();
         if (!segment) {
-            return { error: true, error_message: 'segment模块加载失败，无法发送图片。请检查oicq或icqq模块是否正确安装。' };
+            logger.error('[生图工具] segment 模块加载失败，无法发送图片');
+            return { error: true, error_message: '暂时画不出来，请稍后再试' };
         }
 
         // 转换为 file:/// 协议路径，确保跨平台兼容
@@ -171,7 +176,7 @@ async function handleGenerateImage(params, e, currentUserId) {
 
         return {
             success: true,
-            message: '图片已生成并发送到对话',
+            message: '画好了',
             provider: finalProvider,
             prompt,
             size: finalSize,
@@ -182,7 +187,7 @@ async function handleGenerateImage(params, e, currentUserId) {
         logger.error(`[生图工具] 生图失败: ${error.message}`);
         return {
             error: true,
-            error_message: `生图失败: ${error.message}。请不要重试此工具，直接告知用户遇到的错误`
+            error_message: '暂时画不出来，请稍后再试'
         };
     }
 }

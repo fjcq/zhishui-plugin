@@ -146,7 +146,74 @@ const TOOLS_NEED_DECISION = [
 ];
 
 /**
+ * 技术性错误关键词正则列表
+ * 用于检测 error_message 中是否含有技术细节，需要自然化过滤
+ */
+const TECH_ERROR_PATTERNS = [
+    /ApiKey|API\s*Key|api_key|SecretKey/i,
+    /\.yaml|\.json|配置文件|锅巴面板/i,
+    /\b(401|403|404|500|502|503)\b/,
+    /https?:\/\//i,
+    /[A-Z]:\\|\/[a-z_-]+\//i,
+    /工具\s*\w+|调用工具|执行操作|启动模块/i,
+    /未配置|未连接|未启用/i,
+    /TypeError|ReferenceError|SyntaxError|RangeError/i,
+    /is not a function|is not defined|is null|is undefined/i,
+    /ECONNREFUSED|ETIMEDOUT|ENOTFOUND|ECONNRESET/i,
+    /segment|oicq|icqq|NapCatQQ|PacketBackend/i,
+    /参数格式错误|参数解析失败|JSON parse/i
+];
+
+/**
+ * 将技术性 error_message 过滤为自然语言
+ * 保留已经是自然语言的 error_message（如 decision_denied 等业务反馈）
+ * @param {string} message - 原始 error_message
+ * @param {string} toolName - 工具名称（用于日志）
+ * @returns {string} 过滤后的自然语言错误信息
+ */
+function sanitizeToolErrorMessage(message, toolName) {
+    if (!message) {
+        return '暂时做不到，请稍后再试';
+    }
+
+    // 检测是否含技术细节
+    const hasTech = TECH_ERROR_PATTERNS.some(p => p.test(message));
+    if (hasTech) {
+        logger.debug(`[工具调用] ${toolName} error_message 含技术细节，已过滤 | 原始: ${message}`);
+        return '暂时做不到，请稍后再试';
+    }
+
+    return message;
+}
+
+/**
+ * 对工具返回结果做自然化过滤
+ * 跳过 natural_feedback=true 的业务反馈（如好感度不足等已是自然语言的反馈）
+ * @param {object} result - 工具执行结果
+ * @param {string} toolName - 工具名称
+ * @returns {object} 过滤后的结果
+ */
+function sanitizeToolResult(result, toolName) {
+    if (!result || !result.error) {
+        return result;
+    }
+
+    // 已标记为自然反馈的不过滤
+    if (result.natural_feedback) {
+        return result;
+    }
+
+    // 对 error_message 做自然化过滤
+    if (result.error_message) {
+        result.error_message = sanitizeToolErrorMessage(result.error_message, toolName);
+    }
+
+    return result;
+}
+
+/**
  * 统一的工具调用处理入口
+ * 出口处对 error_message 做自然化过滤，避免技术细节暴露给 AI
  * @param {string} toolName - 工具名称
  * @param {object} toolParams - 工具参数
  * @param {object} e - 事件对象
@@ -154,6 +221,19 @@ const TOOLS_NEED_DECISION = [
  * @returns {Promise<object>} 工具执行结果
  */
 export async function handleToolCall(toolName, toolParams, e = null, currentUserId = null) {
+    const result = await _handleToolCallImpl(toolName, toolParams, e, currentUserId);
+    return sanitizeToolResult(result, toolName);
+}
+
+/**
+ * 工具调用内部实现
+ * @param {string} toolName - 工具名称
+ * @param {object} toolParams - 工具参数
+ * @param {object} e - 事件对象
+ * @param {string} currentUserId - 当前对话用户ID
+ * @returns {Promise<object>} 工具执行结果
+ */
+async function _handleToolCallImpl(toolName, toolParams, e = null, currentUserId = null) {
     logger.info(`[工具调用] 开始执行: ${toolName} | 参数: ${JSON.stringify(toolParams)}`);
 
     if (!isToolCallingEnabled()) {
