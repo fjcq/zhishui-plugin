@@ -60,9 +60,6 @@ resources/data/chat/
 # 本地音频缓存
 resources/yanzou/gangqin/output.mp3
 
-# 输出目录（运行时生成）
-resources/output/output.*
-
 # 运行时数据目录
 data/
 

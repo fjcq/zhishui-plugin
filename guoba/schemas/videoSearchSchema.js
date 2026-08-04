@@ -49,6 +49,13 @@ export function getVideoSearchSchemas() {
             }
         },
         {
+            field: 'videoSearch.qrCodeLink',
+            label: '播放链接二维码模式',
+            helpMessage: '开启后所有播放链接以二维码图片形式发送，规避链接风控提示。对用户指令与AI工具均生效，依赖 qrcode 模块（未安装时自动回退为文本链接）',
+            bottomHelpMessage: '开启后播放链接以二维码图片形式发送',
+            component: 'Switch'
+        },
+        {
             component: 'Divider',
             label: '资源站点'
         },

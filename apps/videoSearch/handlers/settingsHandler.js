@@ -2,9 +2,10 @@
  * 搜剧设置处理模块
  */
 
-import { Config, Plugin_Path } from '../../../components/index.js';
+import { Config, Plugin_Path, logger } from '../../../components/index.js';
 import YamlReader from '../../../components/YamlReader.js';
 import { getSiteIndex } from './searchHandler.js';
+import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
 
 /**
  * 处理搜剧接口命令
@@ -207,8 +208,19 @@ export async function handleMySearchVideo(e) {
         msg += '*** 播放记录 ***\n';
         msg += `片名：${VodName}\n`;
         msg += `视频：${EpisodeName}\n`;
-        msg += `链接：${PlayerUrl}\n`;
 
+        // 二维码模式：以二维码图片替代文本链接，规避链接风控
+        const segment = getSegment();
+        if (isQrCodeLinkEnabled() && segment) {
+            const qrUri = await generateQrCodeImage(PlayerUrl);
+            if (qrUri) {
+                return e.reply([msg, segment.image(qrUri)]);
+            }
+            // 二维码生成失败，回退到文本链接
+            logger.warn('[我的搜剧] 二维码生成失败，回退到文本链接');
+        }
+
+        msg += `链接：${PlayerUrl}\n`;
         return e.reply(msg);
     } catch (error) {
         e.reply(`获取搜剧记录时发生错误：${error.message}`);

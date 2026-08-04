@@ -2,10 +2,16 @@
 analysis: http://jx.qxyys.com/jx.php?url=
 
 # 播放器链接
-player: https://zj.qxyys.com/static/player/artplayer.html?url=
+player: https://p.qxyys.com/?url=
 
 #绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
 cfTLSVersion: TLSv1.1
+
+# 播放链接二维码模式开关
+# 开启后所有播放链接以二维码图片形式发送，规避链接风控提示
+# 对用户指令（#看剧、#我的搜剧）与 AI 工具（get_video_play_url）均生效
+# 依赖 qrcode 模块（未安装时自动回退为文本链接）
+qrCodeLink: false
 
 # 资源站点数组
 resources:

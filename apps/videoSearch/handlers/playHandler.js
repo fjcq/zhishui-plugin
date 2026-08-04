@@ -3,10 +3,11 @@
  */
 
 import { common } from '../../../model/index.js';
-import { Config } from '../../../components/index.js';
+import { Config, logger } from '../../../components/index.js';
 import { isNotNull, chineseToNumber, findRouteIndex } from '../utils.js';
 import { SearchVideo } from '../helpers.js';
 import Data from '../../../components/Data.js';
+import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
 
 /**
  * 处理选剧命令
@@ -93,6 +94,7 @@ export async function handleSelectVideo(e, getSiteIndexFn, puppeteer) {
  * @returns {Promise<boolean>} 处理结果
  */
 export async function handleWatchVideo(e) {
+    const segment = getSegment();
     let Episode = parseInt(await Config.GetUserSearchVideos(e.user_id, 'Episode')) || 1;
     const playDataStr = await Config.GetUserSearchVideos(e.user_id, 'playData');
     const playData = JSON.parse(playDataStr);
@@ -139,10 +141,30 @@ export async function handleWatchVideo(e) {
     if (isNotNull(playData.episodeLinks[targetEpisode - 1])) {
         const title = `${playData.VodName}  ${playData.episodeNames[targetEpisode - 1]}`;
         const fullLink = Config.SearchVideos.player + playData.episodeLinks[targetEpisode - 1];
-        const msg = [
-            '*** 请复制到浏览器中观看 ***',
-            fullLink,
-        ];
+
+        // 二维码模式：生成二维码图片替代文本链接，规避链接风控
+        let msg;
+        if (isQrCodeLinkEnabled() && segment) {
+            const qrUri = await generateQrCodeImage(fullLink);
+            if (qrUri) {
+                msg = [
+                    segment.image(qrUri),
+                    '*** 请扫码在浏览器中观看 ***'
+                ];
+            } else {
+                // 二维码生成失败（如未安装 qrcode 模块），回退到文本链接
+                logger.warn('[看剧] 二维码生成失败，回退到文本链接');
+                msg = [
+                    '*** 请复制到浏览器中观看 ***',
+                    fullLink,
+                ];
+            }
+        } else {
+            msg = [
+                '*** 请复制到浏览器中观看 ***',
+                fullLink,
+            ];
+        }
 
         try {
             await common.getforwardMsg(e, msg, { isxml: true, xmlTitle: title });
@@ -150,7 +172,7 @@ export async function handleWatchVideo(e) {
         } catch (err) {
             let replyMsg = title + '\n';
 
-            if (e.isGroup) {
+            if (e.isGroup && segment) {
                 const at = Number(e.user_id);
                 replyMsg = [segment.at(at, e.sender.card), ` 群消息发送失败。\n请添加好友后私聊发送：${e.msg}`];
             } else {

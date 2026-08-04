@@ -12,7 +12,8 @@ export const needPackage = [
 /** 可选依赖库列表（缺失时仅影响部分功能） */
 export const optionalPackage = [
     { name: '@meting/core', feature: '音乐搜索' },
-    { name: 'express', feature: '自建音乐API' }
+    { name: 'express', feature: '自建音乐API' },
+    { name: 'qrcode', feature: '搜剧播放链接二维码模式' }
 ];
 
 /** 可选依赖检查结果 */
@@ -37,7 +38,8 @@ export async function checkPackage() {
 export async function checkOptionalPackage() {
     const loggerMark = logger.mark.bind(logger);
     let hasMissing = false;
-    
+    const missingNames = [];
+
     for (let pkg of optionalPackage) {
         try {
             await import(pkg.name);
@@ -49,11 +51,12 @@ export async function checkOptionalPackage() {
                 hasMissing = true;
             }
             loggerMark(`可选依赖 ${chalk.yellow(pkg.name)} 未安装，${pkg.feature}功能将不可用`);
+            missingNames.push(pkg.name);
         }
     }
-    
+
     if (hasMissing) {
-        loggerMark('可执行安装命令: pnpm add @meting/core express -w');
+        loggerMark(`可执行安装命令: pnpm add ${missingNames.join(' ')} -w`);
         loggerMark('---------------------');
     }
 }

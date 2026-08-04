@@ -7,6 +7,8 @@
 import request from '../../../../lib/request/request.js';
 import { Config, logger } from '../../../../components/index.js';
 import { SearchVideo } from '../../../videoSearch/helpers.js';
+import { isQrCodeLinkEnabled, generateQrCodeImage } from '../../../videoSearch/qrCode.js';
+import { getSegment } from './shared/utils.js';
 
 /** 默认搜索页码 */
 const DEFAULT_PAGE = 1;
@@ -426,6 +428,27 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
 
     logger.info(`[搜剧工具] 获取播放链接: ${target.vod_name} | 线路: ${route.route_name} | 集: ${route.episode_names[episodeIdx]}`);
 
+    // 二维码模式：直接发送二维码图片给用户，不向 AI 暴露原始链接，规避链接风控
+    if (isQrCodeLinkEnabled()) {
+        const qrSentResult = await sendPlayUrlAsQrCode(e, fullLink);
+        if (qrSentResult) {
+            return {
+                success: true,
+                vod_id: target.vod_id,
+                vod_name: target.vod_name,
+                site_index: index,
+                route_name: route.route_name,
+                route_index: routeIdx + 1,
+                episode_name: route.episode_names[episodeIdx],
+                episode: episodeIdx + 1,
+                total_episodes: route.episode_names.length,
+                message: '已将播放链接以二维码图片形式发送给用户，请提示用户扫码在浏览器中观看'
+            };
+        }
+        // 二维码发送失败则回退到文本链接
+        logger.warn('[搜剧工具] 二维码发送失败，回退到文本链接');
+    }
+
     return {
         success: true,
         vod_id: target.vod_id,
@@ -439,6 +462,39 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
         play_url: fullLink,
         tip: '请将链接复制到浏览器中打开观看'
     };
+}
+
+/**
+ * 以二维码图片形式发送播放链接
+ * 生成或发送失败时返回 false，由调用方回退到文本链接
+ * @param {object} e - 事件对象
+ * @param {string} playUrl - 播放链接
+ * @returns {Promise<boolean>} 是否发送成功
+ */
+async function sendPlayUrlAsQrCode(e, playUrl) {
+    if (!e || !e.reply) {
+        logger.error('[搜剧工具] 缺少事件对象 e.reply，无法发送二维码');
+        return false;
+    }
+
+    const qrUri = await generateQrCodeImage(playUrl);
+    if (!qrUri) {
+        return false;
+    }
+
+    const segment = await getSegment();
+    if (!segment) {
+        logger.error('[搜剧工具] segment 模块加载失败，无法发送二维码');
+        return false;
+    }
+
+    try {
+        await e.reply(segment.image(qrUri));
+        return true;
+    } catch (error) {
+        logger.error(`[搜剧工具] 二维码图片发送失败：${error.message}`);
+        return false;
+    }
 }
 
 /**
