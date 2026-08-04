@@ -10,6 +10,9 @@ import { SearchVideo } from '../../../videoSearch/helpers.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage } from '../../../videoSearch/qrCode.js';
 import { getSegment } from './shared/utils.js';
 
+/** segment 实例（模块加载时一次性获取，避免每次发送二维码都重复加载 oicq/icqq） */
+const segment = await getSegment();
+
 /** 默认搜索页码 */
 const DEFAULT_PAGE = 1;
 
@@ -482,7 +485,6 @@ async function sendPlayUrlAsQrCode(e, playUrl) {
         return false;
     }
 
-    const segment = await getSegment();
     if (!segment) {
         logger.error('[搜剧工具] segment 模块加载失败，无法发送二维码');
         return false;
