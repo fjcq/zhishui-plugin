@@ -10,8 +10,21 @@ import { SearchVideo } from '../../../videoSearch/helpers.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage } from '../../../videoSearch/qrCode.js';
 import { getSegment } from './shared/utils.js';
 
-/** segment 实例（模块加载时一次性获取，避免每次发送二维码都重复加载 oicq/icqq） */
-const segment = await getSegment();
+/** segment 加载 Promise 缓存（缓存 Promise 而非结果，避免并发调用触发多次 getSegment） */
+let segmentPromise = null;
+
+/**
+ * 惰性获取 segment 实例
+ * 首次调用时启动 getSegment() 并缓存其 Promise，后续并发调用共享同一个 Promise
+ * 失败时 Promise 解析为 null 并被缓存，不会重试（避免重复加载失败的依赖）
+ * @returns {Promise<object|null>} segment 实例或 null
+ */
+async function getSegmentInstance() {
+    if (!segmentPromise) {
+        segmentPromise = getSegment();
+    }
+    return segmentPromise;
+}
 
 /** 默认搜索页码 */
 const DEFAULT_PAGE = 1;
@@ -485,6 +498,7 @@ async function sendPlayUrlAsQrCode(e, playUrl) {
         return false;
     }
 
+    const segment = await getSegmentInstance();
     if (!segment) {
         logger.error('[搜剧工具] segment 模块加载失败，无法发送二维码');
         return false;
