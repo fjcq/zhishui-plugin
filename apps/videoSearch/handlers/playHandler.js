@@ -249,7 +249,8 @@ export async function handleGoPage(e, puppeteer) {
     const resource = await Config.SearchVideos.resources[idx];
     const site = resource?.site || resource;
     const domain = site?.url;
-    SearchResults = await SearchVideo(keyword, page, 0, 0, domain);
+    const from = site?.from || resource?.from || '';
+    SearchResults = await SearchVideo(keyword, page, 0, 0, domain, from);
 
     if (isNotNull(SearchResults.list)) {
         await Config.SetUserSearchVideos(e.user_id, 'SearchResults', JSON.stringify(SearchResults));

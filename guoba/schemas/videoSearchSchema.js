@@ -91,6 +91,16 @@ export function getVideoSearchSchemas() {
                         }
                     },
                     {
+                        field: 'from',
+                        label: '指定线路代码',
+                        helpMessage: '通过 CMS_V10 的 from 参数过滤线路，仅返回该线路（如 lzm3u8、ffm3u8），留空则返回全部线路',
+                        bottomHelpMessage: '填写 m3u8 线路代码可过滤掉云播/直链等非流媒体线路',
+                        component: 'Input',
+                        componentProps: {
+                            placeholder: '如 lzm3u8，留空返回全部线路'
+                        }
+                    },
+                    {
                         field: 'showpic',
                         label: '显示海报',
                         helpMessage: '在搜索结果中显示视频海报图片',

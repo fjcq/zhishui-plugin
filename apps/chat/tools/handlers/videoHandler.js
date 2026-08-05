@@ -79,15 +79,20 @@ function truncateText(text, maxLen) {
  * @param {string} apiUrl - 资源站 API URL
  * @param {string} keyword - 搜索关键词
  * @param {number} page - 页码
+ * @param {string} [from=''] - 指定线路代码，CMS_V10 通过 from 参数过滤线路
  * @returns {Promise<object|null>} 搜索结果对象，失败返回 null
  */
-async function fetchVideoSearchResults(apiUrl, keyword, page) {
+async function fetchVideoSearchResults(apiUrl, keyword, page, from = '') {
     // 仅传必要参数 ac/wd/pg，避免某些资源站对 t=0&h=0 的过滤导致结果为空
     const params = new URLSearchParams({
         ac: 'detail',
         wd: keyword,
         pg: String(page)
     });
+    // 指定线路代码时追加 from 参数，仅返回该线路（用于剔除云播/直链等非 m3u8 线路）
+    if (from && typeof from === 'string' && from.trim() !== '') {
+        params.set('from', from.trim());
+    }
     const url = `${apiUrl}?${params.toString()}`;
 
     try {
@@ -101,7 +106,7 @@ async function fetchVideoSearchResults(apiUrl, keyword, page) {
         // GET 失败时回退到原插件的 POST 实现
         logger.warn(`[搜剧工具] GET 请求失败，回退到 POST: ${error.message}`);
         try {
-            return await SearchVideo(keyword, page, 0, 0, apiUrl);
+            return await SearchVideo(keyword, page, 0, 0, apiUrl, from);
         } catch (err) {
             throw new Error(err.message);
         }
@@ -114,13 +119,17 @@ async function fetchVideoSearchResults(apiUrl, keyword, page) {
  * 失败时直接抛错，由上层决定是否回退到关键词搜索
  * @param {string} apiUrl - 资源站 API URL
  * @param {string} vodId - 影视作品 ID
+ * @param {string} [from=''] - 指定线路代码，CMS_V10 通过 from 参数过滤线路
  * @returns {Promise<object|null>} 包含目标作品的搜索结果对象
  */
-async function fetchVideoById(apiUrl, vodId) {
+async function fetchVideoById(apiUrl, vodId, from = '') {
     const params = new URLSearchParams({
         ac: 'detail',
         ids: normalizeVodId(vodId)
     });
+    if (from && typeof from === 'string' && from.trim() !== '') {
+        params.set('from', from.trim());
+    }
     const url = `${apiUrl}?${params.toString()}`;
 
     const data = await request.get(url, {
@@ -207,6 +216,20 @@ function getResourceApiUrl(resource) {
 }
 
 /**
+ * 提取资源站指定的线路代码
+ * @param {object} resource - 资源站配置
+ * @returns {string} 线路代码，未配置返回空字符串
+ */
+function getResourceFromCode(resource) {
+    if (!resource) {
+        return '';
+    }
+    const site = resource.site || resource;
+    const from = site?.from ?? resource?.from ?? '';
+    return typeof from === 'string' ? from.trim() : '';
+}
+
+/**
  * 处理影视搜索
  * @param {object} params - 搜索参数
  * @param {object} e - 事件对象
@@ -222,15 +245,16 @@ async function handleSearchVideos(params, e) {
     if (!apiUrl) {
         return { error: true, error_message: `资源站索引 ${index} 配置错误，未找到有效的 API URL` };
     }
+    const from = getResourceFromCode(resource);
 
     const keyword = (params.keyword ?? '').toString().trim();
     const page = Number.isInteger(params.page) && params.page > 0 ? params.page : DEFAULT_PAGE;
 
-    logger.info(`[搜剧工具] 搜索: "${keyword || '最新视频'}" | 页码: ${page} | 资源站: ${index}`);
+    logger.info(`[搜剧工具] 搜索: "${keyword || '最新视频'}" | 页码: ${page} | 资源站: ${index}${from ? ` | 线路: ${from}` : ''}`);
 
     let searchResults;
     try {
-        searchResults = await fetchVideoSearchResults(apiUrl, keyword, page);
+        searchResults = await fetchVideoSearchResults(apiUrl, keyword, page, from);
     } catch (error) {
         return {
             error: true,
@@ -294,6 +318,7 @@ async function handleGetVideoEpisodes(params, e, currentUserId) {
     if (!apiUrl) {
         return { error: true, error_message: `资源站索引 ${index} 配置错误` };
     }
+    const from = getResourceFromCode(resource);
 
     let vodId = params.vod_id;
     let vodName = (params.vod_name || '').toString().trim();
@@ -318,8 +343,8 @@ async function handleGetVideoEpisodes(params, e, currentUserId) {
     try {
         // 优先按 vod_id 精确查询；仅有 vod_name 时退化为关键词搜索
         searchResults = isValidVodId(vodId)
-            ? await fetchVideoById(apiUrl, vodId)
-            : await fetchVideoSearchResults(apiUrl, vodName, 1);
+            ? await fetchVideoById(apiUrl, vodId, from)
+            : await fetchVideoSearchResults(apiUrl, vodName, 1, from);
     } catch (error) {
         return { error: true, error_message: `获取剧集失败: ${error.message}` };
     }
@@ -381,6 +406,7 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
     if (!apiUrl) {
         return { error: true, error_message: `资源站索引 ${index} 配置错误` };
     }
+    const from = getResourceFromCode(resource);
 
     let vodId = params.vod_id;
     let vodName = (params.vod_name || '').toString().trim();
@@ -404,8 +430,8 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
     try {
         // 优先按 vod_id 精确查询；仅有 vod_name 时退化为关键词搜索
         searchResults = isValidVodId(vodId)
-            ? await fetchVideoById(apiUrl, vodId)
-            : await fetchVideoSearchResults(apiUrl, vodName, 1);
+            ? await fetchVideoById(apiUrl, vodId, from)
+            : await fetchVideoSearchResults(apiUrl, vodName, 1, from);
     } catch (error) {
         return { error: true, error_message: `获取播放链接失败: ${error.message}` };
     }

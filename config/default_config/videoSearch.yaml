@@ -2,16 +2,10 @@
 analysis: http://jx.qxyys.com/jx.php?url=
 
 # 播放器链接
-player: https://p.qxyys.com/?url=
+player: https://zj.qxyys.com/static/player/artplayer.html?url=
 
 #绕过 Cloudflare Challenge 所使用的 TLS 版本，建议可选值：["TLSv1.1", "TLSv1.2"]
 cfTLSVersion: TLSv1.1
-
-# 播放链接二维码模式开关
-# 开启后所有播放链接以二维码图片形式发送，规避链接风控提示
-# 对用户指令（#看剧、#我的搜剧）与 AI 工具（get_video_play_url）均生效
-# 依赖 qrcode 模块（未安装时自动回退为文本链接）
-qrCodeLink: false
 
 # 资源站点数组
 resources:
@@ -22,6 +16,9 @@ resources:
                   title: 量子资源
                   # 站点链接
                   url: https://cj.lziapi.com/api.php/provide/vod/
+                  # 指定线路代码（CMS_V10 接口通过 from 参数过滤，仅返回该线路，留空则返回全部线路）
+                  # 量子资源默认仅返回 lzm3u8，此字段可留空；多线路站点填写 m3u8 线路代码以过滤云播/直链线路
+                  from: lzm3u8
 
         - site:
                   # 是否显示海报
@@ -30,6 +27,8 @@ resources:
                   title: 非凡资源
                   # 站点链接
                   url: https://cj.ffzyapi.com/api.php/provide/vod/
+                  # 非凡默认返回 feifan(云播)$$$ffm3u8 两条线路，填 ffm3u8 仅取 m3u8 线路
+                  from: ffm3u8
 
         - site:
                   # 是否显示海报
@@ -38,6 +37,8 @@ resources:
                   title: 光速资源
                   # 站点链接
                   url: https://api.guangsuapi.com/api.php/provide/vod/
+                  # 光速默认返回 gsyun(云播)$$$gsm3u8 两条线路，填 gsm3u8 仅取 m3u8 线路
+                  from: gsm3u8
 
         - site:
                   # 是否显示海报
@@ -46,6 +47,8 @@ resources:
                   title: 红牛资源
                   # 站点链接
                   url: https://www.hongniuzy2.com/api.php/provide/vod/
+                  # 红牛资源 m3u8 线路代码为 hnm3u8
+                  from: hnm3u8
 
         - site:
                   # 是否显示海报
@@ -54,33 +57,44 @@ resources:
                   title: 暴风资源
                   # 站点链接
                   url: https://bfzyapi.com/api.php/provide/vod/
+                  # 暴风资源 m3u8 线路代码为 bfzym3u8
+                  from: bfzym3u8
 
         - site:
                   # 是否显示海报
                   showpic: true
                   # 站点标题
                   title: 新浪资源
-                  # 站点链接
-                  url: https://api.xinlangapi.com/api.php/provide/vod/
+                  # 站点链接（注意：新浪资源用 xinlangapi.php 而非 api.php）
+                  url: https://api.xinlangapi.com/xinlangapi.php/provide/vod/
+                  # 新浪资源 m3u8 线路代码为 xlm3u8（原始线路 xlyun$$$xlm3u8，云播线路 xlyun 无法解析）
+                  from: xlm3u8
 
         - site:
                   # 是否显示海报
                   showpic: true
                   # 站点标题
-                  title: 闪电资源
-                  # 站点链接
-                  url: https://www.sdzyapi.com/api.php/provide/vod/
+                  title: 黑木耳资源
+                  # 站点链接（LibreTV/MoonTV 默认源，社区主流稳定站）
+                  url: https://www.heimuer.tv/api.php/provide/vod/
+                  # 黑木耳默认单线路（vod_play_from=heimuer），链接均为 m3u8，无需 from 过滤
+                  from:
 
         - site:
                   # 是否显示海报
                   showpic: true
                   # 站点标题
-                  title: 卧龙资源
+                  title: 360资源
                   # 站点链接
-                  url: https://collect.wolongzyw.com/api.php/provide/vod/
+                  url: https://360zy.com/api.php/provide/vod/
+                  # 360资源默认单线路（vod_play_from=360zy），链接均为 m3u8，无需 from 过滤
+                  from:
 
 # 全局默认资源站索引（对应resources的下标）
 CurrentResourceIndex: 0
 
 # 指定群聊使用的资源站索引，格式：[ { group: 群号, index: 资源站索引 }, ... ]
 GroupResourceIndex:
+
+# 播放链接二维码模式：开启后所有播放链接以二维码图片形式发送，规避链接风控
+qrCodeLink: false

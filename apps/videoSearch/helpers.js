@@ -9,10 +9,11 @@ import { puppeteer } from '../../model/index.js';
  * @param {number} [type=0] - 搜索类型
  * @param {number} [hour=0] - 搜索几小时内的数据
  * @param {string} [domain=''] - 资源站网址
+ * @param {string} [from=''] - 指定线路代码（CMS_V10 通过 from 参数过滤线路，留空返回全部线路）
  * @throws {Error} 当未找到作品时，会抛出异常
  * @returns {Array<string>} 返回搜索结果信息数组
  */
-export async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '') {
+export async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, domain = '', from = '') {
     if (page < 1) { page = 1 }
     if (type < 0) { type = 0 }
     if (hour < 0) { hour = 0 }
@@ -26,6 +27,10 @@ export async function SearchVideo(keyword = '', page = 1, type = 0, hour = 0, do
             h: hour,
             pg: page
         });
+        // 指定线路代码时追加 from 参数，让资源站仅返回该线路，避免返回云播/直链等非 m3u8 线路
+        if (from && typeof from === 'string' && from.trim() !== '') {
+            params.set('from', from.trim());
+        }
 
         const url = `${domain}?${params.toString()}`;
 
@@ -153,9 +158,10 @@ export async function linkLongToShort(longLink) {
  * @param {string} SearchName 搜索名称
  * @param {number} defaultPage 默认页码
  * @param {string} defaultUrl 默认接口URL
+ * @param {string} [from=''] - 指定线路代码，留空返回全部线路
  * @returns {any} SearchResults
  */
-export async function getSearchResultsWithCache(userId, SearchName, defaultPage = 1, defaultUrl = "") {
+export async function getSearchResultsWithCache(userId, SearchName, defaultPage = 1, defaultUrl = "", from = "") {
     try {
         // 获取用户搜索缓存数据
         const keyword = await Config.GetUserSearchVideos(userId, 'keyword') || '';
@@ -173,7 +179,7 @@ export async function getSearchResultsWithCache(userId, SearchName, defaultPage 
 
     // 在线搜索
     console.log("调用搜索接口");
-    return await SearchVideo(SearchName, defaultPage, 0, 0, defaultUrl);
+    return await SearchVideo(SearchName, defaultPage, 0, 0, defaultUrl, from);
 }
 
 /**

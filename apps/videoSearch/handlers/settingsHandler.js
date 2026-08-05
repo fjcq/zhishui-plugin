@@ -44,12 +44,13 @@ export async function handleSearchInterface(e, cancelSearchFn, showInterfaceFn) 
 
         if (Interface) {
 
-            const [url, title = '新接口', showpic = 'true'] = Interface.split('|');
+            const [url, title = '新接口', showpic = 'true', from = ''] = Interface.split('|');
             const site = {
                 site: {
                     showpic: showpic === '显示' || showpic === 'true',
                     title,
-                    url
+                    url,
+                    from: from.trim()
                 }
             };
 
@@ -134,9 +135,13 @@ export async function showSearchInterface(e) {
         const site = resource?.site || resource;
         const title = site?.title || resource?.title || `未命名接口${index + 1}`;
         const url = site?.url || resource?.url || '无URL';
+        const from = site?.from || resource?.from || '';
         const isCurrent = index === idx ? ' [当前]' : '';
         msg += `${index + 1}. ${title}${isCurrent}\n`;
         msg += `   URL: ${url}\n`;
+        if (from) {
+            msg += `   线路: ${from}\n`;
+        }
     });
 
     e.reply(msg);

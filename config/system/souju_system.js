@@ -55,8 +55,8 @@ export const helpList = [
       },
       {
         "icon": 87,
-        "title": "#设置搜剧接口X",
-        "desc": "设置搜剧时，使用的搜索接口"
+        "title": "#增加搜剧接口 URL|标题|显示|线路",
+        "desc": "添加接口（线路代码可选，如lzm3u8）"
       },
       {
         "icon": 80,

@@ -113,7 +113,7 @@ export const helpList = [
         "auth": "master",
         "list": [
             { "icon": 22, "title": "#查看搜剧接口", "desc": "查看接口列表" },
-            { "icon": 85, "title": "#设置搜剧接口<地址>", "desc": "添加接口" },
+            { "icon": 85, "title": "#增加搜剧接口 URL|标题|显示|线路", "desc": "添加接口（线路可选）" },
             { "icon": 81, "title": "#删除搜剧接口<编号>", "desc": "删除接口" },
             { "icon": 84, "title": "#查看播放器", "desc": "查看播放器配置" },
             { "icon": 85, "title": "#设置播放器<地址>", "desc": "配置播放器" }
