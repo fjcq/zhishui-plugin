@@ -218,7 +218,13 @@ export async function handleMySearchVideo(e) {
         // 二维码模式：以二维码图片替代文本链接，规避链接风控
         const segment = getSegment();
         if (isQrCodeLinkEnabled() && segment) {
-            const qrUri = await generateQrCodeImage(PlayerUrl);
+            // 视频信息：片名 + 集数 + 接口名，便于用户区分不同视频
+            const qrInfo = {
+                vodName: VodName,
+                episodeName: EpisodeName,
+                siteTitle: InterfaceName
+            };
+            const qrUri = await generateQrCodeImage(PlayerUrl, qrInfo);
             if (qrUri) {
                 return e.reply([msg, segment.image(qrUri)]);
             }

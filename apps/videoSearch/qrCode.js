@@ -54,14 +54,35 @@ const CARD_RADIUS = 18;
 /** 二维码区域圆角半径（像素） */
 const QR_AREA_RADIUS = 12;
 
+/** 顶部视频信息区高度（像素），包含片名和集数线路信息 */
+const HEADER_HEIGHT = 86;
+
+/** 顶部信息区与二维码之间的间距（像素） */
+const HEADER_GAP = 14;
+
 /** 底部文字区域高度（像素） */
 const FOOTER_HEIGHT = 76;
 
+/** 片名字号（像素） */
+const VOD_NAME_FONT_SIZE = 22;
+
+/** 集数/线路信息字号（像素） */
+const EPISODE_INFO_FONT_SIZE = 14;
+
 /** 主标题字号（像素） */
-const TITLE_FONT_SIZE = 22;
+const TITLE_FONT_SIZE = 20;
 
 /** 副标题字号（像素） */
 const SUBTITLE_FONT_SIZE = 13;
+
+/** 片名最大显示字符数，超出截断加省略号 */
+const VOD_NAME_MAX_CHARS = 20;
+
+/** 集数/线路信息最大显示字符数 */
+const EPISODE_INFO_MAX_CHARS = 32;
+
+/** 信息区分隔线颜色 */
+const DIVIDER_COLOR = '#e8e4d9';
 
 /** 字体栈，优先使用系统中文字体 */
 const FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif";
@@ -176,12 +197,98 @@ function buildFooterText(centerX, titleBaselineY, subtitleBaselineY) {
 }
 
 /**
+ * 转义 SVG 文本中的特殊字符，避免 XML 注入或渲染异常
+ * @param {string} text - 原始文本
+ * @returns {string} 转义后的文本
+ */
+function escapeSvgText(text) {
+    if (!text) {
+        return '';
+    }
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;');
+}
+
+/**
+ * 截断过长文本，超出部分以省略号结尾
+ * @param {string} text - 原始文本
+ * @param {number} maxChars - 最大字符数
+ * @returns {string} 截断后的文本
+ */
+function truncateText(text, maxChars) {
+    if (!text) {
+        return '';
+    }
+    const str = String(text);
+    if (str.length <= maxChars) {
+        return str;
+    }
+    return str.slice(0, maxChars) + '...';
+}
+
+/**
+ * 构造顶部视频信息区的 SVG 元素
+ * 包含片名（主标题）和集数/线路信息（副标题），下方加分隔线
+ * @param {object} info - 视频信息
+ * @param {string} info.vodName - 片名
+ * @param {string} info.episodeName - 集数名称
+ * @param {string} [info.routeName] - 线路名称
+ * @param {string} [info.siteTitle] - 资源站名称
+ * @param {number} originX - 信息区左上角 X 坐标
+ * @param {number} originY - 信息区左上角 Y 坐标
+ * @param {number} width - 信息区宽度
+ * @returns {string} SVG 片段
+ */
+function buildVideoInfoHeader(info, originX, originY, width) {
+    const elements = [];
+    const centerX = originX + width / 2;
+
+    // 片名：主标题，居中、加粗
+    const vodName = truncateText(info.vodName, VOD_NAME_MAX_CHARS);
+    const vodNameBaselineY = originY + 36;
+    elements.push(`<text x="${centerX}" y="${vodNameBaselineY}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="${VOD_NAME_FONT_SIZE}" font-weight="600" fill="${QR_FOREGROUND_COLOR}">${escapeSvgText(vodName)}</text>`);
+
+    // 集数/线路/资源站：副标题，居中、中灰
+    const episodeParts = [];
+    if (info.episodeName) {
+        episodeParts.push(String(info.episodeName));
+    }
+    if (info.routeName) {
+        episodeParts.push(info.routeName);
+    }
+    if (info.siteTitle) {
+        episodeParts.push(info.siteTitle);
+    }
+    const episodeText = truncateText(episodeParts.join(' · '), EPISODE_INFO_MAX_CHARS);
+    if (episodeText) {
+        const episodeBaselineY = originY + 62;
+        elements.push(`<text x="${centerX}" y="${episodeBaselineY}" text-anchor="middle" font-family="${FONT_FAMILY}" font-size="${EPISODE_INFO_FONT_SIZE}" fill="${QR_SUBTITLE_COLOR}">${escapeSvgText(episodeText)}</text>`);
+    }
+
+    // 分隔线：信息区与二维码之间的视觉分隔
+    const dividerY = originY + HEADER_HEIGHT - 4;
+    const dividerPadding = 8;
+    elements.push(`<line x1="${originX + dividerPadding}" y1="${dividerY}" x2="${originX + width - dividerPadding}" y2="${dividerY}" stroke="${DIVIDER_COLOR}" stroke-width="1"/>`);
+
+    return elements.join('');
+}
+
+/**
  * 根据播放链接生成卡片式圆点风格二维码的 SVG 字符串
- * 整体布局：圆角卡片背景 + 白色二维码区域 + 圆点数据 + 圆角矩形定位角 + 底部文字提示
+ * 整体布局：圆角卡片背景 + 顶部视频信息区 + 白色二维码区域 + 圆点数据 + 圆角矩形定位角 + 底部文字提示
  * @param {string} text - 要编码到二维码的文本
+ * @param {object} [info] - 视频信息，用于在二维码上方显示片名/集数等
+ * @param {string} [info.vodName] - 片名
+ * @param {string} [info.episodeName] - 集数名称
+ * @param {string} [info.routeName] - 线路名称
+ * @param {string} [info.siteTitle] - 资源站名称
  * @returns {Promise<string|null>} SVG 字符串，失败返回 null
  */
-async function buildRoundedQrSvg(text) {
+async function buildRoundedQrSvg(text, info) {
     const qrcode = await loadQrCodeModule();
     if (!qrcode) {
         return null;
@@ -195,23 +302,32 @@ async function buildRoundedQrSvg(text) {
         // 二维码本体尺寸（含留白）
         const qrSize = (size + QR_MARGIN * 2) * MODULE_SIZE;
 
+        // 顶部信息区高度：有视频信息时显示，否则为 0
+        const hasInfo = info && (info.vodName || info.episodeName || info.routeName || info.siteTitle);
+        const headerTotal = hasInfo ? (HEADER_HEIGHT + HEADER_GAP) : 0;
+
         // 卡片整体尺寸
         const cardWidth = qrSize + CARD_PADDING * 2;
-        const cardHeight = qrSize + CARD_PADDING * 2 + FOOTER_HEIGHT;
+        const cardHeight = qrSize + CARD_PADDING * 2 + headerTotal + FOOTER_HEIGHT;
 
-        // 二维码在卡片中的起点
+        // 二维码在卡片中的起点：顶部信息区下方
         const qrOriginX = CARD_PADDING;
-        const qrOriginY = CARD_PADDING;
+        const qrOriginY = CARD_PADDING + headerTotal;
 
         const elements = [];
 
         // 1. 卡片背景（极浅米黄圆角矩形）
         elements.push(`<rect width="${cardWidth}" height="${cardHeight}" fill="${QR_CARD_BG_COLOR}" rx="${CARD_RADIUS}"/>`);
 
-        // 2. 二维码白色圆角背景，与卡片形成柔和层次
+        // 2. 顶部视频信息区（仅当提供视频信息时渲染）
+        if (hasInfo) {
+            elements.push(buildVideoInfoHeader(info, CARD_PADDING, CARD_PADDING, qrSize));
+        }
+
+        // 3. 二维码白色圆角背景，与卡片形成柔和层次
         elements.push(`<rect x="${qrOriginX}" y="${qrOriginY}" width="${qrSize}" height="${qrSize}" fill="${QR_BACKGROUND_COLOR}" rx="${QR_AREA_RADIUS}"/>`);
 
-        // 3. 三个定位角：左上、右上、左下，采用圆角矩形三层嵌套
+        // 4. 三个定位角：左上、右上、左下，采用圆角矩形三层嵌套
         const finderPositions = [
             { row: 0, col: 0 },
             { row: 0, col: size - 7 },
@@ -223,7 +339,7 @@ async function buildRoundedQrSvg(text) {
             elements.push(buildFinderPattern(fx, fy));
         }
 
-        // 4. 数据点：圆点风格，跳过定位角区域（已单独绘制）
+        // 5. 数据点：圆点风格，跳过定位角区域（已单独绘制）
         const radius = (MODULE_SIZE / 2) * DOT_RADIUS_RATIO;
         for (let row = 0; row < size; row++) {
             for (let col = 0; col < size; col++) {
@@ -235,7 +351,7 @@ async function buildRoundedQrSvg(text) {
             }
         }
 
-        // 5. 底部文字提示
+        // 6. 底部文字提示
         const textCenterX = cardWidth / 2;
         const titleBaselineY = qrOriginY + qrSize + 38;
         const subtitleBaselineY = titleBaselineY + 24;
@@ -290,12 +406,17 @@ async function renderSvgToPng(svg, filePath, svgWidth, svgHeight) {
 
 /**
  * 生成播放链接的二维码图片
- * 相同链接复用同一文件（基于 md5 哈希命名），避免文件无限增长
+ * 相同链接+视频信息复用同一文件（基于 md5 哈希命名），避免文件无限增长
  * 采用圆点风格 SVG，用 puppeteer 渲染为 PNG
  * @param {string} text - 要编码到二维码的文本（通常是播放链接）
+ * @param {object} [info] - 视频信息，用于在二维码上方显示片名/集数等
+ * @param {string} [info.vodName] - 片名
+ * @param {string} [info.episodeName] - 集数名称
+ * @param {string} [info.routeName] - 线路名称
+ * @param {string} [info.siteTitle] - 资源站名称
  * @returns {Promise<string|null>} 二维码图片的 file:/// URI，失败返回 null
  */
-export async function generateQrCodeImage(text) {
+export async function generateQrCodeImage(text, info) {
     if (!text || typeof text !== 'string') {
         return null;
     }
@@ -307,12 +428,14 @@ export async function generateQrCodeImage(text) {
 
     try {
         const saveDir = getQrCodeSaveDir();
-        const hash = crypto.createHash('md5').update(text).digest('hex');
+        // 哈希包含链接和视频信息，确保不同集数/片名的图片不互相复用
+        const hashSource = JSON.stringify({ text, info: info || {} });
+        const hash = crypto.createHash('md5').update(hashSource).digest('hex');
         const filePath = path.join(saveDir, `${hash}.png`);
 
         // 已存在则直接复用，避免重复生成
         if (!fs.existsSync(filePath)) {
-            const svg = await buildRoundedQrSvg(text);
+            const svg = await buildRoundedQrSvg(text, info);
             if (!svg) {
                 return null;
             }
@@ -355,10 +478,15 @@ export function getSegment() {
  * 生成失败时返回 false，调用方可据此回退到文本链接
  * @param {object} e - 事件对象
  * @param {string} text - 要编码到二维码的文本
+ * @param {object} [info] - 视频信息，用于在二维码上方显示片名/集数等
+ * @param {string} [info.vodName] - 片名
+ * @param {string} [info.episodeName] - 集数名称
+ * @param {string} [info.routeName] - 线路名称
+ * @param {string} [info.siteTitle] - 资源站名称
  * @returns {Promise<boolean>} 是否发送成功
  */
-export async function sendQrCodeImage(e, text) {
-    const fileUri = await generateQrCodeImage(text);
+export async function sendQrCodeImage(e, text, info) {
+    const fileUri = await generateQrCodeImage(text, info);
     if (!fileUri) {
         return false;
     }

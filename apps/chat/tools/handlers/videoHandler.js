@@ -473,7 +473,15 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
 
     // 二维码模式：直接发送二维码图片给用户，不向 AI 暴露原始链接，规避链接风控
     if (isQrCodeLinkEnabled()) {
-        const qrSentResult = await sendPlayUrlAsQrCode(e, fullLink);
+        // 视频信息：片名 + 集数 + 线路 + 资源站，便于用户区分不同视频
+        const siteTitle = resource?.site?.title || resource?.title || '';
+        const qrInfo = {
+            vodName: target.vod_name,
+            episodeName: route.episode_names[episodeIdx],
+            routeName: route.route_name,
+            siteTitle
+        };
+        const qrSentResult = await sendPlayUrlAsQrCode(e, fullLink, qrInfo);
         if (qrSentResult) {
             return {
                 success: true,
@@ -512,15 +520,20 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
  * 生成或发送失败时返回 false，由调用方回退到文本链接
  * @param {object} e - 事件对象
  * @param {string} playUrl - 播放链接
+ * @param {object} [info] - 视频信息，用于在二维码卡片上方显示片名/集数等
+ * @param {string} [info.vodName] - 片名
+ * @param {string} [info.episodeName] - 集数名称
+ * @param {string} [info.routeName] - 线路名称
+ * @param {string} [info.siteTitle] - 资源站名称
  * @returns {Promise<boolean>} 是否发送成功
  */
-async function sendPlayUrlAsQrCode(e, playUrl) {
+async function sendPlayUrlAsQrCode(e, playUrl, info) {
     if (!e || !e.reply) {
         logger.error('[搜剧工具] 缺少事件对象 e.reply，无法发送二维码');
         return false;
     }
 
-    const qrUri = await generateQrCodeImage(playUrl);
+    const qrUri = await generateQrCodeImage(playUrl, info);
     if (!qrUri) {
         return false;
     }

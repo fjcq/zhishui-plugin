@@ -145,7 +145,12 @@ export async function handleWatchVideo(e) {
         // 二维码模式：生成二维码图片替代文本链接，规避链接风控
         let msg;
         if (isQrCodeLinkEnabled() && segment) {
-            const qrUri = await generateQrCodeImage(fullLink);
+            // 视频信息：用于在二维码卡片上方显示片名/集数，避免不同视频混淆
+            const qrInfo = {
+                vodName: playData.VodName,
+                episodeName: playData.episodeNames[targetEpisode - 1]
+            };
+            const qrUri = await generateQrCodeImage(fullLink, qrInfo);
             if (qrUri) {
                 msg = [
                     segment.image(qrUri),
