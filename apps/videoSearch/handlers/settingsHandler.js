@@ -6,6 +6,7 @@ import { Config, Plugin_Path, logger } from '../../../components/index.js';
 import YamlReader from '../../../components/YamlReader.js';
 import { getSiteIndex } from './searchHandler.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
+import { buildPlayLink } from '../utils.js';
 
 /**
  * 处理搜剧接口命令
@@ -208,7 +209,7 @@ export async function handleMySearchVideo(e) {
         const VodName = playData.VodName;
         const EpisodeName = playData.episodeNames[Episode - 1] || '未知';
 
-        const PlayerUrl = Config.SearchVideos.player + playData.episodeLinks[Episode - 1];
+        const PlayerUrl = buildPlayLink(Config.SearchVideos.player, playData.episodeLinks[Episode - 1]);
 
         msg += '*** 播放记录 ***\n';
         msg += `片名：${VodName}\n`;

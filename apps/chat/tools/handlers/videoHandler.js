@@ -8,6 +8,7 @@ import request from '../../../../lib/request/request.js';
 import { Config, logger } from '../../../../components/index.js';
 import { SearchVideo } from '../../../videoSearch/helpers.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage } from '../../../videoSearch/qrCode.js';
+import { buildPlayLink } from '../../../videoSearch/utils.js';
 import { getSegment } from './shared/utils.js';
 
 /** segment 加载 Promise 缓存（缓存 Promise 而非结果，避免并发调用触发多次 getSegment） */
@@ -466,7 +467,7 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
         return { error: true, error_message: `集数 ${params.episode} 不存在，该线路共 ${route.episode_names.length} 集` };
     }
 
-    const fullLink = playerUrl + route.episode_links[episodeIdx];
+    const fullLink = buildPlayLink(playerUrl, route.episode_links[episodeIdx]);
 
     logger.info(`[搜剧工具] 获取播放链接: ${target.vod_name} | 线路: ${route.route_name} | 集: ${route.episode_names[episodeIdx]}`);
 

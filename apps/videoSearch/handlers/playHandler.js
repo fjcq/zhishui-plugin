@@ -4,7 +4,7 @@
 
 import { common } from '../../../model/index.js';
 import { Config, logger } from '../../../components/index.js';
-import { isNotNull, chineseToNumber, findRouteIndex } from '../utils.js';
+import { isNotNull, chineseToNumber, findRouteIndex, buildPlayLink } from '../utils.js';
 import { SearchVideo } from '../helpers.js';
 import Data from '../../../components/Data.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
@@ -140,7 +140,7 @@ export async function handleWatchVideo(e) {
 
     if (isNotNull(playData.episodeLinks[targetEpisode - 1])) {
         const title = `${playData.VodName}  ${playData.episodeNames[targetEpisode - 1]}`;
-        const fullLink = Config.SearchVideos.player + playData.episodeLinks[targetEpisode - 1];
+        const fullLink = buildPlayLink(Config.SearchVideos.player, playData.episodeLinks[targetEpisode - 1]);
 
         // 二维码模式：生成二维码图片替代文本链接，规避链接风控
         let msg;
