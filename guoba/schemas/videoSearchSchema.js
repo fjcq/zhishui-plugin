@@ -56,6 +56,16 @@ export function getVideoSearchSchemas() {
             component: 'Switch'
         },
         {
+            field: 'videoSearch.redirectWorker',
+            label: '中转跳转服务',
+            helpMessage: 'Cloudflare Workers 跳转服务地址（如 https://your-worker.workers.dev），开启后播放链接经 Workers 302 跳转，规避 QQ 风险提示。比二维码模式更可靠，建议优先使用',
+            bottomHelpMessage: '填入 Workers 地址后启用中转跳转，留空则不启用',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'https://your-worker.workers.dev'
+            }
+        },
+        {
             component: 'Divider',
             label: '资源站点'
         },

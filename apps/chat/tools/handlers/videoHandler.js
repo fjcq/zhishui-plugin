@@ -8,8 +8,11 @@ import request from '../../../../lib/request/request.js';
 import { Config, logger } from '../../../../components/index.js';
 import { SearchVideo } from '../../../videoSearch/helpers.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage } from '../../../videoSearch/qrCode.js';
-import { buildPlayLink } from '../../../videoSearch/utils.js';
+import { buildPlayLink, buildRedirectLink, safeParse } from '../../../videoSearch/utils.js';
 import { getSegment } from './shared/utils.js';
+
+/** 搜剧工具日志标签，传入 safeParse 用于区分调用来源 */
+const SAFE_PARSE_TAG = '[搜剧工具]';
 
 /** segment 加载 Promise 缓存（缓存 Promise 而非结果，避免并发调用触发多次 getSegment） */
 let segmentPromise = null;
@@ -469,6 +472,13 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
 
     const fullLink = buildPlayLink(playerUrl, route.episode_links[episodeIdx]);
 
+    // 中转跳转模式：将原始链接通过 Cloudflare Workers 中转，规避 QQ 风险提示
+    // 与二维码模式可叠加：开启中转后二维码内仍是 Workers 中转链接，双重规避
+    const workerUrl = Config.SearchVideos?.redirectWorker;
+    const finalLink = (workerUrl && typeof workerUrl === 'string' && workerUrl.trim())
+        ? buildRedirectLink(workerUrl, fullLink)
+        : fullLink;
+
     logger.info(`[搜剧工具] 获取播放链接: ${target.vod_name} | 线路: ${route.route_name} | 集: ${route.episode_names[episodeIdx]}`);
 
     // 二维码模式：直接发送二维码图片给用户，不向 AI 暴露原始链接，规避链接风控
@@ -481,7 +491,7 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
             routeName: route.route_name,
             siteTitle
         };
-        const qrSentResult = await sendPlayUrlAsQrCode(e, fullLink, qrInfo);
+        const qrSentResult = await sendPlayUrlAsQrCode(e, finalLink, qrInfo);
         if (qrSentResult) {
             return {
                 success: true,
@@ -510,7 +520,7 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
         episode_name: route.episode_names[episodeIdx],
         episode: episodeIdx + 1,
         total_episodes: route.episode_names.length,
-        play_url: fullLink,
+        play_url: finalLink,
         tip: '请将链接复制到浏览器中打开观看'
     };
 }
@@ -564,11 +574,11 @@ async function loadCachedSelectedVideo(userId) {
     }
     try {
         const searchResultsStr = await Config.GetUserSearchVideos(userId, 'SearchResults');
-        if (!searchResultsStr) {
+        const searchResults = safeParse(searchResultsStr, 'SearchResults', SAFE_PARSE_TAG);
+        if (!searchResults) {
             return null;
         }
-        const searchResults = JSON.parse(searchResultsStr);
-        const list = Array.isArray(searchResults?.list) ? searchResults.list : [];
+        const list = Array.isArray(searchResults.list) ? searchResults.list : [];
         if (list.length === 0) {
             return null;
         }

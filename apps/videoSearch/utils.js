@@ -3,6 +3,27 @@
  */
 // 引入公共工具函数
 import { isNotNull, chineseToNumber } from '../../lib/common/utils.js';
+// 引入日志组件
+import { logger } from '../../components/index.js';
+
+/**
+ * 安全解析 JSON 字符串，解析失败返回 null
+ * @param {string} str - 待解析字符串
+ * @param {string} field - 字段名（用于日志定位）
+ * @param {string} [tag='[搜剧]'] - 日志前缀标签，用于区分调用来源
+ * @returns {*} 解析结果，失败返回 null
+ */
+export function safeParse(str, field, tag = '[搜剧]') {
+    if (typeof str !== 'string' || !str.trim()) {
+        return null;
+    }
+    try {
+        return JSON.parse(str);
+    } catch (err) {
+        logger.warn(`${tag} ${field} JSON 解析失败: ${err.message}, 原始值: ${str?.slice?.(0, 120) ?? str}`);
+        return null;
+    }
+}
 
 /**
  * 查找线路名称或线路代码在RouteList中的索引
@@ -81,6 +102,35 @@ export function buildPlayLink(playerUrl, rawLink) {
         return safeLink;
     }
     return safePlayer + safeLink;
+}
+
+/**
+ * 将字符串编码为 URL-safe Base64
+ * 兼容性兜底：Node 14+ 原生支持 base64url，旧版本手动替换字符
+ * @param {string} str - 待编码字符串
+ * @returns {string} URL-safe Base64 字符串（无填充）
+ */
+function toBase64Url(str) {
+    const base64 = Buffer.from(str, 'utf-8').toString('base64');
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * 构造 Cloudflare Workers 中转跳转链接
+ * 将原始播放链接通过 Workers 中转，使发送的链接域名指向 workers.dev（未被 QQ 风控标记）
+ * Workers 收到请求后 302 重定向到真实播放链接，QQ 无法从消息内容中预判跳转目标
+ * @param {string} workerUrl - Workers 服务地址（如 https://xxx.workers.dev）
+ * @param {string} playLink - 原始播放链接
+ * @returns {string} 中转后的链接；workerUrl 为空时原样返回 playLink
+ */
+export function buildRedirectLink(workerUrl, playLink) {
+    const safeWorker = typeof workerUrl === 'string' ? workerUrl.trim().replace(/\/+$/, '') : '';
+    const safeLink = typeof playLink === 'string' ? playLink : '';
+    if (!safeWorker || !safeLink) {
+        return safeLink;
+    }
+    const encoded = toBase64Url(safeLink);
+    return `${safeWorker}/?u=${encoded}`;
 }
 
 // 重新导出公共函数

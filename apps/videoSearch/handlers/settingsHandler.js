@@ -6,7 +6,7 @@ import { Config, Plugin_Path, logger } from '../../../components/index.js';
 import YamlReader from '../../../components/YamlReader.js';
 import { getSiteIndex } from './searchHandler.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
-import { buildPlayLink } from '../utils.js';
+import { buildPlayLink, safeParse } from '../utils.js';
 
 /**
  * 处理搜剧接口命令
@@ -183,10 +183,8 @@ export async function handleMySearchVideo(e) {
             return false;
         }
 
-        let playData;
-        try {
-            playData = JSON.parse(playDataStr);
-        } catch (error) {
+        const playData = safeParse(playDataStr, 'playData');
+        if (!playData) {
             e.reply(`搜剧记录数据格式错误，请重新搜索`);
             return false;
         }

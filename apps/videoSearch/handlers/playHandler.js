@@ -4,7 +4,7 @@
 
 import { common } from '../../../model/index.js';
 import { Config, logger } from '../../../components/index.js';
-import { isNotNull, chineseToNumber, findRouteIndex, buildPlayLink } from '../utils.js';
+import { isNotNull, chineseToNumber, findRouteIndex, buildPlayLink, buildRedirectLink, safeParse } from '../utils.js';
 import { SearchVideo } from '../helpers.js';
 import Data from '../../../components/Data.js';
 import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.js';
@@ -17,23 +17,21 @@ import { isQrCodeLinkEnabled, generateQrCodeImage, getSegment } from '../qrCode.
  * @returns {Promise<boolean>} 处理结果
  */
 export async function handleSelectVideo(e, getSiteIndexFn, puppeteer) {
-    let userSearchResult = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
+    const userSearchResultStr = await Config.GetUserSearchVideos(e.user_id, 'SearchResults');
 
-    if (isNotNull(userSearchResult)) {
-        try {
-            userSearchResult = JSON.parse(userSearchResult);
-
-            if (!isNotNull(userSearchResult.list)) {
-                e.reply(`搜剧数据错误，请重新#搜剧！`);
-                return false;
-            }
-        } catch (error) {
-            console.error('解析搜剧结果为JSON时出错:', error);
-            e.reply(`解析搜剧数据时发生错误，请稍后重试！`);
-            return false;
-        }
-    } else {
+    if (!isNotNull(userSearchResultStr)) {
         e.reply(`你需要先#搜剧，才可以#选剧！`);
+        return false;
+    }
+
+    const userSearchResult = safeParse(userSearchResultStr, 'SearchResults');
+    if (!userSearchResult) {
+        e.reply(`解析搜剧数据时发生错误，请重新#搜剧！`);
+        return false;
+    }
+
+    if (!isNotNull(userSearchResult.list)) {
+        e.reply(`搜剧数据错误，请重新#搜剧！`);
         return false;
     }
 
@@ -97,7 +95,18 @@ export async function handleWatchVideo(e) {
     const segment = getSegment();
     let Episode = parseInt(await Config.GetUserSearchVideos(e.user_id, 'Episode')) || 1;
     const playDataStr = await Config.GetUserSearchVideos(e.user_id, 'playData');
-    const playData = JSON.parse(playDataStr);
+
+    // playDataStr 为空时提前提示，区分"未选剧"与"数据损坏"两种场景
+    if (!isNotNull(playDataStr)) {
+        e.reply('搜索数据错误，请重新搜索！');
+        return false;
+    }
+
+    const playData = safeParse(playDataStr, 'playData');
+    if (!playData || !Array.isArray(playData.episodeLinks) || !playData.episodeLinks.length) {
+        e.reply('尚未选择剧集，请先发送 `#选剧` 选择剧集后再发送 `#看剧`。');
+        return false;
+    }
 
     if (isNaN(Episode)) {
         Episode = 1;
@@ -129,11 +138,6 @@ export async function handleWatchVideo(e) {
         }
     }
 
-    if (!isNotNull(playDataStr)) {
-        e.reply('搜索数据错误，请重新搜索！');
-        return false;
-    }
-
     targetEpisode = Math.max(1, Math.min(targetEpisode, playData.episodeLinks.length));
 
     await Config.SetUserSearchVideos(e.user_id, 'Episode', targetEpisode);
@@ -141,6 +145,13 @@ export async function handleWatchVideo(e) {
     if (isNotNull(playData.episodeLinks[targetEpisode - 1])) {
         const title = `${playData.VodName}  ${playData.episodeNames[targetEpisode - 1]}`;
         const fullLink = buildPlayLink(Config.SearchVideos.player, playData.episodeLinks[targetEpisode - 1]);
+
+        // 中转跳转模式：将原始链接通过 Cloudflare Workers 中转，规避 QQ 风险提示
+        // 与二维码模式可叠加：开启中转后二维码内仍是 Workers 中转链接，双重规避
+        const workerUrl = Config.SearchVideos?.redirectWorker;
+        const finalLink = (workerUrl && typeof workerUrl === 'string' && workerUrl.trim())
+            ? buildRedirectLink(workerUrl, fullLink)
+            : fullLink;
 
         // 二维码模式：生成二维码图片替代文本链接，规避链接风控
         let msg;
@@ -150,7 +161,7 @@ export async function handleWatchVideo(e) {
                 vodName: playData.VodName,
                 episodeName: playData.episodeNames[targetEpisode - 1]
             };
-            const qrUri = await generateQrCodeImage(fullLink, qrInfo);
+            const qrUri = await generateQrCodeImage(finalLink, qrInfo);
             if (qrUri) {
                 msg = [
                     segment.image(qrUri),
@@ -161,13 +172,13 @@ export async function handleWatchVideo(e) {
                 logger.warn('[看剧] 二维码生成失败，回退到文本链接');
                 msg = [
                     '*** 请复制到浏览器中观看 ***',
-                    fullLink,
+                    finalLink,
                 ];
             }
         } else {
             msg = [
                 '*** 请复制到浏览器中观看 ***',
-                fullLink,
+                finalLink,
             ];
         }
 
@@ -223,11 +234,8 @@ export async function handleGoPage(e, puppeteer) {
         SearchResults = '',
     } = searchUserData;
 
-    try {
-        SearchResults = JSON.parse(SearchResults);
-    } catch (error) {
-        SearchResults = { "pagecount": 1 }
-    }
+    const parsedResults = safeParse(SearchResults, 'SearchResults');
+    SearchResults = parsedResults || { pagecount: 1 };
 
     switch (true) {
         case msg.includes(PAGE_COMMANDS.PREVIOUS):
@@ -290,7 +298,10 @@ export async function handleChangeRoute(e, selectVideoFn) {
 
         if (Number.isInteger(+inputRouteStr)) {
             const availableRoutesStr = await Config.GetUserSearchVideos(e.user_id, 'playRoutes');
-            const availableRoutes = JSON.parse(availableRoutesStr);
+            const availableRoutes = safeParse(availableRoutesStr, 'playRoutes');
+            if (!Array.isArray(availableRoutes) || availableRoutes.length === 0) {
+                return e.reply('尚未获取到线路信息，请先发送 `#选剧` 选择剧集后再切换线路。');
+            }
 
             if (+inputRouteStr < 1 || +inputRouteStr > availableRoutes.length) {
                 return e.reply(`线路编号错误，请确保输入的数字在1到${availableRoutes.length}之间。`);
@@ -309,7 +320,8 @@ export async function handleChangeRoute(e, selectVideoFn) {
         e.msg = '#选剧' + selectedID.toString();
         return await selectVideoFn(e);
     } catch (error) {
-        return e.reply('切换线路时发生错误:', error);
+        logger.error(`[搜剧] 切换线路失败: ${error.message}`);
+        return e.reply('切换线路时发生错误，请稍后重试。');
     }
 }
 

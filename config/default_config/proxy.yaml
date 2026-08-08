@@ -6,6 +6,12 @@ switchProxy: false
 blacklist:
     - "*.baidu.com"
 #代理白名单，在全局关闭的情况下可用
+# 当搜剧接口被 Cloudflare 等 WAF 拦截（提示 403/503 且响应头含 server: cloudflare）时，
+# 可将资源站域名加入白名单并开启代理，示例：
+#   - "*.lziapi.com"       # 量子资源（cj.lziapi.com）
+#   - "*.your-cdn.com"     # 其他被拦截的资源站根域名
 whitelist:
     - "*.google.com"
-cfTLSVersion: TLSv1.1
+# cf=true 时创建的 HTTPS Agent 强制使用该 TLS 版本（与 Cloudflare 通信）
+# 注意：TLS 1.0/1.1 已于 2021 年废弃，现代 Cloudflare 只接受 TLS 1.2/1.3
+cfTLSVersion: TLSv1.2
