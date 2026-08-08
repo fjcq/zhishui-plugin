@@ -99,7 +99,8 @@ GroupResourceIndex:
 # 播放链接二维码模式：开启后所有播放链接以二维码图片形式发送，规避链接风控
 qrCodeLink: false
 
-# Cloudflare Workers 中转跳转服务地址
-# 部署 Workers 后填入（如 https://your-worker.workers.dev），开启后播放链接经 Workers 302 跳转，规避 QQ 风险提示
+# 中转跳转服务地址（Netlify / Vercel / Cloudflare Workers 均可）
+# 部署后填入服务地址，开启后播放链接经中转页渲染，规避 QQ 风险提示
+# 中转页策略：优先 iframe 嵌入播放器，被 X-Frame-Options 拦截时降级为「一键复制链接」面板，全程零跳转
 # 留空则不启用中转。建议优先使用此方案，比二维码模式更可靠
-redirectWorker:
+redirectWorker: https://gorgeous-stroopwafel-7ca22f.netlify.app

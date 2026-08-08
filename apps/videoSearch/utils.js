@@ -116,10 +116,11 @@ function toBase64Url(str) {
 }
 
 /**
- * 构造 Cloudflare Workers 中转跳转链接
- * 将原始播放链接通过 Workers 中转，使发送的链接域名指向 workers.dev（未被 QQ 风控标记）
- * Workers 收到请求后 302 重定向到真实播放链接，QQ 无法从消息内容中预判跳转目标
- * @param {string} workerUrl - Workers 服务地址（如 https://xxx.workers.dev）
+ * 构造中转跳转链接
+ * 将原始播放链接通过中转页渲染，使发送的链接域名指向中转服务（未被 QQ 风控标记）
+ * 中转页统一用 iframe 嵌入播放器（实测主流云播分享页与 m3u8 播放器均不设 X-Frame-Options，可正常嵌入）
+ * 全程不触发任何 location 跳转，QQ 风控扫描只能看到纯静态中转页
+ * @param {string} workerUrl - 中转服务地址（如 https://xxx.netlify.app）
  * @param {string} playLink - 原始播放链接
  * @returns {string} 中转后的链接；workerUrl 为空时原样返回 playLink
  */

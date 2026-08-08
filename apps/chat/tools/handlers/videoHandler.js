@@ -472,8 +472,9 @@ async function handleGetVideoPlayUrl(params, e, currentUserId) {
 
     const fullLink = buildPlayLink(playerUrl, route.episode_links[episodeIdx]);
 
-    // 中转跳转模式：将原始链接通过 Cloudflare Workers 中转，规避 QQ 风险提示
-    // 与二维码模式可叠加：开启中转后二维码内仍是 Workers 中转链接，双重规避
+    // 中转跳转模式：统一通过中转页 iframe 嵌入播放器
+    // 实测主流云播分享页与 m3u8 播放器均不设 X-Frame-Options，iframe 可正常嵌入
+    // 全程不触发 location 跳转，QQ 风控扫描只能看到纯静态中转页
     const workerUrl = Config.SearchVideos?.redirectWorker;
     const finalLink = (workerUrl && typeof workerUrl === 'string' && workerUrl.trim())
         ? buildRedirectLink(workerUrl, fullLink)
