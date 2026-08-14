@@ -147,7 +147,7 @@ export async function openAi(msg, e, systemMessage, chatMsg, recursionDepth = 0)
 
         content = await handleApiResponse(responseData, apiType, msg, e, systemMessage, chatMsg, requestData, recursionDepth, openAi);
     } catch (error) {
-        content = await handleCommunicationError(error, apiType);
+        content = await handleCommunicationError(error, apiType, { e, apiConfig, apiIndex });
     }
 
     return { content, rawResponse };

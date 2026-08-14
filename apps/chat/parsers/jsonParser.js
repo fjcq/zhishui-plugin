@@ -329,6 +329,27 @@ export function parseJsonResponse(rawContent, apiType) {
 }
 
 /**
+ * 判断错误消息是否与余额/配额相关
+ * @param {string} message - 错误消息文本
+ * @returns {boolean} 是否为余额/配额不足错误
+ */
+function isBalanceErrorMessage(message) {
+    if (typeof message !== 'string') {
+        return false;
+    }
+    const lower = message.toLowerCase();
+    return lower.includes('insufficient balance') ||
+        lower.includes('quota_exceeded') ||
+        lower.includes('余额') ||
+        lower.includes('欠费') ||
+        lower.includes('billing') ||
+        lower.includes('payment') ||
+        lower.includes('credit') ||
+        lower.includes('额度') ||
+        lower.includes('quota');
+}
+
+/**
  * 将OpenAI错误消息转换为简洁易懂的中文描述
  * @param {Object} errorData - 包含错误信息的对象
  * @returns {string} 转换后的中文描述
@@ -339,6 +360,9 @@ export function parseErrorMessage(errorData) {
             if (errorData.message.includes('User location is not supported for the API use')) {
                 return '当前地区无法使用 Gemini API，请更换为支持的地区（如美国、日本等）或使用代理。';
             }
+            if (isBalanceErrorMessage(errorData.message)) {
+                return 'API账户余额或配额已用完，请充值续费或切换到其他API。';
+            }
             return errorData.message;
         }
         if (typeof errorData.error === 'object' && errorData.error && typeof errorData.error.message === 'string') {
@@ -347,6 +371,11 @@ export function parseErrorMessage(errorData) {
             }
             const errorMessage = errorData.error.message;
             const errorCode = errorData.error.code;
+
+            if (isBalanceErrorMessage(errorMessage)) {
+                return 'API账户余额或配额已用完，请充值续费或切换到其他API。';
+            }
+
             let response;
             switch (errorCode) {
                 case "account_deactivated":
@@ -386,13 +415,13 @@ export function parseErrorMessage(errorData) {
                     response = "上下文错误：" + errorMessage + "，请检查您的上下文设置。";
                     break;
                 default:
-                    response = "出现了一个问题：" + errorMessage + "，请稍后再试或联系支持人员。";
+                    response = "AI服务返回错误：" + errorMessage + "，请稍后再试或联系支持人员。";
             }
             if (response.length > 100) {
-                response = "出现了一个问题：" + errorMessage.substring(0, 80) + "...，请稍后再试或联系支持人员。";
+                response = "AI服务返回错误：" + errorMessage.substring(0, 80) + "...，请稍后再试或联系支持人员。";
             }
             return response;
         }
     }
-    return '与 AI 通信时发生错误，请稍后重试。';
+    return 'AI服务暂时无法响应，请稍后重试。';
 }
