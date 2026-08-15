@@ -4,6 +4,7 @@
  */
 
 import { Config, logger } from '../../../../components/index.js';
+import { isBalanceErrorMessage } from '../../parsers/jsonParser.js';
 
 /**
  * 主人通知冷却时间（秒）
@@ -23,19 +24,7 @@ const memoryNotified = new Map();
  * @returns {boolean} 是否为余额/配额不足错误
  */
 function isBalanceError(error) {
-    if (!error || typeof error.message !== 'string') {
-        return false;
-    }
-    const msg = error.message.toLowerCase();
-    return msg.includes('quota_exceeded') ||
-        msg.includes('insufficient balance') ||
-        msg.includes('余额') ||
-        msg.includes('欠费') ||
-        msg.includes('billing') ||
-        msg.includes('payment') ||
-        msg.includes('credit') ||
-        msg.includes('额度') ||
-        msg.includes('quota');
+    return isBalanceErrorMessage(error?.message);
 }
 
 /**
@@ -141,8 +130,9 @@ function getNotificationKey(apiIndex, errorType) {
  */
 async function hasNotifiedToday(key) {
     try {
-        if (typeof redis !== 'undefined' && redis.get) {
-            const value = await redis.get(key);
+        const redisClient = globalThis.redis;
+        if (redisClient?.get) {
+            const value = await redisClient.get(key);
             return !!value;
         }
     } catch (redisError) {
@@ -158,8 +148,9 @@ async function hasNotifiedToday(key) {
  */
 async function markNotifiedToday(key) {
     try {
-        if (typeof redis !== 'undefined' && redis.set) {
-            await redis.set(key, '1', { EX: NOTIFICATION_COOLDOWN_SECONDS });
+        const redisClient = globalThis.redis;
+        if (redisClient?.set) {
+            await redisClient.set(key, '1', { EX: NOTIFICATION_COOLDOWN_SECONDS });
             return;
         }
     } catch (redisError) {
@@ -201,7 +192,7 @@ async function notifyMasterOnce(error, errorType, apiType, apiConfig, apiIndex) 
             `错误：${error.message || '未知错误'}\n` +
             `建议：检查API账户余额或执行命令切换到其他API。`;
 
-        const friend = Bot?.pickFriend?.(String(masterQQ));
+        const friend = globalThis.Bot?.pickFriend?.(String(masterQQ));
         if (!friend) {
             logger.warn(`[错误通知] 无法获取主人 ${masterQQ} 的好友对象`);
             return;

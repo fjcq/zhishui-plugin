@@ -3,27 +3,8 @@
  */
 // 引入公共工具函数
 import { ForwardMsg, msgToAt } from '../../lib/common/utils.js';
-
-/**
- * 判断错误消息是否与余额/配额相关
- * @param {string} message - 错误消息文本
- * @returns {boolean} 是否为余额/配额不足错误
- */
-function isBalanceErrorMessage(message) {
-    if (typeof message !== 'string') {
-        return false;
-    }
-    const lower = message.toLowerCase();
-    return lower.includes('insufficient balance') ||
-        lower.includes('quota_exceeded') ||
-        lower.includes('余额') ||
-        lower.includes('欠费') ||
-        lower.includes('billing') ||
-        lower.includes('payment') ||
-        lower.includes('credit') ||
-        lower.includes('额度') ||
-        lower.includes('quota');
-}
+// 引入余额/配额错误判断函数
+import { isBalanceErrorMessage } from './parsers/jsonParser.js';
 
 /**
  * 将OpenAI风格错误消息转换为简洁易懂的中文描述

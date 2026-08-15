@@ -333,7 +333,7 @@ export function parseJsonResponse(rawContent, apiType) {
  * @param {string} message - 错误消息文本
  * @returns {boolean} 是否为余额/配额不足错误
  */
-function isBalanceErrorMessage(message) {
+export function isBalanceErrorMessage(message) {
     if (typeof message !== 'string') {
         return false;
     }
