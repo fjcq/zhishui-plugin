@@ -160,7 +160,9 @@ const MAX_LOCAL_IMAGE_SIZE = 20 * 1024 * 1024;
  * 白名单提取并清理图片 URL
  * NapCat/OneBot 链路的 URL 可能被反引号、引号包裹或粘连 CQ 分隔逗号，
  * URL 主体限定 ASCII 可见字符提取，任何非 ASCII 包裹字符天然无法混入；
- * 字符集额外排除逗号（ASCII 44），避免 CQ 码粘连时把下一段参数（如 ,file_size=xxx）吃进 URL
+ * 字符集额外排除逗号（\x2C），避免 CQ 码粘连时把下一段参数（如 ,file_size=xxx）吃进 URL。
+ * 字符类采用十六进制转义写法：\x21-\x2B（ASCII 33-43）与 \x2D-\x7E（45-126），
+ * 直观跳过逗号(44)，防止后续维护者误读简写范围
  * @param {string} raw - 原始 URL 字符串
  * @returns {string} 清理后的 URL，无法提取时返回空字符串
  */
@@ -168,8 +170,7 @@ export function extractCleanImageUrl(raw) {
     let text = String(raw || '');
     // 还原 CQ 码实体转义：&amp; → &
     text = text.replace(/&amp;/gi, '&');
-    // [!-+--~] 即 ASCII 33-43 与 45-126，跳过逗号(44)
-    const match = text.match(/https?:\/\/[!-+--~]+/i);
+    const match = text.match(/https?:\/\/[\x21-\x2B\x2D-\x7E]+/i);
     if (match) {
         return match[0].replace(/[`'"<>,;)]+$/g, '');
     }

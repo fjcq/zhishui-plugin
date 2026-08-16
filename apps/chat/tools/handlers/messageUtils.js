@@ -119,9 +119,12 @@ export class MessageBuilder {
 
 /**
  * 清理图片 URL 首尾的杂质字符（最终咽喉点，所有图片发送必经）
- * 采用白名单提取：URL 主体限定 ASCII 可见字符 [!-~]，
+ * 采用白名单提取：URL 主体限定 ASCII 可见字符，
  * NapCat 历史消息 url 可能包裹形似反引号的 Unicode 字符（全角｀、抑音符ˋ、
  * 智能引号等），黑名单无法穷举；非 ASCII 包裹字符天然落在白名单外无法混入。
+ * 字符集排除逗号（\x2C）：CQ 码中 URL 与下一段参数以逗号分隔（如 ,file_size=xxx），
+ * 含逗号会把下一段参数吃进 URL 导致图床 400。
+ * 十六进制写法：\x21-\x2B（ASCII 33-43）与 \x2D-\x7E（45-126）。
  * 另外还原 CQ 码转义（& 被序列化为 &amp;），从 CQ 文本复制的链接同样可修复
  * @param {string} raw - 原始 URL 字符串
  * @returns {string} 清理后的 URL，无法提取时返回 trim 结果
@@ -130,7 +133,7 @@ export function cleanImageUrl(raw) {
     let text = String(raw || '');
     // 还原 CQ 码实体转义：&amp; → &
     text = text.replace(/&amp;/gi, '&');
-    const match = text.match(/https?:\/\/[!-~]+/i);
+    const match = text.match(/https?:\/\/[\x21-\x2B\x2D-\x7E]+/i);
     if (match) {
         return match[0].replace(/[`'"<>,;)]+$/g, '');
     }

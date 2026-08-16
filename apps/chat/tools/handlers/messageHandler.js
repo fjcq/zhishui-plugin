@@ -370,7 +370,7 @@ async function parseTextWithMarkers(text, segment, adapter) {
 }
 
 /** QQ 图床域名：链接带时效性 rkey 且常被反引号包裹，本地转 base64 发送更可靠 */
-const QQ_IMAGE_HOSTS = ['gchat.qpic.cn', 'multimedia.nt.qq.com', 'grouptalk.c2c.qq.com'];
+const QQ_IMAGE_HOSTS = ['gchat.qpic.cn', 'multimedia.nt.qq.com.cn', 'multimedia.nt.qq.com', 'grouptalk.c2c.qq.com'];
 
 /**
  * 判断是否为 QQ 图床链接
