@@ -4,6 +4,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import request from '../../../../lib/request/request.js';
 import { Config, logger } from '../../../../components/index.js';
 import { validateRequestParams, checkJsonFormatSupport } from '../../parsers.js';
 import { ApiTypes, isToolCallingSupported } from '../../api-types.js';
@@ -220,9 +221,77 @@ export async function fetchImageViaOneBot(fileId, e) {
     }
 }
 
+/** 网络图片下载大小上限（20MB），与本地图片读取上限一致 */
+const MAX_NETWORK_IMAGE_BYTES = 20 * 1024 * 1024;
+
+/**
+ * 经项目 request 模块下载任意网络图片（自动遵循 proxy.yaml 代理配置）
+ * 用于识别网络图片链接的场景：国外图床等直连失败的地址可经代理拉取；
+ * 优先从 Content-Type 判定 MIME（网络图片 URL 常无扩展名），
+ * 非 image/* 内容（如误传的 HTML 页面）直接拦截，避免发给视觉模型报错
+ * @param {string} imgUrl - 图片直链
+ * @returns {Promise<{base64: string, mime: string}>} 下载结果
+ */
+export async function downloadNetworkImageAsBase64(imgUrl) {
+    const res = await request.get(imgUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8'
+        },
+        closeCheckStatus: false,
+        outErrorLog: false
+    });
+
+    if (!res || typeof res.status !== 'number') {
+        throw new Error('网络图片响应异常');
+    }
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const contentType = String(res.headers?.get?.('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (contentType && !contentType.startsWith('image/')) {
+        throw new Error(`链接内容不是图片(${contentType})`);
+    }
+
+    const buffer = await res.buffer();
+    if (!buffer || buffer.length === 0) {
+        throw new Error('图片内容为空');
+    }
+    if (buffer.length > MAX_NETWORK_IMAGE_BYTES) {
+        throw new Error(`图片过大(${Math.round(buffer.length / 1048576)}MB，上限20MB)`);
+    }
+
+    let mime = contentType.startsWith('image/') ? contentType : '';
+    if (!mime) {
+        // Content-Type 缺失时按扩展名回退
+        if (/\.png(\?|$)/i.test(imgUrl)) mime = 'image/png';
+        else if (/\.webp(\?|$)/i.test(imgUrl)) mime = 'image/webp';
+        else if (/\.gif(\?|$)/i.test(imgUrl)) mime = 'image/gif';
+        else mime = 'image/jpeg';
+    }
+    return { base64: buffer.toString('base64'), mime };
+}
+
+/**
+ * 判断是否为 QQ 图床链接
+ * QQ 图链直连腾讯 CDN 最快且无需代理，仅在直链失败时跳过代理通道直接走 get_image
+ * @param {string} url - 图片URL
+ * @returns {boolean} 是否QQ图床链接
+ */
+function isQqImageLink(url) {
+    try {
+        const host = new URL(url).hostname.toLowerCase();
+        return host.endsWith('.qpic.cn') || host.endsWith('.qq.com');
+    } catch {
+        return false;
+    }
+}
+
 /**
  * 三级策略获取图片 base64（用户消息图片/工具结果图片/AI发图的统一入口）
  * 策略：① URL 直链下载（适合普通网络图片与刚收到的新鲜 QQ 图）
+ *      ①+ 非QQ图床直链失败时经 request 模块代理下载重试（国外图床等需代理场景）
  *      ② get_image 返回的本地缓存文件直接读取（QQ 图链 rkey 分钟级过期后唯一可靠途径）
  *      ③ get_image 签发的新鲜 URL 下载（NapCat 远程部署无本地文件时兜底）
  * @param {object} options - 参数对象
@@ -241,6 +310,17 @@ export async function downloadImageSmart({ url, fileId, e, source = '多模态' 
             return await downloadImageAsBase64(cleanUrl);
         } catch (err) {
             logger.debug(`[${source}] 直链下载失败(${err.message})，尝试get_image...`);
+        }
+
+        // ①+ 非QQ图床的网络图片：经代理通道重试（QQ图链过期走代理无意义，直接进get_image）
+        if (!isQqImageLink(cleanUrl)) {
+            try {
+                const data = await downloadNetworkImageAsBase64(cleanUrl);
+                logger.info(`[${source}] 已经代理通道下载网络图片`);
+                return data;
+            } catch (err) {
+                logger.debug(`[${source}] 代理通道下载失败(${err.message})，尝试get_image...`);
+            }
         }
     }
 

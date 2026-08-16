@@ -68,24 +68,26 @@ export async function handleImageToolCall(toolName, params, e, currentUserId) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleAnalyzeImage(params, e) {
-    const target = String(params.target || '').trim();
+    const rawTarget = String(params.target || '').trim();
     const question = String(params.question || '').trim();
 
-    if (!target) {
+    if (!rawTarget) {
         return { error: true, error_message: '缺少图片地址或文件ID，无法识别' };
     }
 
-    // 判定入参形态：URL（含 http）走 url，其余按文件ID处理
-    const isUrl = /^https?:\/\//i.test(target);
+    // 清理 AI 可能带入的包裹字符（markdown 图片语法、反引号、CQ 参数粘连等），提取纯 URL
+    const cleanedUrl = extractCleanImageUrl(rawTarget);
+
+    // URL（含被包裹后提取成功的）走链接识别；否则按文件ID经 get_image 取图
     const downloaded = await downloadImageSmart({
-        url: isUrl ? target : '',
-        fileId: isUrl ? '' : target,
+        url: cleanedUrl || '',
+        fileId: cleanedUrl ? '' : rawTarget,
         e,
         source: '识图工具'
     });
 
     if (!downloaded) {
-        return { error: true, error_message: '这张图片暂时获取不到，链接可能已过期' };
+        return { error: true, error_message: '这张图片暂时获取不到，链接可能已失效或不是有效的图片地址' };
     }
 
     const result = await analyzeImage({
