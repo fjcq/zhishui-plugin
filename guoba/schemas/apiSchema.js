@@ -2,7 +2,7 @@
  * API设置Schema
  */
 
-import { getApiTypeSelectOptions, getApiOptions } from '../utils/schemaUtils.js';
+import { getApiTypeSelectOptions, getApiOptions, getVisionApiOptions } from '../utils/schemaUtils.js';
 
 /**
  * 获取API设置Schema
@@ -88,6 +88,17 @@ export function getApiSchemas() {
             componentProps: {
                 options: getApiOptions(),
                 placeholder: '请先添加API配置'
+            }
+        },
+        {
+            field: 'chat.VisionApiIndex',
+            label: '图片识别视觉模型',
+            helpMessage: '图片识别使用的API（对应API列表顺序）。主对话模型无视觉能力时，图片会交给它识别；选"自动选择"则按列表顺序使用第一个带视觉能力的已配置模型',
+            bottomHelpMessage: '未指定时自动选择第一个已配置的视觉模型',
+            component: 'Select',
+            componentProps: {
+                options: getVisionApiOptions(),
+                placeholder: '自动选择'
             }
         }
     ];

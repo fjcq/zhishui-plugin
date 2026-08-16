@@ -1,7 +1,7 @@
 /**
- * 生图工具定义
- * 定义 AI 可调用的 AI 图片生成相关工具
- * 支持通义万相（阿里云）、DALL-E（OpenAI）、文心一格（百度）三种服务商
+ * 生图与识图工具定义
+ * generate_image：AI 图片生成（通义万相/DALL-E/文心一格）
+ * analyze_image：AI 图片识别（委托视觉模型，可在 chat.yaml 的 VisionApiIndex 指定，-1 自动选择）
  */
 
 export const imageTools = [
@@ -52,6 +52,46 @@ export const imageTools = [
                     }
                 },
                 required: ["prompt"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "analyze_image",
+            description: `识别一张图片的内容，返回详细的文字描述。系统会自动使用专门的视觉模型进行识别。
+
+【什么时候用】
+- 你自己无法直接查看图片，但需要了解某张图片的内容
+- 用户询问图片里是什么、图上写了什么字
+- 需要识别聊天记录、历史消息中提到的图片（先用获取聊天记录工具拿到图片链接或文件ID）
+
+【什么时候不用】
+- 你能直接看到用户发来的图片（多模态模式下无需调用）
+- 用户想画图（用生成图片工具）
+- 用户想发送图片（用发送图片工具）
+
+【参数】
+- target：图片的URL或文件ID。可从聊天记录工具的结果中获取
+- question：想了解图片的什么，例如"图中有什么人物"、"图上写了什么文字"。不填则返回通用描述
+
+【使用要点】
+- 识别需要几秒时间，请耐心等待结果
+- 结果是视觉模型给出的文字描述，基于它回答用户，不要说"视觉模型"之类的技术词
+- 失败时用角色口吻告知暂时看不了这张图，建议用户重新发送`,
+            parameters: {
+                type: "object",
+                properties: {
+                    target: {
+                        type: "string",
+                        description: "图片URL或文件ID（file_id）。来自聊天记录结果时优先使用file_id，识别成功率更高"
+                    },
+                    question: {
+                        type: "string",
+                        description: "针对图片的具体问题或关注点，不填则返回通用内容描述"
+                    }
+                },
+                required: ["target"]
             }
         }
     }

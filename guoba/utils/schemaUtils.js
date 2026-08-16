@@ -57,6 +57,20 @@ export function getApiOptions() {
 }
 
 /**
+ * 获取视觉模型选项列表（含"自动选择"项）
+ * @returns {Array} 视觉模型选项
+ */
+export function getVisionApiOptions() {
+    return [
+        { label: '自动选择（第一个已配置的视觉模型）', value: -1 },
+        ...(Config.Chat?.ApiList || []).map((api, idx) => ({
+            label: `${api.ApiModel || '未命名模型'} (${api.ApiType || '未知'} - #${idx})`,
+            value: idx
+        }))
+    ];
+}
+
+/**
  * 获取资源站选项列表
  * @returns {Array} 资源站选项
  */

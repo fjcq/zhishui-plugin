@@ -2,9 +2,11 @@
  * Qwen VL请求构建器
  */
 
-import { buildUserMessageContent, downloadImageAsBase64 } from '../utils/requestUtils.js';
+import { buildUserMessageContent, downloadImageSmart } from '../utils/requestUtils.js';
+import { extractToolResultImages, collectImageFileIds } from './standardBuilder.js';
 import { isToolCallingSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
+import { logger } from '../../../../components/index.js';
 
 /**
  * 构建Qwen VL请求数据
@@ -26,13 +28,21 @@ export async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e
         msgObj = JSON.parse(msg);
         userMsg = msgObj.message || msg;
         if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
-            for (const imgUrl of msgObj.images) {
-                try {
-                    const { base64, mime } = await downloadImageAsBase64(imgUrl);
-                    images.push({ type: 'image_url', image_url: { url: `data:${mime};base64,${base64}` } });
-                } catch (err) {
-                    console.error(`[QwenVL] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
-                    failedImages.push({ url: imgUrl, error: err.message });
+            // 按序从事件消息段收集文件ID（数量一致时配对），供 get_image 兑底
+            const fileIds = collectImageFileIds(e);
+            for (let i = 0; i < msgObj.images.length; i++) {
+                // 三级下载：直链 → get_image 本地缓存 → get_image 新链
+                const downloaded = await downloadImageSmart({
+                    url: msgObj.images[i],
+                    fileId: fileIds.length === msgObj.images.length ? fileIds[i] : '',
+                    e,
+                    source: 'QwenVL'
+                });
+                if (downloaded) {
+                    images.push({ type: 'image_url', image_url: { url: `data:${downloaded.mime};base64,${downloaded.base64}` } });
+                } else {
+                    logger.error(`[QwenVL] 图片获取失败（三级策略均失败）: ${msgObj.images[i]}`);
+                    failedImages.push({ url: msgObj.images[i], error: '链接过期且本地缓存不可用' });
                 }
             }
         }
@@ -107,6 +117,13 @@ export async function buildQwenVLRequest(aiModel, systemMessage, chatMsg, msg, e
 
     if (!isToolFollowUp) {
         messages.push(userMessage);
+    } else {
+        // 工具跟进轮：注入工具结果携带的图片（如聊天记录中的历史图片），
+        // 与 standardBuilder 对齐，避免模型只能看到 [图片: url] 占位文本而误判自己无视觉能力
+        const toolImages = await extractToolResultImages(lastMsg, e);
+        if (toolImages.length > 0) {
+            messages.push({ role: 'user', content: toolImages });
+        }
     }
 
     let requestData = {

@@ -2,8 +2,9 @@
  * Gemini请求构建器
  */
 
-import { buildUserMessageContent, downloadImageAsBase64 } from '../utils/requestUtils.js';
+import { buildUserMessageContent, downloadImageSmart } from '../utils/requestUtils.js';
 import { checkJsonFormatSupport } from '../../parsers/index.js';
+import { logger } from '../../../../components/index.js';
 
 /**
  * 构建Gemini请求数据
@@ -48,12 +49,13 @@ export async function buildGeminiRequest(aiModel, apiUrl, systemMessage, chatMsg
 
         if (Array.isArray(msgObj.images) && msgObj.images.length > 0) {
             for (const imgUrl of msgObj.images) {
-                try {
-                    const { base64, mime } = await downloadImageAsBase64(imgUrl);
-                    parts.push({ inline_data: { data: base64, mime_type: mime } });
-                } catch (err) {
-                    console.error(`[Gemini] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
-                    failedImages.push({ url: imgUrl, error: err.message });
+                // 三级下载：直链 → get_image 本地缓存 → get_image 新链
+                const downloaded = await downloadImageSmart({ url: imgUrl, e, source: 'Gemini' });
+                if (downloaded) {
+                    parts.push({ inline_data: { data: downloaded.base64, mime_type: downloaded.mime } });
+                } else {
+                    logger.error(`[Gemini] 图片获取失败（三级策略均失败）: ${imgUrl}`);
+                    failedImages.push({ url: imgUrl, error: '链接过期且本地缓存不可用' });
                 }
             }
         }

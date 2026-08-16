@@ -5,10 +5,11 @@
 import { getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64, downloadImageSmart, extractCleanImageUrl } from '../utils/requestUtils.js';
 import { isToolCallingSupported, isFeatureSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
+import { analyzeImage } from '../visionAgent.js';
 import { logger } from '../../../../components/index.js';
 
 // 版本标记：启动/重载时输出一次，用于确认进程加载的是当前磁盘代码
-logger.info('[多模态] standardBuilder v8 图片链路已加载（三级下载：直链/get_image本地缓存/get_image新链）');
+logger.info('[多模态] standardBuilder v9 图片链路已加载（三级下载 + 无视觉模型走视觉代理）');
 
 /**
  * 验证并清理消息数组
@@ -136,6 +137,12 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
         if (toolImages.length > 0) {
             messages.push({ role: 'user', content: toolImages });
         }
+    } else {
+        // 工具跟进轮且主模型无视觉能力：视觉代理把工具结果中的图片转文字描述
+        const agentText = await describeToolResultImagesViaAgent(lastMsg, e);
+        if (agentText) {
+            messages.push({ role: 'user', content: agentText });
+        }
     }
 
     messages = validateAndSanitizeMessages(messages);
@@ -243,12 +250,7 @@ async function extractMessageWithImages(msg, e, apiType) {
         fullUserMsg = userMsg;
     }
 
-    const supportsMultimodal = isFeatureSupported(apiType, 'multimodal');
-    if (!supportsMultimodal) {
-        return { fullUserMsg, images: [] };
-    }
-
-    // 图片来源合并：事件消息段（主源，含文件ID）+ 预处理 JSON 中的图片（回退源）
+    // 图片来源合并（收集逻辑前置，供多模态注入与视觉代理共用）：事件消息段（主源，含文件ID）+ 预处理 JSON 中的图片（回退源）
     const msgFileIds = collectImageFileIds(e);
     const imageEntries = [];
 
@@ -278,6 +280,16 @@ async function extractMessageWithImages(msg, e, apiType) {
                 imageEntries.push({ url: clean, fileId: '', idx: -1 });
             }
         }
+    }
+
+    const supportsMultimodal = isFeatureSupported(apiType, 'multimodal');
+    if (!supportsMultimodal) {
+        // 主模型无视觉能力：视觉代理把图片转文字描述注入，避免模型"看不到图"
+        const agentText = await describeImagesViaVisionAgent(imageEntries, e);
+        if (agentText) {
+            return { fullUserMsg: `${fullUserMsg}\n${agentText}`, images: [] };
+        }
+        return { fullUserMsg, images: [] };
     }
 
     if (imageEntries.length > 0) {
@@ -368,7 +380,7 @@ function allImageUrlsFallback(msgImages, msgFileIds) {
  * @param {object} e - 事件对象
  * @returns {Array<string>} 文件ID数组，与消息中图片出现顺序对应
  */
-function collectImageFileIds(e) {
+export function collectImageFileIds(e) {
     const fileIds = [];
     const segments = Array.isArray(e?.message) ? e.message : [];
     for (const seg of segments) {
@@ -382,6 +394,97 @@ function collectImageFileIds(e) {
     return fileIds;
 }
 
+/** 视觉代理单轮识别图片上限，防止耗时与 token 失控 */
+const MAX_AGENT_IMAGES = 3;
+
+/**
+ * 视觉代理识别核心：逐张三级下载后调视觉模型识别
+ * @param {Array<{url: string, fileId: string}>} imageEntries - 图片条目数组
+ * @param {object} [e] - 事件对象（提供 bot.sendApi 用于 get_image 兑底）
+ * @returns {Promise<string[]>} 识别成功的描述列表
+ */
+async function recognizeImagesCore(imageEntries, e) {
+    const descriptions = [];
+    const candidates = imageEntries.slice(0, MAX_AGENT_IMAGES);
+
+    for (const entry of candidates) {
+        const downloaded = await downloadImageSmart({
+            url: entry.url,
+            fileId: entry.fileId,
+            e,
+            source: '视觉代理'
+        });
+        if (!downloaded) {
+            logger.warn(`[视觉代理] 图片下载失败，跳过识别: ${extractCleanImageUrl(entry.url) || entry.fileId || '未知图片'}`);
+            continue;
+        }
+
+        const result = await analyzeImage({
+            base64: downloaded.base64,
+            mime: downloaded.mime
+        });
+        if (result.success) {
+            descriptions.push(result.description);
+        } else {
+            logger.warn(`[视觉代理] 图片识别失败: ${result.error}`);
+        }
+    }
+
+    return descriptions;
+}
+
+/**
+ * 视觉代理：主对话模型无视觉能力时，将用户消息中的图片交由视觉模型转文字描述
+ * 全部失败时返回空字符串（保持无视觉时的原行为）
+ * @param {Array<{url: string, fileId: string}>} imageEntries - 图片条目数组
+ * @param {object} [e] - 事件对象
+ * @returns {Promise<string>} 注入用文字描述，无内容时返回空字符串
+ */
+async function describeImagesViaVisionAgent(imageEntries, e) {
+    if (!Array.isArray(imageEntries) || imageEntries.length === 0) {
+        return '';
+    }
+
+    const descriptions = await recognizeImagesCore(imageEntries, e);
+    if (descriptions.length === 0) {
+        return '';
+    }
+    return `【图片识别结果】用户发送了 ${imageEntries.length} 张图片（识别 ${descriptions.length} 张），以下内容由视觉模型识别提供：\n${descriptions.map((d, i) => `【图片${i + 1}内容】${d}`).join('\n')}`;
+}
+
+/**
+ * 视觉代理：工具跟进轮（主模型无视觉能力）把工具结果携带的图片转文字描述
+ * @param {object} toolMsg - tool 角色消息对象
+ * @param {object} [e] - 事件对象
+ * @returns {Promise<string>} 注入用文字描述，无内容时返回空字符串
+ */
+async function describeToolResultImagesViaAgent(toolMsg, e) {
+    if (!toolMsg || typeof toolMsg.content !== 'string') {
+        return '';
+    }
+
+    let result;
+    try {
+        result = JSON.parse(toolMsg.content);
+    } catch {
+        return '';
+    }
+    if (!result || !Array.isArray(result.images) || result.images.length === 0) {
+        return '';
+    }
+
+    const imageEntries = result.images.map(item => ({
+        url: typeof item === 'string' ? item : String(item?.url || ''),
+        fileId: typeof item === 'object' ? String(item.file_id || item.file || '') : ''
+    }));
+
+    const descriptions = await recognizeImagesCore(imageEntries, e);
+    if (descriptions.length === 0) {
+        return '';
+    }
+    return `【补充说明】上述工具结果中提到的图片，经视觉模型识别内容如下（按出现顺序）：\n${descriptions.map((d, i) => `【图片${i + 1}内容】${d}`).join('\n')}`;
+}
+
 /**
  * 从工具结果消息中提取图片并构建多模态内容
  * 工具（如 get_recent_messages）在结果 JSON 中携带 images 数组时，
@@ -392,7 +495,7 @@ function collectImageFileIds(e) {
  * @param {object} [e] - 事件对象（提供 bot.sendApi 用于 get_image 兑底）
  * @returns {Promise<Array>} multimodal content 数组，无图片或全部失败时返回空数组
  */
-async function extractToolResultImages(toolMsg, e) {
+export async function extractToolResultImages(toolMsg, e) {
     if (!toolMsg || typeof toolMsg.content !== 'string') {
         return [];
     }

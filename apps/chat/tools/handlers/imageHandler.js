@@ -9,11 +9,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import request from '../../../../lib/request/request.js';
 import { getSegment } from './shared/utils.js';
+import { downloadImageSmart, extractCleanImageUrl } from '../../api/utils/requestUtils.js';
+import { analyzeImage } from '../../api/visionAgent.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 
-/** 生图工具名称列表 */
-export const IMAGE_TOOLS = ['generate_image'];
+/** 生图与识图工具名称列表 */
+export const IMAGE_TOOLS = ['generate_image', 'analyze_image'];
 
 /** 频率限制记录：用户ID -> 上次调用时间戳 */
 const rateLimitMap = new Map();
@@ -44,13 +46,60 @@ export async function handleImageToolCall(toolName, params, e, currentUserId) {
         switch (toolName) {
             case 'generate_image':
                 return await handleGenerateImage(params, e, currentUserId);
+            case 'analyze_image':
+                return await handleAnalyzeImage(params, e);
             default:
                 return { error: true, error_message: '未知操作' };
         }
     } catch (error) {
-        logger.error(`[生图工具] ${toolName} 执行失败: ${error.message}`);
-        return { error: true, error_message: '暂时画不出来，请稍后再试' };
+        logger.error(`[图片工具] ${toolName} 执行失败: ${error.message}`);
+        return { error: true, error_message: '暂时处理不了，请稍后再试' };
     }
+}
+
+/**
+ * 处理识别图片
+ * 经 downloadImageSmart 三级策略（直链/get_image本地缓存/get_image新链）取图，
+ * 再委托视觉模型识别（视觉模型由 VisionApiIndex 指定，-1 时自动选择）
+ * @param {object} params - 工具参数
+ * @param {string} params.target - 图片URL或文件ID
+ * @param {string} [params.question] - 针对图片的具体问题
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleAnalyzeImage(params, e) {
+    const target = String(params.target || '').trim();
+    const question = String(params.question || '').trim();
+
+    if (!target) {
+        return { error: true, error_message: '缺少图片地址或文件ID，无法识别' };
+    }
+
+    // 判定入参形态：URL（含 http）走 url，其余按文件ID处理
+    const isUrl = /^https?:\/\//i.test(target);
+    const downloaded = await downloadImageSmart({
+        url: isUrl ? target : '',
+        fileId: isUrl ? '' : target,
+        e,
+        source: '识图工具'
+    });
+
+    if (!downloaded) {
+        return { error: true, error_message: '这张图片暂时获取不到，链接可能已过期' };
+    }
+
+    const result = await analyzeImage({
+        base64: downloaded.base64,
+        mime: downloaded.mime,
+        prompt: question || undefined
+    });
+
+    if (!result.success) {
+        return { error: true, error_message: '图片识别暂时不可用，请稍后再试' };
+    }
+
+    logger.info('[识图工具] analyze_image 识别成功');
+    return { success: true, description: result.description };
 }
 
 /**

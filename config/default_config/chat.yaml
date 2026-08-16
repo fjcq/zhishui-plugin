@@ -59,6 +59,11 @@ ApiList:
 # 全局默认API索引（对应ApiList的下标）
 CurrentApiIndex: 0
 
+# 视觉模型API索引（对应ApiList的下标）
+#   -1: 自动选择第一个已配置且带视觉能力的模型（按 ApiList 顺序扫描）
+#   >=0: 强制指定视觉模型，用于图片识别（主对话模型无视觉能力时，图片交给它识别）
+VisionApiIndex: -1
+
 # 对话历史最大长度
 MaxHistory: 50
 
