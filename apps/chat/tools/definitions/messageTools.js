@@ -81,16 +81,22 @@ export const messageTools = [
 
 【参数】
 - url：图片地址，可以是网址、本地路径或 base64 数据
+- file_id：图片文件ID（可选，来自 get_recent_messages 结果中的 images[].file_id），重新发送历史图片时优先用它，链接过期也能通过协议端缓存换取
 - caption：图片说明文字（可选）
 
 【提示】
-- 如果还要带文字、@ 等其他内容，用 send_message 更合适`,
+- 如果还要带文字、@ 等其他内容，用 send_message 更合适
+- 重发 QQ 聊天中的历史图片时，最好同时带上 url 和 file_id`,
             parameters: {
                 type: "object",
                 properties: {
                     url: {
                         type: "string",
                         description: "图片URL、本地路径或base64数据"
+                    },
+                    file_id: {
+                        type: "string",
+                        description: "图片文件ID（可选，来自 get_recent_messages 结果中的 images[].file_id），适合重新发送历史图片"
                     },
                     caption: {
                         type: "string",
@@ -250,6 +256,38 @@ export const messageTools = [
                     user_id: {
                         type: "string",
                         description: "用户ID（可选，不传则返回当前用户信息）"
+                    }
+                },
+                required: []
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_recent_messages",
+            description: `获取当前会话最近的聊天记录，看看在你加入对话前大家聊了什么。
+
+【什么时候用】
+- 用户提到"刚才说的""之前聊的"内容，而你不知道时
+- 想了解当前话题的来龙去脉再回复
+- 群里话题接不上、需要上下文时
+
+【什么时候不用】
+- 当前消息本身已经说清楚了
+- 用户在私聊里只是简单打招呼
+
+【参数】
+- count：获取最近多少条，默认10条，最多30条
+
+【结果说明】
+按时间从早到晚返回每条消息的发送者、时间和内容，非文本消息会标注类型（如[图片]、[语音]）。`,
+            parameters: {
+                type: "object",
+                properties: {
+                    count: {
+                        type: "integer",
+                        description: "获取最近多少条消息，默认10条，最多30条"
                     }
                 },
                 required: []

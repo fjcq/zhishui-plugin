@@ -2,7 +2,9 @@
  * 请求构建工具函数
  */
 
-import { Config } from '../../../../components/index.js';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { Config, logger } from '../../../../components/index.js';
 import { validateRequestParams, checkJsonFormatSupport } from '../../parsers.js';
 import { ApiTypes, isToolCallingSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
@@ -133,7 +135,12 @@ export function addJsonFormatConfig(requestData, apiType, aiModel) {
  * @returns {Promise<Object>} 包含 base64 和 mime 的对象
  */
 export async function downloadImageAsBase64(imgUrl) {
-    const res = await fetch(imgUrl);
+    // QQ 图链等 CDN 会拒绝无浏览器 UA 的请求，携带标准 UA 提高下载成功率
+    const res = await fetch(imgUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+        }
+    });
     if (!res.ok) {
         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
@@ -144,4 +151,120 @@ export async function downloadImageAsBase64(imgUrl) {
     if (imgUrl.endsWith('.webp')) mime = 'image/webp';
     if (imgUrl.endsWith('.gif')) mime = 'image/gif';
     return { base64, mime };
+}
+
+/** 本地图片文件大小上限（20MB），防止误读超大文件撑爆内存 */
+const MAX_LOCAL_IMAGE_SIZE = 20 * 1024 * 1024;
+
+/**
+ * 白名单提取并清理图片 URL
+ * NapCat/OneBot 链路的 URL 可能被反引号、引号包裹或粘连 CQ 分隔逗号，
+ * URL 主体限定 ASCII 可见字符提取，任何非 ASCII 包裹字符天然无法混入；
+ * 字符集额外排除逗号（ASCII 44），避免 CQ 码粘连时把下一段参数（如 ,file_size=xxx）吃进 URL
+ * @param {string} raw - 原始 URL 字符串
+ * @returns {string} 清理后的 URL，无法提取时返回空字符串
+ */
+export function extractCleanImageUrl(raw) {
+    let text = String(raw || '');
+    // 还原 CQ 码实体转义：&amp; → &
+    text = text.replace(/&amp;/gi, '&');
+    // [!-+--~] 即 ASCII 33-43 与 45-126，跳过逗号(44)
+    const match = text.match(/https?:\/\/[!-+--~]+/i);
+    if (match) {
+        return match[0].replace(/[`'"<>,;)]+$/g, '');
+    }
+    return '';
+}
+
+/**
+ * 读取本地图片文件为 base64
+ * @param {string} filePath - 本地文件绝对路径
+ * @returns {Promise<{base64: string, mime: string}>} 读取结果
+ */
+async function readLocalImageFile(filePath) {
+    if (!filePath || !path.isAbsolute(filePath)) {
+        throw new Error('非本地绝对路径');
+    }
+    const stat = await fs.stat(filePath);
+    if (!stat.isFile()) {
+        throw new Error('路径不是文件');
+    }
+    if (stat.size > MAX_LOCAL_IMAGE_SIZE) {
+        throw new Error(`文件过大: ${stat.size}`);
+    }
+    const buf = await fs.readFile(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif', '.bmp': 'image/bmp' };
+    return { base64: buf.toString('base64'), mime: mimeMap[ext] || 'image/jpeg' };
+}
+
+/**
+ * 经 OneBot get_image 接口查询图片资源
+ * @param {string} fileId - 图片文件ID或文件名
+ * @param {object} [e] - 事件对象（提供 bot.sendApi）
+ * @returns {Promise<{url: string, file: string}|null>} 新鲜链接与本地缓存路径（可能为空），失败返回 null
+ */
+export async function fetchImageViaOneBot(fileId, e) {
+    if (!fileId || typeof e?.bot?.sendApi !== 'function') {
+        return null;
+    }
+    try {
+        const res = await e.bot.sendApi('get_image', { file: fileId });
+        const url = extractCleanImageUrl(res?.url || res?.data?.url || '');
+        const file = String(res?.file || res?.data?.file || '');
+        return { url, file };
+    } catch (err) {
+        logger.debug(`[图片] get_image 查询失败: ${err.message}`);
+        return null;
+    }
+}
+
+/**
+ * 三级策略获取图片 base64（用户消息图片/工具结果图片/AI发图的统一入口）
+ * 策略：① URL 直链下载（适合普通网络图片与刚收到的新鲜 QQ 图）
+ *      ② get_image 返回的本地缓存文件直接读取（QQ 图链 rkey 分钟级过期后唯一可靠途径）
+ *      ③ get_image 签发的新鲜 URL 下载（NapCat 远程部署无本地文件时兜底）
+ * @param {object} options - 参数对象
+ * @param {string} [options.url] - 图片直链（可能被包裹，函数内清理）
+ * @param {string} [options.fileId] - 图片文件ID（QQ 图片建议必传）
+ * @param {object} [options.e] - 事件对象（提供 bot.sendApi）
+ * @param {string} [options.source] - 日志来源标记
+ * @returns {Promise<{base64: string, mime: string}|null>} 成功返回图片数据，全部失败返回 null
+ */
+export async function downloadImageSmart({ url, fileId, e, source = '多模态' } = {}) {
+    const cleanUrl = extractCleanImageUrl(url);
+
+    // ① 直链下载（仅当有链接时；QQ 图链 rkey 新鲜时可行）
+    if (cleanUrl) {
+        try {
+            return await downloadImageAsBase64(cleanUrl);
+        } catch (err) {
+            logger.debug(`[${source}] 直链下载失败(${err.message})，尝试get_image...`);
+        }
+    }
+
+    // ②③ 经 get_image 取本地缓存文件或新鲜链接
+    if (fileId) {
+        const info = await fetchImageViaOneBot(fileId, e);
+        if (info) {
+            if (info.file) {
+                try {
+                    const data = await readLocalImageFile(info.file);
+                    logger.info(`[${source}] 已通过get_image本地缓存读取图片`);
+                    return data;
+                } catch (err) {
+                    logger.debug(`[${source}] 本地缓存读取失败(${err.message})，尝试新链下载...`);
+                }
+            }
+            if (info.url) {
+                try {
+                    return await downloadImageAsBase64(info.url);
+                } catch (err) {
+                    logger.debug(`[${source}] get_image新链下载失败: ${err.message}`);
+                }
+            }
+        }
+    }
+
+    return null;
 }

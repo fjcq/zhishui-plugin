@@ -63,6 +63,7 @@ const TOOL_CATEGORIES = [
             { value: 'set_essence_message', label: '设为精华', desc: '设置精华消息（需Bot是管理员）' },
             { value: 'get_scene_info', label: '获取场景信息', desc: '获取当前对话场景信息' },
             { value: 'get_group_member_info', label: '获取群成员信息', desc: '获取群成员详细信息' },
+            { value: 'get_recent_messages', label: '获取聊天记录', desc: '获取当前会话最近的消息，了解上下文话题' },
             { value: 'get_group_info', label: '获取群组信息', desc: '获取群组详细信息' }
         ]
     },
@@ -95,7 +96,8 @@ const TOOL_CATEGORIES = [
     {
         label: '联网搜索工具',
         tools: [
-            { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' }
+            { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' },
+            { value: 'read_web_page', label: '读取网页', desc: '读取指定网页的正文内容，配合网页搜索使用' }
         ]
     },
     {

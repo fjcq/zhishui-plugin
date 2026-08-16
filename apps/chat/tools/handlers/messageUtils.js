@@ -118,6 +118,26 @@ export class MessageBuilder {
 }
 
 /**
+ * 清理图片 URL 首尾的杂质字符（最终咽喉点，所有图片发送必经）
+ * 采用白名单提取：URL 主体限定 ASCII 可见字符 [!-~]，
+ * NapCat 历史消息 url 可能包裹形似反引号的 Unicode 字符（全角｀、抑音符ˋ、
+ * 智能引号等），黑名单无法穷举；非 ASCII 包裹字符天然落在白名单外无法混入。
+ * 另外还原 CQ 码转义（& 被序列化为 &amp;），从 CQ 文本复制的链接同样可修复
+ * @param {string} raw - 原始 URL 字符串
+ * @returns {string} 清理后的 URL，无法提取时返回 trim 结果
+ */
+export function cleanImageUrl(raw) {
+    let text = String(raw || '');
+    // 还原 CQ 码实体转义：&amp; → &
+    text = text.replace(/&amp;/gi, '&');
+    const match = text.match(/https?:\/\/[!-~]+/i);
+    if (match) {
+        return match[0].replace(/[`'"<>,;)]+$/g, '');
+    }
+    return text.trim().replace(/^[\s`'"，。]+|[\s`'"，。]+$/g, '');
+}
+
+/**
  * 消息验证器
  */
 export class MessageValidator {
@@ -300,9 +320,18 @@ export class MessageSender {
                     break;
 
                 case MessageType.IMAGE:
-                    formattedSegments.push(segment.image(seg.data.url));
-                    if (seg.data.caption) {
-                        formattedSegments.push(seg.data.caption);
+                    {
+                        // 最终咽喉点清理：无论上游传入什么形态的 URL，发送前统一白名单提取，
+                        // 防 NapCat 历史消息反引号包裹、AI 从旧上下文复制脏 URL 等所有来源
+                        const rawUrl = String(seg.data.url || '');
+                        const cleanUrl = cleanImageUrl(rawUrl);
+                        if (cleanUrl !== rawUrl) {
+                            logger.info(`[消息工具] 图片URL已清理: ${cleanUrl.substring(0, 60)}${cleanUrl.length > 60 ? '...' : ''}`);
+                        }
+                        formattedSegments.push(segment.image(cleanUrl));
+                        if (seg.data.caption) {
+                            formattedSegments.push(seg.data.caption);
+                        }
                     }
                     break;
 

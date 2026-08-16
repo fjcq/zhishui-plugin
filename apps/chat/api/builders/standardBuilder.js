@@ -2,10 +2,13 @@
  * 标准OpenAI格式请求构建器
  */
 
-import { getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from '../utils/requestUtils.js';
+import { getDefaultParams, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64, downloadImageSmart, extractCleanImageUrl } from '../utils/requestUtils.js';
 import { isToolCallingSupported, isFeatureSupported } from '../../api-types.js';
 import { getEnabledTools } from '../../tools/index.js';
 import { logger } from '../../../../components/index.js';
+
+// 版本标记：启动/重载时输出一次，用于确认进程加载的是当前磁盘代码
+logger.info('[多模态] standardBuilder v8 图片链路已加载（三级下载：直链/get_image本地缓存/get_image新链）');
 
 /**
  * 验证并清理消息数组
@@ -117,7 +120,7 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
 
     if (!isToolFollowUp) {
         const { fullUserMsg, images: extractedImages } = await extractMessageWithImages(msg, e, apiType);
-        
+
         if (extractedImages && extractedImages.length > 0) {
             const multimodalContent = [
                 { type: 'text', text: fullUserMsg },
@@ -126,6 +129,12 @@ export async function buildStandardRequest(aiModel, systemMessage, chatMsg, msg,
             messages.push({ role: 'user', content: multimodalContent });
         } else {
             messages.push({ role: 'user', content: fullUserMsg });
+        }
+    } else if (isFeatureSupported(apiType, 'multimodal')) {
+        // 工具跟进轮：若工具结果携带了图片（如聊天记录中的历史图片），注入视觉内容供模型查看
+        const toolImages = await extractToolResultImages(lastMsg, e);
+        if (toolImages.length > 0) {
+            messages.push({ role: 'user', content: toolImages });
         }
     }
 
@@ -239,33 +248,67 @@ async function extractMessageWithImages(msg, e, apiType) {
         return { fullUserMsg, images: [] };
     }
 
-    const allImageUrls = [...msgImages];
-    if (replyInfo && Array.isArray(replyInfo.images) && replyInfo.images.length > 0) {
-        allImageUrls.push(...replyInfo.images);
+    // 图片来源合并：事件消息段（主源，含文件ID）+ 预处理 JSON 中的图片（回退源）
+    const msgFileIds = collectImageFileIds(e);
+    const imageEntries = [];
+
+    if (msgFileIds.length > 0 || hasImageSegment(e)) {
+        // 主源：直接取事件消息段，fileId 与 url 天然配对，不受预处理序列化污染
+        const segs = Array.isArray(e?.message) ? e.message : [];
+        segs.forEach((seg, idx) => {
+            if (seg?.type === 'image') {
+                const data = seg.data || {};
+                imageEntries.push({
+                    url: String(seg.url || data.url || ''),
+                    fileId: String(seg.file || seg.file_id || data.file || data.file_id || ''),
+                    idx
+                });
+            }
+        });
+    } else {
+        // 回退源：预处理 JSON 的 images 数组（无 fileId 时按序对应事件消息段补齐）
+        allImageUrlsFallback(msgImages, msgFileIds).forEach(entry => imageEntries.push(entry));
     }
-    
-    if (allImageUrls.length > 0) {
+
+    if (replyInfo && Array.isArray(replyInfo.images) && replyInfo.images.length > 0) {
+        // 引用消息中的图片：无事件段对应，仅能尝试 URL 直链
+        for (const imgUrl of replyInfo.images) {
+            const clean = extractCleanImageUrl(imgUrl);
+            if (clean) {
+                imageEntries.push({ url: clean, fileId: '', idx: -1 });
+            }
+        }
+    }
+
+    if (imageEntries.length > 0) {
         const failedImages = [];
-        
-        for (const imgUrl of allImageUrls) {
-            try {
-                const { base64, mime } = await downloadImageAsBase64(imgUrl);
+
+        for (const entry of imageEntries) {
+            // 三级下载：直链 → get_image 本地缓存 → get_image 新链
+            const downloaded = await downloadImageSmart({
+                url: entry.url,
+                fileId: entry.fileId,
+                e,
+                source: '多模态'
+            });
+
+            if (downloaded) {
                 images.push({
                     type: 'image_url',
                     image_url: {
-                        url: `data:${mime};base64,${base64}`
+                        url: `data:${downloaded.mime};base64,${downloaded.base64}`
                     }
                 });
-                logger.info(`[多模态] 图片下载成功: ${imgUrl.substring(0, 50)}...`);
-            } catch (err) {
-                logger.error(`[多模态] 图片下载失败: ${imgUrl}, 错误: ${err.message}`);
-                failedImages.push({ url: imgUrl, error: err.message });
+            } else {
+                const shownUrl = extractCleanImageUrl(entry.url) || entry.fileId || '未知图片';
+                logger.error(`[多模态] 图片获取失败（三级策略均失败）: ${shownUrl}`);
+                failedImages.push({ url: shownUrl, error: '链接过期且本地缓存不可用' });
             }
         }
 
         if (failedImages.length > 0 && typeof e?.reply === 'function') {
             const failedCount = failedImages.length;
-            const totalCount = allImageUrls.length;
+            const totalCount = imageEntries.length;
             const successCount = totalCount - failedCount;
             
             let errorMsg = `【图片处理提示】`;
@@ -282,4 +325,116 @@ async function extractMessageWithImages(msg, e, apiType) {
     }
 
     return { fullUserMsg, images };
+}
+
+/** 工具结果单次注入图片的最大数量，防止 token 消耗失控 */
+const MAX_TOOL_RESULT_IMAGES = 3;
+
+/**
+ * 判断事件消息段中是否含有图片段
+ * @param {object} e - 事件对象
+ * @returns {boolean} 是否含图片段
+ */
+function hasImageSegment(e) {
+    const segments = Array.isArray(e?.message) ? e.message : [];
+    return segments.some(seg => seg?.type === 'image');
+}
+
+/**
+ * 预处理 JSON 图片数组的回退组装
+ * 事件消息段无图片时使用；按序号对应事件消息段的文件ID（数量一致时才配对）
+ * @param {Array<string>} msgImages - 预处理图片URL数组
+ * @param {Array<string>} msgFileIds - 事件消息段文件ID数组
+ * @returns {Array<{url: string, fileId: string, idx: number}>} 图片条目数组
+ */
+function allImageUrlsFallback(msgImages, msgFileIds) {
+    const entries = [];
+    for (let i = 0; i < msgImages.length; i++) {
+        const clean = extractCleanImageUrl(msgImages[i]);
+        if (!clean) {
+            continue;
+        }
+        // 仅在数量一致时按序配对，避免错位兑底
+        const fileId = msgFileIds.length === msgImages.length ? msgFileIds[i] : '';
+        entries.push({ url: clean, fileId, idx: i });
+    }
+    return entries;
+}
+
+/**
+ * 从事件消息段中按顺序收集图片文件ID
+ * OneBot 格式（e.message 数组的 image 段 data.file）与 icqq 格式（seg.file）兼容，
+ * 用于直链下载失败时经 get_image 兑底
+ * @param {object} e - 事件对象
+ * @returns {Array<string>} 文件ID数组，与消息中图片出现顺序对应
+ */
+function collectImageFileIds(e) {
+    const fileIds = [];
+    const segments = Array.isArray(e?.message) ? e.message : [];
+    for (const seg of segments) {
+        if (!seg || typeof seg !== 'object') {
+            continue;
+        }
+        if (seg.type === 'image') {
+            fileIds.push(String(seg.file || seg.file_id || seg.data?.file || seg.data?.file_id || ''));
+        }
+    }
+    return fileIds;
+}
+
+/**
+ * 从工具结果消息中提取图片并构建多模态内容
+ * 工具（如 get_recent_messages）在结果 JSON 中携带 images 数组时，
+ * 下载图片转为 base64，与说明文本组装成 multimodal content 供模型查看。
+ * 历史图片 URL 的 rkey 可能已过期，下载失败时经 OneBot get_image 接口
+ * 用文件ID换取新鲜链接重试
+ * @param {object} toolMsg - tool 角色消息对象
+ * @param {object} [e] - 事件对象（提供 bot.sendApi 用于 get_image 兑底）
+ * @returns {Promise<Array>} multimodal content 数组，无图片或全部失败时返回空数组
+ */
+async function extractToolResultImages(toolMsg, e) {
+    if (!toolMsg || typeof toolMsg.content !== 'string') {
+        return [];
+    }
+
+    let result;
+    try {
+        result = JSON.parse(toolMsg.content);
+    } catch {
+        return [];
+    }
+
+    if (!result || !Array.isArray(result.images) || result.images.length === 0) {
+        return [];
+    }
+
+    const content = [{
+        type: 'text',
+        text: '【补充说明】以下是上述工具结果中提到的图片内容，按出现顺序排列，可直接用于理解与回复。'
+    }];
+
+    const candidates = result.images.slice(0, MAX_TOOL_RESULT_IMAGES);
+    for (const item of candidates) {
+        const url = extractCleanImageUrl(typeof item === 'string' ? item : item?.url || '');
+        const fileId = typeof item === 'object' ? String(item.file_id || item.file || '') : '';
+
+        if (!url && !fileId) {
+            continue;
+        }
+
+        // 三级下载：直链 → get_image 本地缓存 → get_image 新链
+        const downloaded = await downloadImageSmart({ url, fileId, e, source: '多模态' });
+
+        if (downloaded) {
+            content.push({
+                type: 'image_url',
+                image_url: { url: `data:${downloaded.mime};base64,${downloaded.base64}` }
+            });
+        } else {
+            logger.warn(`[多模态] 工具结果图片获取失败（三级策略均失败）: ${url || fileId}`);
+        }
+    }
+
+    // 仅文本说明而无图片时无注入价值
+    return content.length > 1 ? content : [];
 }

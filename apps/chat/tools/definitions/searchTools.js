@@ -43,5 +43,37 @@ export const searchTools = [
                 required: ["query"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_web_page",
+            description: `读取一个网页的正文内容，看看链接里到底写了什么。
+
+【什么时候用】
+- web_search 搜到的结果摘要不够、需要看原文细节时
+- 用户发来链接让你看看里面的内容
+- 需要网页中的具体数据、步骤、列表等正文信息
+
+【什么时候不用】
+- 音乐、影视相关内容（用对应工具）
+- 只是确认某个链接能不能打开
+
+【参数】
+- url：网页链接，必须以 http:// 或 https:// 开头
+
+【结果说明】
+返回网页标题和正文文本，内容过长会自动截断。看完后用自己的话告诉用户重点，不要大段照搬原文。`,
+            parameters: {
+                type: "object",
+                properties: {
+                    url: {
+                        type: "string",
+                        description: "要读取的网页链接，必须以 http:// 或 https:// 开头"
+                    }
+                },
+                required: ["url"]
+            }
+        }
     }
 ];
