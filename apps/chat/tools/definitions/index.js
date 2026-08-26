@@ -124,6 +124,51 @@ const TOOL_CATEGORY_FIELDS = [
     'image_tools'
 ];
 
+/** 搜剧相关工具名，需要注入资源站索引映射描述 */
+const VIDEO_TOOL_NAMES = ['search_videos', 'get_video_episodes', 'get_video_play_url'];
+
+/**
+ * 生成搜剧资源站索引映射文本
+ * 从运行时配置读取站点列表，拼接为 "0:量子资源, 1:非凡资源, ..."，供 AI 正确选择站点
+ * @returns {string} 站点索引映射文本，资源站未配置时返回空字符串
+ */
+function buildSiteIndexMapText() {
+    try {
+        const resources = Config.SearchVideos?.resources;
+        if (!Array.isArray(resources) || resources.length === 0) {
+            return '';
+        }
+        return resources
+            .map((resource, index) => {
+                const site = resource?.site || resource || {};
+                return `${index}:${site.title || '未命名'}`;
+            })
+            .join(', ');
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * 为搜剧工具副本注入资源站索引映射描述
+ * 通过深拷贝返回新对象，避免污染共享的 allTools 定义
+ * @param {object} tool - 原始搜剧工具定义
+ * @returns {object} 注入映射后的工具定义副本
+ */
+function enrichVideoToolWithSiteMap(tool) {
+    const siteMap = buildSiteIndexMapText();
+    if (!siteMap) {
+        return tool;
+    }
+    const enriched = JSON.parse(JSON.stringify(tool));
+    const fn = enriched.function;
+    if (fn?.parameters?.properties?.site_index) {
+        const siteIndexDesc = `资源站索引：${siteMap}。不填则使用用户配置的默认资源站`;
+        fn.parameters.properties.site_index.description = siteIndexDesc;
+    }
+    return enriched;
+}
+
 /**
  * 从分类配置中获取所有启用的工具（兼容旧配置格式）
  * @param {object} toolsConfig - 工具配置
@@ -224,7 +269,8 @@ export function getEnabledTools() {
         for (const tool of allTools) {
             const toolName = tool.function?.name;
             if (toolName && enabledToolsList.includes(toolName)) {
-                enabledTools.push(tool);
+                // 搜剧工具注入资源站索引映射，AI 才能正确选择指定站点
+                enabledTools.push(VIDEO_TOOL_NAMES.includes(toolName) ? enrichVideoToolWithSiteMap(tool) : tool);
             }
         }
 

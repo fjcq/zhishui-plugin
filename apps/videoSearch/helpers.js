@@ -1,7 +1,6 @@
 import request from '../../lib/request/request.js';
 import { Config, logger } from '../../components/index.js';
 import { puppeteer } from '../../model/index.js';
-import { safeParse } from './utils.js';
 
 /**
  * 关键词搜索视频
@@ -261,39 +260,6 @@ export async function linkLongToShort(longLink) {
 
     // 返回短链接或在错误情况下返回原链接
     return res?.data?.url || longLink;
-}
-
-/**
- * 获取用户搜索结果，优先使用缓存（当keyword和page与传入参数一致时且SearchResults存在），否则在线搜索
- * @param {number} userId 用户ID
- * @param {string} SearchName 搜索名称
- * @param {number} defaultPage 默认页码
- * @param {string} defaultUrl 默认接口URL
- * @param {string} [from=''] - 指定线路代码，留空返回全部线路
- * @returns {any} SearchResults
- */
-export async function getSearchResultsWithCache(userId, SearchName, defaultPage = 1, defaultUrl = "", from = "") {
-    try {
-        // 获取用户搜索缓存数据
-        const keyword = await Config.GetUserSearchVideos(userId, 'keyword') || '';
-        const page = parseInt(await Config.GetUserSearchVideos(userId, 'page') || '1');
-        const SearchResultsStr = await Config.GetUserSearchVideos(userId, 'SearchResults');
-
-        // 判断缓存的keyword和page是否与传入参数一致，且SearchResults存在
-        if (keyword === SearchName && page === defaultPage && SearchResultsStr) {
-            const cached = safeParse(SearchResultsStr, 'SearchResults');
-            if (cached) {
-                logger.debug("[搜剧] 载入用户搜索缓存");
-                return cached;
-            }
-        }
-    } catch (error) {
-        logger.warn(`[搜剧] 获取用户搜索缓存时出现错误: ${error.message}`);
-    }
-
-    // 在线搜索
-    logger.debug("[搜剧] 调用搜索接口");
-    return await SearchVideo(SearchName, defaultPage, 0, 0, defaultUrl, from);
 }
 
 /**

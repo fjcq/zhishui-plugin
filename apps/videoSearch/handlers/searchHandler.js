@@ -4,7 +4,7 @@
 
 import { Config } from '../../../components/index.js';
 import { extractSearchKeyword } from '../utils.js';
-import { getSearchResultsWithCache, handleAndDisplaySearchResults } from '../helpers.js';
+import { SearchVideo, handleAndDisplaySearchResults } from '../helpers.js';
 
 let isSearching = false;
 
@@ -90,7 +90,7 @@ export async function handleSearchVideos(e, getSiteIndexFn) {
         const SearchName = extractSearchKeyword(e.msg);
         e.reply(`正在搜索 [${SearchName || '最新视频'}] ，请稍候…`);
 
-        let SearchResults = await getSearchResultsWithCache(e.user_id, SearchName, 1, apiUrl, from);
+        let SearchResults = await SearchVideo(SearchName, 1, 0, 0, apiUrl, from);
 
         await Config.SetUserSearchVideos(e.user_id, 'keyword', SearchName);
         await Config.SetUserSearchVideos(e.user_id, 'page', 1);
