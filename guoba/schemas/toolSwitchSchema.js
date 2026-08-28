@@ -2,15 +2,18 @@
  * 工具开关设置Schema
  * 用户可以通过锅巴面板控制每个工具的启用状态
  * 支持黑名单/白名单两种管理模式
+ * 注意：ALL_TOOL_NAMES / DEFAULT_DISABLED_TOOLS 被 apps/chat/tools/definitions/index.js
+ * 运行时消费（工具过滤），不可删除或改变结构
  */
 
 /**
  * 工具分类配置
- * 每个分类包含 label（显示名称）和 tools（工具列表）
+ * icon用于锅巴下拉选项视觉分组，desc用于帮助说明
  */
 const TOOL_CATEGORIES = [
     {
-        label: '好感度工具',
+        icon: '❤️',
+        label: '好感度',
         tools: [
             { value: 'change_user_favor', label: '调整好感度', desc: '增减用户好感度' },
             { value: 'get_user_favor', label: '获取好感度', desc: '查询用户好感度数值' },
@@ -22,14 +25,16 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '好友工具',
+        icon: '👥',
+        label: '好友',
         tools: [
             { value: 'get_friend_list', label: '获取好友列表', desc: '获取全部好友列表' },
             { value: 'get_friend_info', label: '查询好友信息', desc: '查询指定好友的详细信息' }
         ]
     },
     {
-        label: '群管理工具',
+        icon: '🛡️',
+        label: '群管理',
         tools: [
             { value: 'get_group_list', label: '获取群列表', desc: '获取加入的全部群列表' },
             { value: 'mute_group_member', label: '禁言成员', desc: '禁言或解禁群成员（需Bot是管理员）' },
@@ -42,7 +47,8 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '音乐工具',
+        icon: '🎵',
+        label: '音乐',
         tools: [
             { value: 'search_music', label: '搜索音乐', desc: '搜索音乐并返回列表' },
             { value: 'play_music', label: '播放音乐', desc: '播放指定音乐' },
@@ -51,7 +57,8 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '消息工具',
+        icon: '📨',
+        label: '消息',
         tools: [
             { value: 'send_message', label: '发送消息', desc: '发送混合消息（文本、@、图片、回复）' },
             { value: 'send_image', label: '发送图片', desc: '发送图片消息' },
@@ -68,14 +75,16 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '互动工具',
+        icon: '👋',
+        label: '互动',
         tools: [
             { value: 'poke_user', label: '戳一戳', desc: '戳一戳用户' },
             { value: 'generate_meme', label: '表情包生成', desc: '使用用户头像生成表情包' }
         ]
     },
     {
-        label: '记忆工具',
+        icon: '🧠',
+        label: '记忆',
         tools: [
             { value: 'remember_user_info', label: '记录用户信息', desc: '记录用户信息到记忆库' },
             { value: 'recall_user_info', label: '获取记忆', desc: '从记忆库获取用户信息' },
@@ -88,20 +97,23 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '输出工具',
+        icon: '💻',
+        label: '输出',
         tools: [
             { value: 'output_code', label: '输出代码', desc: '以结构化方式输出代码示例' }
         ]
     },
     {
-        label: '联网搜索工具',
+        icon: '🌐',
+        label: '联网',
         tools: [
             { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' },
             { value: 'read_web_page', label: '读取网页', desc: '读取指定网页的正文内容，配合网页搜索使用' }
         ]
     },
     {
-        label: '搜剧工具',
+        icon: '🎬',
+        label: '搜剧',
         tools: [
             { value: 'search_videos', label: '搜索影视', desc: '搜索电影、电视剧、动漫、综艺等作品' },
             { value: 'get_video_episodes', label: '获取剧集列表', desc: '获取指定影视作品的线路与剧集列表' },
@@ -109,10 +121,11 @@ const TOOL_CATEGORIES = [
         ]
     },
     {
-        label: '生图工具',
+        icon: '🎨',
+        label: '生图',
         tools: [
             { value: 'generate_image', label: '生成图片', desc: '调用 AI 生图服务按提示词生成图片（需配置 imageGen.yaml 中的 API Key）' },
-            { value: 'analyze_image', label: '识别图片', desc: '调用视觉模型识别图片内容并返回文字描述（需在 ApiList 中配置带视觉能力的模型或设置 VisionApiIndex）' },
+            { value: 'analyze_image', label: '识别图片', desc: '调用视觉模型识别图片内容并返回文字描述（需配置带视觉能力的模型）' },
             { value: 'edit_image', label: '编辑图片', desc: '修改/合成用户图片：换背景、转风格、多图合成（需配置 imageGen.yaml 的 Edit 段 API Key）' }
         ]
     }
@@ -130,26 +143,28 @@ export const DEFAULT_DISABLED_TOOLS = [
 ];
 
 /**
- * 获取所有工具选项（扁平化）
+ * 所有工具名称列表（运行时工具过滤消费）
+ */
+export const ALL_TOOL_NAMES = TOOL_CATEGORIES.flatMap(cat => cat.tools.map(t => t.value));
+
+/**
+ * 获取所有工具选项（扁平化，带分类图标前缀便于下拉框辨识与搜索）
  * @returns {Array} 工具选项数组
  */
 function getAllToolOptions() {
     return TOOL_CATEGORIES.flatMap(cat =>
         cat.tools.map(tool => ({
             value: tool.value,
-            label: `[${cat.label}] ${tool.label}`
+            label: `${cat.icon} ${cat.label} · ${tool.label}`
         }))
     );
 }
 
 /**
  * 获取工具开关设置Schema
- * 支持黑名单/白名单两种管理模式
  * @returns {Array} Schema配置
  */
 export function getToolSwitchSchemas() {
-    const allToolOptions = getAllToolOptions();
-
     return [
         {
             label: '🔧 工具管理',
@@ -158,13 +173,13 @@ export function getToolSwitchSchemas() {
         {
             field: 'tools.EnableToolCalling',
             label: '启用工具调用',
-            bottomHelpMessage: '开启后可以使用工具执行各种操作，关闭后所有工具都将禁用',
+            helpMessage: '开启后AI可以使用工具执行各种操作，关闭后所有工具都将禁用',
             component: 'Switch'
         },
         {
             field: 'tools.ToolManageMode',
             label: '管理模式',
-            bottomHelpMessage: '黑名单：启用所有工具，排除列表中的工具；白名单：只启用列表中的工具',
+            helpMessage: '黑名单：启用所有工具，列表中为要禁用的工具；白名单：只启用列表中的工具',
             component: 'Select',
             componentProps: {
                 options: [
@@ -176,13 +191,14 @@ export function getToolSwitchSchemas() {
         {
             field: 'tools.ToolList',
             label: '工具列表',
-            bottomHelpMessage: '黑名单模式：填写要禁用的工具；白名单模式：填写要启用的工具。支持搜索和多选。',
+            helpMessage: '支持搜索和多选，可按分类名或工具名搜索',
             component: 'Select',
             componentProps: {
                 mode: 'multiple',
                 allowClear: true,
                 showSearch: true,
-                options: allToolOptions,
+                options: getAllToolOptions(),
+                placeholder: '选择工具（可搜索分类或工具名）',
                 filterOption: (input, option) => {
                     const label = option.label || '';
                     return label.toLowerCase().includes(input.toLowerCase());
@@ -191,56 +207,3 @@ export function getToolSwitchSchemas() {
         }
     ];
 }
-
-/**
- * 所有工具名称列表
- */
-export const ALL_TOOL_NAMES = TOOL_CATEGORIES.flatMap(cat => cat.tools.map(t => t.value));
-
-/**
- * 获取默认禁用的工具列表
- * @returns {Array} 默认禁用的工具名称数组
- */
-export function getDefaultDisabledTools() {
-    return [...DEFAULT_DISABLED_TOOLS];
-}
-
-/**
- * 获取默认启用的工具列表（黑名单模式下的默认值）
- * @returns {Array} 默认启用的工具名称数组
- */
-export function getDefaultEnabledTools() {
-    return ALL_TOOL_NAMES.filter(name => !DEFAULT_DISABLED_TOOLS.includes(name));
-}
-
-/**
- * 默认启用的工具（兼容旧格式）
- */
-export const DEFAULT_ENABLED_TOOLS = getDefaultEnabledTools();
-
-/**
- * 获取工具分类配置
- * @returns {Array} 工具分类配置
- */
-export function getToolCategories() {
-    return TOOL_CATEGORIES;
-}
-
-/**
- * 获取默认禁用的工具
- * @returns {Array} 默认禁用的工具名称数组
- */
-export function getDefaultDisabledToolsList() {
-    return DEFAULT_DISABLED_TOOLS;
-}
-
-export default {
-    getToolSwitchSchemas,
-    ALL_TOOL_NAMES,
-    DEFAULT_ENABLED_TOOLS,
-    DEFAULT_DISABLED_TOOLS,
-    getDefaultEnabledTools,
-    getDefaultDisabledTools,
-    getDefaultDisabledToolsList,
-    getToolCategories
-};

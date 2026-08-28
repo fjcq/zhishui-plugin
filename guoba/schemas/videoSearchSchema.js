@@ -1,12 +1,12 @@
 /**
  * 搜剧设置Schema
- * 合并所有搜剧相关设置到一个分组
+ * 防风控设置 + 资源站点 + 群专属配置
  */
 
 import { getResourceOptions } from '../utils/schemaUtils.js';
 
 /**
- * 获取完整的搜剧设置Schema（合并所有设置）
+ * 获取完整的搜剧设置Schema
  * @returns {Array} Schema配置
  */
 export function getVideoSearchSchemas() {
@@ -19,7 +19,6 @@ export function getVideoSearchSchemas() {
             field: 'videoSearch.analysis',
             label: '解析接口',
             helpMessage: '视频解析接口地址，用于解析视频播放链接',
-            bottomHelpMessage: '用于解析视频播放地址的接口',
             component: 'Input',
             componentProps: {
                 placeholder: '请输入解析接口地址'
@@ -29,7 +28,6 @@ export function getVideoSearchSchemas() {
             field: 'videoSearch.player',
             label: '播放器链接',
             helpMessage: '在线播放器的页面地址，视频链接会拼接在此地址后',
-            bottomHelpMessage: '用于在线播放的播放器页面地址',
             component: 'Input',
             componentProps: {
                 placeholder: '请输入播放器链接'
@@ -39,7 +37,6 @@ export function getVideoSearchSchemas() {
             field: 'videoSearch.cfTLSVersion',
             label: 'Cloudflare TLS版本',
             helpMessage: '绕过Cloudflare验证所需的TLS版本，Node.js 18+建议使用TLSv1.2',
-            bottomHelpMessage: '绕过 Cloudflare Challenge 所使用的 TLS 版本',
             component: 'RadioGroup',
             componentProps: {
                 options: [
@@ -49,21 +46,23 @@ export function getVideoSearchSchemas() {
             }
         },
         {
-            field: 'videoSearch.qrCodeLink',
-            label: '播放链接二维码模式',
-            helpMessage: '开启后所有播放链接以二维码图片形式发送，规避链接风控提示。对用户指令与AI工具均生效，依赖 qrcode 模块（未安装时自动回退为文本链接）',
-            bottomHelpMessage: '开启后播放链接以二维码图片形式发送',
-            component: 'Switch'
+            component: 'Divider',
+            label: '播放链接防风控'
         },
         {
             field: 'videoSearch.redirectWorker',
-            label: '中转跳转服务',
-            helpMessage: 'Cloudflare Workers 跳转服务地址（如 https://your-worker.workers.dev），开启后播放链接经 Workers 302 跳转，规避 QQ 风险提示。比二维码模式更可靠，建议优先使用',
-            bottomHelpMessage: '填入 Workers 地址后启用中转跳转，留空则不启用',
+            label: '中转跳转服务（推荐）',
+            helpMessage: 'Cloudflare Workers 跳转服务地址，播放链接经 Workers 302 跳转规避 QQ 风险提示，比二维码模式更可靠',
             component: 'Input',
             componentProps: {
-                placeholder: 'https://your-worker.workers.dev'
+                placeholder: 'https://your-worker.workers.dev（留空不启用）'
             }
+        },
+        {
+            field: 'videoSearch.qrCodeLink',
+            label: '二维码模式',
+            helpMessage: '开启后播放链接以二维码图片形式发送，规避链接风控。依赖 qrcode 模块（未安装自动回退文本链接）',
+            component: 'Switch'
         },
         {
             component: 'Divider',
@@ -73,7 +72,6 @@ export function getVideoSearchSchemas() {
             field: 'videoSearch.resources',
             label: '资源站点列表',
             helpMessage: '配置多个视频资源站点，支持不同来源的视频搜索',
-            bottomHelpMessage: '配置视频资源站点列表',
             component: 'GSubForm',
             componentProps: {
                 multiple: true,
@@ -87,7 +85,7 @@ export function getVideoSearchSchemas() {
                         component: 'Input',
                         required: true,
                         componentProps: {
-                            placeholder: '请输入站点标题'
+                            placeholder: '如: 卧龙资源'
                         }
                     },
                     {
@@ -97,17 +95,16 @@ export function getVideoSearchSchemas() {
                         component: 'Input',
                         required: true,
                         componentProps: {
-                            placeholder: '请输入站点链接'
+                            placeholder: '如: https://example.com/api.php/provide/vod'
                         }
                     },
                     {
                         field: 'from',
                         label: '指定线路代码',
-                        helpMessage: '通过 CMS_V10 的 from 参数过滤线路，仅返回该线路（如 lzm3u8、ffm3u8），留空则返回全部线路',
-                        bottomHelpMessage: '填写 m3u8 线路代码可过滤掉云播/直链等非流媒体线路',
+                        helpMessage: '通过 CMS_V10 的 from 参数过滤线路，仅返回该线路（如 lzm3u8），留空返回全部线路。可过滤掉云播/直链等非流媒体线路',
                         component: 'Input',
                         componentProps: {
-                            placeholder: '如 lzm3u8，留空返回全部线路'
+                            placeholder: '如 lzm3u8，留空返回全部'
                         }
                     },
                     {
@@ -122,8 +119,7 @@ export function getVideoSearchSchemas() {
         {
             field: 'videoSearch.CurrentResourceIndex',
             label: '默认资源站',
-            helpMessage: '设置全局默认使用的资源站点',
-            bottomHelpMessage: '设置全局默认使用的资源站',
+            helpMessage: '全局默认使用的资源站点',
             component: 'Select',
             componentProps: {
                 options: getResourceOptions(),
@@ -131,14 +127,9 @@ export function getVideoSearchSchemas() {
             }
         },
         {
-            component: 'Divider',
-            label: '群专属配置'
-        },
-        {
             field: 'videoSearch.GroupResourceIndex',
             label: '群专属资源站',
             helpMessage: '为特定群设置专属资源站，优先级高于全局默认',
-            bottomHelpMessage: '为不同群设置专属资源站',
             component: 'GSubForm',
             componentProps: {
                 multiple: true,
@@ -168,7 +159,7 @@ export function getVideoSearchSchemas() {
             field: 'userResourceList',
             label: '用户个人资源站',
             helpMessage: '查看已设置个人专属资源站的用户，删除后用户将使用群专属或全局默认',
-            bottomHelpMessage: '查看/删除用户的个人资源站设置',
+            bottomHelpMessage: '点列表项可删除该用户的个人设置',
             component: 'GSubForm',
             componentProps: {
                 multiple: true,
@@ -198,7 +189,3 @@ export function getVideoSearchSchemas() {
         }
     ];
 }
-
-export default {
-    getVideoSearchSchemas
-};

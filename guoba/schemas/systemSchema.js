@@ -1,33 +1,32 @@
 /**
  * 系统设置Schema
- * 整合网络设置、语音设置、权限设置
+ * 聚合网络/语音/音乐API/权限为单一标签页（内部Divider分节），
+ * 避免锅巴顶部标签页碎片化（每个SOFT_GROUP_BEGIN会被渲染为独立标签页）
  */
 
 import { getVoiceSettingSchemas } from './voiceSchema.js';
 import { getMusicApiSchemas } from './musicApiSchema.js';
 
 /**
- * 获取网络设置Schema
+ * 获取网络设置小节（无分组头，由系统设置统一分节）
  * @returns {Array} Schema配置
  */
-export function getNetworkSchemas() {
+function getNetworkSchemas() {
     return [
         {
-            label: '🌐 网络设置',
-            component: 'SOFT_GROUP_BEGIN'
+            component: 'Divider',
+            label: '🌐 网络代理'
         },
         {
             field: 'proxy.switchProxy',
             label: '启用代理',
             helpMessage: '开启后，搜剧和AI对话等网络请求将通过代理服务器发送',
-            bottomHelpMessage: '是否在搜剧和对话中使用代理服务器',
             component: 'Switch'
         },
         {
             field: 'proxy.proxyAddress',
             label: '代理地址',
             helpMessage: '代理服务器地址，支持HTTP/HTTPS/SOCKS5协议',
-            bottomHelpMessage: '代理服务器地址，如 http://127.0.0.1:7890',
             component: 'Input',
             componentProps: {
                 placeholder: 'http://127.0.0.1:7890'
@@ -37,27 +36,25 @@ export function getNetworkSchemas() {
 }
 
 /**
- * 获取权限设置Schema
+ * 获取权限设置小节（无分组头，由系统设置统一分节）
  * @returns {Array} Schema配置
  */
-export function getPermissionSchemas() {
+function getPermissionSchemas() {
     return [
         {
-            label: '🔐 权限设置',
-            component: 'SOFT_GROUP_BEGIN'
+            component: 'Divider',
+            label: '🔐 主人与权限'
         },
         {
             field: 'chat.OnlyMaster',
             label: '仅限主人使用',
             helpMessage: '开启后，AI对话功能仅限主人可用，其他用户无法触发对话',
-            bottomHelpMessage: '开启后，对话功能仅限主人可用',
             component: 'Switch'
         },
         {
             field: 'chat.Master',
             label: '主人名字',
             helpMessage: '在角色扮演对话中，机器人对主人的称呼',
-            bottomHelpMessage: '场景对话中机器人的主人名字',
             component: 'Input',
             componentProps: {
                 placeholder: '请输入主人名字'
@@ -67,7 +64,6 @@ export function getPermissionSchemas() {
             field: 'chat.MasterQQ',
             label: '主人QQ',
             helpMessage: '主人的QQ号码，用于权限验证和角色扮演',
-            bottomHelpMessage: '场景对话中机器人的主人QQ号码',
             component: 'Input',
             componentProps: {
                 placeholder: '请输入主人QQ号'
@@ -78,19 +74,18 @@ export function getPermissionSchemas() {
 
 /**
  * 获取完整的系统设置Schema
+ * 结构：单一标签页 = 网络节 + 语音节 + 音乐API节 + 权限节
  * @returns {Array} Schema配置
  */
 export function getSystemSchemas() {
     return [
+        {
+            label: '⚙️ 系统设置',
+            component: 'SOFT_GROUP_BEGIN'
+        },
         ...getNetworkSchemas(),
         ...getVoiceSettingSchemas(),
         ...getMusicApiSchemas(),
         ...getPermissionSchemas()
     ];
 }
-
-export default {
-    getNetworkSchemas,
-    getPermissionSchemas,
-    getSystemSchemas
-};

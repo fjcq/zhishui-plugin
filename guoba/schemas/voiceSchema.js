@@ -1,6 +1,6 @@
 /**
  * 语音设置Schema
- * 合并到系统设置中
+ * 作为系统设置标签页内的分节（无SOFT_GROUP_BEGIN）
  */
 
 import fs from 'fs';
@@ -10,15 +10,14 @@ const Path = process.cwd();
 const PluginPath = path.join(Path, 'plugins', 'zhishui-plugin');
 
 /**
- * 加载语音列表
- * @returns {Array} 语音列表
+ * 加载DUI平台语音列表
+ * @returns {Array} 语音发音人列表
  */
 function loadVoiceList() {
     try {
         const voicePath = path.join(PluginPath, 'resources', 'data', 'voice', 'original_voice_list.json');
         if (fs.existsSync(voicePath)) {
-            const voiceContent = fs.readFileSync(voicePath, 'utf8');
-            const voiceData = JSON.parse(voiceContent);
+            const voiceData = JSON.parse(fs.readFileSync(voicePath, 'utf8'));
             return Array.isArray(voiceData) ? voiceData : [];
         }
     } catch (err) {
@@ -28,19 +27,18 @@ function loadVoiceList() {
 }
 
 /**
- * 加载腾讯云语音列表
- * @returns {Array} 腾讯云语音列表
+ * 加载腾讯云语音列表（超自然/大模型/精品音色合并）
+ * @returns {Array} 腾讯云音色列表
  */
 function loadTencentVoiceList() {
     try {
         const tencentVoicePath = path.join(PluginPath, 'resources', 'data', 'voice', 'tencent_voice_list.json');
         if (fs.existsSync(tencentVoicePath)) {
-            const tencentVoiceContent = fs.readFileSync(tencentVoicePath, 'utf8');
-            const tencentVoiceData = JSON.parse(tencentVoiceContent);
+            const data = JSON.parse(fs.readFileSync(tencentVoicePath, 'utf8'));
             return [
-                ...(tencentVoiceData.super_natural_models || []),
-                ...(tencentVoiceData.large_models || []),
-                ...(tencentVoiceData.premium_voices || [])
+                ...(data.super_natural_models || []),
+                ...(data.large_models || []),
+                ...(data.premium_voices || [])
             ];
         }
     } catch (err) {
@@ -53,28 +51,19 @@ const VoiceList = loadVoiceList();
 const TencentVoiceList = loadTencentVoiceList();
 
 /**
- * 获取语音设置Schema（已合并到系统设置，返回空数组）
- * @returns {Array} Schema配置
- */
-export function getVoiceSchemas() {
-    return [];
-}
-
-/**
- * 获取完整的语音设置Schema（用于系统设置）
+ * 获取语音设置分节Schema（用于系统设置）
  * @returns {Array} Schema配置
  */
 export function getVoiceSettingSchemas() {
     return [
         {
-            label: '🔊 语音设置',
-            component: 'SOFT_GROUP_BEGIN'
+            component: 'Divider',
+            label: '🔊 语音TTS'
         },
         {
             field: 'voice.VoiceSystem',
             label: '语音系统',
             helpMessage: '选择TTS语音合成系统，关闭则不使用语音功能',
-            bottomHelpMessage: '选择使用的语音系统',
             component: 'RadioGroup',
             componentProps: {
                 options: [
@@ -88,25 +77,19 @@ export function getVoiceSettingSchemas() {
             field: 'voice.VoiceIndex',
             label: 'DUI发音人',
             helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效）',
-            bottomHelpMessage: '选择DUI平台的语音发音人',
             component: 'Select',
             componentProps: {
-                options: VoiceList.length > 0 ? VoiceList.map((element, index) => ({
+                options: VoiceList.map((element, index) => ({
                     label: element.name,
                     value: index
-                })) : [],
+                })),
                 placeholder: '请选择发音人'
             }
-        },
-        {
-            component: 'Divider',
-            label: '腾讯云TTS配置'
         },
         {
             field: 'voice.TencentCloudTTS.Region',
             label: '服务地域',
             helpMessage: '腾讯云TTS服务的地域，选择就近地域可降低延迟',
-            bottomHelpMessage: '腾讯云服务地域',
             component: 'Select',
             componentProps: {
                 options: [
@@ -123,7 +106,6 @@ export function getVoiceSettingSchemas() {
             field: 'voice.TencentCloudTTS.SecretId',
             label: 'SecretId',
             helpMessage: '腾讯云API密钥的SecretId，在腾讯云控制台获取',
-            bottomHelpMessage: '腾讯云API密钥SecretId',
             component: 'Input',
             componentProps: {
                 placeholder: '请输入SecretId'
@@ -133,56 +115,53 @@ export function getVoiceSettingSchemas() {
             field: 'voice.TencentCloudTTS.SecretKey',
             label: 'SecretKey',
             helpMessage: '腾讯云API密钥的SecretKey，在腾讯云控制台获取',
-            bottomHelpMessage: '腾讯云API密钥SecretKey',
-            component: 'Input',
+            component: 'InputPassword',
             componentProps: {
-                type: 'password',
                 placeholder: '请输入SecretKey'
             }
         },
         {
             field: 'voice.TencentCloudTTS.VoiceType',
-            label: '语音类型',
-            helpMessage: '选择语音音色，不同音色有不同的声音特点',
-            bottomHelpMessage: '选择语音音色',
+            label: '语音音色',
+            helpMessage: '选择腾讯云TTS音色，不同音色有不同的声音特点',
             component: 'Select',
             componentProps: {
-                options: TencentVoiceList.length > 0 ? TencentVoiceList.map(voice => ({
+                options: TencentVoiceList.map(voice => ({
                     label: `${voice.name} - ${voice.type}`,
                     value: voice.id
-                })) : [],
-                placeholder: '请选择语音类型'
+                })),
+                placeholder: '请选择语音音色',
+                showSearch: true,
+                filterOption: (input, option) =>
+                    String(option.label || '').toLowerCase().includes(String(input).toLowerCase())
             }
         },
         {
             field: 'voice.TencentCloudTTS.Speed',
             label: '语速',
             helpMessage: '语速调节：-2为0.6倍速，0为正常速度，6为2倍速',
-            bottomHelpMessage: '语速范围：-2(0.6倍) ~ 6(2.0倍)',
             component: 'InputNumber',
             componentProps: {
                 min: -2,
                 max: 6,
-                placeholder: '0'
+                placeholder: '0（正常）'
             }
         },
         {
             field: 'voice.TencentCloudTTS.Volume',
             label: '音量',
             helpMessage: '音量大小调节，0为正常音量',
-            bottomHelpMessage: '音量范围：-10 ~ 10',
             component: 'InputNumber',
             componentProps: {
                 min: -10,
                 max: 10,
-                placeholder: '0'
+                placeholder: '0（正常）'
             }
         },
         {
             field: 'voice.TencentCloudTTS.SampleRate',
             label: '采样率',
             helpMessage: '音频采样率，采样率越高音质越好但文件越大',
-            bottomHelpMessage: '音频采样率',
             component: 'RadioGroup',
             componentProps: {
                 options: [
@@ -196,7 +175,6 @@ export function getVoiceSettingSchemas() {
             field: 'voice.TencentCloudTTS.Codec',
             label: '音频格式',
             helpMessage: '输出音频的编码格式，mp3兼容性最好',
-            bottomHelpMessage: '输出音频格式',
             component: 'RadioGroup',
             componentProps: {
                 options: [
@@ -208,8 +186,3 @@ export function getVoiceSettingSchemas() {
         }
     ];
 }
-
-export default {
-    getVoiceSchemas,
-    getVoiceSettingSchemas
-};

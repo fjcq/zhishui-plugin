@@ -1,5 +1,6 @@
 /**
  * API设置Schema
+ * 模型接口标签页：API配置列表 + 当前/视觉模型选择
  */
 
 import { getApiTypeSelectOptions, getApiOptions, getVisionApiOptions } from '../utils/schemaUtils.js';
@@ -11,14 +12,14 @@ import { getApiTypeSelectOptions, getApiOptions, getVisionApiOptions } from '../
 export function getApiSchemas() {
     return [
         {
-            label: '⚙️ 模型接口',
+            label: '🤖 模型接口',
             component: 'SOFT_GROUP_BEGIN'
         },
         {
             field: 'chat.ApiList',
             label: 'API配置列表',
-            helpMessage: '支持OpenAI、DeepSeek、腾讯混元、智谱AI等多种API，可配置多个API进行切换。每个API需填写类型、地址、密钥、模型名称，建议填写标题便于区分。',
-            bottomHelpMessage: '点击"添加API配置"按钮添加新的API，支持多API切换；卡片列表按标题区分各个API',
+            helpMessage: '可配置多个API进行切换。每个API需填写类型、地址、密钥、模型名称，建议填写标题便于区分',
+            bottomHelpMessage: '点卡片可编辑，按标题区分各个API',
             component: 'GSubForm',
             componentProps: {
                 multiple: true,
@@ -28,7 +29,7 @@ export function getApiSchemas() {
                     {
                         field: 'ApiTitle',
                         label: 'API标题',
-                        helpMessage: '用于区分不同API配置的名称，将显示在配置列表、API切换下拉框和#查看API指令中。留空时自动按API地址识别服务商名（如DeepSeek、硅基流动、本地模型）',
+                        helpMessage: '用于区分不同API配置，显示在列表、切换下拉框和#查看API中。留空时自动按API地址识别服务商名',
                         component: 'Input',
                         componentProps: {
                             placeholder: '如: DeepSeek官方、硅基免费、本地Qwen3'
@@ -37,7 +38,7 @@ export function getApiSchemas() {
                     {
                         field: 'ApiType',
                         label: 'API类型',
-                        helpMessage: '仅决定调用格式（OpenAI兼容/腾讯元器/Gemini），不用于区分服务商。同一类型下区分不同模型请填写API标题',
+                        helpMessage: '决定调用格式：OpenAI兼容格式覆盖绝大多数服务商（DeepSeek/Kimi/智谱/硅基流动等），Claude原生格式与Gemini格式用于对应官方API，腾讯元器用于混元助手',
                         component: 'Select',
                         required: true,
                         componentProps: {
@@ -48,41 +49,40 @@ export function getApiSchemas() {
                     {
                         field: 'ApiUrl',
                         label: 'API地址',
-                        helpMessage: 'API的基础地址，如 https://api.openai.com/v1',
+                        helpMessage: 'API的基础地址，如 https://api.deepseek.com/v1',
                         component: 'Input',
                         required: true,
                         componentProps: {
-                            placeholder: '如: https://api.openai.com/v1'
+                            placeholder: '如: https://api.deepseek.com/v1'
                         }
                     },
                     {
                         field: 'ApiKey',
                         label: 'API密钥',
-                        helpMessage: '您的API密钥，将安全存储不会泄露',
-                        component: 'Input',
+                        helpMessage: '服务商提供的API密钥',
+                        component: 'InputPassword',
                         required: true,
                         componentProps: {
-                            type: 'password',
                             placeholder: 'sk-...'
                         }
                     },
                     {
                         field: 'ApiModel',
                         label: '模型名称',
-                        helpMessage: '要使用的模型名称，如 gpt-4、deepseek-chat 等',
+                        helpMessage: '要使用的模型名称，如 deepseek-chat、gpt-4o、kimi-k2 等',
                         component: 'Input',
                         required: true,
                         componentProps: {
-                            placeholder: '如: gpt-4, deepseek-chat'
+                            placeholder: '如: deepseek-chat, gpt-4o'
                         }
                     },
                     {
                         field: 'TencentAssistantId',
                         label: '腾讯助手ID',
-                        helpMessage: '仅腾讯混元API需要，在腾讯云控制台创建助手后获取',
+                        helpMessage: '仅腾讯元器类型需要，在腾讯云控制台创建助手后获取',
                         component: 'Input',
                         componentProps: {
-                            placeholder: '仅腾讯API需要'
+                            placeholder: '仅腾讯元器类型需要'
                         }
                     }
                 ]
@@ -92,7 +92,6 @@ export function getApiSchemas() {
             field: 'chat.CurrentApiIndex',
             label: '当前使用的API',
             helpMessage: '选择当前激活的API配置，对应上方API列表的顺序',
-            bottomHelpMessage: '选择当前激活的API配置',
             component: 'Select',
             componentProps: {
                 options: getApiOptions(),
@@ -102,8 +101,7 @@ export function getApiSchemas() {
         {
             field: 'chat.VisionApiIndex',
             label: '图片识别视觉模型',
-            helpMessage: '图片识别使用的API（对应API列表顺序）。主对话模型无视觉能力时，图片会交给它识别；选"自动选择"则按列表顺序使用第一个带视觉能力的已配置模型',
-            bottomHelpMessage: '未指定时自动选择第一个已配置的视觉模型',
+            helpMessage: '主对话模型无视觉能力时，图片交给此API识别；选"自动选择"则按列表顺序使用第一个带视觉能力的模型',
             component: 'Select',
             componentProps: {
                 options: getVisionApiOptions(),
