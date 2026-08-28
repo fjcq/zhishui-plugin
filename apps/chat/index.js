@@ -12,6 +12,7 @@ import { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH } from './config.js';
 import { textToImage, shouldResponseAsImage } from './chatHelper.js';
 import voiceManager from '../voice/voiceManager.js';
 import { migrateChatConfig } from './configs/migrate.js';
+import { migrateImageGenConfig } from './tools/imageGen/imageMigrate.js';
 
 import * as handlers from './handlers/index.js';
 
@@ -28,6 +29,19 @@ try {
     }
 } catch (migrationError) {
     logger.error(`[chat] 配置迁移异常: ${migrationError.message}`);
+}
+
+// 旧生图配置（Tongyi/DallE/Wenxin/Custom/Edit五段）自动迁移为providers/models新结构（幂等，旧字段保留）
+try {
+    const imageMigrationResult = await migrateImageGenConfig(Config);
+    if (imageMigrationResult.migrated) {
+        const { providers, models } = imageMigrationResult.result;
+        logger.info(`[chat] 旧生图配置已自动迁移为新结构：${providers.length}个provider，${models.length}个model`);
+    } else if (String(imageMigrationResult.reason || '').startsWith('write-failed')) {
+        logger.error(`[chat] 生图配置迁移失败: ${imageMigrationResult.reason}`);
+    }
+} catch (imageMigrationError) {
+    logger.error(`[chat] 生图配置迁移异常: ${imageMigrationError.message}`);
 }
 
 const lastRawResponseMap = {};

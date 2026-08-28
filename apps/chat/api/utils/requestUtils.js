@@ -103,6 +103,16 @@ export function extractCleanImageUrl(raw) {
 }
 
 /**
+ * 判断字符串是否为本地绝对路径
+ * Windows 盘符（C:\ 或 D:/）或 POSIX 根路径（/home/...）
+ * @param {string} text - 待判断字符串
+ * @returns {boolean} 是否本地绝对路径
+ */
+function isLocalAbsolutePath(text) {
+    return /^[a-zA-Z]:[\\/]/.test(String(text || '')) || String(text || '').startsWith('/');
+}
+
+/**
  * 读取本地图片文件为 base64
  * @param {string} filePath - 本地文件绝对路径
  * @returns {Promise<{base64: string, mime: string}>} 读取结果
@@ -214,18 +224,28 @@ function isQqImageLink(url) {
 
 /**
  * 三级策略获取图片 base64（用户消息图片/工具结果图片/AI发图的统一入口）
- * 策略：① URL 直链下载（适合普通网络图片与刚收到的新鲜 QQ 图）
+ * 策略：⓪ 本地绝对路径直接读取（AI 生成/编辑图的 local_path，以及历史工具结果中的路径引用）
+ *      ① URL 直链下载（适合普通网络图片与刚收到的新鲜 QQ 图）
  *      ①+ 非QQ图床直链失败时经 request 模块代理下载重试（国外图床等需代理场景）
  *      ② get_image 返回的本地缓存文件直接读取（QQ 图链 rkey 分钟级过期后唯一可靠途径）
  *      ③ get_image 签发的新鲜 URL 下载（NapCat 远程部署无本地文件时兜底）
  * @param {object} options - 参数对象
- * @param {string} [options.url] - 图片直链（可能被包裹，函数内清理）
+ * @param {string} [options.url] - 图片直链或本地绝对路径（可能被包裹，函数内清理）
  * @param {string} [options.fileId] - 图片文件ID（QQ 图片建议必传）
  * @param {object} [options.e] - 事件对象（提供 bot.sendApi）
  * @param {string} [options.source] - 日志来源标记
  * @returns {Promise<{base64: string, mime: string}|null>} 成功返回图片数据，全部失败返回 null
  */
 export async function downloadImageSmart({ url, fileId, e, source = '多模态' } = {}) {
+    // ⓪ 本地绝对路径直接读取（生图/编辑结果的 local_path 引用，无需网络请求）
+    if (isLocalAbsolutePath(url)) {
+        try {
+            return await readLocalImageFile(String(url));
+        } catch (err) {
+            logger.debug(`[${source}] 本地文件读取失败(${err.message})，尝试get_image...`);
+        }
+    }
+
     const cleanUrl = extractCleanImageUrl(url);
 
     // ① 直链下载（仅当有链接时；QQ 图链 rkey 新鲜时可行）

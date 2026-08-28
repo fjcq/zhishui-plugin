@@ -1,130 +1,88 @@
-# AI 生图功能配置
-# 启用后，AI 可在对话中调用 generate_image 工具按提示词生成图片
-# 支持三种服务商：通义万相（阿里云）、DALL-E（OpenAI）、文心一格（百度）
+# AI 生图功能配置（providers/models 新结构，对齐 chat 模块架构）
+# 服务商（providers）与模型（models）两级配置，新增任何 OpenAI 兼容平台均为纯配置操作
+# 旧版 Tongyi/DallE/Wenxin/Custom/Edit 五段结构会在插件加载时自动迁移，旧字段保留不影响
+
+# ==================== 全局设置 ====================
 
 # 生图功能全局开关
 # 关闭后即使工具开关启用，也不会实际调用生图 API
 Enable: false
 
-# 默认服务商
-# 留空（默认）= 自动选择：系统自动使用已配置可用的服务商
-#   - 只配置了一个服务商时，无需手动指定，自动使用该服务商
-#   - 配置了多个服务商时，按 tongyi → dall_e → wenxin → custom 的顺序自动选择第一个
-# 可选值：tongyi、dall_e、wenxin、custom（仅当配置了多个服务商且需要指定时才填写）
-DefaultProvider: ""
+# 默认文生图模型（引用 models 中的条目名称）
+# 留空（默认）= 自动选择：系统自动使用第一个已配置可用的模型
+defaultText2Image: ""
 
 # 请求超时时间（毫秒），生图通常较慢，建议 60000 以上
 Timeout: 120000
 
 # 单用户调用频率限制（秒），同一用户两次调用之间的最小间隔，0 表示不限制
+# 生图与图像编辑共享同一冷却池
 RateLimit: 10
 
 # 默认图片尺寸
 # 通义万相支持：1024*1024、720*1280、1280*720
-# DALL-E 支持：1024x1024、1792x1024、1024x1792
-# 文心一格支持：1024*1024、1024*1536、1536*1024
+# OpenAI 兼容平台按各自模型支持为准（DALL-E：1024x1024、1792x1024、1024x1792 等）
 DefaultSize: "1024*1024"
 
 # 生成图片本地保存目录（相对于插件根目录）
 # 留空则保存到 resources/output/imagegen
 SaveDir: ""
 
-# 通义万相配置（阿里云 DashScope）
-Tongyi:
-  # DashScope API Key，可在阿里云控制台开通后获取
-  ApiKey: ""
-  # 模型名称
-  # wanx2.1-t2i-turbo（极速版，速度快，免费额度多）
-  # wanx2.1-t2i-plus（高质量版，速度较慢）
-  # wanx-v1（旧版通用模型）
-  Model: "wanx2.1-t2i-turbo"
-  # 默认风格，仅 wanx-v1 有效
-  # 可选：<auto>、<photography>、<portrait>、<3d cartoon>、<anime>、<oil painting>、<watercolor>、<sketch>、<chinese painting>、<flat illustration>
-  Style: "<auto>"
-  # 异步任务轮询间隔（毫秒）
-  PollInterval: 2000
+# ==================== 服务商列表 ====================
+# type 类型说明：
+#   openai：OpenAI 兼容格式（/images/generations 端点）
+#           适用 DALL-E、火山引擎 ARK、SiliconFlow、Together AI、Agnes 等绝大多数平台
+#   tongyi：通义万相（阿里云 DashScope，异步任务轮询），仅需 ApiKey
+#   wenxin：文心一格（百度千帆，AK/SK 换 token），需 ApiKey + SecretKey
+# 字段说明：
+#   name：服务商名称（models 中的 provider 引用此名称，需唯一）
+#   baseUrl：接口基础地址（openai 类型必填，不含 API 路径部分）
+#   apiKey：API 密钥
+#   secretKey：仅 wenxin 类型需要
+#   pollInterval：仅 tongyi 类型，异步任务轮询间隔（毫秒），默认 2000
+#   tokenCacheTtl：仅 wenxin 类型，access_token 缓存时间（秒），默认 86400
+providers: []
+# 示例（OpenAI 兼容平台，如 SiliconFlow）：
+# providers:
+#   - name: "硅基流动"
+#     type: "openai"
+#     baseUrl: "https://api.siliconflow.cn/v1"
+#     apiKey: "sk-xxxx"
+# 示例（通义万相）：
+#   - name: "通义万相"
+#     type: "tongyi"
+#     baseUrl: ""
+#     apiKey: "sk-xxxx"
 
-# DALL-E 配置（OpenAI）
-DallE:
-  # OpenAI API Key
-  ApiKey: ""
-  # 接口基础地址，可替换为代理地址
-  BaseUrl: "https://api.openai.com/v1"
-  # 模型：dall-e-3（推荐，质量更好）、dall-e-2（更便宜）
-  Model: "dall-e-3"
-  # 图片质量（仅 dall-e-3 有效）：standard、hd
-  Quality: "standard"
-  # 返回格式：url（返回链接，1小时有效）、b64_json（返回base64）
-  ResponseFormat: "url"
+# ==================== 模型列表 ====================
+# 字段说明：
+#   name：模型别名（defaultText2Image 与 edit.model 引用此名称，需唯一）
+#   provider：所属服务商名称（引用 providers 中的 name）
+#   model：模型名称（按平台填写）
+#   apiPath：生图接口路径，默认 /images/generations（openai 类型）
+#   sizeSeparator：尺寸分隔符（x 或 *），默认 x（openai 类型）
+#   responseFormat：返回格式 url / b64_json，默认 url（openai 类型）
+#   quality：图片质量 standard / hd，部分模型支持（openai 类型）
+#   style：默认风格，仅通义万相 wanx-v1 有效
+#   extraParams：额外请求参数（JSON 字符串），如 {"guidance_scale": 7.5}
+models: []
+# 示例：
+# models:
+#   - name: "万相极速版"
+#     provider: "通义万相"
+#     model: "wanx2.1-t2i-turbo"
+#   - name: "豆包Seedream"
+#     provider: "火山方舟"
+#     model: "doubao-seedream-3-0-t2i-250415"
+#     sizeSeparator: "x"
 
-# 文心一格配置（百度千帆）
-Wenxin:
-  # 百度智能云 API Key（AK）
-  ApiKey: ""
-  # 百度智能云 Secret Key（SK）
-  SecretKey: ""
-  # 模型名称
-  # wenxin-yige-2.0（文心一格 2.0）
-  Model: "wenxin-yige-2.0"
-  # access_token 缓存时间（秒），默认 86400（1天）
-  TokenCacheTTL: 86400
-
-# 自定义服务商配置（OpenAI 兼容接口）
-# 适用于火山引擎 ARK、SiliconFlow、Together AI、Replicate 等第三方平台
-# 这些平台均兼容 OpenAI 的 /images/generations 接口格式
-Custom:
-  # API Key
-  ApiKey: ""
-  # 接口基础地址（不含 API 路径部分）
-  # 火山引擎 ARK：https://ark.cn-beijing.volces.com/api/v3
-  # SiliconFlow：https://api.siliconflow.cn/v1
-  # OpenAI：https://api.openai.com/v1
-  # Together AI：https://api.together.xyz/v1
-  BaseUrl: ""
-  # API 路径，默认 /images/generations
-  # 火山引擎 ARK：/images/generations
-  # SiliconFlow：/images/generations
-  ApiPath: "/images/generations"
-  # 模型名称（根据平台填写）
-  # 火山引擎 ARK：doubao-seedream-3-0-t2i-250415（豆包 Seedream 3.0）
-  # SiliconFlow：Kwai-Kolors/Kolors、black-forest-labs/FLUX.1-schnell、stabilityai/stable-diffusion-3-5-large 等
-  # Together AI：black-forest-labs/FLUX.1-schnell
-  Model: ""
-  # 图片质量（部分模型支持）：standard、hd
-  Quality: "standard"
-  # 返回格式：url（返回链接）、b64_json（返回base64）
-  # 注意：部分平台仅支持其中一种格式
-  ResponseFormat: "url"
-  # 尺寸分隔符：x（OpenAI/Together 等）、*（部分国内平台）
-  # 设置后会将传入的 size 参数统一转换为此分隔符
-  SizeSeparator: "x"
-  # 额外请求参数（JSON 字符串）
-  # 部分平台需要额外参数（如 guidance_scale、num_inference_steps 等）
-  # 示例：{"guidance_scale": 7.5, "num_inference_steps": 30}
-  ExtraParams: ""
-
-# 图像编辑配置（OpenAI 兼容接口）
-# 复用 /images/generations 端点，通过 image 参数传入待编辑图片
-# 适用服务商（换服务商只需改 BaseUrl/Model/ApiKey 三项）：
-#   Agnes：BaseUrl https://apihub.agnes-ai.cn/v1，Model agnes-image-2.1-flash（免费，Key 与 chat.yaml 的 Agnes Key 相同）
-#   Agnes 国际节点：https://apihub.agnes-ai.com/v1（同一 Key 通用）
-#   SiliconFlow：BaseUrl https://api.siliconflow.cn/v1，Model Qwen/Qwen-Image-Edit（约$0.04/张）
-Edit:
+# ==================== 图像编辑设置 ====================
+# 复用 OpenAI 兼容 /images/generations 端点，通过 image 参数（Data URI 数组）传入待编辑图片
+# 换服务商只需在 providers/models 增加条目并改下方 model 引用
+edit:
   # 图像编辑功能开关（独立于生图 Enable）
-  Enable: true
-  # API Key
-  ApiKey: ""
-  # 接口基础地址（不含 API 路径）
-  BaseUrl: "https://apihub.agnes-ai.cn/v1"
-  # API 路径
-  ApiPath: "/images/generations"
-  # 编辑模型名称
-  Model: "agnes-image-2.1-flash"
-  # 单次编辑最大输入图片数（1~4）
-  MaxImages: 4
-  # 返回格式：url、b64_json
-  ResponseFormat: "url"
-  # 尺寸分隔符：x、*
-  SizeSeparator: "x"
-  # 额外请求参数（JSON 字符串）
-  ExtraParams: ""
+  enable: true
+  # 编辑使用的模型（引用 models 中的条目名称，建议使用 Agnes agnes-image-2.1-flash 免费）
+  model: ""
+  # 单次编辑最大输入图片数（1~4），多图合成场景使用
+  maxImages: 4

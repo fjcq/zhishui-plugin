@@ -97,3 +97,19 @@ export function getResourceOptions() {
         return { label: title, value: idx };
     });
 }
+
+/**
+ * 获取生图模型选项列表（引用 imageGen.models 条目名称）
+ * @param {boolean} [withAuto=false] - 是否在首位附加"自动选择"项
+ * @returns {Array} 生图模型选项
+ */
+export function getImageModelOptions(withAuto = false) {
+    const imageGen = Config.getDefOrConfig('imageGen') || {};
+    const options = (imageGen.models || []).map(m => ({
+        label: `${m.name}（${m.model || '未填模型'}）`,
+        value: m.name
+    }));
+    return withAuto
+        ? [{ label: '自动选择（第一个可用模型）', value: '' }, ...options]
+        : options;
+}

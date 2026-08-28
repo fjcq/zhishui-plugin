@@ -10,6 +10,7 @@ import {
     downloadImageSmart, extractCleanImageUrl, buildUserMessageContent
 } from '../api/utils/requestUtils.js';
 import { analyzeImage } from './visionAgent.js';
+import { rememberSessionImage, IMAGE_SOURCES } from '../tools/imageGen/imageMemory.js';
 import { logger } from '../../../components/index.js';
 
 /** 工具结果单次注入图片的最大数量，防止 token 消耗失控 */
@@ -198,6 +199,15 @@ async function extractMessageWithImages(msg, e, provider, model) {
                 imageEntries.push({ url: clean, fileId: '', idx: -1 });
             }
         }
+    }
+
+    // 写入会话图片记忆（后续 edit_image/analyze_image 可用 "last" 引用用户刚发的图）
+    for (const entry of imageEntries) {
+        await rememberSessionImage(e, {
+            source: IMAGE_SOURCES.USER,
+            url: entry.url,
+            fileId: entry.fileId
+        });
     }
 
     // 主模型无视觉能力：视觉代理降级（图片转文字）

@@ -1,7 +1,10 @@
 /**
  * AI 生图功能设置 Schema
- * 全局参数 + 四服务商分节（通义万相/DALL-E/文心一格/自定义）+ 图像编辑
+ * providers/models 两级结构（对齐 chat 模块新架构）：
+ * 全局参数 + 服务商列表 + 模型列表 + 图像编辑设置
  */
+
+import { getImageModelOptions } from '../utils/schemaUtils.js';
 
 /**
  * 获取 AI 生图设置的 Schema
@@ -16,22 +19,17 @@ export function getImageGenSchemas() {
         {
             field: 'imageGen.Enable',
             label: '启用生图功能',
-            helpMessage: '开启后，AI 可在对话中调用 generate_image 工具按提示词生成图片。需要先配置至少一个服务商的 API Key',
+            helpMessage: '开启后，AI 可在对话中调用 generate_image 工具按提示词生成图片。需要先在下方配置至少一个服务商和模型',
             component: 'Switch'
         },
         {
-            field: 'imageGen.DefaultProvider',
-            label: '默认服务商',
-            helpMessage: '留空（推荐）= 自动选择：只配置一个服务商时自动使用，配置多个时按 tongyi → dall_e → wenxin → custom 顺序选择',
+            field: 'imageGen.defaultText2Image',
+            label: '默认生图模型',
+            helpMessage: '留空（推荐）= 自动选择：使用第一个已配置可用的模型。指定时引用下方模型列表中的条目名称',
             component: 'Select',
             componentProps: {
-                options: [
-                    { value: '', label: '自动选择（推荐）' },
-                    { value: 'tongyi', label: '通义万相（阿里云 DashScope）' },
-                    { value: 'dall_e', label: 'DALL-E（OpenAI）' },
-                    { value: 'wenxin', label: '文心一格（百度千帆）' },
-                    { value: 'custom', label: '自定义（OpenAI 兼容接口：火山/SiliconFlow 等）' }
-                ]
+                options: getImageModelOptions(true),
+                placeholder: '自动选择（推荐）'
             }
         },
         {
@@ -49,7 +47,7 @@ export function getImageGenSchemas() {
         {
             field: 'imageGen.RateLimit',
             label: '频率限制(秒)',
-            helpMessage: '同一用户两次生图调用的最小间隔，0 表示不限制',
+            helpMessage: '同一用户两次生图/编辑调用的最小间隔，0 表示不限制',
             component: 'InputNumber',
             componentProps: {
                 min: 0,
@@ -60,7 +58,7 @@ export function getImageGenSchemas() {
         {
             field: 'imageGen.DefaultSize',
             label: '默认尺寸',
-            helpMessage: 'AI 未指定尺寸时使用此默认值。通义万相：1024*1024、720*1280、1280*720；DALL-E：1024x1024、1792x1024、1024x1792；文心一格：1024*1024、1024*1536、1536*1024',
+            helpMessage: 'AI 未指定尺寸时使用此默认值。通义万相：1024*1024、720*1280、1280*720；OpenAI 兼容平台按各自模型支持为准（DALL-E：1024x1024 等）',
             component: 'Input',
             componentProps: {
                 placeholder: '1024*1024（默认）'
@@ -76,268 +74,193 @@ export function getImageGenSchemas() {
             }
         },
         {
-            component: 'Divider',
-            label: '通义万相（阿里云 DashScope）'
-        },
-        {
-            field: 'imageGen.Tongyi.ApiKey',
-            label: 'ApiKey',
-            helpMessage: '阿里云 DashScope API Key，在阿里云控制台开通百炼服务后获取',
-            component: 'InputPassword',
+            field: 'imageGen.providers',
+            label: '生图服务商列表',
+            helpMessage: 'openai 类型覆盖绝大多数平台（DALL-E/火山方舟/SiliconFlow/Together/Agnes 等）；tongyi 为通义万相（仅需 ApiKey）；wenxin 为文心一格（需 AK+SK）',
+            bottomHelpMessage: '点卡片可编辑，按名称区分各个服务商',
+            component: 'GSubForm',
             componentProps: {
-                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
-            }
-        },
-        {
-            field: 'imageGen.Tongyi.Model',
-            label: '模型',
-            helpMessage: 'wanx2.1-t2i-turbo 极速版（推荐）；wanx2.1-t2i-plus 高质量版；wanx-v1 旧版通用模型',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'wanx2.1-t2i-turbo', label: 'wanx2.1-t2i-turbo（极速版，推荐）' },
-                    { value: 'wanx2.1-t2i-plus', label: 'wanx2.1-t2i-plus（高质量版）' },
-                    { value: 'wanx-v1', label: 'wanx-v1（旧版通用）' }
+                multiple: true,
+                addButtonText: '添加服务商',
+                modalTitle: '编辑服务商',
+                schemas: [
+                    {
+                        field: 'name',
+                        label: '服务商名称',
+                        helpMessage: '唯一标识，模型列表中的"所属服务商"引用此名称',
+                        component: 'Input',
+                        required: true,
+                        componentProps: {
+                            placeholder: '如: 通义万相、硅基流动、火山方舟'
+                        }
+                    },
+                    {
+                        field: 'type',
+                        label: '接口类型',
+                        helpMessage: 'openai：OpenAI兼容（绝大多数平台）；tongyi：通义万相（阿里云DashScope）；wenxin：文心一格（百度千帆）',
+                        component: 'Select',
+                        required: true,
+                        componentProps: {
+                            options: [
+                                { value: 'openai', label: 'OpenAI 兼容（DALL-E/火山/SiliconFlow/Agnes 等）' },
+                                { value: 'tongyi', label: '通义万相（阿里云 DashScope）' },
+                                { value: 'wenxin', label: '文心一格（百度千帆）' }
+                            ],
+                            placeholder: '请选择接口类型'
+                        }
+                    },
+                    {
+                        field: 'baseUrl',
+                        label: '接口地址',
+                        helpMessage: '仅 openai 类型需要。不含 API 路径的基础地址，如 https://api.siliconflow.cn/v1',
+                        component: 'Input',
+                        componentProps: {
+                            placeholder: 'https://api.siliconflow.cn/v1'
+                        }
+                    },
+                    {
+                        field: 'apiKey',
+                        label: 'ApiKey',
+                        helpMessage: '服务商 API 密钥',
+                        component: 'InputPassword',
+                        required: true,
+                        componentProps: {
+                            placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
+                        }
+                    },
+                    {
+                        field: 'secretKey',
+                        label: 'SecretKey',
+                        helpMessage: '仅文心一格类型需要，百度智能云 SK',
+                        component: 'InputPassword',
+                        componentProps: {
+                            placeholder: '仅文心一格需要'
+                        }
+                    }
                 ]
             }
         },
         {
-            field: 'imageGen.Tongyi.Style',
-            label: '默认风格',
-            helpMessage: '仅 wanx-v1 模型有效。可选：<auto>、<photography>、<portrait>、<3d cartoon>、<anime>、<oil painting>、<watercolor>、<sketch>、<chinese painting>、<flat illustration>',
-            component: 'Input',
+            field: 'imageGen.models',
+            label: '生图模型列表',
+            helpMessage: '模型条目通过"所属服务商"引用上方服务商。切换生图模型只需改默认生图模型下拉，无需改配置结构',
+            bottomHelpMessage: '点卡片可编辑，按别名区分各个模型',
+            component: 'GSubForm',
             componentProps: {
-                placeholder: '<auto>（默认）'
-            }
-        },
-        {
-            component: 'Divider',
-            label: 'DALL-E（OpenAI）'
-        },
-        {
-            field: 'imageGen.DallE.ApiKey',
-            label: 'ApiKey',
-            helpMessage: 'OpenAI API Key，需有 DALL-E 调用权限',
-            component: 'InputPassword',
-            componentProps: {
-                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
-            }
-        },
-        {
-            field: 'imageGen.DallE.BaseUrl',
-            label: '接口地址',
-            helpMessage: 'OpenAI 接口基础地址，可替换为代理地址',
-            component: 'Input',
-            componentProps: {
-                placeholder: 'https://api.openai.com/v1（默认）'
-            }
-        },
-        {
-            field: 'imageGen.DallE.Model',
-            label: '模型',
-            helpMessage: 'dall-e-3 推荐，质量更好；dall-e-2 更便宜',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'dall-e-3', label: 'dall-e-3（推荐）' },
-                    { value: 'dall-e-2', label: 'dall-e-2（更便宜）' }
+                multiple: true,
+                addButtonText: '添加模型',
+                modalTitle: '编辑模型',
+                schemas: [
+                    {
+                        field: 'name',
+                        label: '模型别名',
+                        helpMessage: '唯一标识，默认生图模型与图像编辑引用此名称',
+                        component: 'Input',
+                        required: true,
+                        componentProps: {
+                            placeholder: '如: 万相极速版、豆包Seedream'
+                        }
+                    },
+                    {
+                        field: 'provider',
+                        label: '所属服务商',
+                        helpMessage: '引用上方服务商列表中的名称',
+                        component: 'Input',
+                        required: true,
+                        componentProps: {
+                            placeholder: '如: 通义万相'
+                        }
+                    },
+                    {
+                        field: 'model',
+                        label: '模型名称',
+                        helpMessage: '按平台填写。通义：wanx2.1-t2i-turbo 等；DALL-E：dall-e-3；火山：doubao-seedream-3-0-t2i-250415；SiliconFlow：Kwai-Kolors/Kolors 等',
+                        component: 'Input',
+                        required: true,
+                        componentProps: {
+                            placeholder: '如: wanx2.1-t2i-turbo'
+                        }
+                    },
+                    {
+                        field: 'sizeSeparator',
+                        label: '尺寸分隔符',
+                        helpMessage: '仅 openai 类型。OpenAI/Together/SiliconFlow 用 x，部分国内平台用 *',
+                        component: 'Select',
+                        componentProps: {
+                            options: [
+                                { value: 'x', label: 'x（OpenAI 风格）' },
+                                { value: '*', label: '*（国内平台风格）' }
+                            ]
+                        }
+                    },
+                    {
+                        field: 'responseFormat',
+                        label: '返回格式',
+                        helpMessage: '仅 openai 类型。url 返回链接；b64_json 返回 base64。部分平台仅支持其中一种',
+                        component: 'Select',
+                        componentProps: {
+                            options: [
+                                { value: 'url', label: 'url（链接，推荐）' },
+                                { value: 'b64_json', label: 'b64_json（base64）' }
+                            ]
+                        }
+                    },
+                    {
+                        field: 'quality',
+                        label: '图片质量',
+                        helpMessage: '仅 openai 类型且部分模型支持（dall-e-3 等）。standard 标准；hd 高清',
+                        component: 'Select',
+                        componentProps: {
+                            options: [
+                                { value: 'standard', label: 'standard（标准）' },
+                                { value: 'hd', label: 'hd（高清）' }
+                            ]
+                        }
+                    },
+                    {
+                        field: 'style',
+                        label: '默认风格',
+                        helpMessage: '仅通义万相 wanx-v1 有效。可选：<auto>、<photography>、<portrait>、<anime>、<oil painting> 等',
+                        component: 'Input',
+                        componentProps: {
+                            placeholder: '<auto>（默认）'
+                        }
+                    },
+                    {
+                        field: 'extraParams',
+                        label: '额外参数',
+                        helpMessage: '仅 openai 类型。JSON 字符串，部分平台需要额外参数，如 {"guidance_scale": 7.5}。无需时留空',
+                        component: 'InputTextArea',
+                        componentProps: {
+                            placeholder: '{"guidance_scale": 7.5, "num_inference_steps": 30}',
+                            rows: 2
+                        }
+                    }
                 ]
-            }
-        },
-        {
-            field: 'imageGen.DallE.Quality',
-            label: '图片质量',
-            helpMessage: '仅 dall-e-3 有效。standard 标准；hd 高清（消耗更多额度）',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'standard', label: 'standard（标准）' },
-                    { value: 'hd', label: 'hd（高清）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.DallE.ResponseFormat',
-            label: '返回格式',
-            helpMessage: 'url 返回图片链接（1小时有效）；b64_json 返回 base64 数据',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'url', label: 'url（链接，推荐）' },
-                    { value: 'b64_json', label: 'b64_json（base64）' }
-                ]
-            }
-        },
-        {
-            component: 'Divider',
-            label: '文心一格（百度千帆）'
-        },
-        {
-            field: 'imageGen.Wenxin.ApiKey',
-            label: 'ApiKey',
-            helpMessage: '百度智能云 API Key（AK），需开通文心一言/千帆大模型平台服务',
-            component: 'InputPassword',
-            componentProps: {
-                placeholder: '百度智能云 AK'
-            }
-        },
-        {
-            field: 'imageGen.Wenxin.SecretKey',
-            label: 'SecretKey',
-            helpMessage: '百度智能云 Secret Key（SK）',
-            component: 'InputPassword',
-            componentProps: {
-                placeholder: '百度智能云 SK'
-            }
-        },
-        {
-            field: 'imageGen.Wenxin.Model',
-            label: '模型',
-            helpMessage: 'wenxin-yige-2.0 文心一格 2.0',
-            component: 'Input',
-            componentProps: {
-                placeholder: 'wenxin-yige-2.0',
-                disabled: true
-            }
-        },
-        {
-            component: 'Divider',
-            label: '自定义服务商（OpenAI 兼容接口）'
-        },
-        {
-            field: 'imageGen.Custom.ApiKey',
-            label: 'ApiKey',
-            helpMessage: '第三方平台 API Key',
-            component: 'InputPassword',
-            componentProps: {
-                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
-            }
-        },
-        {
-            field: 'imageGen.Custom.BaseUrl',
-            label: '接口基础地址',
-            helpMessage: '不含 API 路径的基础地址。火山引擎 ARK：https://ark.cn-beijing.volces.com/api/v3；SiliconFlow：https://api.siliconflow.cn/v1；Together AI：https://api.together.xyz/v1',
-            component: 'Input',
-            componentProps: {
-                placeholder: 'https://ark.cn-beijing.volces.com/api/v3'
-            }
-        },
-        {
-            field: 'imageGen.Custom.ApiPath',
-            label: 'API 路径',
-            helpMessage: '生图接口路径，默认 /images/generations。火山 ARK、SiliconFlow、Together AI 均使用此路径',
-            component: 'Input',
-            componentProps: {
-                placeholder: '/images/generations（默认）'
-            }
-        },
-        {
-            field: 'imageGen.Custom.Model',
-            label: '模型',
-            helpMessage: '火山引擎 ARK：doubao-seedream-3-0-t2i-250415（豆包 Seedream 3.0）；SiliconFlow：Kwai-Kolors/Kolors、black-forest-labs/FLUX.1-schnell 等；Together AI：black-forest-labs/FLUX.1-schnell',
-            component: 'Input',
-            componentProps: {
-                placeholder: 'doubao-seedream-3-0-t2i-250415'
-            }
-        },
-        {
-            field: 'imageGen.Custom.Quality',
-            label: '图片质量',
-            helpMessage: '部分模型支持。standard 标准；hd 高清',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'standard', label: 'standard（标准）' },
-                    { value: 'hd', label: 'hd（高清）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.Custom.ResponseFormat',
-            label: '返回格式',
-            helpMessage: 'url 返回图片链接；b64_json 返回 base64 数据。部分平台仅支持其中一种',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'url', label: 'url（链接）' },
-                    { value: 'b64_json', label: 'b64_json（base64）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.Custom.SizeSeparator',
-            label: '尺寸分隔符',
-            helpMessage: 'OpenAI/Together/SiliconFlow 使用 x（如 1024x1024），部分国内平台使用 *（如 1024*1024）',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'x', label: 'x（OpenAI 风格）' },
-                    { value: '*', label: '*（国内平台风格）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.Custom.ExtraParams',
-            label: '额外参数',
-            helpMessage: 'JSON 字符串格式。部分平台需要额外参数，如 SiliconFlow 的 FLUX 模型可设置 {"guidance_scale": 7.5, "num_inference_steps": 30}。无需时留空',
-            component: 'InputTextArea',
-            componentProps: {
-                placeholder: '{"guidance_scale": 7.5, "num_inference_steps": 30}',
-                rows: 3
             }
         },
         {
             component: 'Divider',
-            label: '图像编辑（OpenAI 兼容接口）'
+            label: '图像编辑'
         },
         {
-            field: 'imageGen.Edit.Enable',
+            field: 'imageGen.edit.enable',
             label: '启用图像编辑',
-            helpMessage: '开启后，AI 可在对话中调用 edit_image 工具修改/合成用户图片（换背景、转风格、多图合成）。需要配置 Edit 段的 API Key',
+            helpMessage: '开启后，AI 可在对话中调用 edit_image 工具修改/合成用户图片（换背景、转风格、多图合成）',
             component: 'Switch'
         },
         {
-            field: 'imageGen.Edit.ApiKey',
-            label: 'ApiKey',
-            helpMessage: '图像编辑服务商 API Key。Agnes 与 SiliconFlow 均可（Key 与 chat.yaml 的 Agnes Key 相同）',
-            component: 'InputPassword',
-            componentProps: {
-                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx'
-            }
-        },
-        {
-            field: 'imageGen.Edit.BaseUrl',
-            label: '接口基础地址',
-            helpMessage: '不含 API 路径的基础地址。Agnes 国内：https://apihub.agnes-ai.cn/v1；Agnes 国际：https://apihub.agnes-ai.com/v1；SiliconFlow：https://api.siliconflow.cn/v1',
-            component: 'Input',
-            componentProps: {
-                placeholder: 'https://apihub.agnes-ai.cn/v1'
-            }
-        },
-        {
-            field: 'imageGen.Edit.ApiPath',
-            label: 'API 路径',
-            helpMessage: '编辑接口路径，默认 /images/generations（编辑与文生图共用端点，通过 image 参数传图）',
-            component: 'Input',
-            componentProps: {
-                placeholder: '/images/generations（默认）'
-            }
-        },
-        {
-            field: 'imageGen.Edit.Model',
-            label: '模型',
-            helpMessage: 'Agnes：agnes-image-2.1-flash（免费）/ agnes-image-2.0-flash；SiliconFlow：Qwen/Qwen-Image-Edit（约$0.04/张）',
+            field: 'imageGen.edit.model',
+            label: '编辑模型',
+            helpMessage: '引用上方模型列表中的条目名称（需为 openai 类型服务商）。推荐 Agnes agnes-image-2.1-flash（免费）',
             component: 'Select',
             componentProps: {
-                options: [
-                    { value: 'agnes-image-2.1-flash', label: 'agnes-image-2.1-flash（Agnes，免费，推荐）' },
-                    { value: 'agnes-image-2.0-flash', label: 'agnes-image-2.0-flash（Agnes，免费）' },
-                    { value: 'Qwen/Qwen-Image-Edit', label: 'Qwen/Qwen-Image-Edit（SiliconFlow，付费）' }
-                ]
+                options: getImageModelOptions(),
+                placeholder: '请先在模型列表添加编辑模型'
             }
         },
         {
-            field: 'imageGen.Edit.MaxImages',
+            field: 'imageGen.edit.maxImages',
             label: '最大输入图数',
             helpMessage: '单次编辑允许传入的最大图片数（1~4），多图合成场景使用',
             component: 'InputNumber',
@@ -346,40 +269,6 @@ export function getImageGenSchemas() {
                 max: 4,
                 step: 1,
                 placeholder: '4（默认）'
-            }
-        },
-        {
-            field: 'imageGen.Edit.ResponseFormat',
-            label: '返回格式',
-            helpMessage: 'url 返回图片链接；b64_json 返回 base64 数据。部分平台仅支持其中一种',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'url', label: 'url（链接，推荐）' },
-                    { value: 'b64_json', label: 'b64_json（base64）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.Edit.SizeSeparator',
-            label: '尺寸分隔符',
-            helpMessage: '输出尺寸参数的分隔符。OpenAI/Agnes/SiliconFlow 使用 x（如 1024x1024），部分国内平台使用 *',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { value: 'x', label: 'x（OpenAI 风格）' },
-                    { value: '*', label: '*（国内平台风格）' }
-                ]
-            }
-        },
-        {
-            field: 'imageGen.Edit.ExtraParams',
-            label: '额外参数',
-            helpMessage: 'JSON 字符串格式。部分平台需要额外参数时填写，无需时留空',
-            component: 'InputTextArea',
-            componentProps: {
-                placeholder: '{"guidance_scale": 7.5}',
-                rows: 2
             }
         }
     ];
