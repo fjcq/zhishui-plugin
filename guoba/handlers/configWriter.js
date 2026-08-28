@@ -9,6 +9,8 @@ import { applyLegacyView } from '../../apps/chat/configs/sync.js';
 
 /**
  * 保存配置数据
+ * 锅巴前端按schema field扁平提交（key形如'chat.ApiList'、'voice.Enable'），
+ * 顶层key几乎不含裸组名，绝大多数走default→handleGenericSave逐键落盘
  * @param {Object} data - 配置数据
  * @param {Object} options - 选项
  * @returns {Promise<Object>} 保存结果
@@ -18,6 +20,10 @@ export async function setConfigData(data, { Result, action }) {
         if (action?.key === 'copy' && action?.formData) {
             return await handleCopyRole(action.formData, Result);
         }
+
+        // 写盘前记录ContextMode，供落盘后的chat副作用对比（切换会话模式需清旧会话）
+        const oldContextMode = (await Config.Chat)?.ContextMode;
+        let touchedChat = false;
 
         for (let key in data) {
             switch (key) {
@@ -41,13 +47,22 @@ export async function setConfigData(data, { Result, action }) {
                     Config.modify(key, '', data[key], 'config');
                     break;
                 case 'chat':
-                    await handleChatSave(data[key]);
+                    Config.modify('chat', '', data[key], 'config');
                     break;
                 default:
                     handleGenericSave(key, data[key]);
             }
+            if (key === 'chat' || key.startsWith('chat.')) {
+                touchedChat = true;
+            }
         }
-        
+
+        // chat相关键落盘后统一触发副作用：ContextMode切换清会话 + 旧字段→新providers/models同步。
+        // 旧版挂载在handleChatSave内的同步因前端扁平提交（key带'chat.'前缀）永不触发，属于配置分叉隐患，已移至此处
+        if (touchedChat) {
+            await handleChatSideEffects(oldContextMode);
+        }
+
         return Result.ok({
             refreshData: getLatestConfigData()
         });
@@ -253,32 +268,29 @@ function handleGenericSave(key, value) {
 }
 
 /**
- * 处理对话配置保存
- * 检测ContextMode变化，切换时清除旧模式的会话数据
- * @param {Object} chatData - 对话配置数据
+ * chat配置落盘后的副作用处理
+ * 1. ContextMode变化时清除旧模式的会话数据
+ * 2. 旧字段（ApiList/CurrentApiIndex/VisionApiIndex）→新providers/models结构同步，
+ *    保证guoba编辑的API配置在运行时（读新结构）生效
+ * @param {string} oldContextMode - 写盘前的ContextMode值
  * @returns {Promise<void>}
  */
-async function handleChatSave(chatData) {
+async function handleChatSideEffects(oldContextMode) {
     try {
-        const oldMode = await Config.Chat.ContextMode;
-        const newMode = chatData.ContextMode || 'role';
+        const chat = await Config.Chat;
+        const newMode = chat?.ContextMode || 'role';
 
-        if (oldMode && newMode && oldMode !== newMode) {
-            const clearTarget = oldMode;
-            const result = clearAllSessions(clearTarget);
-            console.log(`[锅巴面板] ContextMode ${oldMode}→${newMode}: 已清除${clearTarget}模式${result.count}个会话文件`);
+        if (oldContextMode && newMode && oldContextMode !== newMode) {
+            const result = clearAllSessions(oldContextMode);
+            console.log(`[锅巴面板] ContextMode ${oldContextMode}→${newMode}: 已清除${oldContextMode}模式${result.count}个会话文件`);
         }
 
-        Config.modify('chat', '', chatData, 'config');
-
-        // 新结构同步：guoba编辑的是ApiList旧视图，运行时读providers/models，
-        // 经sync转换覆盖新字段（name稳定性合并保证群覆盖引用不失效）
-        const syncResult = await applyLegacyView(chatData);
+        // 从落盘后的完整旧字段同步新结构（name稳定性合并保证群覆盖引用不失效）
+        const syncResult = await applyLegacyView(chat);
         if (!syncResult.ok) {
             console.error(`[锅巴面板] 新配置结构同步失败: ${syncResult.reason}，运行时可能仍使用旧模型配置`);
         }
     } catch (error) {
-        console.error('[锅巴面板] 保存对话配置失败:', error);
-        throw error;
+        console.error('[锅巴面板] chat配置副作用处理失败:', error);
     }
 }
