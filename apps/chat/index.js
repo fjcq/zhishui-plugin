@@ -12,11 +12,24 @@ import { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH } from './config.js';
 import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './utils.js';
 import { textToImage, shouldResponseAsImage } from './chatHelper.js';
 import voiceManager from '../voice/voiceManager.js';
+import { migrateChatConfig } from './configs/migrate.js';
 
 import * as handlers from './handlers/index.js';
 
 const voiceList = await Data.readVoiceList();
 let chatNickname = await Config.Chat.NickName;
+
+// 旧ApiList配置自动迁移为providers/models新结构（幂等，旧字段保留供绞杀期旧代码使用）
+try {
+    const migrationResult = await migrateChatConfig(Config);
+    if (migrationResult.migrated) {
+        logger.info(`[chat] 旧ApiList配置已自动迁移为新结构：${migrationResult.result.providers.length}个provider，${migrationResult.result.models.length}个model`);
+    } else if (String(migrationResult.reason || '').startsWith('write-failed')) {
+        logger.error(`[chat] 配置迁移失败: ${migrationResult.reason}`);
+    }
+} catch (migrationError) {
+    logger.error(`[chat] 配置迁移异常: ${migrationError.message}`);
+}
 
 const lastRawResponseMap = {};
 
