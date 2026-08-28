@@ -13,7 +13,8 @@ export const needPackage = [
 export const optionalPackage = [
     { name: '@meting/core', feature: '音乐搜索' },
     { name: 'express', feature: '自建音乐API' },
-    { name: 'qrcode', feature: '搜剧播放链接二维码模式' }
+    { name: 'qrcode', feature: '搜剧播放链接二维码模式' },
+    { name: 'openai', feature: 'chat模块OpenAI格式Provider（新架构）' }
 ];
 
 /** 可选依赖检查结果 */
