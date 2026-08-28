@@ -64,16 +64,24 @@ export async function mergeSystemMessage(e, supportsToolCalling = false) {
                 if (响应格式配置) {
                     const modeKey = supportsToolCalling ? '工具调用模式' : '非工具调用模式';
                     const modeConfig = 响应格式配置[modeKey] || {};
-                    const { 艾特功能, ...restModeConfig } = 响应格式配置;
+                    const { 艾特功能 } = 响应格式配置;
 
                     systemConfig.响应格式 = {
                         艾特功能,
-                        ...restModeConfig
+                        ...modeConfig
                     };
                 }
             } catch (configError) {
                 console.error('[mergeSystemMessage] 解析系统配置失败:', configError);
             }
+        }
+
+        const nickName = await Config.Chat.NickName || '';
+        if (nickName) {
+            systemConfig.AI名字设定 = {
+                name: nickName,
+                description: '这是主人为你起的名字，当被问及你的名字或需要自称时，优先使用这个名字而非角色标题'
+            };
         }
 
         const masterName = await Config.Chat.Master || '';
