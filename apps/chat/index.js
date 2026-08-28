@@ -9,7 +9,6 @@ import Data from '../../components/Data.js';
 import { puppeteer } from '../../model/index.js';
 
 import { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH } from './config.js';
-import { ForwardMsg, msgToAt, sendCodeAsForwardMsg } from './utils.js';
 import { textToImage, shouldResponseAsImage } from './chatHelper.js';
 import voiceManager from '../voice/voiceManager.js';
 import { migrateChatConfig } from './configs/migrate.js';
