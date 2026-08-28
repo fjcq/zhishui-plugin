@@ -8,9 +8,11 @@ import { chatActiveMap, lastRequestTime, API_INTERVALS } from '../config.js';
 import { convertAtFormat, convertAtToNames, convertMessageFormat } from '../parsers/index.js';
 import { textToImage, shouldResponseAsImage } from '../chatHelper.js';
 import voiceManager from '../../voice/voiceManager.js';
-import { isToolCallingSupported } from '../api-types.js';
 import { checkRateLimit, getUserFavor, setUserFavor } from '../user/index.js';
-import { openAi, getCurrentApiConfig, loadChatMsg, mergeSystemMessage, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
+import { openAi, loadChatMsg, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
+import { resolveModel } from '../configs/manager.js';
+import { createProvider } from '../providers/index.js';
+import { mergeSystemMessage } from '../configs/systemMessage.js';
 
 /**
  * 转义正则表达式特殊字符
@@ -97,12 +99,9 @@ async function checkConcurrencyAndRateLimit(lockId) {
     const now = Date.now();
     const lastTime = lastRequestTime[lockId] || 0;
 
-    const ApiList = await Config.Chat.ApiList || [];
-    const CurrentApiIndex = typeof (await Config.Chat.CurrentApiIndex) === 'number'
-        ? await Config.Chat.CurrentApiIndex
-        : parseInt(await Config.Chat.CurrentApiIndex) || 0;
-    const apiConfig = ApiList[CurrentApiIndex] || ApiList[0] || {};
-    const apiType = apiConfig.ApiType || 'default';
+    // 按当前生效provider的格式类型查询请求间隔（新配置结构）
+    const resolved = await resolveModel(e);
+    const apiType = resolved?.provider?.type || 'default';
     const requiredInterval = API_INTERVALS[apiType] || API_INTERVALS['default'];
 
     const timeDiff = now - lastTime;
@@ -220,20 +219,20 @@ async function getReplyMessage(e, messageId) {
 }
 
 /**
- * API重试策略配置
+ * API重试策略配置（匹配新架构统一错误码）
  */
 const RETRY_STRATEGIES = {
     rate_limit: {
-        shouldRetry: (error) => error.message.includes('请求过于频繁'),
+        shouldRetry: (error) => error.type === 'rate_limit' || error.message.includes('请求频繁') || error.message.includes('请求过于频繁'),
         getWaitTime: (retryCount) => Math.min(3000 * retryCount, 12000),
         getUserMessage: () => '请求繁忙，正在自动重试中，请稍等...',
         getLogMessage: () => '请求频繁'
     },
     network_error: {
-        shouldRetry: (error) => error.shouldRetry && (error.type === '连接超时' || error.type === '连接重置'),
+        shouldRetry: (error) => error.type === 'network' || error.type === 'server_error',
         getWaitTime: (retryCount) => 2000 * retryCount,
         getUserMessage: () => '网络不稳定，正在重试连接...',
-        getLogMessage: (error) => error.type
+        getLogMessage: (error) => error.type || '网络错误'
     }
 };
 
@@ -487,23 +486,18 @@ async function sendResponse(e, finalReply, codeText) {
 }
 
 /**
- * 处理API错误
+ * 处理API错误（新架构：错误对象带统一type码与providerName）
  * @param {Object} e - 事件对象
  * @param {Error} apiError - API错误
- * @param {string} apiType - API类型
  * @returns {Promise<void>}
  */
-async function handleApiError(e, apiError, apiType) {
+async function handleApiError(e, apiError) {
     let userMessage = apiError.message;
-    
-    if (apiError.type === 'API密钥错误') {
-        userMessage = `API配置有误，请联系管理员检查API密钥设置\n当前使用API: ${apiError.apiType || 'unknown'}`;
-    } else if (apiError.type === '地区限制') {
-        userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
-    } else if (apiError.type === 'DNS解析失败' || apiError.type === '连接被拒绝') {
-        userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
-    } else if (apiError.type === 'API配额不足') {
-        userMessage = `${apiError.message}\n建议使用命令切换到其他API，如：#切换对话api1`;
+
+    if (apiError.type === 'auth') {
+        userMessage = `API配置有误，请联系管理员检查API密钥设置\n当前使用模型: ${apiError.providerName || 'unknown'}`;
+    } else if (['forbidden', 'network', 'balance', 'model_not_found'].includes(apiError.type)) {
+        userMessage = `${apiError.message}\n建议使用命令切换到其他模型，如：#切换模型 <模型别名>`;
     }
 
     await sendErrorReply(e, userMessage);
@@ -582,9 +576,14 @@ export async function handleChat(e, chatNickname) {
 
         const favor = await getUserFavor(actualUserId);
 
-        const { apiConfig } = await getCurrentApiConfig(e);
-        const apiType = apiConfig.ApiType || 'default';
-        const supportsToolCalling = isToolCallingSupported(apiType);
+        // 新架构：解析当前生效模型并经provider统一接口判断工具支持
+        const resolvedModel = await resolveModel(e);
+        if (!resolvedModel) {
+            chatActiveMap[lockId] = 0;
+            await safeReply(e, '未配置可用的AI模型，请先在配置中设置providers/models');
+            return false;
+        }
+        const supportsToolCalling = createProvider(resolvedModel.provider).supportsTools();
 
         const baseMessage = {
             message: finalMsg,
@@ -624,7 +623,7 @@ export async function handleChat(e, chatNickname) {
             );
         } catch (apiError) {
             chatActiveMap[lockId] = 0;
-            await handleApiError(e, apiError, apiType);
+            await handleApiError(e, apiError);
             return false;
         }
 

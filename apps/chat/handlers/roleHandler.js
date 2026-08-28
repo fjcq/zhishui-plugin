@@ -4,9 +4,9 @@
  */
 
 import { Config } from '../../../components/index.js';
-import { getCurrentRoleIndex } from '../config.js';
+import { getCurrentRoleIndex, setGroupRoleIndex } from '../configs/roleManager.js';
 import { clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel, generateSessionId } from '../helpers.js';
-import { getCurrentApiConfig } from '../helpers.js';
+import { resolveModel } from '../configs/manager.js';
 
 /**
  * 查看对话身份（角色）
@@ -59,9 +59,9 @@ export async function handleShowRoleList(e) {
         } catch (error) {
         }
     } else {
-        const groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
-        const found = groupRoleList.find(item => String(item.group) === String(e.group_id));
-        if (found && typeof found.index === 'number') {
+        const overrides = await Config.Chat.groupOverrides || [];
+        const found = overrides.find(item => String(item.group) === String(e.group_id));
+        if (found && typeof found.roleIndex === 'number') {
             roleTypeLabel = '群专属角色';
         }
     }
@@ -120,12 +120,12 @@ export async function handleSwitchRole(e) {
 
     const sessionId = await generateSessionId(e);
 
-    const { apiConfig } = await getCurrentApiConfig(e);
-    const model = (apiConfig.ApiModel || '').toLowerCase();
-    const type = (apiConfig.ApiType || '').toLowerCase();
+    const resolved = await resolveModel(e);
+    const model = String(resolved?.model?.model || '').toLowerCase();
+    const type = String(resolved?.provider?.type || '').toLowerCase();
 
     let lost = false;
-    let chatMsg = await loadChatMsg(e);
+    const chatMsg = await loadChatMsg(e);
     if (Array.isArray(chatMsg) && chatMsg.length > 0) {
         const { converted, lostContent } = convertChatContextForModel(chatMsg, type, type, model, model);
         await saveChatMsg(sessionId, converted);
@@ -142,15 +142,7 @@ export async function handleSwitchRole(e) {
         return;
     }
 
-    let groupRoleList = (await Config.Chat.GroupRoleIndex) || [];
-    const existIdx = groupRoleList.findIndex(item => String(item.group) === String(e.group_id));
-    if (existIdx >= 0) {
-        groupRoleList[existIdx].index = idx;
-    } else {
-        groupRoleList.push({ group: String(e.group_id), index: idx });
-    }
-
-    await Config.modify('chat', 'GroupRoleIndex', groupRoleList);
+    await setGroupRoleIndex(e.group_id, idx);
     let tip = `本群已切换为角色：${roles[idx].角色标题}`;
     if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
     else tip += `\n已自动清除上下文缓存，请重新开始对话。`;

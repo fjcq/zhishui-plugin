@@ -3,7 +3,7 @@
  * 处理用户配置相关的命令
  */
 
-import { getCurrentRoleIndex } from '../config.js';
+import { getCurrentRoleIndex } from '../configs/roleManager.js';
 import { clearSessionContext, getSessionKeyv, loadChatMsg, generateSessionId } from '../helpers.js';
 import { Config } from '../../../components/index.js';
 

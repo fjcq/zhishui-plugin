@@ -44,3 +44,22 @@ export async function getCurrentRoleIndex(e) {
 export async function getUserRoleIndex() {
     return await Config.Chat.CurrentRoleIndex || 0;
 }
+
+/**
+ * 设置群聊的角色索引覆盖（写入groupOverrides.roleIndex）
+ * @param {string|number} groupId - 群号
+ * @param {number} roleIndex - 角色索引
+ * @returns {Promise<boolean>} 是否成功
+ */
+export async function setGroupRoleIndex(groupId, roleIndex) {
+    const group = String(groupId);
+    const overrides = await Config.Chat.groupOverrides || [];
+    const index = overrides.findIndex(o => String(o.group) === group);
+
+    if (index === -1) {
+        overrides.push({ group, roleIndex });
+    } else {
+        overrides[index] = { ...overrides[index], roleIndex };
+    }
+    return await Config.modify('chat', 'groupOverrides', overrides);
+}

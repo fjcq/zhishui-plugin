@@ -1,13 +1,8 @@
 /**
- * API处理器入口
- * 导出openAi主函数及相关工具
+ * API处理器入口（新架构版）
+ * openAi转发至core/chatClient统一编排层；
+ * 图片/请求工具转发至旧requestUtils（新messageBuilder仍复用，阶段6统一收编）
  */
 
-export { openAi, default } from './api/index.js';
-export { getValidUserId, buildHeaders, getDefaultParams, buildUserMessageContent, addToolCallingConfig, addJsonFormatConfig, downloadImageAsBase64 } from './api/utils/requestUtils.js';
-export { buildTencentRequest } from './api/builders/tencentBuilder.js';
-export { buildGeminiRequest } from './api/builders/geminiBuilder.js';
-export { buildQwenVLRequest } from './api/builders/qwenVLBuilder.js';
-export { buildStandardRequest } from './api/builders/standardBuilder.js';
-export { handleApiResponse } from './api/handlers/responseHandler.js';
-export { handleCommunicationError } from './api/handlers/errorHandler.js';
+export { chat as openAi, chat } from './core/chatClient.js';
+export { getValidUserId, buildUserMessageContent, downloadImageAsBase64 } from './api/utils/requestUtils.js';
