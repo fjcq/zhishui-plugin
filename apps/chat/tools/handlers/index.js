@@ -32,7 +32,8 @@ const GROUP_TOOLS = [
     'kick_group_member',
     'delete_message',
     'set_group_name',
-    'set_group_announcement'
+    'set_group_announcement',
+    'manage_verify_groups'
 ];
 
 /**

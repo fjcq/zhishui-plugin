@@ -98,6 +98,7 @@ export async function getConfigData() {
             tools: Config.getDefOrConfig('tools') || {},
             musicApi: Config.getDefOrConfig('musicApi') || {},
             imageGen: Config.getDefOrConfig('imageGen') || {},
+            groupVerify: Config.getDefOrConfig('groupVerify') || {},
             roleList: roleList || [],
             userRoleList: userRoleList || [],
             userResourceList: userResourceList || []
@@ -112,6 +113,7 @@ export async function getConfigData() {
             tools: {},
             musicApi: {},
             imageGen: {},
+            groupVerify: {},
             roleList: []
         };
     }
@@ -162,6 +164,7 @@ export function getLatestConfigData() {
             tools: Config.getDefOrConfig('tools') || {},
             musicApi: Config.getDefOrConfig('musicApi') || {},
             imageGen: Config.getDefOrConfig('imageGen') || {},
+            groupVerify: Config.getDefOrConfig('groupVerify') || {},
             roleList: roleList || []
         };
     } catch (err) {
@@ -174,6 +177,7 @@ export function getLatestConfigData() {
             tools: {},
             musicApi: {},
             imageGen: {},
+            groupVerify: {},
             roleList: []
         };
     }

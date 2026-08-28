@@ -9,6 +9,12 @@ import {
     formatMuteDuration,
     isBotOwner
 } from '../permissions.js';
+import {
+    getVerifyConfig,
+    addVerifyGroup,
+    removeVerifyGroup
+} from '../../../groupVerify/config.js';
+import { isBotGroupAdmin } from '../../../groupVerify/handlers/verifyHandler.js';
 
 /**
  * 处理群管理工具调用
@@ -47,6 +53,8 @@ export async function handleGroupToolCall(toolName, params, e) {
                 return await handleSetGroupName(params, e);
             case 'set_group_announcement':
                 return await handleSetGroupAnnouncement(params, e);
+            case 'manage_verify_groups':
+                return await handleManageVerifyGroups(params, e);
             default:
                 return { error: true, error_message: `未知的群管理工具: ${toolName}` };
         }
@@ -440,5 +448,78 @@ async function handleGetGroupInfo(params, e) {
     } catch (error) {
         logger.error(`[群管理] 获取群信息失败: ${error.message}`);
         return { error: true, error_message: `获取群信息失败: ${error.message}` };
+    }
+}
+
+/**
+ * 处理管理入群验证群列表
+ * @param {object} params - 工具参数 { action }
+ * @param {object} e - 事件对象
+ * @returns {Promise<object>} 执行结果
+ */
+async function handleManageVerifyGroups(params, e) {
+    const { action } = params;
+    const targetGroupId = e?.group_id;
+
+    if (!['list', 'add', 'remove'].includes(action)) {
+        return { error: true, error_message: 'action 参数无效，可选值：list / add / remove' };
+    }
+
+    if (action === 'list') {
+        const config = getVerifyConfig();
+        return {
+            success: true,
+            enable: config.enable,
+            use_ai: config.useAI,
+            verify_groups: config.verifyGroups,
+            timeout_seconds: config.timeout,
+            timeout_policy: '超时未答对公告后移出群聊；答错不限次数，撤回消息并提醒继续作答',
+            ai_mode_note: config.useAI
+                ? '出题、判定与回应均由 AI 按人设对话式生成，AI 不可用时自动回退本地'
+                : '本地题库出题与代码判定'
+        };
+    }
+
+    // 变更操作仅支持群内使用（作用于当前群），且需要主人或群管理员权限
+    const isAdmin = e?.isMaster ||
+        e?.member?.is_admin || e?.member?.is_owner ||
+        e?.sender?.role === 'admin' || e?.sender?.role === 'owner';
+    if (!isAdmin) {
+        return { error: true, error_message: '只有主人或群管理员才能修改验证群设置' };
+    }
+
+    if (!targetGroupId) {
+        return { error: true, error_message: '该操作仅支持在群聊中使用，请在目标群内发起' };
+    }
+
+    try {
+        // 启用验证需 Bot 拥有群管理员权限（否则无法踢出超时成员）
+        if (action === 'add') {
+            const botAdmin = await isBotGroupAdmin(e, targetGroupId);
+            if (botAdmin === false) {
+                return {
+                    error: true,
+                    error_message: 'Bot 在本群没有管理员权限，无法踢出超时未验证的成员，请先授予 Bot 群管理员权限'
+                };
+            }
+        }
+
+        const result = action === 'add'
+            ? addVerifyGroup(targetGroupId)
+            : removeVerifyGroup(targetGroupId);
+
+        if (!result.success) {
+            return { error: true, error_message: result.message };
+        }
+
+        logger.mark(`[群管理] 验证群${action === 'add' ? '添加' : '移除'} | 群:${targetGroupId}`);
+        return {
+            success: true,
+            message: result.message,
+            verify_groups: getVerifyConfig().verifyGroups
+        };
+    } catch (error) {
+        logger.error(`[群管理] 管理验证群失败: ${error.message}`);
+        return { error: true, error_message: `操作失败: ${error.message}` };
     }
 }

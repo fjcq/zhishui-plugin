@@ -18,6 +18,7 @@ import {
     getApiSchemas,
     getRoleSchemas,
     getVideoSearchSchemas,
+    getGroupVerifySchemas,
     getSystemSchemas,
     getToolSwitchSchemas,
     getImageGenSchemas
@@ -60,6 +61,8 @@ export function supportGuoba() {
                     ...getToolSwitchSchemas(),
                     // 搜剧设置（合并所有搜剧相关）
                     ...getVideoSearchSchemas(),
+                    // 入群验证设置
+                    ...getGroupVerifySchemas(),
                     // AI 生图设置
                     ...getImageGenSchemas(),
                     // 系统设置（网络+语音+权限）

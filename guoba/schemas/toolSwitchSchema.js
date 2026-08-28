@@ -43,7 +43,8 @@ const TOOL_CATEGORIES = [
             { value: 'kick_group_member', label: '移出成员', desc: '将成员移出群组（需Bot是管理员）' },
             { value: 'delete_message', label: '撤回消息', desc: '撤回群消息（需Bot是管理员）' },
             { value: 'set_group_name', label: '修改群名称', desc: '修改群名称（需Bot是管理员）' },
-            { value: 'set_group_announcement', label: '发布公告', desc: '发布群公告（需Bot是管理员）' }
+            { value: 'set_group_announcement', label: '发布公告', desc: '发布群公告（需Bot是管理员）' },
+            { value: 'manage_verify_groups', label: '管理验证群', desc: '查看/添加/移除入群验证群（需主人或群管理员）' }
         ]
     },
     {

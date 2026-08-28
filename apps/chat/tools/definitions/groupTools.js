@@ -179,5 +179,23 @@ export const groupTools = [
                 required: ["content"]
             }
         }
+    },
+    {
+        type: "function",
+        function: {
+            name: "manage_verify_groups",
+            description: "管理入群真人验证的群列表。开启后这些群的新成员需回答随机问题验证真人，超时未答对会被公告后移出群聊，答错不限次数（撤回消息并提醒继续作答）。action: list=查看配置与列表, add=添加当前群, remove=移除当前群。add/remove 仅支持在群聊中使用（作用于当前群），需要主人或群管理员权限，且 Bot 必须是群管理员。",
+            parameters: {
+                type: "object",
+                properties: {
+                    action: {
+                        type: "string",
+                        enum: ["list", "add", "remove"],
+                        description: "操作类型：list查看/add添加当前群/remove移除当前群"
+                    }
+                },
+                required: ["action"]
+            }
+        }
     }
 ];
