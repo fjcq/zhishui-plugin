@@ -89,9 +89,10 @@ function generateLockId(e) {
 /**
  * 检查并发状态和频率限制
  * @param {string} lockId - 并发控制锁ID
+ * @param {Object} e - 事件对象
  * @returns {Promise<{allowed: boolean, reason?: string, waitTime?: number}>} 检查结果
  */
-async function checkConcurrencyAndRateLimit(lockId) {
+async function checkConcurrencyAndRateLimit(lockId, e) {
     if (chatActiveMap[lockId] === 1) {
         return { allowed: false, reason: 'processing' };
     }
@@ -538,7 +539,7 @@ export async function handleChat(e, chatNickname) {
         return false;
     }
 
-    const concurrencyCheck = await checkConcurrencyAndRateLimit(lockId);
+    const concurrencyCheck = await checkConcurrencyAndRateLimit(lockId, e);
     if (!concurrencyCheck.allowed) {
         chatActiveMap[lockId] = 0;
         
