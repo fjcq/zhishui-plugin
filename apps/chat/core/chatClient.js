@@ -15,6 +15,7 @@ import { buildMessages } from './messageBuilder.js';
 import { executeToolLoop, MAX_TOOL_DEPTH } from './toolLoop.js';
 import { getEnabledTools } from '../tools/index.js';
 import { buildUserMessageContent } from '../api/utils/requestUtils.js';
+import { addMessage } from '../session.js';
 
 /** 默认请求参数（与旧getDefaultParams语义一致） */
 const DEFAULT_PARAMS = {
@@ -252,8 +253,23 @@ export async function chat(msg, e, systemMessage, chatMsg, recursionDepth = 0) {
             return { content, rawResponse: JSON.stringify(response.raw || {}) };
         }
 
+        // 思维链模式：拼接思维链前缀（保持旧版展示行为）
+        let content = response.content;
+        if (isThinkingMode && response.thinking) {
+            content = `【思维链】\n${response.thinking}\n\n【回答】\n${content}`;
+        }
+
+        // 会话持久化：user与assistant消息写入历史（工具循环轮由toolLoop持久化，
+        // 末轮在此保存，保证每条用户消息恰好落盘一次）
+        await addMessage({ role: 'user', content: fullUserMsg }, e);
+        const assistantMsgToSave = { role: 'assistant', content };
+        if (response.thinking) {
+            assistantMsgToSave.reasoning_content = response.thinking;
+        }
+        await addMessage(assistantMsgToSave, e);
+
         return {
-            content: response.content,
+            content,
             rawResponse: JSON.stringify(response.raw || {})
         };
     } catch (error) {
