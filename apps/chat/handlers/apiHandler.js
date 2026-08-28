@@ -6,6 +6,7 @@
 import { Config } from '../../../components/index.js';
 import { getCurrentApiConfig, clearSessionContext, loadChatMsg, saveChatMsg, convertChatContextForModel, generateSessionId } from '../helpers.js';
 import { getCurrentRoleIndex } from '../config.js';
+import { getApiDisplayName, getApiDisplayNameWithModel } from '../api-types.js';
 
 /**
  * 设置API
@@ -19,14 +20,15 @@ export async function handleSetApi(e) {
     }
 
     const sensitiveFields = ['ApiKey', 'TencentAssistantId'];
-    const match = e.msg.match(/^#?设置API(类型|地址|密钥|模型|助手ID)\s+(.+)$/i);
+    const match = e.msg.match(/^#?设置API(类型|标题|地址|密钥|模型|助手ID)\s+(.+)$/i);
     if (!match) {
-        e.reply('格式错误，请用如 #设置API类型 openai');
+        e.reply('格式错误，请用如 #设置API类型 openai 或 #设置API标题 DeepSeek官方');
         return;
     }
 
     const keyMap = {
         '类型': 'ApiType',
+        '标题': 'ApiTitle',
         '地址': 'ApiUrl',
         '密钥': 'ApiKey',
         '模型': 'ApiModel',
@@ -64,8 +66,14 @@ export async function handleSetApi(e) {
     }
     ApiList[idx][field] = value;
     await Config.modify('chat', 'ApiList', ApiList);
+
+    let setTip = `当前API的${field}已设置为：${value}`;
+    if (field === 'ApiTitle') {
+        e.reply(`${setTip}`);
+        return;
+    }
     await clearSessionContext(e);
-    e.reply(`当前API的${field}已设置为：${value}\n已自动清除上下文缓存，请重新开始对话。`);
+    e.reply(`${setTip}\n已自动清除上下文缓存，请重新开始对话。`);
 }
 
 /**
@@ -107,7 +115,7 @@ export async function handleSwitchApi(e) {
     }
     await clearSessionContext(e);
 
-    let tip = `已切换到API序号${idx + 1}，类型：${newApi.ApiType || '未知类型'}`;
+    let tip = `已切换到API序号${idx + 1}（${getApiDisplayNameWithModel(newApi)}），类型：${newApi.ApiType || '未知类型'}`;
     if (lost) tip += `\n注意：因模型/接口格式不兼容，历史上下文已被简化或部分丢失。建议重新开始对话。`;
     else tip += `\n已自动清除上下文缓存，请重新开始对话。`;
     e.reply(tip);
@@ -153,6 +161,7 @@ export async function handleShowApi(e) {
     }
 
     const nameMap = {
+        ApiTitle: '标题',
         ApiType: '类型',
         ApiUrl: '地址',
         ApiKey: '密钥',
@@ -164,11 +173,11 @@ export async function handleShowApi(e) {
 
     msg += `\n\n【API列表】\n`;
     ApiList.forEach((item, i) => {
-        msg += `${i + 1}. ${item.ApiType || '未知类型'}${i === idx ? ' ✅当前' : ''}\n`;
+        msg += `${i + 1}. ${getApiDisplayNameWithModel(item)}${i === idx ? ' ✅当前' : ''}\n`;
     });
 
     msg += `\n切换API：#切换API序号  例如 #切换API1\n`;
-    msg += `设置当前API参数：#设置API类型/地址/密钥/模型/助手ID 值  例如 #设置API类型 openai`;
+    msg += `设置当前API参数：#设置API标题/类型/地址/密钥/模型/助手ID 值  例如 #设置API标题 DeepSeek官方`;
 
     e.reply(msg.trim());
 }

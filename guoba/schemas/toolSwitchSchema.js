@@ -112,7 +112,8 @@ const TOOL_CATEGORIES = [
         label: '生图工具',
         tools: [
             { value: 'generate_image', label: '生成图片', desc: '调用 AI 生图服务按提示词生成图片（需配置 imageGen.yaml 中的 API Key）' },
-            { value: 'analyze_image', label: '识别图片', desc: '调用视觉模型识别图片内容并返回文字描述（需在 ApiList 中配置带视觉能力的模型或设置 VisionApiIndex）' }
+            { value: 'analyze_image', label: '识别图片', desc: '调用视觉模型识别图片内容并返回文字描述（需在 ApiList 中配置带视觉能力的模型或设置 VisionApiIndex）' },
+            { value: 'edit_image', label: '编辑图片', desc: '修改/合成用户图片：换背景、转风格、多图合成（需配置 imageGen.yaml 的 Edit 段 API Key）' }
         ]
     }
 ];
@@ -124,7 +125,8 @@ const TOOL_CATEGORIES = [
 export const DEFAULT_DISABLED_TOOLS = [
     'mute_group_member',
     'kick_group_member',
-    'generate_image'
+    'generate_image',
+    'edit_image'
 ];
 
 /**

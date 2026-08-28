@@ -3,6 +3,28 @@
  */
 
 import { Config } from '../../components/index.js';
+import { getApiDisplayName } from '../../apps/chat/api-types.js';
+
+/**
+ * 为chat配置中的ApiList补全显示标题
+ * 旧配置未填写ApiTitle时按API地址自动推断服务商名，使锅巴卡片列表可直接区分各个API
+ * 仅处理返回给锅巴的数据副本，不污染配置缓存；用户在锅巴保存后标题固化到配置文件
+ * @param {Object} chat - 对话配置对象
+ * @returns {Object} 补全标题后的配置副本
+ */
+function enrichChatApiDisplay(chat) {
+    if (!chat || !Array.isArray(chat.ApiList)) {
+        return chat;
+    }
+    return {
+        ...chat,
+        ApiList: chat.ApiList.map(api =>
+            api && !String(api.ApiTitle || '').trim()
+                ? { ...api, ApiTitle: getApiDisplayName(api) }
+                : api
+        )
+    };
+}
 
 /**
  * 获取配置数据
@@ -77,7 +99,7 @@ export async function getConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: Config.getDefOrConfig('chat') || {},
+            chat: enrichChatApiDisplay(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},
@@ -141,7 +163,7 @@ export function getLatestConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: Config.getDefOrConfig('chat') || {},
+            chat: enrichChatApiDisplay(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},

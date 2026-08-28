@@ -317,6 +317,113 @@ export function getImageGenSchemas() {
                 type: 'textarea',
                 rows: 3
             }
+        },
+        {
+            component: 'Divider',
+            label: '图像编辑（OpenAI 兼容接口）'
+        },
+        {
+            field: 'imageGen.Edit.Enable',
+            label: '启用图像编辑',
+            helpMessage: '开启后，AI 可在对话中调用 edit_image 工具修改/合成用户图片（换背景、转风格、多图合成）。需要配置 Edit 段的 API Key',
+            bottomHelpMessage: '图像编辑功能开关（独立于生图）',
+            component: 'Switch'
+        },
+        {
+            field: 'imageGen.Edit.ApiKey',
+            label: 'ApiKey',
+            helpMessage: '图像编辑服务商 API Key。Agnes 与 SiliconFlow 均可（Key 与 chat.yaml 的 Agnes Key 相同）',
+            bottomHelpMessage: '图像编辑 API Key',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxx',
+                type: 'password'
+            }
+        },
+        {
+            field: 'imageGen.Edit.BaseUrl',
+            label: '接口基础地址',
+            helpMessage: '不含 API 路径的基础地址。Agnes 国内：https://apihub.agnes-ai.cn/v1；Agnes 国际：https://apihub.agnes-ai.com/v1；SiliconFlow：https://api.siliconflow.cn/v1',
+            bottomHelpMessage: '图像编辑接口基础地址',
+            component: 'Input',
+            componentProps: {
+                placeholder: 'https://apihub.agnes-ai.cn/v1'
+            }
+        },
+        {
+            field: 'imageGen.Edit.ApiPath',
+            label: 'API 路径',
+            helpMessage: '编辑接口路径，默认 /images/generations（编辑与文生图共用端点，通过 image 参数传图）',
+            bottomHelpMessage: '图像编辑 API 路径',
+            component: 'Input',
+            componentProps: {
+                placeholder: '/images/generations'
+            }
+        },
+        {
+            field: 'imageGen.Edit.Model',
+            label: '模型',
+            helpMessage: 'Agnes：agnes-image-2.1-flash（免费）/ agnes-image-2.0-flash；SiliconFlow：Qwen/Qwen-Image-Edit（约$0.04/张）',
+            bottomHelpMessage: '图像编辑模型名称',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'agnes-image-2.1-flash', label: 'agnes-image-2.1-flash（Agnes，免费，推荐）' },
+                    { value: 'agnes-image-2.0-flash', label: 'agnes-image-2.0-flash（Agnes，免费）' },
+                    { value: 'Qwen/Qwen-Image-Edit', label: 'Qwen/Qwen-Image-Edit（SiliconFlow，付费）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Edit.MaxImages',
+            label: '最大输入图数',
+            helpMessage: '单次编辑允许传入的最大图片数（1~4），多图合成场景使用',
+            bottomHelpMessage: '单次编辑最大输入图片数',
+            component: 'InputNumber',
+            componentProps: {
+                min: 1,
+                max: 4,
+                step: 1,
+                placeholder: '4'
+            }
+        },
+        {
+            field: 'imageGen.Edit.ResponseFormat',
+            label: '返回格式',
+            helpMessage: 'url 返回图片链接；b64_json 返回 base64 数据。部分平台仅支持其中一种',
+            bottomHelpMessage: '图像编辑返回格式',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'url', label: 'url（链接，推荐）' },
+                    { value: 'b64_json', label: 'b64_json（base64）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Edit.SizeSeparator',
+            label: '尺寸分隔符',
+            helpMessage: '输出尺寸参数的分隔符。OpenAI/Agnes/SiliconFlow 使用 x（如 1024x1024），部分国内平台使用 *',
+            bottomHelpMessage: '尺寸参数分隔符',
+            component: 'Select',
+            componentProps: {
+                options: [
+                    { value: 'x', label: 'x（OpenAI 风格）' },
+                    { value: '*', label: '*（国内平台风格）' }
+                ]
+            }
+        },
+        {
+            field: 'imageGen.Edit.ExtraParams',
+            label: '额外参数',
+            helpMessage: 'JSON 字符串格式。部分平台需要额外参数时填写，无需时留空',
+            bottomHelpMessage: '图像编辑额外请求参数（JSON 字符串，可留空）',
+            component: 'Input',
+            componentProps: {
+                placeholder: '{"guidance_scale": 7.5}',
+                type: 'textarea',
+                rows: 2
+            }
         }
     ];
 }

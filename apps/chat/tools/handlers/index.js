@@ -13,6 +13,7 @@ import { handleMessageToolCall, MESSAGE_TOOLS as NEW_MESSAGE_TOOLS } from './mes
 import { handleSearchToolCall, SEARCH_TOOLS } from './searchHandler.js';
 import { handleVideoToolCall, VIDEO_TOOLS } from './videoHandler.js';
 import { handleImageToolCall, IMAGE_TOOLS } from './imageHandler.js';
+import { handleImageEditToolCall, EDIT_IMAGE_TOOLS } from './imageEditHandler.js';
 import { makeDecision, DecisionResult } from '../decisionEngine.js';
 import { getToolSensitivity, isToolCallingEnabled, isToolEnabled } from '../definitions/index.js';
 import { getUserFavor } from '../../user/index.js';
@@ -372,6 +373,12 @@ async function _handleToolCallImpl(toolName, toolParams, e = null, currentUserId
             return result;
         }
 
+        if (EDIT_IMAGE_TOOLS.includes(toolName)) {
+            const result = await handleImageEditToolCall(toolName, params, e, currentUserId);
+            logToolResult(toolName, result);
+            return result;
+        }
+
         return {
             error: true,
             error_message: `未知的工具: ${toolName}`
@@ -453,6 +460,7 @@ export {
     handleSearchToolCall,
     handleVideoToolCall,
     handleImageToolCall,
+    handleImageEditToolCall,
     GROUP_TOOLS,
     MUSIC_TOOLS,
     MESSAGE_TOOLS,

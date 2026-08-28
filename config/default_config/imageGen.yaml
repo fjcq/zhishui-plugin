@@ -102,3 +102,29 @@ Custom:
   # 部分平台需要额外参数（如 guidance_scale、num_inference_steps 等）
   # 示例：{"guidance_scale": 7.5, "num_inference_steps": 30}
   ExtraParams: ""
+
+# 图像编辑配置（OpenAI 兼容接口）
+# 复用 /images/generations 端点，通过 image 参数传入待编辑图片
+# 适用服务商（换服务商只需改 BaseUrl/Model/ApiKey 三项）：
+#   Agnes：BaseUrl https://apihub.agnes-ai.cn/v1，Model agnes-image-2.1-flash（免费，Key 与 chat.yaml 的 Agnes Key 相同）
+#   Agnes 国际节点：https://apihub.agnes-ai.com/v1（同一 Key 通用）
+#   SiliconFlow：BaseUrl https://api.siliconflow.cn/v1，Model Qwen/Qwen-Image-Edit（约$0.04/张）
+Edit:
+  # 图像编辑功能开关（独立于生图 Enable）
+  Enable: true
+  # API Key
+  ApiKey: ""
+  # 接口基础地址（不含 API 路径）
+  BaseUrl: "https://apihub.agnes-ai.cn/v1"
+  # API 路径
+  ApiPath: "/images/generations"
+  # 编辑模型名称
+  Model: "agnes-image-2.1-flash"
+  # 单次编辑最大输入图片数（1~4）
+  MaxImages: 4
+  # 返回格式：url、b64_json
+  ResponseFormat: "url"
+  # 尺寸分隔符：x、*
+  SizeSeparator: "x"
+  # 额外请求参数（JSON 字符串）
+  ExtraParams: ""

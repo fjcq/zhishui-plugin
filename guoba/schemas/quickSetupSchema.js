@@ -26,6 +26,15 @@ export function getChatQuickSetupSchemas() {
                 modalTitle: '编辑API配置',
                 schemas: [
                     {
+                        field: 'ApiTitle',
+                        label: 'API标题',
+                        bottomHelpMessage: '用于区分不同API配置，留空自动按地址识别服务商名',
+                        component: 'Input',
+                        componentProps: {
+                            placeholder: '如: DeepSeek官方、硅基免费'
+                        }
+                    },
+                    {
                         field: 'ApiType',
                         label: 'API类型',
                         component: 'Select',

@@ -1,7 +1,8 @@
 /**
- * 生图与识图工具定义
+ * 生图、识图与编辑图片工具定义
  * generate_image：AI 图片生成（通义万相/DALL-E/文心一格）
  * analyze_image：AI 图片识别（委托视觉模型，可在 chat.yaml 的 VisionApiIndex 指定，-1 自动选择）
+ * edit_image：AI 图片编辑（换背景/转风格/多图合成，配置见 imageGen.yaml 的 Edit 段）
  */
 
 export const imageTools = [
@@ -93,6 +94,57 @@ export const imageTools = [
                     }
                 },
                 required: ["target"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "edit_image",
+            description: `编辑或修改用户提供的图片，把改好的图直接展示给用户。
+支持：改内容（换背景/换物体/加元素）、转风格（油画/动漫等）、画质增强、多张图合成一张。
+
+【什么时候用】
+- 用户发来图片并要求修改、加工、合成
+- 用户想把照片变成其他画风
+- 用户想增强图片清晰度
+
+【什么时候不用】
+- 用户凭空想画一张新图（用生成图片工具，那个不需要原图）
+- 用户只想知道图里有什么（用识别图片工具）
+
+【参数】
+- prompt：编辑指令，说清楚要怎么改。例如："把背景换成夕阳下的海边"、"把这两张图里的人物合成到同一个场景"
+- target：待编辑的图片，1~4 张。可以是图片链接或file_id。单图编辑传一张，合成传多张
+
+【使用要点】
+- 用户没有给图时不要调用，先请用户提供图片
+- 调用前可以用角色口吻告诉用户你在改图
+- 失败时不要重试本工具，用角色口吻告知稍后再试
+- 不暴露任何技术细节，保持沉浸感
+
+【耗时】
+改图比画图更慢，通常需要十几秒到一分钟，请耐心等待。`,
+            parameters: {
+                type: "object",
+                properties: {
+                    prompt: {
+                        type: "string",
+                        description: "编辑指令，描述要如何修改图片。例如：'把背景换成雪山的日出'、'把照片改成吉卜力动画风格'"
+                    },
+                    target: {
+                        type: "array",
+                        items: { type: "string" },
+                        minItems: 1,
+                        maxItems: 4,
+                        description: "待编辑图片的地址或file_id数组。单图编辑传一张；多图合成传多张（最多4张）"
+                    },
+                    size: {
+                        type: "string",
+                        description: "输出图片尺寸，不填则跟随原图或使用默认尺寸"
+                    }
+                },
+                required: ["prompt", "target"]
             }
         }
     }

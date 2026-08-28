@@ -556,7 +556,7 @@ async function getWenxinAccessToken(apiKey, secretKey, ttl = 86400) {
  * @param {object} config - 全局配置
  * @returns {Promise<string|null>} 本地文件路径，失败返回 null
  */
-async function downloadImage(imageUrl, config) {
+export async function downloadImage(imageUrl, config) {
     try {
         const saveDir = getSaveDir(config);
         if (!fs.existsSync(saveDir)) {
@@ -653,7 +653,7 @@ function getAvailableProviders(config) {
  * @param {number} rateLimitSec - 限制间隔（秒）
  * @returns {boolean} 是否允许调用
  */
-function checkRateLimit(userId, rateLimitSec) {
+export function checkRateLimit(userId, rateLimitSec) {
     if (rateLimitSec <= 0) return true;
     const now = Date.now();
     const lastTime = rateLimitMap.get(userId) || 0;
@@ -666,7 +666,7 @@ function checkRateLimit(userId, rateLimitSec) {
  * @param {number} rateLimitSec - 限制间隔（秒）
  * @returns {number} 剩余秒数
  */
-function getRateLimitRemain(userId, rateLimitSec) {
+export function getRateLimitRemain(userId, rateLimitSec) {
     const now = Date.now();
     const lastTime = rateLimitMap.get(userId) || 0;
     const remain = Math.ceil((rateLimitSec * 1000 - (now - lastTime)) / 1000);
@@ -677,7 +677,7 @@ function getRateLimitRemain(userId, rateLimitSec) {
  * 记录用户调用时间
  * @param {string} userId - 用户ID
  */
-function recordRateLimit(userId) {
+export function recordRateLimit(userId) {
     rateLimitMap.set(userId, Date.now());
 }
 
@@ -687,7 +687,7 @@ function recordRateLimit(userId) {
  * @param {number} [maxLen=200] - 最大返回长度
  * @returns {string} 序列化后的字符串
  */
-function safeStringify(obj, maxLen = 200) {
+export function safeStringify(obj, maxLen = 200) {
     try {
         const str = JSON.stringify(obj) || '';
         return str.substring(0, maxLen);

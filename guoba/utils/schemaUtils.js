@@ -3,7 +3,7 @@
  */
 
 import { Config } from '../../components/index.js';
-import { getApiTypeOptions } from '../../apps/chat/api-types.js';
+import { getApiTypeOptions, getApiDisplayName, getApiDisplayNameWithModel } from '../../apps/chat/api-types.js';
 
 /**
  * 获取最新角色配置
@@ -47,11 +47,12 @@ export function getRoleOptions(roles) {
 
 /**
  * 获取API选项列表
+ * 选项label格式：#序号 显示名 - 模型名（显示名优先取API标题，其次按地址推断服务商名）
  * @returns {Array} API选项
  */
 export function getApiOptions() {
     return (Config.Chat?.ApiList || []).map((api, idx) => ({
-        label: `${api.ApiType || '未知'} - ${api.ApiUrl || '未配置'}`,
+        label: `#${idx + 1} ${getApiDisplayNameWithModel(api)}`,
         value: idx
     }));
 }
@@ -64,7 +65,7 @@ export function getVisionApiOptions() {
     return [
         { label: '自动选择（第一个已配置的视觉模型）', value: -1 },
         ...(Config.Chat?.ApiList || []).map((api, idx) => ({
-            label: `${api.ApiModel || '未命名模型'} (${api.ApiType || '未知'} - #${idx})`,
+            label: `#${idx + 1} ${api.ApiModel || '未命名模型'}（${getApiDisplayName(api)}）`,
             value: idx
         }))
     ];

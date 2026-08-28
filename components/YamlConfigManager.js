@@ -201,7 +201,7 @@ class YamlConfigManager {
     async modify(name, key, value, type = 'config') {
         try {
             let filePath = path.join(Plugin_Path, 'config', type, `${name}.yaml`);
-            
+
             // 如果文件不存在，尝试从默认配置复制
             if (!fs.existsSync(filePath)) {
                 let defPath = path.join(Plugin_Path, 'config', 'default_config', `${name}.yaml`);
@@ -213,14 +213,41 @@ class YamlConfigManager {
                     fs.writeFileSync(filePath, '{}', 'utf8');
                 }
             }
-            
-            new YamlReader(filePath).set(key, value);
+
+            if (!key) {
+                // 空 key 表示整体合并配置
+                this.modifyWhole(filePath, value);
+            } else {
+                new YamlReader(filePath).set(key, value);
+            }
             delete this.config[`${type}.${name}`];
             return true;
         } catch (error) {
             console.error(`[止水插件] 配置修改失败: ${error.message}`);
             return false;
         }
+    }
+
+    /**
+     * 整体合并写入配置文件
+     * 逐键更新文档并清理历史空键，保留原有注释与表单外的既有字段
+     * 注：不能走 YamlReader.set('', value)，setIn(['']) 会把数据写到空字符串键下导致保存不生效
+     * @param {String} filePath - 配置文件绝对路径
+     * @param {Object} value - 完整配置对象
+     */
+    modifyWhole(filePath, value) {
+        const doc = YAML.parseDocument(fs.readFileSync(filePath, 'utf8'));
+
+        // 清理历史版本空 key 写入产生的数据块
+        if (doc.has('')) {
+            doc.delete('');
+        }
+
+        for (const [k, v] of Object.entries(value || {})) {
+            doc.set(k, v);
+        }
+
+        fs.writeFileSync(filePath, doc.toString(), 'utf8');
     }
 
     /**

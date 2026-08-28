@@ -17,8 +17,8 @@ export function getApiSchemas() {
         {
             field: 'chat.ApiList',
             label: 'API配置列表',
-            helpMessage: '支持OpenAI、DeepSeek、腾讯混元、智谱AI等多种API，可配置多个API进行切换。每个API需填写类型、地址、密钥、模型名称。',
-            bottomHelpMessage: '点击"添加API配置"按钮添加新的API，支持多API切换',
+            helpMessage: '支持OpenAI、DeepSeek、腾讯混元、智谱AI等多种API，可配置多个API进行切换。每个API需填写类型、地址、密钥、模型名称，建议填写标题便于区分。',
+            bottomHelpMessage: '点击"添加API配置"按钮添加新的API，支持多API切换；卡片列表按标题区分各个API',
             component: 'GSubForm',
             componentProps: {
                 multiple: true,
@@ -26,9 +26,18 @@ export function getApiSchemas() {
                 modalTitle: '编辑API配置',
                 schemas: [
                     {
+                        field: 'ApiTitle',
+                        label: 'API标题',
+                        helpMessage: '用于区分不同API配置的名称，将显示在配置列表、API切换下拉框和#查看API指令中。留空时自动按API地址识别服务商名（如DeepSeek、硅基流动、本地模型）',
+                        component: 'Input',
+                        componentProps: {
+                            placeholder: '如: DeepSeek官方、硅基免费、本地Qwen3'
+                        }
+                    },
+                    {
                         field: 'ApiType',
                         label: 'API类型',
-                        helpMessage: '不同API类型有不同的调用方式，请选择与您密钥对应的类型',
+                        helpMessage: '仅决定调用格式（OpenAI兼容/腾讯元器/Gemini），不用于区分服务商。同一类型下区分不同模型请填写API标题',
                         component: 'Select',
                         required: true,
                         componentProps: {
