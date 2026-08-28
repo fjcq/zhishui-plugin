@@ -3,27 +3,20 @@
  */
 
 import { Config } from '../../components/index.js';
-import { getApiDisplayName } from '../../apps/chat/api-types.js';
+import { renderLegacyView } from '../../apps/chat/configs/sync.js';
 
 /**
- * 为chat配置中的ApiList补全显示标题
- * 旧配置未填写ApiTitle时按API地址自动推断服务商名，使锅巴卡片列表可直接区分各个API
- * 仅处理返回给锅巴的数据副本，不污染配置缓存；用户在锅巴保存后标题固化到配置文件
- * @param {Object} chat - 对话配置对象
- * @returns {Object} 补全标题后的配置副本
+ * 从新配置结构渲染guoba编辑视图
+ * 新结构（providers/models）是唯一事实源，guoba的ApiList/CurrentApiIndex/VisionApiIndex
+ * 由sync.renderLegacyView派生；其余字段（ContextMode等）原样透传
+ * @param {Object} chat - 宿主chat配置对象
+ * @returns {Object} 合成旧视图后的配置副本
  */
-function enrichChatApiDisplay(chat) {
-    if (!chat || !Array.isArray(chat.ApiList)) {
+function renderChatLegacyView(chat) {
+    if (!chat || typeof chat !== 'object') {
         return chat;
     }
-    return {
-        ...chat,
-        ApiList: chat.ApiList.map(api =>
-            api && !String(api.ApiTitle || '').trim()
-                ? { ...api, ApiTitle: getApiDisplayName(api) }
-                : api
-        )
-    };
+    return { ...chat, ...renderLegacyView(chat) };
 }
 
 /**
@@ -99,7 +92,7 @@ export async function getConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: enrichChatApiDisplay(Config.getDefOrConfig('chat') || {}),
+            chat: renderChatLegacyView(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},
@@ -163,7 +156,7 @@ export function getLatestConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: enrichChatApiDisplay(Config.getDefOrConfig('chat') || {}),
+            chat: renderChatLegacyView(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},

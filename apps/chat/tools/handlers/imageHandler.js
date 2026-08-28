@@ -10,7 +10,7 @@ import path from 'node:path';
 import request from '../../../../lib/request/request.js';
 import { getSegment } from './shared/utils.js';
 import { downloadImageSmart, extractCleanImageUrl } from '../../api/utils/requestUtils.js';
-import { analyzeImage } from '../../api/visionAgent.js';
+import { analyzeImage } from '../../core/visionAgent.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 

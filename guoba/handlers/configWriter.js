@@ -5,6 +5,7 @@
 import { Config } from '../../components/index.js';
 import { getLatestConfigData } from './configReader.js';
 import { clearAllSessions } from '../../apps/chat/session.js';
+import { applyLegacyView } from '../../apps/chat/configs/sync.js';
 
 /**
  * 保存配置数据
@@ -269,6 +270,13 @@ async function handleChatSave(chatData) {
         }
 
         Config.modify('chat', '', chatData, 'config');
+
+        // 新结构同步：guoba编辑的是ApiList旧视图，运行时读providers/models，
+        // 经sync转换覆盖新字段（name稳定性合并保证群覆盖引用不失效）
+        const syncResult = await applyLegacyView(chatData);
+        if (!syncResult.ok) {
+            console.error(`[锅巴面板] 新配置结构同步失败: ${syncResult.reason}，运行时可能仍使用旧模型配置`);
+        }
     } catch (error) {
         console.error('[锅巴面板] 保存对话配置失败:', error);
         throw error;

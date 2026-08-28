@@ -18,8 +18,5 @@ export * from './config.js';
 // 导出API处理模块
 export * from './api-handlers.js';
 
-// 导出API类型常量模块
-export * from './api-types.js';
-
 // 导出场景管理模块
 export { ReadScene, WriteScene } from './sceneManager.js';

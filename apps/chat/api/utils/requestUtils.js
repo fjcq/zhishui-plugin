@@ -6,9 +6,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import request from '../../../../lib/request/request.js';
 import { Config, logger } from '../../../../components/index.js';
-import { validateRequestParams, checkJsonFormatSupport } from '../../parsers.js';
-import { ApiTypes, isToolCallingSupported } from '../../api-types.js';
-import { getEnabledTools } from '../../tools/index.js';
 
 /**
  * 获取有效的用户ID
@@ -21,52 +18,6 @@ export async function getValidUserId(userId) {
         return masterQQ || "10000";
     }
     return String(userId);
-}
-
-/**
- * 构建请求头
- * @param {string} apiType - API类型
- * @param {string} apiKey - API密钥
- * @returns {Object} 请求头对象
- */
-export function buildHeaders(apiType, apiKey) {
-    if (apiType === 'tencent') {
-        return {
-            'X-Source': 'openapi',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        };
-    } else if (apiType === 'gemini') {
-        return {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
-        };
-    } else {
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-        };
-    }
-}
-
-/**
- * 获取默认请求参数
- * @param {string} apiType - API类型
- * @returns {Object} 默认参数
- */
-export function getDefaultParams(apiType) {
-    const defaultParams = {
-        temperature: 0.7,
-        top_p: 0.95,
-        max_tokens: 2048
-    };
-
-    if (apiType === ApiTypes.OPENAI) {
-        defaultParams.presence_penalty = 0.2;
-        defaultParams.frequency_penalty = 0.3;
-    }
-
-    return defaultParams;
 }
 
 /**
@@ -101,33 +52,6 @@ export function buildUserMessageContent(msg) {
     }
 
     return { fullUserMsg, userInfo };
-}
-
-/**
- * 添加工具调用配置
- * @param {Object} requestData - 请求数据
- * @param {string} apiType - API类型
- */
-export function addToolCallingConfig(requestData, apiType) {
-    if (isToolCallingSupported(apiType)) {
-        requestData.tools = getEnabledTools();
-        requestData.tool_choice = 'auto';
-    }
-}
-
-/**
- * 添加JSON格式配置
- * @param {Object} requestData - 请求数据
- * @param {string} apiType - API类型
- * @param {string} aiModel - AI模型名称
- */
-export function addJsonFormatConfig(requestData, apiType, aiModel) {
-    const supportsJsonFormat = checkJsonFormatSupport(apiType, aiModel);
-    const hasTools = isToolCallingSupported(apiType);
-
-    if (supportsJsonFormat && !hasTools) {
-        requestData.response_format = { type: 'json_object' };
-    }
 }
 
 /**

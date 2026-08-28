@@ -3,7 +3,20 @@
  */
 
 import { Config } from '../../components/index.js';
-import { getApiTypeOptions, getApiDisplayName, getApiDisplayNameWithModel } from '../../apps/chat/api-types.js';
+import { renderLegacyView } from '../../apps/chat/configs/sync.js';
+
+/**
+ * 获取API类型选项（含anthropic原生格式，与新架构PROVIDER_TYPES一致）
+ * @returns {Array} API类型选项列表
+ */
+function getApiTypeOptions() {
+    return [
+        { label: 'OpenAI兼容', value: 'openai', description: 'OpenAI兼容格式，覆盖绝大多数模型服务商', features: ['多模态', '工具调用', '思维链'] },
+        { label: 'Anthropic', value: 'anthropic', description: 'Claude原生格式（/v1/messages），支持tool use与extended thinking', features: ['多模态', '工具调用', '思维链'] },
+        { label: 'Google Gemini', value: 'gemini', description: 'Gemini原生格式，支持多模态和联网搜索', features: ['多模态', '联网'] },
+        { label: '腾讯元器', value: 'tencent', description: '腾讯元器API，需要配置助手ID', features: [] }
+    ];
+}
 
 /**
  * 获取最新角色配置
@@ -47,12 +60,13 @@ export function getRoleOptions(roles) {
 
 /**
  * 获取API选项列表
- * 选项label格式：#序号 显示名 - 模型名（显示名优先取API标题，其次按地址推断服务商名）
+ * 选项label格式：#序号 标题 - 模型名（从新providers/models结构经renderLegacyView渲染）
  * @returns {Array} API选项
  */
 export function getApiOptions() {
-    return (Config.Chat?.ApiList || []).map((api, idx) => ({
-        label: `#${idx + 1} ${getApiDisplayNameWithModel(api)}`,
+    const view = renderLegacyView(Config.Chat);
+    return view.ApiList.map((api, idx) => ({
+        label: `#${idx + 1} ${api.ApiTitle || api.ApiModel || '未命名'}`,
         value: idx
     }));
 }
@@ -62,10 +76,11 @@ export function getApiOptions() {
  * @returns {Array} 视觉模型选项
  */
 export function getVisionApiOptions() {
+    const view = renderLegacyView(Config.Chat);
     return [
         { label: '自动选择（第一个已配置的视觉模型）', value: -1 },
-        ...(Config.Chat?.ApiList || []).map((api, idx) => ({
-            label: `#${idx + 1} ${api.ApiModel || '未命名模型'}（${getApiDisplayName(api)}）`,
+        ...view.ApiList.map((api, idx) => ({
+            label: `#${idx + 1} ${api.ApiModel || '未命名模型'}（${api.ApiTitle || '未命名'}）`,
             value: idx
         }))
     ];
