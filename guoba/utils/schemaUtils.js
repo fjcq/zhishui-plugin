@@ -113,3 +113,16 @@ export function getImageModelOptions(withAuto = false) {
         ? [{ label: '自动选择（第一个可用模型）', value: '' }, ...options]
         : options;
 }
+
+/**
+ * 获取生图服务商选项列表（引用 imageGen.providers 条目名称）
+ * 供模型列表的"所属服务商"下拉选择，避免手输名称出错导致引用悬空
+ * @returns {Array} 生图服务商选项
+ */
+export function getImageProviderOptions() {
+    const imageGen = Config.getDefOrConfig('imageGen') || {};
+    return (imageGen.providers || []).map(p => ({
+        label: `${p.name}（${p.type || '未选类型'}${p.baseUrl ? ` · ${String(p.baseUrl).replace(/^https?:\/\//, '').split('/')[0]}` : ''}）`,
+        value: p.name
+    }));
+}

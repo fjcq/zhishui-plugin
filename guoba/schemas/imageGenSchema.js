@@ -4,7 +4,7 @@
  * 全局参数 + 服务商列表 + 模型列表 + 图像编辑设置
  */
 
-import { getImageModelOptions } from '../utils/schemaUtils.js';
+import { getImageModelOptions, getImageProviderOptions } from '../utils/schemaUtils.js';
 
 /**
  * 获取 AI 生图设置的 Schema
@@ -29,7 +29,10 @@ export function getImageGenSchemas() {
             component: 'Select',
             componentProps: {
                 options: getImageModelOptions(true),
-                placeholder: '自动选择（推荐）'
+                placeholder: '自动选择（推荐）',
+                showSearch: true,
+                filterOption: (input, option) =>
+                    String(option.label || '').toLowerCase().includes(String(input).toLowerCase())
             }
         },
         {
@@ -164,11 +167,15 @@ export function getImageGenSchemas() {
                     {
                         field: 'provider',
                         label: '所属服务商',
-                        helpMessage: '引用上方服务商列表中的名称',
-                        component: 'Input',
+                        helpMessage: '从已添加的服务商列表中选择。若下拉为空，请先在上方"生图服务商列表"中添加并保存',
+                        component: 'Select',
                         required: true,
                         componentProps: {
-                            placeholder: '如: 通义万相'
+                            options: getImageProviderOptions(),
+                            placeholder: '请选择所属服务商',
+                            showSearch: true,
+                            filterOption: (input, option) =>
+                                String(option.label || '').toLowerCase().includes(String(input).toLowerCase())
                         }
                     },
                     {
@@ -256,7 +263,10 @@ export function getImageGenSchemas() {
             component: 'Select',
             componentProps: {
                 options: getImageModelOptions(),
-                placeholder: '请先在模型列表添加编辑模型'
+                placeholder: '请先在模型列表添加编辑模型',
+                showSearch: true,
+                filterOption: (input, option) =>
+                    String(option.label || '').toLowerCase().includes(String(input).toLowerCase())
             }
         },
         {

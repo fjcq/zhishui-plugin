@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import request from '../../../../lib/request/request.js';
 import { getSegment } from './shared/utils.js';
 import { downloadImageSmart } from '../../api/utils/requestUtils.js';
 import { analyzeImage } from '../../core/visionAgent.js';

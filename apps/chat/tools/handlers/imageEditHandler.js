@@ -9,6 +9,7 @@ import { getSegment } from './shared/utils.js';
 import { downloadImageSmart, extractCleanImageUrl } from '../../api/utils/requestUtils.js';
 import { editImage } from '../imageGen/imageClient.js';
 import { getImageGenConfig } from '../imageGen/imageManager.js';
+import { rememberSessionImage, resolveImageTarget, IMAGE_SOURCES } from '../imageGen/imageMemory.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 import { downloadImage, checkRateLimit, recordRateLimit, getRateLimitRemain } from './imageHandler.js';
