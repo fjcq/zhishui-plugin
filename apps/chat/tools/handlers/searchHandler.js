@@ -1,14 +1,18 @@
 /**
  * 联网搜索工具处理函数
  * 处理AI调用的网络搜索相关工具
- * 默认使用 DuckDuckGo HTML 接口，无需 API Key
+ * 主引擎使用必应（Bing）网页接口，国内网络可直连，无需 API Key 与代理
+ * 备用引擎为 DuckDuckGo HTML 接口（国内需代理，海外服务器可用）
  * 通过项目封装的 request 模块发起请求，自动遵循 proxy.yaml 代理配置
  */
 
 import request from '../../../../lib/request/request.js';
 import { logger } from '../../../../components/index.js';
 
-/** DuckDuckGo HTML 搜索接口地址 */
+/** 必应网页搜索接口地址（国内可直连） */
+const BING_SEARCH_ENDPOINT = 'https://www.bing.com/search';
+
+/** DuckDuckGo HTML 搜索接口地址（备用引擎，国内需代理） */
 const DDG_HTML_ENDPOINT = 'https://html.duckduckgo.com/html/';
 
 /** 浏览器 User-Agent，避免被识别为爬虫 */
@@ -67,23 +71,27 @@ async function handleWebSearch(params) {
 
     logger.info(`[搜索工具] 开始搜索: "${trimmedQuery}" | 限制: ${maxResults}条`);
 
-    const html = await fetchDuckDuckGoHtml(trimmedQuery);
-    if (!html) {
-        return {
-            error: true,
-            error_message: '无法连接到 DuckDuckGo 搜索接口。可能原因：网络不通或被屏蔽。若服务器在中国大陆，请在 plugins/zhishui-plugin/config/config/proxy.yaml 中开启 switchProxy 并配置可用代理地址（如 http://127.0.0.1:7890），或将 *.duckduckgo.com 加入代理白名单'
-        };
+    // 主引擎：必应，国内网络可直连
+    let results = [];
+    const bingHtml = await fetchBingHtml(trimmedQuery);
+    if (bingHtml) {
+        results = parseBingResults(bingHtml, maxResults);
     }
 
-    const results = parseDuckDuckGoResults(html, maxResults);
+    // 备用引擎：DuckDuckGo（必应失败或无结果时尝试，国内需代理）
+    if (results.length === 0) {
+        logger.info('[搜索工具] 必应无可用结果，尝试 DuckDuckGo 备用引擎');
+        const ddgHtml = await fetchDuckDuckGoHtml(trimmedQuery);
+        if (ddgHtml) {
+            results = parseDuckDuckGoResults(ddgHtml, maxResults);
+        }
+    }
 
+    // 两个引擎均未取到结果时返回错误提示
     if (results.length === 0) {
         return {
-            success: true,
-            query: trimmedQuery,
-            total_results: 0,
-            results: [],
-            message: '未找到相关结果，请尝试更换关键词'
+            error: true,
+            error_message: '必应与 DuckDuckGo 均未返回搜索结果。可能原因：网络不通、搜索引擎限流或关键词无匹配。请稍后重试或更换关键词'
         };
     }
 
@@ -107,6 +115,43 @@ function clampMaxResults(value) {
         return DEFAULT_MAX_RESULTS;
     }
     return Math.min(value, MAX_RESULTS_LIMIT);
+}
+
+/**
+ * 请求必应搜索接口获取结果数据
+ * 优先请求 RSS 格式输出（format=rss），返回结构化 XML：
+ * 无 HTML 推荐流污染、不受页面改版影响、无需复杂解析
+ * 必应在国内网络可直连，无需代理与 API Key
+ * @param {string} query - 搜索关键词
+ * @returns {Promise<string|null>} 响应内容（RSS 或降级时的 HTML），失败返回 null
+ */
+async function fetchBingHtml(query) {
+    const requestUrl = `${BING_SEARCH_ENDPOINT}?q=${encodeURIComponent(query)}&format=rss&mkt=zh-CN&setlang=zh-hans`;
+
+    try {
+        const response = await request.get(requestUrl, {
+            headers: {
+                'User-Agent': BROWSER_UA,
+                'Accept': 'application/rss+xml, application/xml, text/html;q=0.9, */*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+                'Referer': 'https://www.bing.com/'
+            },
+            responseType: 'text',
+            closeCheckStatus: false,
+            outErrorLog: false
+        });
+
+        if (!response || typeof response !== 'string') {
+            logger.warn('[搜索工具] 必应返回空内容');
+            return null;
+        }
+
+        return response;
+    } catch (error) {
+        const msg = error?.message || String(error);
+        logger.warn(`[搜索工具] 必应请求失败: ${msg}`);
+        return null;
+    }
 }
 
 /**
@@ -316,6 +361,165 @@ function extractReadableText(html) {
 }
 
 /**
+ * 解析必应搜索响应
+ * 响应为 RSS（含 <item> 节点）时走结构化解析；
+ * 接口降级返回 HTML 结果页时，走 b_algo 区块解析
+ * @param {string} content - RSS XML 或 HTML 内容
+ * @param {number} maxResults - 最大返回结果数
+ * @returns {Array<object>} 解析出的搜索结果列表
+ */
+function parseBingResults(content, maxResults) {
+    if (/<item[\s>]/i.test(content)) {
+        return parseBingRssResults(content, maxResults);
+    }
+    return parseBingHtmlResults(content, maxResults);
+}
+
+/**
+ * 解析必应 RSS 输出
+ * 每个 <item> 节点含 <title>、<link>、<description> 三个子节点，
+ * 文本内容可能被 CDATA 包裹，链接中的 & 需解码实体
+ * @param {string} xml - RSS XML 内容
+ * @param {number} maxResults - 最大返回结果数
+ * @returns {Array<object>} 解析出的搜索结果列表
+ */
+function parseBingRssResults(xml, maxResults) {
+    const results = [];
+    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+
+    let itemMatch;
+    while ((itemMatch = itemRegex.exec(xml)) !== null) {
+        if (results.length >= maxResults) {
+            break;
+        }
+
+        const block = itemMatch[1];
+        const rawTitle = extractXmlTag(block, 'title');
+        const rawLink = extractXmlTag(block, 'link');
+        if (!rawTitle || !rawLink) {
+            continue;
+        }
+
+        const title = cleanHtmlText(stripCdata(rawTitle));
+        const url = sanitizeBingUrl(stripCdata(rawLink).trim());
+        if (!title || !url) {
+            continue;
+        }
+
+        const snippet = cleanHtmlText(stripCdata(extractXmlTag(block, 'description')));
+
+        results.push({ title, url, snippet });
+    }
+
+    return results;
+}
+
+/**
+ * 提取 XML 节点的内部文本
+ * @param {string} block - XML 片段
+ * @param {string} tag - 节点名称
+ * @returns {string} 节点内部文本，无匹配返回空字符串
+ */
+function extractXmlTag(block, tag) {
+    const match = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+    return match ? match[1] : '';
+}
+
+/**
+ * 剥离 XML CDATA 包裹
+ * @param {string} text - 可能含 CDATA 包裹的文本
+ * @returns {string} 剥离后的文本
+ */
+function stripCdata(text) {
+    return text
+        .replace(/^\s*<!\[CDATA\[/i, '')
+        .replace(/\]\]>\s*$/i, '')
+        .trim();
+}
+
+/**
+ * 解析必应 HTML 结果页（RSS 不可用时的降级路径）
+ * 必应每条结果为一个 <li class="b_algo"> 区块：
+ * 标题位于区块内 <h2><a href="...">标题</a></h2>，摘要位于 b_caption 区块内的 <p>
+ * 解析采用按 b_algo 起点切分区块的方式，不依赖完整闭合标签结构，
+ * 区块内标题与摘要天然绑定，不会出现跨结果错位
+ * @param {string} html - HTML 内容
+ * @param {number} maxResults - 最大返回结果数
+ * @returns {Array<object>} 解析出的搜索结果列表
+ */
+function parseBingHtmlResults(html, maxResults) {
+    const results = [];
+
+    // 以 b_algo 结果项起点切分页面，切分后每段对应一条结果的完整内容
+    const blocks = html.split(/<li[^>]+class="[^"]*\bb_algo\b[^"]*"/i).slice(1);
+
+    for (const block of blocks) {
+        if (results.length >= maxResults) {
+            break;
+        }
+
+        // 标题链接：区块内 <h2> 中的第一个 <a href="...">标题</a>
+        const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]+href\s*=\s*"([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+        if (!titleMatch) {
+            continue;
+        }
+
+        const url = sanitizeBingUrl(titleMatch[1]);
+        const title = cleanHtmlText(titleMatch[2]);
+        if (!title || !url) {
+            continue;
+        }
+
+        // 摘要：优先 b_caption 区块内的 <p>，缺失时退化取区块内第一个 <p>
+        const captionMatch = block.match(/class="[^"]*\bb_caption\b[^"]*"[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/i);
+        const pMatch = captionMatch || block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
+        const snippet = pMatch ? cleanHtmlText(pMatch[1]) : '';
+
+        results.push({ title, url, snippet });
+    }
+
+    return results;
+}
+
+/**
+ * 清洗必应结果链接
+ * 剔除必应搜索页与 go.microsoft.com 跳转页等非目标站点链接，
+ * 保留 learn.microsoft.com 等真实内容页
+ * @param {string} rawUrl - 原始 href
+ * @returns {string} 有效返回规范化的 URL，无效返回空字符串
+ */
+function sanitizeBingUrl(rawUrl) {
+    if (!rawUrl) {
+        return '';
+    }
+
+    try {
+        // 先解码 HTML 实体（&amp; 等），避免拼出含实体的无效 URL
+        let url = decodeHtmlEntities(rawUrl).trim();
+
+        if (url.startsWith('//')) {
+            url = 'https:' + url;
+        }
+
+        const parsed = new URL(url);
+
+        // 过滤必应自身页面（搜索结果页、二级跳转页等）
+        if (/(^|\.)bing\.com$/i.test(parsed.hostname)) {
+            return '';
+        }
+
+        // 过滤微软通用跳转链接（真实内容页如 learn.microsoft.com 不受影响）
+        if (parsed.hostname === 'go.microsoft.com') {
+            return '';
+        }
+
+        return parsed.href;
+    } catch {
+        return '';
+    }
+}
+
+/**
  * 解析 DuckDuckGo HTML 结果页
  * 采用流式聚合：按出现顺序匹配 result__a 和 result__snippet，
  * 遇到 result__a 即开启新结果，遇到 result__snippet 则填入当前结果的摘要。
@@ -422,6 +626,7 @@ function decodeHtmlEntities(text) {
 
 /**
  * 清理 HTML 标签和实体，提取纯文本
+ * 处理顺序：先移除标签再解码实体——若先解码，&lt; 等实体转为 < 后会被误认为标签而删除
  * @param {string} html - 含 HTML 标签的字符串
  * @returns {string} 纯文本
  */
@@ -430,8 +635,10 @@ function cleanHtmlText(html) {
         return '';
     }
 
-    return decodeHtmlEntities(html)
-        .replace(/<[^>]+>/g, '')
+    // 先移除标签，此时实体尚未解码不会被误删
+    const stripped = html.replace(/<[^>]+>/g, '');
+
+    return decodeHtmlEntities(stripped)
         .replace(/\s+/g, ' ')
         .trim();
 }
@@ -446,6 +653,10 @@ export const SEARCH_TOOLS = ['web_search', 'read_web_page'];
  * @internal
  */
 export const __test__ = {
+    parseBingResults,
+    parseBingRssResults,
+    sanitizeBingUrl,
+    stripCdata,
     parseDuckDuckGoResults,
     cleanHtmlText,
     extractRealUrl,

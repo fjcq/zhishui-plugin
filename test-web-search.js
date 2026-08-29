@@ -1,6 +1,7 @@
 /**
  * 联网搜索工具 端到端验证脚本
- * 完整流程：调用 web_search 工具 → 解析 DuckDuckGo HTML → 输出结构化结果
+ * 完整流程：调用 web_search 工具 → 必应搜索（国内直连）→ 解析 HTML → 输出结构化结果
+ * 必应无结果时自动回退 DuckDuckGo 备用引擎（国内需代理）
  *
  * 使用方式：在 Yunzai 根目录执行
  *   node plugins/zhishui-plugin/test-web-search.js

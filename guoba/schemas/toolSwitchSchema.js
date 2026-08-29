@@ -108,7 +108,7 @@ const TOOL_CATEGORIES = [
         icon: '🌐',
         label: '联网',
         tools: [
-            { value: 'web_search', label: '网页搜索', desc: '调用DuckDuckGo联网搜索，无需API Key' },
+            { value: 'web_search', label: '网页搜索', desc: '调用必应联网搜索，国内直连无需代理与API Key' },
             { value: 'read_web_page', label: '读取网页', desc: '读取指定网页的正文内容，配合网页搜索使用' }
         ]
     },
