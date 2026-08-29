@@ -184,7 +184,7 @@ export const groupTools = [
         type: "function",
         function: {
             name: "manage_verify_groups",
-            description: "管理入群真人验证的群列表。开启后这些群的新成员需回答随机问题验证真人，超时未答对会被公告后移出群聊，答错不限次数（撤回消息并提醒继续作答）。action: list=查看配置与列表, add=添加当前群, remove=移除当前群。add/remove 仅支持在群聊中使用（作用于当前群），需要主人或群管理员权限，且 Bot 必须是群管理员。",
+            description: "管理入群真人验证的群列表。开启后这些群的新成员需回答随机问题验证真人，超时未答对会被公告后移出群聊，答错不限次数（撤回消息并提醒继续作答）。action: list=查看配置与列表, add=添加当前群, remove=移除当前群。add/remove 仅支持在群聊中使用（作用于当前群），需要主人或群管理员权限，且 Bot 必须是群管理员。注意：list 返回的验证群号属于隐私信息，在群聊等公开场合只能说明数量，绝不能列出具体群号。",
             parameters: {
                 type: "object",
                 properties: {

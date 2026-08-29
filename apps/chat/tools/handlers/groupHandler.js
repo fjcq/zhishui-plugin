@@ -476,7 +476,8 @@ async function handleManageVerifyGroups(params, e) {
             timeout_policy: '超时未答对公告后移出群聊；答错不限次数，撤回消息并提醒继续作答',
             ai_mode_note: config.useAI
                 ? '出题、判定与回应均由 AI 按人设对话式生成，AI 不可用时自动回退本地'
-                : '本地题库出题与代码判定'
+                : '本地题库出题与代码判定',
+            privacy_note: '验证群列表属于隐私信息：私聊中可以告知主人，但在群聊等公开场合回复时只说明数量，不要列出具体群号'
         };
     }
 
@@ -513,10 +514,10 @@ async function handleManageVerifyGroups(params, e) {
         }
 
         logger.mark(`[群管理] 验证群${action === 'add' ? '添加' : '移除'} | 群:${targetGroupId}`);
+        // add/remove 仅返回操作结果，不回传完整群列表，避免AI把所有验证群号公布到群里
         return {
             success: true,
-            message: result.message,
-            verify_groups: getVerifyConfig().verifyGroups
+            message: result.message
         };
     } catch (error) {
         logger.error(`[群管理] 管理验证群失败: ${error.message}`);
