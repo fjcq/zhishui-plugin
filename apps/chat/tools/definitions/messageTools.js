@@ -86,7 +86,8 @@ export const messageTools = [
 
 【提示】
 - 如果还要带文字、@ 等其他内容，用 send_message 更合适
-- 重发 QQ 聊天中的历史图片时，最好同时带上 url 和 file_id`,
+- 重发 QQ 聊天中的历史图片时，最好同时带上 url 和 file_id
+- 成功后返回 message_id，可用于 recall_message 撤回`,
             parameters: {
                 type: "object",
                 properties: {
@@ -140,7 +141,7 @@ export const messageTools = [
         type: "function",
         function: {
             name: "send_private_message",
-            description: "发送私聊消息给指定用户。无论当前在私聊还是群聊，都向指定用户发送私聊消息。",
+            description: "发送私聊消息给指定用户。无论当前在私聊还是群聊，都向指定用户发送私聊消息。成功后返回 message_id，可用于 recall_message 撤回。",
             parameters: {
                 type: "object",
                 properties: {
@@ -182,7 +183,7 @@ export const messageTools = [
         type: "function",
         function: {
             name: "forward_message",
-            description: "转发消息到其他群组。",
+            description: "转发消息到其他群组。成功后返回 message_id，可用于 recall_message 撤回。",
             parameters: {
                 type: "object",
                 properties: {
@@ -281,7 +282,8 @@ export const messageTools = [
 - count：获取最近多少条，默认10条，最多30条
 
 【结果说明】
-按时间从早到晚返回每条消息的发送者、时间和内容，非文本消息会标注类型（如[图片]、[语音]）。`,
+按时间从早到晚返回每条消息的 message_id、发送者、时间和内容，非文本消息会标注类型（如[图片]、[语音]）。
+message_id 是消息的唯一标识，可用于：send_message 的 reply_to 回复指定消息、recall_message 撤回消息、set_essence_message 设置精华。`,
             parameters: {
                 type: "object",
                 properties: {

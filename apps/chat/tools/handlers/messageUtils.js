@@ -141,6 +141,38 @@ export function cleanImageUrl(raw) {
 }
 
 /**
+ * 从消息发送返回值中提取消息ID
+ * 兼容各协议适配器的返回结构：
+ * - icqq：e.reply/sendMsg 直接返回 { message_id, seq, rand, time }
+ * - TRSS OneBotv11（NapCat/LLOneBot/Lagrange）：透传协议端响应，
+ *   常见 { message_id } 或标准包装 { data: { message_id } }
+ * 注意 NapCat 正常发送的 message_id 是负数序列，不能用正负判断成败
+ * @param {*} ret - e.reply / sendMsg / pickFriend().sendMsg 的返回值
+ * @returns {string|null} 消息ID字符串，无法提取时返回 null
+ */
+export function extractMessageId(ret) {
+    if (!ret || typeof ret !== 'object') {
+        return null;
+    }
+
+    if (ret.message_id !== undefined && ret.message_id !== null) {
+        return String(ret.message_id);
+    }
+
+    if (ret.data && ret.data.message_id !== undefined && ret.data.message_id !== null) {
+        return String(ret.data.message_id);
+    }
+
+    for (const value of Object.values(ret)) {
+        if (value && typeof value === 'object' && value.message_id !== undefined && value.message_id !== null) {
+            return String(value.message_id);
+        }
+    }
+
+    return null;
+}
+
+/**
  * 消息验证器
  */
 export class MessageValidator {
@@ -274,16 +306,18 @@ export class MessageSender {
                 if (Array.isArray(formattedMessage)) {
                     formattedMessage.unshift(replyMsg);
                 } else {
-                    await e.reply([replyMsg, formattedMessage]);
-                    return MessageResult.ok({ sent: true });
+                    const ret = await e.reply([replyMsg, formattedMessage]);
+                    const messageId = extractMessageId(ret);
+                    return MessageResult.ok({ sent: true, ...(messageId ? { message_id: messageId } : {}) });
                 }
             }
 
-            await e.reply(formattedMessage);
+            const ret = await e.reply(formattedMessage);
+            const messageId = extractMessageId(ret);
 
-            logger.info(`[消息发送] 成功发送消息 | 场景:${e.isGroup ? '群聊' : '私聊'}`);
+            logger.info(`[消息发送] 成功发送消息 | 场景:${e.isGroup ? '群聊' : '私聊'}${messageId ? ` | 消息ID:${messageId}` : ''}`);
 
-            return MessageResult.ok({ sent: true });
+            return MessageResult.ok({ sent: true, ...(messageId ? { message_id: messageId } : {}) });
         } catch (error) {
             logger.error(`[消息发送] 发送失败: ${error.message}`);
             return MessageResult.fail(`发送消息失败: ${error.message}`);
@@ -377,11 +411,12 @@ export class MessageSender {
                 return MessageResult.fail(`用户 ${userId} 不是好友，无法发送私聊消息`);
             }
 
-            await friend.sendMsg?.(message);
+            const ret = await friend.sendMsg?.(message);
+            const messageId = extractMessageId(ret);
 
-            logger.info(`[私聊消息] 发送成功 | 用户:${userId}`);
+            logger.info(`[私聊消息] 发送成功 | 用户:${userId}${messageId ? ` | 消息ID:${messageId}` : ''}`);
 
-            return MessageResult.ok({ userId, sent: true });
+            return MessageResult.ok({ userId, sent: true, ...(messageId ? { message_id: messageId } : {}) });
         } catch (error) {
             logger.error(`[私聊消息] 发送失败: ${error.message}`);
             return MessageResult.fail(`发送私聊消息失败: ${error.message}`);
@@ -411,11 +446,12 @@ export class MessageSender {
                 return MessageResult.fail(`无法访问群组 ${groupId}`);
             }
 
-            await group.sendMsg?.(message);
+            const ret = await group.sendMsg?.(message);
+            const messageId = extractMessageId(ret);
 
-            logger.info(`[群消息] 发送成功 | 群:${groupId}`);
+            logger.info(`[群消息] 发送成功 | 群:${groupId}${messageId ? ` | 消息ID:${messageId}` : ''}`);
 
-            return MessageResult.ok({ groupId, sent: true });
+            return MessageResult.ok({ groupId, sent: true, ...(messageId ? { message_id: messageId } : {}) });
         } catch (error) {
             logger.error(`[群消息] 发送失败: ${error.message}`);
             return MessageResult.fail(`发送群消息失败: ${error.message}`);
@@ -424,11 +460,50 @@ export class MessageSender {
 }
 
 /**
+ * 检查撤回调用返回值中的真实失败
+ * TRSS OneBotv11 适配器的 recallMsg 内部用 .catch(i => i) 吞掉协议端错误，
+ * 失败时不抛异常而是把 Error 对象（或含 Error 的数组）作为返回值；
+ * icqq 的 recallMsg 则返回 boolean（false 为失败）
+ * @param {*} ret - recallMsg / deleteMsg 的返回值
+ * @returns {string|null} 失败原因，未发现失败时返回 null
+ */
+function checkRecallFailure(ret) {
+    const checkItem = (item) => {
+        if (item instanceof Error) {
+            return item.message || '协议端撤回失败';
+        }
+        if (item && typeof item === 'object' && item.status === 'failed') {
+            return item.msg || item.wording || '协议端返回失败状态';
+        }
+        return null;
+    };
+
+    if (typeof ret === 'boolean' && !ret) {
+        return '协议端返回撤回失败';
+    }
+
+    if (Array.isArray(ret)) {
+        for (const item of ret) {
+            const reason = checkItem(item);
+            if (reason) {
+                return reason;
+            }
+        }
+        return null;
+    }
+
+    return checkItem(ret);
+}
+
+/**
  * 消息撤回器
  */
 export class MessageRecaller {
     /**
      * 撤回消息
+     * 私聊优先走 friend.recallMsg（TRSS OneBotv11 pickFriend 与 icqq 均绑定该方法），
+     * 严禁依赖 e.bot.deleteMsg——TRSS OneBotv11 适配器上不存在此方法，
+     * 可选链调用会静默无操作，导致"提示成功但消息未撤回"
      * @param {object} e - 事件对象
      * @param {string} messageId - 消息ID
      * @returns {Promise<MessageResult>}
@@ -444,16 +519,37 @@ export class MessageRecaller {
                 return MessageResult.fail(validation.error);
             }
 
-            if (e.isGroup) {
+            // 群聊判定兼容无 isGroup 属性的适配器（与 sceneAdapter 一致）
+            if (e.isGroup || e.group_id) {
                 const group = e.group || e.bot?.pickGroup?.(e.group_id);
-                if (!group) {
-                    return MessageResult.fail('无法获取群组信息');
+                if (typeof group?.recallMsg !== 'function') {
+                    return MessageResult.fail('无法获取群组信息或当前适配器不支持群消息撤回');
                 }
 
-                await group.recallMsg?.(messageId);
+                const ret = await group.recallMsg(messageId);
+                const failure = checkRecallFailure(ret);
+                if (failure) {
+                    return MessageResult.fail(`撤回消息失败: ${failure}`);
+                }
+
                 logger.info(`[消息撤回] 群消息撤回成功 | 群:${e.group_id} | 消息ID:${messageId}`);
             } else {
-                await e.bot?.deleteMsg?.(messageId);
+                // 私聊撤回：优先 e.friend.recallMsg，缺失时经 pickFriend 补建，最后兼容 icqq 原生 deleteMsg
+                const friend = e.friend || e.bot?.pickFriend?.(e.user_id);
+                let ret;
+                if (typeof friend?.recallMsg === 'function') {
+                    ret = await friend.recallMsg(messageId);
+                } else if (typeof e.bot?.deleteMsg === 'function') {
+                    ret = await e.bot.deleteMsg(messageId);
+                } else {
+                    return MessageResult.fail('当前协议适配器不支持私聊消息撤回');
+                }
+
+                const failure = checkRecallFailure(ret);
+                if (failure) {
+                    return MessageResult.fail(`撤回消息失败: ${failure}`);
+                }
+
                 logger.info(`[消息撤回] 私聊消息撤回成功 | 消息ID:${messageId}`);
             }
 

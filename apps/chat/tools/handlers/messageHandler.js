@@ -4,7 +4,7 @@
  */
 
 import { SceneAdapter } from './sceneAdapter.js';
-import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType, cleanImageUrl } from './messageUtils.js';
+import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType, cleanImageUrl, extractMessageId } from './messageUtils.js';
 import { downloadImageSmart } from '../../api/utils/requestUtils.js';
 import { getSegment } from './shared/utils.js';
 import VoiceManager from '../../../voice/voiceManager.js';
@@ -100,6 +100,17 @@ export async function handleMessageToolCall(toolName, params, e, currentUserId) 
 }
 
 /**
+ * 从 MessageResult 中提取消息ID并展开为工具结果字段
+ * @param {object} result - MessageResult 实例（message_id 在 result.data 中）
+ * @returns {object} 含 message_id 时返回 { message_id }，否则空对象
+ */
+function withMessageId(result) {
+    const messageId = result?.data?.message_id;
+    return messageId !== undefined && messageId !== null ?
+        { message_id: String(messageId) } : {};
+}
+
+/**
  * 处理通用消息发送
  * 支持两种方式：
  * 1. segments 数组：自由组合消息段
@@ -118,12 +129,14 @@ async function handleSendMessage(params, adapter) {
             logger.error('[消息工具] segment模块加载失败，无法发送复杂消息');
             if (text && !segments && !reply_to) {
                 logger.info('[消息工具] 降级为纯文本消息发送');
-                await adapter.e.reply(text);
+                const ret = await adapter.e.reply(text);
+                const messageId = extractMessageId(ret);
                 return {
                     success: true,
                     message: '消息发送成功（降级模式：纯文本）',
                     features: ['文本'],
-                    degraded: true
+                    degraded: true,
+                    ...(messageId ? { message_id: messageId } : {})
                 };
             }
             return {
@@ -160,7 +173,8 @@ async function handleSendMessage(params, adapter) {
             return { error: true, error_message: '消息内容不能为空' };
         }
 
-        await adapter.e.reply(messageParts);
+        const ret = await adapter.e.reply(messageParts);
+        const messageId = extractMessageId(ret);
 
         const features = [];
         const atCount = messageParts.filter(p => p?.type === 'at').length;
@@ -172,12 +186,13 @@ async function handleSendMessage(params, adapter) {
         if (imageCount > 0) features.push(`${imageCount}张图片`);
         features.push('文本');
 
-        logger.info(`[消息工具] 发送消息成功 | 功能:${features.join(', ')}`);
+        logger.info(`[消息工具] 发送消息成功 | 功能:${features.join(', ')}${messageId ? ` | 消息ID:${messageId}` : ''}`);
 
         return {
             success: true,
             message: '消息发送成功',
             features: features,
+            ...(messageId ? { message_id: messageId } : {}),
             at_count: atCount,
             image_count: imageCount
         };
@@ -415,7 +430,7 @@ async function handleSendImage(params, adapter) {
             const result = await adapter.sendImage(`base64://${downloaded.base64}`, caption);
             if (result.success) {
                 logger.info('[消息工具] send_image 已通过base64发送');
-                return { success: true, url: url || fileId, caption };
+                return { success: true, url: url || fileId, caption, ...withMessageId(result) };
             }
             return { error: true, error_message: `图片发送失败: ${result.error}` };
         }
@@ -424,7 +439,7 @@ async function handleSendImage(params, adapter) {
         if (url) {
             const result = await adapter.sendImage(url, caption);
             return result.success ?
-                { success: true, url, caption } :
+                { success: true, url, caption, ...withMessageId(result) } :
                 { error: true, error_message: `图片发送失败（链接可能已过期）: ${result.error}` };
         }
         return { error: true, error_message: '图片获取失败，历史图片链接可能已过期，无法重新发送' };
@@ -439,7 +454,7 @@ async function handleSendImage(params, adapter) {
     const result = await adapter.sendImage(url, caption);
 
     return result.success ?
-        { success: true, url, caption } :
+        { success: true, url, caption, ...withMessageId(result) } :
         { error: true, error_message: result.error };
 }
 
@@ -598,7 +613,7 @@ async function handleForwardMessage(params, adapter) {
     const result = await adapter.forwardMessage(target_group_id, processedMessage);
 
     return result.success ?
-        { success: true, target_group_id } :
+        { success: true, target_group_id, ...withMessageId(result) } :
         { error: true, error_message: result.error };
 }
 
@@ -685,10 +700,11 @@ const MAX_HISTORY_COUNT = 30;
  * 处理获取最近聊天记录
  * 通过宿主提供的群/好友 getChatHistory 接口拉取当前会话的历史消息，
  * 排除触发本次对话的消息本身，按时间从早到晚返回
+ * 每条消息携带 message_id，供 recall_message 撤回、send_message reply_to 回复等使用
  * @param {object} params - 工具参数
  * @param {number} [params.count] - 获取条数，默认10条，最多30条
  * @param {object} e - 事件对象
- * @returns {Promise<object>} 聊天记录结果
+ * @returns {Promise<object>} 聊天记录结果（messages 数组含 message_id/sender/user_id/time/content）
  */
 async function handleGetRecentMessages(params, e) {
     if (!e) {
@@ -741,6 +757,7 @@ async function handleGetRecentMessages(params, e) {
 
     const images = [];
     const messages = list.map(m => ({
+        message_id: String(m.message_id ?? ''),
         sender: m.sender?.card || m.sender?.nickname || '未知用户',
         user_id: String(m.sender?.user_id ?? ''),
         time: formatHistoryTime(m.time),
