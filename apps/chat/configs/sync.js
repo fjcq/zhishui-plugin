@@ -48,13 +48,16 @@ export function renderLegacyView(chatConfig) {
 
     const apiList = models.map(model => {
         const provider = providerMap.get(model.provider) || {};
+        // 视觉能力三态：布尔vision → 旧视图字符串标记（auto/true/false）
+        const visionTag = model.vision === true ? 'true' : model.vision === false ? 'false' : 'auto';
         return {
             ApiTitle: provider.name || '',
             ApiType: provider.type || PROVIDER_TYPES.OPENAI,
             ApiUrl: provider.baseUrl || '',
             ApiKey: provider.apiKey || '',
             ApiModel: model.model || '',
-            TencentAssistantId: provider.tencentAssistantId || ''
+            TencentAssistantId: provider.tencentAssistantId || '',
+            Vision: visionTag
         };
     });
 
@@ -125,11 +128,15 @@ export function applyLegacyTransform(legacyView, currentConfig) {
             ? uniqueName(matchedModel.name, usedModelNames)
             : uniqueName(providerName, usedModelNames);
 
+        // 视觉能力三态：旧视图字符串标记 → 布尔vision（auto不写键，保持YAML整洁）
+        const vision = entry.Vision === 'true' ? true : entry.Vision === 'false' ? false : undefined;
+
         models.push({
             name: modelName,
             provider: providerName,
             model: String(entry.ApiModel || ''),
-            params: matchedModel?.params || {}
+            params: matchedModel?.params || {},
+            ...(vision !== undefined ? { vision } : {})
         });
     });
 

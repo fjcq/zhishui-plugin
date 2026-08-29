@@ -61,22 +61,9 @@ export function getVoiceSettingSchemas() {
             label: '🔊 语音TTS'
         },
         {
-            field: 'voice.VoiceSystem',
-            label: '语音系统',
-            helpMessage: '选择TTS语音合成系统，关闭则不使用语音功能',
-            component: 'RadioGroup',
-            componentProps: {
-                options: [
-                    { label: '关闭', value: 0 },
-                    { label: 'DUI平台语音', value: 1 },
-                    { label: '腾讯云TTS', value: 2 }
-                ]
-            }
-        },
-        {
             field: 'voice.VoiceIndex',
             label: 'DUI发音人',
-            helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效）',
+            helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效，配置腾讯云密钥后优先使用腾讯云TTS）',
             component: 'Select',
             componentProps: {
                 options: VoiceList.map((element, index) => ({

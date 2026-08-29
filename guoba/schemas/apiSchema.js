@@ -84,6 +84,19 @@ export function getApiSchemas() {
                         componentProps: {
                             placeholder: '仅腾讯元器类型需要'
                         }
+                    },
+                    {
+                        field: 'Vision',
+                        label: '视觉能力',
+                        helpMessage: '该模型能否看懂图片：自动判断按模型名推断（gpt-4o/glm-4v/qwen-vl等）；关键词识别不准时可在此强制开启或关闭',
+                        component: 'Select',
+                        componentProps: {
+                            options: [
+                                { label: '自动判断', value: 'auto' },
+                                { label: '强制开启（有视觉能力）', value: 'true' },
+                                { label: '强制关闭（无视觉能力）', value: 'false' }
+                            ]
+                        }
                     }
                 ]
             }

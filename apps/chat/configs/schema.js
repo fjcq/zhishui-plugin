@@ -162,6 +162,23 @@ export function isVisionModel(modelName) {
 }
 
 /**
+ * 解析模型的视觉能力（三态：显式设置 > 关键词推断）
+ * @param {string} modelName - 模型名称（用于auto时的关键词推断）
+ * @param {boolean|undefined} visionSetting - 用户显式设置：true强制有视觉能力，
+ *   false强制无视觉能力，undefined/auto走关键词推断
+ * @returns {boolean} 是否具备视觉能力
+ */
+export function resolveVisionCapability(modelName, visionSetting) {
+    if (visionSetting === true) {
+        return true;
+    }
+    if (visionSetting === false) {
+        return false;
+    }
+    return isVisionModel(modelName);
+}
+
+/**
  * 判断API密钥是否为有效配置（非空且非占位符）
  * @param {string} apiKey - API密钥
  * @returns {boolean} 是否有效
@@ -217,6 +234,9 @@ export function validateModel(model, providers) {
         if (!exists) {
             errors.push(`provider "${model.provider}" 不存在`);
         }
+    }
+    if (model.vision !== undefined && typeof model.vision !== 'boolean') {
+        errors.push('vision必须为布尔值（true强制有视觉能力/false强制无视觉能力，不填自动按模型名推断）');
     }
     return { valid: errors.length === 0, errors };
 }

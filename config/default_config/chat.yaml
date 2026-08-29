@@ -4,9 +4,6 @@ NickName: 小七
 # 私聊是否通过AI回复
 EnablePrivateChat: true
 
-# AI回复模式：text-纯文本回复，image-转换为图片回复
-ResponseMode: text
-
 # 对话仅限主人可用
 OnlyMaster: false
 
@@ -26,6 +23,10 @@ MasterQQ: 10000
 #   - openai: OpenAI兼容格式，支持OpenAI、DeepSeek、智谱AI、硅基流动等绝大多数模型服务商
 #   - tencent: 腾讯元器API，需要配置助手ID
 #   - gemini: Google Gemini API，支持多模态和联网搜索
+# 视觉能力（Vision）：该模型能否看懂图片，可选值：
+#   - "auto": 自动判断，按模型名关键词推断（gpt-4o/glm-4v/qwen-vl等视为有视觉能力）
+#   - "true": 强制开启，模型名未被关键词覆盖但实际支持图片时使用
+#   - "false": 强制关闭，模型名含视觉关键词但实际不支持图片时使用（图片将交给视觉模型转文字）
 ApiList:
   - ApiTitle: "OpenAI"
     ApiType: "openai"

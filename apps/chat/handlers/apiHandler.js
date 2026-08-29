@@ -246,7 +246,7 @@ export async function handleShowApi(e) {
         let visionTag = '';
         try {
             const providerConfig = providers.find(p => p.name === m.provider);
-            if (providerConfig && createProvider(providerConfig).supportsVision(m.model)) {
+            if (providerConfig && createProvider(providerConfig).supportsVision(m.model, m.vision)) {
                 visionTag = ' [视觉]';
             }
         } catch {

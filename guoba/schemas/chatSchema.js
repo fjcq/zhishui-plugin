@@ -35,19 +35,6 @@ export function getChatBasicSchemas() {
             component: 'Switch'
         },
         {
-            field: 'chat.ResponseMode',
-            label: '回复模式',
-            helpMessage: '控制AI回复的展示方式。纯文本：直接发送文字消息；图片模式：将回复转换为图片发送',
-            component: 'Select',
-            componentProps: {
-                options: [
-                    { label: '纯文本（默认）', value: 'text' },
-                    { label: '图片模式', value: 'image' }
-                ],
-                placeholder: '选择回复模式'
-            }
-        },
-        {
             component: 'Divider',
             label: '高级设置'
         },

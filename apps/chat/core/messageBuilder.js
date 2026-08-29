@@ -145,9 +145,10 @@ async function describeImagesViaVisionAgent(imageEntries, e) {
  * @param {Object} e - 事件对象
  * @param {Object} provider - Provider实例（supportsVision判断）
  * @param {string} model - 模型名
+ * @param {boolean|undefined} [modelVision] - 用户为该模型显式设置的视觉能力标记（三态）
  * @returns {Promise<{fullUserMsg: string, images: Array}>} 提取结果
  */
-async function extractMessageWithImages(msg, e, provider, model) {
+async function extractMessageWithImages(msg, e, provider, model, modelVision) {
     let userMsg = msg;
     let userInfo = null;
     let replyInfo = null;
@@ -211,7 +212,7 @@ async function extractMessageWithImages(msg, e, provider, model) {
     }
 
     // 主模型无视觉能力：视觉代理降级（图片转文字）
-    if (!provider.supportsVision(model)) {
+    if (!provider.supportsVision(model, modelVision)) {
         const agentText = await describeImagesViaVisionAgent(imageEntries, e);
         return agentText
             ? { fullUserMsg: `${fullUserMsg}\n${agentText}`, images: [] }
@@ -294,10 +295,11 @@ export async function extractToolResultImages(toolMsg, e) {
  * @param {Object} options.e - 事件对象
  * @param {Object} options.provider - Provider实例
  * @param {string} options.model - 模型名
+ * @param {boolean|undefined} [options.modelVision] - 用户为该模型显式设置的视觉能力标记（三态）
  * @param {boolean} [options.isThinkingMode=false] - 思维链模式（历史assistant带reasoning_content）
  * @returns {Promise<Array>} 消息数组
  */
-export async function buildMessages({ systemMessage, chatMsg, msg, e, provider, model, isThinkingMode = false }) {
+export async function buildMessages({ systemMessage, chatMsg, msg, e, provider, model, modelVision, isThinkingMode = false }) {
     let messages = [];
 
     const systemPrompt = typeof systemMessage === 'string' ? systemMessage : '';
@@ -330,13 +332,13 @@ export async function buildMessages({ systemMessage, chatMsg, msg, e, provider, 
     const isToolFollowUp = lastMsg && lastMsg.role === 'tool';
 
     if (!isToolFollowUp) {
-        const { fullUserMsg, images } = await extractMessageWithImages(msg, e, provider, model);
+        const { fullUserMsg, images } = await extractMessageWithImages(msg, e, provider, model, modelVision);
         if (images.length > 0) {
             messages.push({ role: 'user', content: [{ type: 'text', text: fullUserMsg }, ...images] });
         } else {
             messages.push({ role: 'user', content: fullUserMsg });
         }
-    } else if (provider.supportsVision(model)) {
+    } else if (provider.supportsVision(model, modelVision)) {
         const toolImages = await extractToolResultImages(lastMsg, e);
         if (toolImages.length > 0) {
             messages.push({ role: 'user', content: toolImages });

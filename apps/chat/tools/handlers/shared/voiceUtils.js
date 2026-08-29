@@ -31,6 +31,6 @@ export function checkVoiceConfig() {
     return {
         hasConfig: false,
         configType: 0,
-        message: '语音系统未配置。请主人使用指令配置：\n"对话语音开启" - 开启DUI平台语音系统\n"对话语音开启腾讯" - 开启腾讯云语音系统（需先配置SecretId和SecretKey）'
+        message: '语音系统未配置。请主人在锅巴设置面板或配置文件中配置语音相关参数（腾讯云TTS需填写SecretId和SecretKey）'
     };
 }

@@ -5,18 +5,14 @@
 
 import { plugin } from '../../adapter/index.js';
 import { Config, Plugin_Path, logger } from '../../components/index.js';
-import Data from '../../components/Data.js';
 import { puppeteer } from '../../model/index.js';
 
 import { chatActiveMap, lastRequestTime, CHAT_CONTEXT_PATH } from './config.js';
-import { textToImage, shouldResponseAsImage } from './chatHelper.js';
-import voiceManager from '../voice/voiceManager.js';
 import { migrateChatConfig } from './configs/migrate.js';
 import { migrateImageGenConfig } from './tools/imageGen/imageMigrate.js';
 
 import * as handlers from './handlers/index.js';
 
-const voiceList = await Data.readVoiceList();
 let chatNickname = await Config.Chat.NickName;
 
 // 旧ApiList配置自动迁移为providers/models新结构（幂等，旧字段保留供绞杀期旧代码使用）
@@ -59,7 +55,6 @@ export class ChatHandler extends plugin {
             priority: 8888,
             rule: [
                 { reg: `^#?(止水)?(插件|对话)?(取消|结束|重置|关闭)(全部)?(对话|聊天)$`, fnc: 'ResetChat' },
-                { reg: `^#?(止水)?(插件|对话)?(语|发)音(开启|关闭)$`, fnc: 'SetVoiceEnable' },
                 { reg: `^#?(止水)?(插件|对话)?艾特(开启|关闭)$`, fnc: 'SetAtEnable' },
                 { reg: `^#?(止水)?(插件|对话)??设置(对话)?发音人(.*)$`, fnc: 'SetVoiceId' },
                 { reg: `^#?(止水)?(插件|对话)??查看(对话)?发音人$`, fnc: 'ShowVoiceId' },
@@ -74,7 +69,6 @@ export class ChatHandler extends plugin {
                 { reg: `^#?(止水)?(插件|对话)?清空(好感|亲密)度$`, fnc: 'ClearAllFavor' },
                 { reg: `^#?(止水)?(插件|对话)?设置(对话)?主人(.*)$`, fnc: 'SetMaster' },
                 { reg: `^#?(止水)?(插件|对话)?(设置|查看|开启|关闭)代理(.*)$`, fnc: 'SetProxy' },
-                { reg: `^#?(止水)?(插件|对话)?回复模式\\s*(文本|图片|text|image)?$`, fnc: 'SetResponseMode' },
                 { reg: `^#?(止水)?(插件|对话)?设置(对话)?(API|api)(.*)$`, fnc: 'SetApi' },
                 { reg: `^#?(止水)?(插件|对话)?切换(对话)?(API|api)(.*)$`, fnc: 'SwitchApi' },
                 { reg: `^#?(止水)?(插件|对话)?查看(对话)?(API|api)$`, fnc: 'ShowApi' },
@@ -115,15 +109,6 @@ export class ChatHandler extends plugin {
      */
     async chat(e) {
         return await handlers.handleChat(e, chatNickname);
-    }
-
-    /**
-     * 设置语音开关
-     * @param {Object} e - 事件对象
-     * @returns {Promise<boolean>} 是否处理成功
-     */
-    async SetVoiceEnable(e) {
-        return await handlers.handleSetVoiceEnable(e);
     }
 
     /**
@@ -251,15 +236,6 @@ export class ChatHandler extends plugin {
      */
     async SetProxy(e) {
         await handlers.handleSetProxy(e);
-    }
-
-    /**
-     * 设置回复模式
-     * @param {Object} e - 事件对象
-     * @returns {Promise<void>}
-     */
-    async SetResponseMode(e) {
-        await handlers.handleSetResponseMode(e);
     }
 
     /**

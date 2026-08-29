@@ -229,7 +229,7 @@ export async function chat(msg, e, systemMessage, chatMsg, recursionDepth = 0) {
 
         // 消息组装（多模态注入/视觉代理降级/工具跟进轮图片回收）
         const messages = await buildMessages({
-            systemMessage, chatMsg, msg, e, provider, model: model.model, isThinkingMode
+            systemMessage, chatMsg, msg, e, provider, model: model.model, modelVision: model.vision, isThinkingMode
         });
 
         // 工具注入（provider支持且非thinking模式）

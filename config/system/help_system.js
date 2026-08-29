@@ -42,7 +42,6 @@ export const helpList = [
     {
         "group": "语音与艾特",
         "list": [
-            { "icon": 82, "title": "#语音开启/关闭", "desc": "开关语音回复" },
             { "icon": 38, "title": "#查看发音人", "desc": "查看可用发音人" },
             { "icon": 85, "title": "#设置发音人<编号>", "desc": "选择发音人" },
             { "icon": 78, "title": "#艾特开启/关闭", "desc": "开关艾特触发" },

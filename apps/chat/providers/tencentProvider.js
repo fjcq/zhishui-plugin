@@ -122,10 +122,18 @@ export function createTencentProvider(providerConfig) {
         },
 
         /**
-         * 判断模型是否支持视觉输入（元器不支持多模态）
-         * @returns {boolean} 恒为false
+         * 判断模型是否支持视觉输入（元器协议不支持多模态，仅显式设置可覆盖）
+         * @param {string} model - 模型名
+         * @param {boolean|undefined} [visionSetting] - 用户显式设置的三态视觉标记
+         * @returns {boolean} 是否支持视觉
          */
-        supportsVision() {
+        supportsVision(model, visionSetting) {
+            if (visionSetting === true) {
+                return true;
+            }
+            if (visionSetting === false) {
+                return false;
+            }
             return false;
         },
 

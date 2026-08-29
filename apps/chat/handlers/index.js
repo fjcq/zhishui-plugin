@@ -4,9 +4,9 @@
  */
 
 export { handleChat, handleResetChat } from './chatHandler.js';
-export { handleSetVoiceEnable, handleSetVoiceId, handleShowVoiceId, handleSetAtEnable } from './voiceHandler.js';
+export { handleSetVoiceId, handleShowVoiceId, handleSetAtEnable } from './voiceHandler.js';
 export { handleShowFavor, handleSetUserFavor, handleShowFavorRank, handleShowFavorHistory, handleClearAllFavor } from './favorHandler.js';
 export { handleSetApi, handleSwitchApi, handleShowApi } from './apiHandler.js';
 export { handleShowContext, handleShowRoleList, handleSwitchRole, handleAddRole } from './roleHandler.js';
 export { handleShowChatHistory, handleSearchChatHistory, handleResetUserConfig, handleShowUserConfig, handleShowOtherUserConfig, handleResetOtherUserConfig, handleShowUserConfigStats, handleSetPrivateChatEnable } from './userConfigHandler.js';
-export { handleSetContext, handleSetChatScene, handleShowChatScene, handleSetMaster, handleSetProxy, handleSetResponseMode, handleShowRawResponse } from './settingsHandler.js';
+export { handleSetContext, handleSetChatScene, handleShowChatScene, handleSetMaster, handleSetProxy, handleShowRawResponse } from './settingsHandler.js';

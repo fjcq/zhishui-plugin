@@ -22,6 +22,7 @@ import {
 } from './apps/chat/providers/tencentProvider.js';
 import { createProvider, getRegisteredTypes, clearProviderCache } from './apps/chat/providers/index.js';
 import { createOpenAIProvider } from './apps/chat/providers/openaiProvider.js';
+import { resolveVisionCapability } from './apps/chat/configs/schema.js';
 
 let passed = 0;
 let failed = 0;
@@ -219,6 +220,20 @@ assertTrue('qwen-vl视觉', oProvider.supportsVision('Qwen/Qwen2.5-VL-7B'));
 assertTrue('deepseek-chat非视觉', !oProvider.supportsVision('deepseek-chat'));
 assertTrue('支持工具', oProvider.supportsTools());
 assertEqual('参数白名单裁剪', oProvider.sanitizeParams({ temperature: 0.5, top_p: 0.9, thinking: true, junk: 1 }), { temperature: 0.5, top_p: 0.9 });
+
+console.log('\n=== 8. 视觉能力三态覆盖 ===');
+assertTrue('auto走关键词推断（视觉模型）', oProvider.supportsVision('Qwen/Qwen2.5-VL-7B', undefined));
+assertTrue('auto走关键词推断（非视觉模型）', !oProvider.supportsVision('deepseek-chat', undefined));
+assertTrue('强制开启覆盖关键词', oProvider.supportsVision('deepseek-chat', true));
+assertTrue('强制关闭覆盖关键词', !oProvider.supportsVision('gpt-4o', false));
+assertTrue('gemini强制关闭生效', !gProvider.supportsVision('gemini-2.5-flash', false));
+assertTrue('claude强制关闭生效', !aProvider.supportsVision('claude-sonnet-4', false));
+assertTrue('元器强制开启生效', tProvider.supportsVision('hunyuan-lite', true));
+assertEqual('resolveVisionCapability三态', [
+    resolveVisionCapability('gpt-4o', undefined),
+    resolveVisionCapability('deepseek-chat', true),
+    resolveVisionCapability('gpt-4o', false)
+], [true, true, false]);
 
 console.log(`\n===== 结果：${passed} 通过，${failed} 失败 =====`);
 process.exit(failed > 0 ? 1 : 0);

@@ -140,11 +140,15 @@ export function transformLegacyConfig(legacy) {
         }
         providers.push(provider);
 
+        // 视觉能力三态：旧条目手填的Vision标记 → 布尔vision（auto不写键）
+        const vision = entry.Vision === 'true' ? true : entry.Vision === 'false' ? false : undefined;
+
         const model = {
             name: modelName,
             provider: providerName,
             model: String(entry.ApiModel || ''),
-            params: {}
+            params: {},
+            ...(vision !== undefined ? { vision } : {})
         };
         models.push(model);
     });

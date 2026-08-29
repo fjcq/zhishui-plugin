@@ -20,7 +20,6 @@ export const helpList = [
   {
     group: "语音与艾特",
     list: [
-      { icon: 82, title: "#语音(开启|关闭)", desc: "开启或者关闭语音对话功能" },
       { icon: 77, title: "#查看发音人", desc: "查看可选择的发音人列表" },
       { icon: 77, title: "#设置发音人<编号>", desc: "设置语音对话中的发音人" },
       { icon: 90, title: "#艾特(开启|关闭)", desc: "开启或者关闭艾特对话功能" }

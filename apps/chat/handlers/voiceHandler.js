@@ -5,35 +5,7 @@
 
 import { Config } from '../../../components/index.js';
 import Data from '../../../components/Data.js';
-
-/**
- * 设置语音开关
- * @param {Object} e - 事件对象
- * @returns {Promise<boolean>} 处理结果
- */
-export async function handleSetVoiceEnable(e) {
-    if (e.isMaster == false) {
-        return false;
-    }
-
-    let msg = e.msg;
-    let Enable = msg.search('开启') != -1;
-
-    if (Enable) {
-        if (msg.search('腾讯') != -1) {
-            Config.modify('voice', 'VoiceSystem', 2);
-            e.reply("[对话语音]已开启，使用腾讯云语音系统！");
-        } else {
-            Config.modify('voice', 'VoiceSystem', 1);
-            e.reply("[对话语音]已开启，使用DUI平台语音系统！");
-        }
-    } else {
-        Config.modify('voice', 'VoiceSystem', 0);
-        e.reply("[对话语音]已关闭！");
-    }
-
-    return true;
-}
+import VoiceManager from '../../voice/voiceManager.js';
 
 /**
  * 设置对话发音人
@@ -45,9 +17,9 @@ export async function handleSetVoiceId(e) {
         return false;
     }
 
-    const voiceSystem = Config.Voice.VoiceSystem;
+    const voiceSystem = VoiceManager.detectVoiceSystem();
     if (!voiceSystem) {
-        e.reply("[对话语音]请先开启语音系统，可使用以下指令：\n对话语音开启 - 开启DUI平台语音系统\n对话语音开启腾讯 - 开启腾讯云语音系统");
+        e.reply("[对话语音]语音系统未配置，请在锅巴设置面板或配置文件中配置语音相关参数");
         return true;
     }
 
@@ -85,9 +57,9 @@ export async function handleSetVoiceId(e) {
  * @returns {Promise<void>}
  */
 export async function handleShowVoiceId(e) {
-    const voiceSystem = Config.Voice.VoiceSystem;
+    const voiceSystem = VoiceManager.detectVoiceSystem();
     if (!voiceSystem) {
-        e.reply("[对话语音]请先开启语音系统，可使用以下指令：\n对话语音开启 - 开启DUI平台语音系统\n对话语音开启腾讯 - 开启腾讯云语音系统");
+        e.reply("[对话语音]语音系统未配置，请在锅巴设置面板或配置文件中配置语音相关参数");
         return;
     }
 

@@ -8,10 +8,8 @@ import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneTy
 import { downloadImageSmart } from '../../api/utils/requestUtils.js';
 import { getSegment } from './shared/utils.js';
 import VoiceManager from '../../../voice/voiceManager.js';
-import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 import { checkVoiceConfig } from './shared/voiceUtils.js';
-import { applyResponseMode } from '../../chatHelper.js';
 
 /**
  * 消息工具名称列表
@@ -514,21 +512,7 @@ async function handleSendVoice(params, adapter) {
         }
 
         const e = adapter.e;
-        const originalVoiceSystem = Config.Voice.VoiceSystem;
-        const tempModify = originalVoiceSystem !== configCheck.configType;
-
-        if (tempModify) {
-            Config.modify('voice', 'VoiceSystem', configCheck.configType);
-        }
-
-        let voiceResult;
-        try {
-            voiceResult = await VoiceManager.synthesize(e, trimmedText);
-        } finally {
-            if (tempModify) {
-                Config.modify('voice', 'VoiceSystem', originalVoiceSystem);
-            }
-        }
+        const voiceResult = await VoiceManager.synthesize(e, trimmedText);
 
         if (!voiceResult) {
             return { error: true, error_message: '语音合成失败，请检查语音系统配置' };
@@ -587,10 +571,7 @@ async function handleSendPrivateMessage(params, e) {
         return { error: true, error_message: '消息内容不能为空' };
     }
 
-    // 根据回复模式处理消息内容
-    const processedMessage = await applyResponseMode(message);
-
-    const result = await MessageSender.sendPrivate(e.bot, user_id, processedMessage);
+    const result = await MessageSender.sendPrivate(e.bot, user_id, message);
 
     return result.success ?
         { success: true, user_id } :
@@ -612,10 +593,7 @@ async function handleSendGroupMessage(params, e) {
         return { error: true, error_message: '消息内容不能为空' };
     }
 
-    // 根据回复模式处理消息内容
-    const processedMessage = await applyResponseMode(message);
-
-    const result = await MessageSender.sendGroup(e.bot, group_id, processedMessage);
+    const result = await MessageSender.sendGroup(e.bot, group_id, message);
 
     return result.success ?
         { success: true, group_id } :
@@ -637,10 +615,7 @@ async function handleForwardMessage(params, adapter) {
         return { error: true, error_message: '消息内容不能为空' };
     }
 
-    // 根据回复模式处理消息内容
-    const processedMessage = await applyResponseMode(message);
-
-    const result = await adapter.forwardMessage(target_group_id, processedMessage);
+    const result = await adapter.forwardMessage(target_group_id, message);
 
     return result.success ?
         { success: true, target_group_id, ...withMessageId(result) } :

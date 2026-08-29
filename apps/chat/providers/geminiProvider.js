@@ -171,9 +171,16 @@ export function createGeminiProvider(providerConfig) {
         /**
          * 判断模型是否支持视觉输入（Gemini全系列多模态）
          * @param {string} model - 模型名
+         * @param {boolean|undefined} [visionSetting] - 用户显式设置的三态视觉标记
          * @returns {boolean} 是否支持视觉
          */
-        supportsVision(model) {
+        supportsVision(model, visionSetting) {
+            if (visionSetting === true) {
+                return true;
+            }
+            if (visionSetting === false) {
+                return false;
+            }
             return String(model || '').toLowerCase().includes('gemini') || isVisionModel(model);
         },
 

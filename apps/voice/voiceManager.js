@@ -39,7 +39,30 @@ class VoiceManager {
     }
 
     /**
-     * 根据配置选择语音系统并合成语音
+     * 检测当前可用的语音后端类型
+     * 优先腾讯云（配置了有效密钥时），否则使用DUI平台
+     * @returns {number} - 后端类型：1-DUI平台，2-腾讯云，0-未配置
+     */
+    detectVoiceSystem() {
+        const tencentConfig = Config.Voice?.TencentCloudTTS;
+        const hasTencentConfig = tencentConfig?.SecretId &&
+            tencentConfig?.SecretKey &&
+            tencentConfig.SecretId !== '你的腾讯云SecretId' &&
+            tencentConfig.SecretKey !== '你的腾讯云SecretKey';
+
+        if (hasTencentConfig) {
+            return 2;
+        }
+
+        if (Config.Voice?.VoiceIndex !== undefined) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /**
+     * 自动检测语音后端并合成语音
      * @param {Object} e - 事件对象
      * @param {string} text - 要转换的文本内容
      * @param {Object} options - 可选配置
@@ -47,7 +70,7 @@ class VoiceManager {
      */
     async synthesize(e, text, options = {}) {
         try {
-            const voiceSystem = Config.Voice.VoiceSystem;
+            const voiceSystem = this.detectVoiceSystem();
 
             // 过滤文本中的代码块和图片内容
             const filteredText = this.filterText(text);
@@ -64,7 +87,7 @@ class VoiceManager {
                 case 2:
                     return await this.synthesizeWithTencent(e, filteredText, options);
                 default:
-                    logger.debug('[语音合成] 语音系统未启用');
+                    logger.debug('[语音合成] 语音系统未配置');
                     return null;
             }
         } catch (error) {

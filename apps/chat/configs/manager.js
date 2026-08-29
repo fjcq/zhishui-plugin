@@ -7,7 +7,7 @@
  */
 
 import { Config } from '../../../components/index.js';
-import { isVisionModel, isApiKeyConfigured } from './schema.js';
+import { isApiKeyConfigured, resolveVisionCapability } from './schema.js';
 
 /**
  * 读取全部provider配置
@@ -88,10 +88,10 @@ export async function resolveVisionModel() {
         }
     }
 
-    // 自动扫描：第一个模型名具备视觉能力且密钥已配置的条目
+    // 自动扫描：第一个具备视觉能力（显式设置或模型名推断）且密钥已配置的条目
     const models = await getAllModels();
     for (const model of models) {
-        if (isVisionModel(model.model)) {
+        if (resolveVisionCapability(model.model, model.vision)) {
             const resolved = await getModelByName(model.name);
             if (resolved && isApiKeyConfigured(resolved.provider.apiKey)) {
                 return resolved;
@@ -111,7 +111,7 @@ export async function getModelOptions() {
         name: m.name,
         model: m.model,
         provider: m.provider,
-        vision: isVisionModel(m.model)
+        vision: resolveVisionCapability(m.model, m.vision)
     }));
 }
 

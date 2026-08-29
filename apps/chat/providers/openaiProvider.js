@@ -12,7 +12,7 @@
  */
 
 import { parseThinkingMessage } from '../core/thinkingParser.js';
-import { isVisionModel } from '../configs/schema.js';
+import { resolveVisionCapability } from '../configs/schema.js';
 
 /** 参数白名单：仅透传OpenAI chat/completions支持的参数 */
 const PARAM_WHITELIST = [
@@ -121,10 +121,11 @@ export function createOpenAIProvider(providerConfig) {
         /**
          * 判断模型是否支持视觉输入
          * @param {string} model - 模型名
+         * @param {boolean|undefined} [visionSetting] - 用户显式设置的三态视觉标记
          * @returns {boolean} 是否支持视觉
          */
-        supportsVision(model) {
-            return isVisionModel(model);
+        supportsVision(model, visionSetting) {
+            return resolveVisionCapability(model, visionSetting);
         },
 
         /**

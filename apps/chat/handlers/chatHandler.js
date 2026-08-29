@@ -5,9 +5,7 @@
 
 import { Config, logger } from '../../../components/index.js';
 import { chatActiveMap, lastRequestTime, API_INTERVALS } from '../config.js';
-import { convertAtFormat, convertAtToNames, convertMessageFormat } from '../parsers/index.js';
-import { textToImage, shouldResponseAsImage } from '../chatHelper.js';
-import voiceManager from '../../voice/voiceManager.js';
+import { convertAtFormat, convertMessageFormat } from '../parsers/index.js';
 import { checkRateLimit, getUserFavor, setUserFavor } from '../user/index.js';
 import { openAi, loadChatMsg, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
 import { resolveModel } from '../configs/manager.js';
@@ -392,56 +390,13 @@ async function safeReply(e, content, maxRetries = 2, retryDelay = 1000, options 
 }
 
 /**
- * 发送语音消息
- * @param {Object} e - 事件对象
- * @param {string|Buffer|Array<Buffer>} voiceResult - 语音结果
- * @returns {Promise<void>}
- */
-async function sendVoiceMessage(e, voiceResult) {
-    if (typeof voiceResult === 'string') {
-        await safeReply(e, [segment.record(voiceResult)]);
-    } else if (Buffer.isBuffer(voiceResult)) {
-        await safeReply(e, [segment.record(voiceResult)]);
-    } else if (Array.isArray(voiceResult)) {
-        for (let i = 0; i < voiceResult.length; i++) {
-            const buffer = voiceResult[i];
-            if (Buffer.isBuffer(buffer)) {
-                await safeReply(e, [segment.record(buffer)]);
-                if (i < voiceResult.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-            }
-        }
-    }
-}
-
-/**
- * 发送文本或图片消息
+ * 发送文本回复
  * @param {Object} e - 事件对象
  * @param {string} text - 文本内容
  * @returns {Promise<void>}
  */
-async function sendTextOrImageMessage(e, text) {
+async function sendTextMessage(e, text) {
     const replyContent = convertMessageFormat(text);
-    const msg = e.msg || '';
-
-    // 获取配置的回复模式
-    const responseMode = await Config.Chat.ResponseMode || 'text';
-
-    // 如果配置为图片模式，或原有条件判断需要转换为图片
-    if (responseMode === 'image' || shouldResponseAsImage(msg)) {
-        // 图片模式下先将 [CQ:at,qq=xxx] 转换为昵称文本再渲染，避免 CQ 码原样露出图片
-        const textForImage = await convertAtToNames(text, e);
-        const imageSuccess = await textToImage(e, textForImage, {
-            showFooter: true
-        });
-        if (imageSuccess) return;
-        // 图片转换失败，回退到文本回复
-        await safeReply(e, replyContent);
-        return;
-    }
-
-    // 文本模式，直接发送文本回复
     await safeReply(e, replyContent);
 }
 
@@ -467,23 +422,7 @@ async function sendResponse(e, finalReply, codeText) {
         return;
     }
 
-    let textForVoice = await convertAtToNames(msgWithoutCode, e);
-    textForVoice = textForVoice.replace(/\s+/g, ' ').trim();
-
-    const MAX_VOICE_TEXT_LENGTH = 500;
-    const isTextTooLong = textForVoice.length > MAX_VOICE_TEXT_LENGTH;
-
-    if (!isTextTooLong) {
-        const voiceResult = await voiceManager.synthesize(e, textForVoice);
-        if (voiceResult) {
-            await sendVoiceMessage(e, voiceResult);
-            return;
-        }
-    } else {
-        logger.debug(`[止水对话] 文本长度 ${textForVoice.length} 超过限制 ${MAX_VOICE_TEXT_LENGTH}，跳过语音合成`);
-    }
-
-    await sendTextOrImageMessage(e, msgWithoutCode);
+    await sendTextMessage(e, msgWithoutCode);
 }
 
 /**
@@ -511,16 +450,7 @@ async function handleApiError(e, apiError) {
  * @returns {Promise<void>}
  */
 async function sendErrorReply(e, errorMsg) {
-    if (shouldResponseAsImage(e.msg)) {
-        const imageSuccess = await textToImage(e, errorMsg, {
-            showFooter: true
-        });
-        if (!imageSuccess) {
-            await safeReply(e, errorMsg);
-        }
-    } else {
-        await safeReply(e, errorMsg);
-    }
+    await safeReply(e, errorMsg);
 }
 
 /**
