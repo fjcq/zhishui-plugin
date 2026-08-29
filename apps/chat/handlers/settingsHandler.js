@@ -274,9 +274,9 @@ async function doSwitchMode(e, targetMode) {
     const newLabel = targetMode === 'role' ? '角色整合' : '场景隔离';
 
     try {
-        // Step 1: 清除当前模式下的所有会话数据
+        // Step 1: 清除当前模式下的所有会话数据（SQLite 启用时历史保留）
         const clearTarget = currentMode;
-        const result = clearAllSessions(clearTarget);
+        const result = await clearAllSessions(clearTarget);
 
         // Step 2: 切换到新模式
         await setContextMode(targetMode);
@@ -286,7 +286,11 @@ async function doSwitchMode(e, targetMode) {
         Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
 
         let replyMsg = `已从「${oldLabel}」切换为「${newLabel}」`;
-        replyMsg += `\n清除旧记录: ${result.count}个文件`;
+        if (result.retained) {
+            replyMsg += '\n历史消息已保留（SQLite 永久存储），模式间互不影响';
+        } else {
+            replyMsg += `\n清除旧记录: ${result.count}个文件`;
+        }
 
         if (result.errors.length > 0) {
             replyMsg += `\n⚠️ ${result.errors.slice(0, 2).join('; ')}`;

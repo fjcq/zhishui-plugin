@@ -728,13 +728,22 @@ export async function handleResetChat(e) {
     }
 
     if (/全部/.test(e.msg)) {
-        const { clearAllSessions } = await import('../session.js');
         const mode = await (await import('../config.js')).getContextMode();
         const targetMode = mode === 'role' ? 'role' : 'isolated';
-        const result = clearAllSessions(targetMode);
+        const { insertBoundaryAll, isAvailable: storeAvailable } = await import('../storage/chatStore.js');
 
         Object.keys(chatActiveMap).forEach(key => chatActiveMap[key] = 0);
         Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
+
+        // SQLite 路径：全局插入分界标记（AI失忆，历史数据保留）
+        if (await storeAvailable()) {
+            const count = await insertBoundaryAll();
+            e.reply(`已重置全部对话！共重置${count}个会话的AI记忆\n历史消息已保留，可通过 #查聊天记录 检索`);
+            return;
+        }
+
+        // 降级路径：删除旧文件（旧语义）
+        const result = await clearAllSessions(targetMode);
 
         let replyMsg = `已清除全部对话缓存！共清理${result.count}个文件`;
         if (result.errors.length > 0) {

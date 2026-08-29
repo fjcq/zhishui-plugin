@@ -83,6 +83,7 @@ export class ChatHandler extends plugin {
                 { reg: '^#?(止水)?(插件|对话)?添加(对话)?角色(.*)', fnc: 'AddRole' },
                 { reg: '^#?(止水)?私聊回复(开启|关闭)$', fnc: 'SetPrivateChatEnable' },
                 { reg: `^#?(止水)?(插件|对话)?查看对话(历史)?$`, fnc: 'ShowChatHistory' },
+                { reg: `^#?(止水)?(插件|对话)?查(聊天)?记录.*$`, fnc: 'SearchChatHistory' },
                 { reg: `^#?(止水)?(插件|对话)?重置个人配置$`, fnc: 'ResetUserConfig' },
                 { reg: `^#?(止水)?(插件|对话)?查看个人配置$`, fnc: 'ShowUserConfig' },
                 { reg: `^#?(止水)?(插件|对话)?查看用户配置\\s*(\\d+)?$`, fnc: 'ShowOtherUserConfig' },
@@ -331,6 +332,15 @@ export class ChatHandler extends plugin {
      */
     async ShowChatHistory(e) {
         await handlers.handleShowChatHistory(e);
+    }
+
+    /**
+     * 检索聊天记录（主人专用，SQLite 全量历史）
+     * @param {Object} e - 事件对象
+     * @returns {Promise<void>}
+     */
+    async SearchChatHistory(e) {
+        await handlers.handleSearchChatHistory(e);
     }
 
     /**

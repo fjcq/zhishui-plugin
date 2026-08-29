@@ -5,6 +5,7 @@
 
 import { getCurrentRoleIndex } from '../configs/roleManager.js';
 import { clearSessionContext, getSessionKeyv, loadChatMsg, generateSessionId } from '../helpers.js';
+import { searchMessages, isAvailable as storeAvailable } from '../storage/chatStore.js';
 import { Config } from '../../../components/index.js';
 
 /**
@@ -46,6 +47,149 @@ export async function handleShowChatHistory(e) {
     } catch (err) {
         console.error('查看对话历史出错:', err);
         e.reply('获取对话历史失败: ' + err.message);
+    }
+}
+
+/**
+ * 从消息内容提取可读文本（JSON 包装格式提取 message 字段）
+ * @param {string} content - 存储的消息内容
+ * @returns {string} 可读文本
+ */
+function extractDisplayContent(content) {
+    if (!content) {
+        return '';
+    }
+    try {
+        const obj = JSON.parse(content);
+        if (obj && typeof obj === 'object' && typeof obj.message === 'string') {
+            return obj.message;
+        }
+    } catch { /* 非JSON内容原样返回 */ }
+    return content;
+}
+
+/**
+ * 解析查询文本中的日期条件
+ * 支持：今天 / 昨天 / YYYY-MM-DD / YYYY-MM-DD~YYYY-MM-DD
+ * @param {string} text - 查询文本
+ * @returns {{ startTime: number, endTime: number, rest: string }} 时间范围与剩余文本
+ */
+function parseDateRange(text) {
+    const now = new Date();
+    const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    let startTime = null;
+    let endTime = null;
+    let rest = text;
+
+    const rangeMatch = text.match(/(\d{4}-\d{2}-\d{2})\s*[~～至到]\s*(\d{4}-\d{2}-\d{2})/);
+    const singleMatch = text.match(/(\d{4}-\d{2}-\d{2})/);
+
+    if (rangeMatch) {
+        const s = new Date(`${rangeMatch[1]}T00:00:00`).getTime();
+        const e = new Date(`${rangeMatch[2]}T23:59:59`).getTime();
+        if (!isNaN(s) && !isNaN(e)) {
+            startTime = s;
+            endTime = e;
+            rest = rest.replace(rangeMatch[0], ' ');
+        }
+    } else if (singleMatch) {
+        const s = new Date(`${singleMatch[1]}T00:00:00`).getTime();
+        const e = new Date(`${singleMatch[1]}T23:59:59`).getTime();
+        if (!isNaN(s) && !isNaN(e)) {
+            startTime = s;
+            endTime = e;
+            rest = rest.replace(singleMatch[0], ' ');
+        }
+    } else if (/今天/.test(text)) {
+        startTime = dayStart(now);
+        endTime = now.getTime() + 60000;
+        rest = rest.replace(/今天/g, ' ');
+    } else if (/昨天/.test(text)) {
+        const yesterday = new Date(now.getTime() - 86400000);
+        startTime = dayStart(yesterday);
+        endTime = dayStart(now) - 1;
+        rest = rest.replace(/昨天/g, ' ');
+    }
+
+    return { startTime, endTime, rest: rest.trim() };
+}
+
+/**
+ * 检索聊天记录（主人专用，基于 SQLite 全量历史）
+ * 用法：#查聊天记录 [关键词] [@某人] [今天|昨天|日期|日期~日期]
+ * @param {Object} e - 事件对象
+ * @returns {Promise<void>}
+ */
+export async function handleSearchChatHistory(e) {
+    if (!e.isMaster) {
+        e.reply('只有主人可以查询聊天记录。');
+        return;
+    }
+
+    if (!await storeAvailable()) {
+        e.reply('当前环境不支持 SQLite 存储，无法检索历史记录。');
+        return;
+    }
+
+    try {
+        // 提取查询参数：去掉指令前缀后的剩余文本
+        const queryText = (e.msg || '').replace(/^#?(止水)?(插件|对话)?查(聊天)?记录/, '').trim();
+        const { startTime, endTime, rest } = parseDateRange(queryText);
+        const keyword = rest || null;
+
+        // @某人 → 指定用户；@全体 无意义，取首个
+        let targetUserId = null;
+        if (e.at) {
+            targetUserId = Array.isArray(e.at) ? e.at[0] : e.at;
+        }
+
+        // 检索范围：群聊查当前群，私聊查与主人自己的对话
+        const conditions = { keyword, startTime, endTime, limit: 50 };
+        if (e.group_id) {
+            conditions.groupId = e.group_id;
+            if (targetUserId) {
+                conditions.userId = targetUserId;
+            }
+        } else if (targetUserId) {
+            conditions.userId = targetUserId;
+        } else {
+            conditions.userId = e.user_id;
+        }
+
+        if (!keyword && !targetUserId && startTime === null) {
+            e.reply([
+                '【查询聊天记录】用法：',
+                '#查聊天记录 关键词',
+                '#查聊天记录 @某人',
+                '#查聊天记录 今天 / 昨天 / 2026-08-01',
+                '#查聊天记录 2026-08-01~08-15 关键词 @某人',
+                '（群聊查当前群，私聊查与自己的对话）'
+            ].join('\n'));
+            return;
+        }
+
+        const rows = await searchMessages(conditions);
+
+        if (!rows.length) {
+            e.reply('未找到匹配的聊天记录');
+            return;
+        }
+
+        const lines = [`*** 聊天记录检索（${rows.length}条）***`];
+        for (const row of rows) {
+            const time = new Date(row.timestamp).toLocaleString('zh-CN', { hour12: false });
+            const role = row.role === 'assistant' ? 'AI' : (row.name || row.user_id || '用户');
+            lines.push(`[${time}] ${role}: ${extractDisplayContent(row.content)}`);
+        }
+
+        const { common } = await import('../../../model/index.js');
+        common.getforwardMsg(e, lines, {
+            isxml: true,
+            xmlTitle: '聊天记录检索',
+        });
+    } catch (err) {
+        console.error('查询聊天记录出错:', err);
+        e.reply('查询聊天记录失败: ' + err.message);
     }
 }
 

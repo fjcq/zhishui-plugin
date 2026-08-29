@@ -53,13 +53,13 @@ export function getChatBasicSchemas() {
         },
         {
             field: 'chat.MaxHistory',
-            label: '最大历史记录',
-            helpMessage: 'AI对话时会参考的历史消息条数，数量越多上下文越完整，但消耗token也越多',
+            label: '上下文窗口大小',
+            helpMessage: 'AI对话时会参考的最近历史消息条数，数量越多上下文越完整，但消耗token也越多。SQLite存储下历史消息全量永久保留，不受此限制',
             component: 'InputNumber',
             componentProps: {
                 min: 1,
-                max: 50,
-                placeholder: '10（建议10-20）'
+                max: 200,
+                placeholder: '50'
             }
         },
         {

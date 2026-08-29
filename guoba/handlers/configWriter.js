@@ -281,8 +281,12 @@ async function handleChatSideEffects(oldContextMode) {
         const newMode = chat?.ContextMode || 'role';
 
         if (oldContextMode && newMode && oldContextMode !== newMode) {
-            const result = clearAllSessions(oldContextMode);
-            console.log(`[锅巴面板] ContextMode ${oldContextMode}→${newMode}: 已清除${oldContextMode}模式${result.count}个会话文件`);
+            const result = await clearAllSessions(oldContextMode);
+            if (result.retained) {
+                console.log(`[锅巴面板] ContextMode ${oldContextMode}→${newMode}: SQLite 已启用，${oldContextMode}模式历史数据保留`);
+            } else {
+                console.log(`[锅巴面板] ContextMode ${oldContextMode}→${newMode}: 已清除${oldContextMode}模式${result.count}个会话文件`);
+            }
         }
 
         // 从落盘后的完整旧字段同步新结构（name稳定性合并保证群覆盖引用不失效）

@@ -117,13 +117,21 @@ export async function clearSessionContext(e) {
 /**
  * 清除指定模式下所有会话数据
  * 切换存储模式时调用，清除旧模式的全部缓存
+ * SQLite 可用时不清除任何数据（历史永久保留，模式间靠 session_id 命名空间自然隔离）
  * @param {string} mode - 要清除的模式 ('isolated' | 'role')
- * @returns {{ count: number, errors: string[] }} 清除结果
+ * @returns {Promise<{ count: number, errors: string[], retained: boolean }>} 清除结果
  */
-export function clearAllSessions(mode) {
-    const result = { count: 0, errors: [] };
+export async function clearAllSessions(mode) {
+    const result = { count: 0, errors: [], retained: false };
 
     try {
+        const { isAvailable: storeAvailable } = await import('./storage/chatStore.js');
+        if (await storeAvailable()) {
+            result.retained = true;
+            logger.info(`[会话管理] SQLite 存储已启用，${mode}模式历史数据保留不删除`);
+            return result;
+        }
+
         let targetPath;
 
         if (mode === 'isolated' || mode === 'v1') {
@@ -142,6 +150,10 @@ export function clearAllSessions(mode) {
         const files = fs.readdirSync(targetPath);
 
         for (const file of files) {
+            // 跳过 SQLite 数据库文件（即使处于降级路径也不误删历史库）
+            if (file === 'chat_history.db' || file.startsWith('chat_history.db-')) {
+                continue;
+            }
             const filePath = path.join(targetPath, file);
             try {
                 if (fs.statSync(filePath).isFile()) {

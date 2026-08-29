@@ -8,6 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import { CHAT_CONTEXT_PATH, CHAT_CONTEXT_V2_PATH, getUserRoleIndex } from '../config.js';
 import { filterMessagesByPrivacy, DEFAULT_PRIVACY_CONFIG } from '../privacy/sceneFilter.js';
+import { isAvailable as storeAvailable, insertMessage, getRecentMessages, insertBoundary, replaceSessionMessages } from '../storage/chatStore.js';
 import { Config, logger } from '../../../components/index.js';
 
 /**
@@ -84,8 +85,14 @@ export class IsolatedSessionStrategy extends SessionStrategy {
 
     /**
      * V1模式加载聊天消息
+     * SQLite 路径：读取最近 MaxHistory 条作为上下文窗口（全量存量不受限）
+     * KeyvFile 路径：读取存量（受保存时截断限制）
      */
     async loadChatMsg(sessionId, e) {
+        if (await storeAvailable()) {
+            const limit = Config.Chat.MaxHistory ?? 50;
+            return await getRecentMessages(sessionId, limit);
+        }
         const keyv = this.getSessionKeyv(sessionId);
         const chatMsg = await keyv.get('chatMsg');
         return chatMsg || [];
@@ -93,17 +100,27 @@ export class IsolatedSessionStrategy extends SessionStrategy {
 
     /**
      * V1模式保存聊天消息
+     * SQLite 路径：全量替换写回（切换API/角色转换场景）
      */
     async saveChatMsg(sessionId, chatMsg, e) {
+        if (await storeAvailable()) {
+            await replaceSessionMessages(sessionId, chatMsg);
+            return;
+        }
         const keyv = this.getSessionKeyv(sessionId);
         await keyv.set('chatMsg', chatMsg);
     }
 
     /**
      * V1模式添加消息
+     * SQLite 路径：直接追加，不做任何删除（存读解耦）
      */
     async addMessage(msg, e) {
         const sessionId = await this.generateSessionId(e);
+        if (await storeAvailable()) {
+            await insertMessage(sessionId, msg, e);
+            return;
+        }
         const chatMsg = await this.loadChatMsg(sessionId, e);
         chatMsg.push(msg);
         this.trimHistory(chatMsg);
@@ -112,9 +129,15 @@ export class IsolatedSessionStrategy extends SessionStrategy {
 
     /**
      * V1模式清除会话上下文
+     * SQLite 路径：插入分界标记（AI失忆，历史数据保留）
+     * KeyvFile 路径：删除会话文件（旧语义）
      */
     async clearSessionContext(e) {
         const sessionId = await this.generateSessionId(e);
+        if (await storeAvailable()) {
+            await insertBoundary(sessionId);
+            return;
+        }
         const keyv = this.getSessionKeyv(sessionId);
         await keyv.clear();
     }
@@ -176,9 +199,18 @@ export class RoleSessionStrategy extends SessionStrategy {
 
     /**
      * V2模式加载聊天消息（按角色整合，返回纯消息数组供API使用）
-     * 自动应用隐私过滤，防止跨场景敏感信息泄露
+     * SQLite 路径：读取最近 MaxHistory 条增强消息后应用隐私过滤
+     * KeyvFile 路径：读取会话结构后应用隐私过滤（旧行为）
+     * 隐私过滤统一在读取后执行——库里存全量，AI 只看该看的
      */
     async loadChatMsg(sessionId, e) {
+        if (await storeAvailable()) {
+            const limit = Config.Chat.MaxHistory ?? 50;
+            const messages = await getRecentMessages(sessionId, limit, { enhanced: true });
+            const currentScene = this.getCurrentScene(e);
+            return filterMessagesByPrivacy(messages, currentScene, DEFAULT_PRIVACY_CONFIG);
+        }
+
         const keyv = this.getSessionKeyvV2(sessionId);
         const sessionData = await keyv.get('session');
 
@@ -192,8 +224,14 @@ export class RoleSessionStrategy extends SessionStrategy {
 
     /**
      * V2模式保存聊天消息（完整会话结构）
+     * SQLite 路径：全量替换写回增强消息
      */
     async saveChatMsg(sessionId, messages, e) {
+        if (await storeAvailable()) {
+            await replaceSessionMessages(sessionId, messages, { enhanced: true });
+            return;
+        }
+
         const keyv = this.getSessionKeyvV2(sessionId);
 
         let sessionData = await keyv.get('session');
@@ -213,11 +251,17 @@ export class RoleSessionStrategy extends SessionStrategy {
 
     /**
      * V2模式添加消息（使用 additional_info 格式，与 SystemConfig.json 约定一致）
+     * SQLite 路径：增强消息直接追加，不做删除
      */
     async addMessage(msg, e) {
         const sessionId = await this.generateSessionId(e);
 
         const enhancedMessage = this.createEnhancedMessage(msg, e);
+
+        if (await storeAvailable()) {
+            await insertMessage(sessionId, enhancedMessage, e, { enhanced: true });
+            return;
+        }
 
         const keyv = this.getSessionKeyvV2(sessionId);
         let sessionData = await keyv.get('session');
@@ -237,9 +281,15 @@ export class RoleSessionStrategy extends SessionStrategy {
 
     /**
      * V2模式清除会话上下文（清除当前角色的所有对话记录）
+     * SQLite 路径：插入分界标记（AI失忆，历史数据保留）
+     * KeyvFile 路径：删除会话文件（旧语义）
      */
     async clearSessionContext(e) {
         const sessionId = await this.generateSessionId(e);
+        if (await storeAvailable()) {
+            await insertBoundary(sessionId);
+            return;
+        }
         const keyv = this.getSessionKeyvV2(sessionId);
         await keyv.clear();
     }
@@ -288,6 +338,8 @@ export class RoleSessionStrategy extends SessionStrategy {
 
     /**
      * 创建增强型消息
+     * 用户消息在 additional_info 中记录触发消息的 message_id，
+     * 便于事后定位原始消息（撤回、引用、审计等场景）
      */
     createEnhancedMessage(msg, e) {
         const enhancedMessage = {
@@ -300,6 +352,10 @@ export class RoleSessionStrategy extends SessionStrategy {
                 timestamp: Date.now()
             }
         };
+
+        if (msg.role === 'user' && e.message_id !== undefined && e.message_id !== null) {
+            enhancedMessage.additional_info.message_id = String(e.message_id);
+        }
 
         if (msg.tool_calls) enhancedMessage.tool_calls = msg.tool_calls;
         if (msg.tool_call_id) enhancedMessage.tool_call_id = msg.tool_call_id;
