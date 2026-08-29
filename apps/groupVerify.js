@@ -18,7 +18,9 @@ export class GroupVerify extends plugin {
             name: '[止水插件]入群验证',
             dsc: '新成员入群真人验证',
             event: 'message',
-            priority: 999,
+            // 优先级压到最前：待验证成员的任何发言（含 # 命令、@、纯文本）都必须先被验证捕获，
+            // 避免被其他插件抢先拦截导致回答丢失；非待验证用户不拦截，不影响正常命令
+            priority: 50,
             rule: [
                 {
                     reg: '^(#|\\/)?添加验证群.*$',

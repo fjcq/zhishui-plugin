@@ -45,6 +45,23 @@ async function sendGroupMessage(e, message) {
 }
 
 /**
+ * 清理 AI 文本中的艾特标记：代码已用 segment.at 艾特用户，AI 自带的艾特文本会变成假艾特
+ * @param {string} text - AI 生成的文本
+ * @returns {string} 清理后的文本
+ */
+function stripAtMarkers(text) {
+    if (!text || typeof text !== 'string') {
+        return text;
+    }
+    return text
+        .replace(/\[CQ:at,qq=\d+\]/g, '')
+        .replace(/@\[\d+\]/g, '')
+        .replace(/\[@\d+\]/g, '')
+        .replace(/^[ \t]+/, '');
+}
+
+
+/**
  * 检查 Bot 在指定群是否拥有管理员/群主权限（踢人所需）
  * @param {object} e - 事件对象
  * @param {string|number} groupId - 目标群号
@@ -182,7 +199,7 @@ function scheduleTimeout(e, botId, userId, config) {
                 const aiReply = await askAiReply(e, pending.history,
                     `（入群验证：新成员未在时限内回答问题"${pending.question}"，即将被移出群聊，请生成简短的公告与告别）`);
                 if (aiReply) {
-                    await sendGroupMessage(e, [segment.at(userId), '\n', aiReply.text]);
+                    await sendGroupMessage(e, [segment.at(userId), '\n', stripAtMarkers(aiReply.text)]);
                     announced = true;
                 }
             }
@@ -262,7 +279,7 @@ export async function handleGroupIncrease(e) {
 
         if (history.length) {
             // AI 文案已含欢迎、规则说明与问题本身
-            await sendGroupMessage(e, [segment.at(userId), '\n', question]);
+            await sendGroupMessage(e, [segment.at(userId), '\n', stripAtMarkers(question)]);
         } else {
             const minutes = Math.max(1, Math.round(config.timeout / 60));
             const tips = [
@@ -297,7 +314,7 @@ export async function handleVerifyAnswer(e) {
         }
 
         const config = getVerifyConfig();
-        if (!config.enable) {
+        if (!config.enable || !isVerifyGroup(config.verifyGroups, e.group_id)) {
             return false;
         }
 
@@ -333,7 +350,7 @@ export async function handleVerifyAnswer(e) {
                     await delPending(botId, e.group_id, userId);
                     clearTimer(botId, e.group_id, userId);
                     await setPassed(botId, e.group_id, userId, config.passCooldown);
-                    await e.reply([segment.at(userId), '\n', judged.text]);
+                    await e.reply([segment.at(userId), '\n', stripAtMarkers(judged.text)]);
                     logger.mark(`[入群验证] 用户:${userId} 通过群:${e.group_id} 验证（AI 判定）`);
                     return true;
                 }
@@ -344,7 +361,7 @@ export async function handleVerifyAnswer(e) {
                     ...pending,
                     history: trimHistory(judged.history)
                 }, remainSeconds);
-                await e.reply([segment.at(userId), '\n', judged.text], true);
+                await e.reply([segment.at(userId), '\n', stripAtMarkers(judged.text)], true);
                 logger.info(`[入群验证] 用户:${userId} 群:${e.group_id} 答错（AI 判定），已撤回并提醒`);
                 return true;
             }

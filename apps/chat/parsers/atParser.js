@@ -57,6 +57,7 @@ async function getUserNickname(e, userId) {
  * - [CQ:image,url=URL] -> 图片
  * - [CQ:reply,id=消息ID] -> 回复消息
  * - @[用户ID] -> @某人（简化格式）
+ * - [@用户ID] -> @某人（AI常见输出格式）
  * - [image:URL] -> 图片（简化格式）
  * @param {string} message - 原始消息内容
  * @returns {Array} 转换后的消息数组，包含文本和segment对象
@@ -73,6 +74,7 @@ export function convertMessageFormat(message) {
     const imageCqRegex = /\[CQ:image,url=([^\]]+)\]/g;
     const replyCqRegex = /\[CQ:reply,id=([^\]]+)\]/g;
     const atSimpleRegex = /@\[(\d+)\]/g;
+    const atBracketRegex = /\[@(\d+)\]/g;
     const imageSimpleRegex = /\[image:([^\]]+)\]/g;
 
     let match;
@@ -105,6 +107,15 @@ export function convertMessageFormat(message) {
     }
 
     while ((match = atSimpleRegex.exec(message)) !== null) {
+        markers.push({
+            type: 'at',
+            userId: match[1],
+            start: match.index,
+            end: match.index + match[0].length
+        });
+    }
+
+    while ((match = atBracketRegex.exec(message)) !== null) {
         markers.push({
             type: 'at',
             userId: match[1],
@@ -202,7 +213,8 @@ export async function convertAtToNames(message, e) {
 
     const atRegex = /\[CQ:at,qq=(\d+)\]/g;
     const atSimpleRegex = /@\[(\d+)\]/g;
-    const matches = [...message.matchAll(atRegex), ...message.matchAll(atSimpleRegex)];
+    const atBracketRegex = /\[@(\d+)\]/g;
+    const matches = [...message.matchAll(atRegex), ...message.matchAll(atSimpleRegex), ...message.matchAll(atBracketRegex)];
 
     if (matches.length === 0) {
         return message;
@@ -220,6 +232,7 @@ export async function convertAtToNames(message, e) {
     for (const [userId, nickname] of nicknameMap) {
         result = result.replace(new RegExp(`\\[CQ:at,qq=${userId}\\]`, 'g'), `@${nickname}`);
         result = result.replace(new RegExp(`@\\[${userId}\\]`, 'g'), `@${nickname}`);
+        result = result.replace(new RegExp(`\\[@${userId}\\]`, 'g'), `@${nickname}`);
     }
 
     const imageCqRegex = /\[CQ:image,url=[^\]]+\]/g;
@@ -248,6 +261,7 @@ export function hasMixedSegments(message) {
         /\[CQ:image,url=/,
         /\[CQ:reply,id=/,
         /@\[\d+\]/,
+        /\[@\d+\]/,
         /\[image:/
     ];
 

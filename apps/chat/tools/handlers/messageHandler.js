@@ -293,6 +293,7 @@ async function parseTextWithMarkers(text, segment, adapter) {
     // 同时兼容 CQ 码格式与简化格式，避免 AI 按系统提示词输出 CQ 码时原样露出
     const atCqRegex = /\[CQ:at,qq=(\d+)\]/g;
     const atSimpleRegex = /@\[(\d+)\]/g;
+    const atBracketRegex = /\[@(\d+)\]/g;
     const imageCqRegex = /\[CQ:image,url=([^\]]+)\]/g;
     const imageSimpleRegex = /\[image:([^\]]+)\]/g;
 
@@ -310,6 +311,16 @@ async function parseTextWithMarkers(text, segment, adapter) {
     }
 
     while ((match = atSimpleRegex.exec(text)) !== null) {
+        markers.push({
+            type: 'at',
+            user_id: match[1],
+            start: match.index,
+            end: match.index + match[0].length,
+            fullMatch: match[0]
+        });
+    }
+
+    while ((match = atBracketRegex.exec(text)) !== null) {
         markers.push({
             type: 'at',
             user_id: match[1],

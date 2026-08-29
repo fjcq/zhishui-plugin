@@ -17,7 +17,7 @@ export const messageTools = [
 
 【两种用法】
 1. 用 segments 数组自由组合：按顺序放文本、@、图片、回复等
-2. 用 text 文本：在文本里用 [CQ:at,qq=用户ID] 表示@，用 [image:URL] 表示图片
+2. 用 text 文本：在文本里用 @[用户ID] 表示@，用 [image:URL] 表示图片
 
 【参数】
 - segments：消息段数组，每段含 type（text/at/image/reply）和对应内容
@@ -59,7 +59,7 @@ export const messageTools = [
                     },
                     text: {
                         type: "string",
-                        description: "文本消息。支持特殊标记：[CQ:at,qq=用户ID] 或 @[用户ID] 表示@某人，[CQ:image,url=URL] 或 [image:URL] 表示插入图片。示例：\"[CQ:at,qq=123456] 你好，请问你认识 @[789012] 吗？\" 或 \"看看这张图片 [image:http://example.com/img.jpg]\""
+                        description: "文本消息。用 @[用户ID] 表示@某人，用 [image:URL] 表示插入图片。示例：\"@[123456] 你好，请问你认识 @[789012] 吗？\" 或 \"看看这张图片 [image:http://example.com/img.jpg]\""
                     },
                     reply_to: {
                         type: "string",

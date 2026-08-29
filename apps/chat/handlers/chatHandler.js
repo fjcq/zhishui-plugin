@@ -138,9 +138,9 @@ async function parseMessage(e) {
                 msgParts.push(seg.text);
             } else if (seg.type === 'at' && seg.qq) {
                 if (botId && String(seg.qq) === String(botId)) {
-                    msgParts.push('[CQ:at,qq=self]');
+                    msgParts.push('@你');
                 } else {
-                    msgParts.push(`[CQ:at,qq=${seg.qq}]`);
+                    msgParts.push(`@[${seg.qq}]`);
                 }
             } else if (seg.type === 'image' && seg.url) {
                 images.push(seg.url);
