@@ -4,7 +4,7 @@
  */
 
 import { generateQuestion, checkAnswer } from '../questions.js';
-import { askAiQuestion, askAiReply, trimHistory } from '../ai.js';
+import { askAiQuestion, askAiJudge, askAiReply, trimHistory } from '../ai.js';
 import {
     setPending,
     getPending,
@@ -121,16 +121,17 @@ async function recallMessage(e) {
 }
 
 /**
- * 清理验证超时定时器
+ * 清理验证定时器（催促 + 超时）
  * @param {string} botId - Bot账号
  * @param {string} groupId - 群号
  * @param {string} userId - 用户QQ
  */
 function clearTimer(botId, groupId, userId) {
     const key = `${botId}:${groupId}:${userId}`;
-    const timer = timeoutTimers.get(key);
-    if (timer) {
-        clearTimeout(timer);
+    const timers = timeoutTimers.get(key);
+    if (timers) {
+        clearTimeout(timers.remind);
+        clearTimeout(timers.timeout);
         timeoutTimers.delete(key);
     }
 }
@@ -172,7 +173,8 @@ function formatRemainText(seconds) {
 }
 
 /**
- * 注册验证超时定时器
+ * 注册验证催促与超时定时器
+ * 超时时长过半时发送一次催促提醒，到期后公告并移出群聊
  * @param {object} e - 事件对象
  * @param {string} botId - Bot账号
  * @param {string} userId - 待验证用户
@@ -182,7 +184,48 @@ function scheduleTimeout(e, botId, userId, config) {
     const key = `${botId}:${e.group_id}:${userId}`;
     clearTimer(botId, e.group_id, userId);
 
-    const timer = setTimeout(async () => {
+    // 中途催促：超时时长过半触发（距出题不足 30 秒时不催促）
+    const remindAt = Math.floor(config.timeout / 2);
+    const remindTimer = (remindAt >= 30) ? setTimeout(async () => {
+        try {
+            const timers = timeoutTimers.get(key);
+            if (!timers || timers.remind !== remindTimer) {
+                return;
+            }
+            // 会话已移除说明已通过验证或已处置，无需催促
+            const pending = await getPending(botId, e.group_id, userId);
+            if (!pending) {
+                return;
+            }
+
+            const remainText = formatRemainText(config.timeout - remindAt);
+            let sent = false;
+            if (config.useAI && Array.isArray(pending.history) && pending.history.length > 0) {
+                const aiReply = await askAiReply(e, pending.history,
+                    `（入群验证：新成员尚未回答问题"${pending.question}"，剩余时间${remainText}，请生成简短的催促，温和提醒其尽快回答）`);
+                if (aiReply) {
+                    await sendGroupMessage(e, [segment.at(userId), '\n', stripAtMarkers(aiReply.text)]);
+                    sent = true;
+                }
+            }
+            if (!sent) {
+                await sendGroupMessage(e, [
+                    segment.at(userId),
+                    `\n还没有回答验证问题哦，剩余时间 ${remainText}，请尽快回答：\n【${pending.question}】`
+                ]);
+            }
+            logger.info(`[入群验证] 群:${e.group_id} 用户:${userId} 已发送催促提醒`);
+        } catch (error) {
+            logger.error(`[入群验证] 发送催促失败: ${error.message}`);
+        }
+    }, remindAt * 1000) : null;
+
+    // 到期处置：公告后移出群聊
+    const timeoutTimer = setTimeout(async () => {
+        const timers = timeoutTimers.get(key);
+        if (!timers || timers.timeout !== timeoutTimer) {
+            return;
+        }
         timeoutTimers.delete(key);
         try {
             // 会话已被移除说明已通过验证或已处置
@@ -217,7 +260,7 @@ function scheduleTimeout(e, botId, userId, config) {
         }
     }, config.timeout * 1000);
 
-    timeoutTimers.set(key, timer);
+    timeoutTimers.set(key, { remind: remindTimer, timeout: timeoutTimer });
 }
 
 /**
@@ -228,7 +271,11 @@ function scheduleTimeout(e, botId, userId, config) {
 export async function handleGroupIncrease(e) {
     try {
         const config = getVerifyConfig();
-        if (!config.enable || !isVerifyGroup(config.verifyGroups, e.group_id)) {
+        if (!config.enable) {
+            return false;
+        }
+        if (!isVerifyGroup(config.verifyGroups, e.group_id)) {
+            logger.debug(`[入群验证] 群:${e.group_id} 不在验证群列表，跳过`);
             return false;
         }
 
