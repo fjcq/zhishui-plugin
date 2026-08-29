@@ -184,14 +184,18 @@ export const groupTools = [
         type: "function",
         function: {
             name: "manage_verify_groups",
-            description: "管理入群真人验证的群列表。开启后这些群的新成员需回答随机问题验证真人，超时未答对会被公告后移出群聊，答错不限次数（撤回消息并提醒继续作答）。action: list=查看配置与列表, add=添加当前群, remove=移除当前群。add/remove 仅支持在群聊中使用（作用于当前群），需要主人或群管理员权限，且 Bot 必须是群管理员。注意：list 返回的验证群号属于隐私信息，在群聊等公开场合只能说明数量，绝不能列出具体群号。",
+            description: "管理入群真人验证的群列表与验证流程。开启后这些群的新成员需回答随机问题验证真人，超时未答对会被公告后移出群聊，答错不限次数（撤回消息并提醒继续作答）。action: list=查看配置与列表, add=添加当前群, remove=移除当前群, stop_verify=停止指定成员的验证（视为通过，用于主人放行被误判的成员）, restart_verify=对指定成员重新发起验证（重新出题计时）。add/remove/stop_verify/restart_verify 仅支持在群聊中使用（作用于当前群），需要主人或群管理员权限，且 Bot 必须是群管理员。stop_verify/restart_verify 需要传 target_user_id（从对话上下文中的@或用户信息获取）。注意：list 返回的验证群号属于隐私信息，在群聊等公开场合只能说明数量，绝不能列出具体群号。",
             parameters: {
                 type: "object",
                 properties: {
                     action: {
                         type: "string",
-                        enum: ["list", "add", "remove"],
-                        description: "操作类型：list查看/add添加当前群/remove移除当前群"
+                        enum: ["list", "add", "remove", "stop_verify", "restart_verify"],
+                        description: "操作类型：list查看/add添加当前群/remove移除当前群/stop_verify停止成员验证/restart_verify重新验证成员"
+                    },
+                    target_user_id: {
+                        type: "string",
+                        description: "目标用户ID（stop_verify/restart_verify 时必填，从对话中@的用户或上下文获取）"
                     }
                 },
                 required: ["action"]

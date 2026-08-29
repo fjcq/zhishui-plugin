@@ -9,7 +9,9 @@ import {
     handleAddVerifyGroup,
     handleRemoveVerifyGroup,
     handleToggleVerify,
-    handleVerifySettings
+    handleVerifySettings,
+    handleStopVerifyCommand,
+    handleRestartVerifyCommand
 } from './groupVerify/handlers/index.js';
 
 export class GroupVerify extends plugin {
@@ -37,6 +39,14 @@ export class GroupVerify extends plugin {
                 {
                     reg: '^(#|\\/)?(入群验证|验证群)(设置|状态|查看)$',
                     fnc: 'VerifySettings'
+                },
+                {
+                    reg: '^(#|\\/)?(停止|取消)验证.*$',
+                    fnc: 'StopVerify'
+                },
+                {
+                    reg: '^(#|\\/)?重新验证.*$',
+                    fnc: 'RestartVerify'
                 },
                 {
                     reg: '',
@@ -77,6 +87,22 @@ export class GroupVerify extends plugin {
      */
     async VerifySettings(e) {
         return await handleVerifySettings(e);
+    }
+
+    /**
+     * 停止指定成员的验证（主人/群管理员干预，视为通过）
+     * @param {object} e - 事件对象
+     */
+    async StopVerify(e) {
+        return await handleStopVerifyCommand(e);
+    }
+
+    /**
+     * 重新对指定成员发起验证（主人/群管理员干预）
+     * @param {object} e - 事件对象
+     */
+    async RestartVerify(e) {
+        return await handleRestartVerifyCommand(e);
     }
 
     /**

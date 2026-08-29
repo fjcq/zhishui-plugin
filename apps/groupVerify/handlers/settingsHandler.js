@@ -10,7 +10,7 @@ import {
     removeVerifyGroup,
     setVerifyEnable
 } from '../config.js';
-import { isBotGroupAdmin } from './verifyHandler.js';
+import { isBotGroupAdmin, handleStopVerify, handleRestartVerify, parseTargetUser } from './verifyHandler.js';
 
 /**
  * 检查操作权限：主人或群管理员/群主
@@ -120,6 +120,56 @@ export async function handleToggleVerify(e) {
     const result = setVerifyEnable(enable);
     await e.reply(result.message, true);
     return true;
+}
+
+/**
+ * 处理停止验证指令（主人干预：放行指定成员，视为通过）
+ * @param {object} e - 事件对象
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleStopVerifyCommand(e) {
+    if (!requireGroup(e)) {
+        await e.reply('该指令仅支持在群内使用，请@目标成员发送“#停止验证”～', true);
+        return true;
+    }
+
+    if (!checkPermission(e)) {
+        await e.reply('只有主人或群管理员才能停止验证哦～', true);
+        return true;
+    }
+
+    const targetId = parseTargetUser(e);
+    if (!targetId) {
+        await e.reply('请@要停止验证的成员，或在其后跟上对方QQ号～', true);
+        return true;
+    }
+
+    return await handleStopVerify(e, targetId);
+}
+
+/**
+ * 处理重新验证指令（主人干预：重置会话并重新出题）
+ * @param {object} e - 事件对象
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleRestartVerifyCommand(e) {
+    if (!requireGroup(e)) {
+        await e.reply('该指令仅支持在群内使用，请@目标成员发送“#重新验证”～', true);
+        return true;
+    }
+
+    if (!checkPermission(e)) {
+        await e.reply('只有主人或群管理员才能重新验证哦～', true);
+        return true;
+    }
+
+    const targetId = parseTargetUser(e);
+    if (!targetId) {
+        await e.reply('请@要重新验证的成员，或在其后跟上对方QQ号～', true);
+        return true;
+    }
+
+    return await handleRestartVerify(e, targetId);
 }
 
 /**

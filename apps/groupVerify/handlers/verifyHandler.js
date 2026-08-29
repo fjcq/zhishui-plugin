@@ -264,6 +264,86 @@ function scheduleTimeout(e, botId, userId, config) {
 }
 
 /**
+ * 从消息中解析目标用户（@提及或纯数字QQ号）
+ * @param {object} e - 事件对象
+ * @returns {string|null} 目标用户QQ，无法解析时返回 null
+ */
+export function parseTargetUser(e) {
+    for (const seg of (e.message || [])) {
+        if (seg.type === 'at' && seg.qq && String(seg.qq) !== getBotId(e)) {
+            return String(seg.qq);
+        }
+    }
+    const match = String(e.msg || '').match(/(\d{5,})/);
+    return match ? match[1] : null;
+}
+
+/**
+ * 主人干预：停止指定成员的验证（视为通过，清理会话与定时器）
+ * @param {object} e - 事件对象
+ * @param {string} targetId - 目标用户QQ
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleStopVerify(e, targetId) {
+    try {
+        const botId = getBotId(e);
+        const pending = await getPending(botId, e.group_id, targetId);
+        if (!pending) {
+            await e.reply([segment.at(targetId), ' 当前没有进行中的入群验证哦～'], true);
+            return true;
+        }
+
+        await delPending(botId, e.group_id, targetId);
+        clearTimer(botId, e.group_id, targetId);
+        // 写入通过记录，冷却期内退群重进不再验证
+        const config = getVerifyConfig();
+        await setPassed(botId, e.group_id, targetId, config.passCooldown);
+
+        await e.reply([
+            segment.at(targetId),
+            '\n管理员已手动停止验证，欢迎正式加入本群～'
+        ], true);
+        logger.mark(`[入群验证] 群:${e.group_id} 用户:${targetId} 被主人手动停止验证（视为通过）`);
+        return true;
+    } catch (error) {
+        logger.error(`[入群验证] 停止验证失败: ${error.message}`);
+        await e.reply('停止验证时出现异常，请查看日志～', true);
+        return true;
+    }
+}
+
+/**
+ * 主人干预：重置指定成员的验证（清理旧会话后重新出题，计时重来）
+ * @param {object} e - 事件对象
+ * @param {string} targetId - 目标用户QQ
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleRestartVerify(e, targetId) {
+    try {
+        const botId = getBotId(e);
+        const config = getVerifyConfig();
+
+        // 无论有无进行中的会话都直接重新发起（覆盖旧会话）
+        await delPending(botId, e.group_id, targetId);
+        clearTimer(botId, e.group_id, targetId);
+
+        // 构造仅含目标用户的入群事件，复用出题与定时逻辑
+        await handleGroupIncrease({
+            ...e,
+            user_id: Number(targetId),
+            reply: undefined
+        });
+        await e.reply([segment.at(targetId), '\n已重新发起入群验证，请留意新的验证问题～'], true);
+        logger.mark(`[入群验证] 群:${e.group_id} 用户:${targetId} 被主人要求重新验证`);
+        return true;
+    } catch (error) {
+        logger.error(`[入群验证] 重新验证失败: ${error.message}`);
+        await e.reply('重新验证时出现异常，请查看日志～', true);
+        return true;
+    }
+}
+
+/**
  * 处理新成员入群事件：发送随机验证问题
  * @param {object} e - notice.group.increase 事件对象
  * @returns {Promise<boolean>} 是否拦截事件（始终不拦截）

@@ -14,7 +14,7 @@ import {
     addVerifyGroup,
     removeVerifyGroup
 } from '../../../groupVerify/config.js';
-import { isBotGroupAdmin } from '../../../groupVerify/handlers/verifyHandler.js';
+import { isBotGroupAdmin, handleStopVerify, handleRestartVerify } from '../../../groupVerify/handlers/verifyHandler.js';
 
 /**
  * 处理群管理工具调用
@@ -458,11 +458,11 @@ async function handleGetGroupInfo(params, e) {
  * @returns {Promise<object>} 执行结果
  */
 async function handleManageVerifyGroups(params, e) {
-    const { action } = params;
+    const { action, target_user_id: targetUserId } = params;
     const targetGroupId = e?.group_id;
 
-    if (!['list', 'add', 'remove'].includes(action)) {
-        return { error: true, error_message: 'action 参数无效，可选值：list / add / remove' };
+    if (!['list', 'add', 'remove', 'stop_verify', 'restart_verify'].includes(action)) {
+        return { error: true, error_message: 'action 参数无效，可选值：list / add / remove / stop_verify / restart_verify' };
     }
 
     if (action === 'list') {
@@ -491,6 +491,17 @@ async function handleManageVerifyGroups(params, e) {
 
     if (!targetGroupId) {
         return { error: true, error_message: '该操作仅支持在群聊中使用，请在目标群内发起' };
+    }
+
+    // 停止/重新验证：主人干预指定成员的验证流程
+    if (action === 'stop_verify' || action === 'restart_verify') {
+        if (!targetUserId) {
+            return { error: true, error_message: '缺少目标用户，请提供 target_user_id（从对话中@的用户或上下文获取）' };
+        }
+
+        const handler = action === 'stop_verify' ? handleStopVerify : handleRestartVerify;
+        const result = await handler(e, String(targetUserId));
+        return result;
     }
 
     try {

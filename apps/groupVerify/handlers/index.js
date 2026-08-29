@@ -12,5 +12,7 @@ export {
     handleAddVerifyGroup,
     handleRemoveVerifyGroup,
     handleToggleVerify,
-    handleVerifySettings
+    handleVerifySettings,
+    handleStopVerifyCommand,
+    handleRestartVerifyCommand
 } from './settingsHandler.js';
