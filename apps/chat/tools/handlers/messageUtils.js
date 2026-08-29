@@ -173,6 +173,22 @@ export function extractMessageId(ret) {
 }
 
 /**
+ * 校验 e.reply 的返回结果是否为发送失败
+ * TRSS-Yunzai 的 loader（lib/plugins/loader.js）会捕获发送异常，
+ * 记录"发送消息错误"日志后以 { error: [err] } 形式返回而非抛出，
+ * 调用方若不检查返回值，发送失败时仍会误报成功
+ * @param {*} ret - e.reply 的返回值
+ * @returns {string|null} 失败时返回错误信息，成功返回 null
+ */
+export function checkReplyResult(ret) {
+    if (ret && ret.error) {
+        const err = Array.isArray(ret.error) ? ret.error[0] : ret.error;
+        return (err && err.message) ? err.message : String(err);
+    }
+    return null;
+}
+
+/**
  * 消息验证器
  */
 export class MessageValidator {

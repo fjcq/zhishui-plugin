@@ -12,6 +12,7 @@ import VoiceManager from '../../../voice/voiceManager.js';
 import Config from '../../../../components/Config.js';
 import { logger } from '../../../../components/index.js';
 import { checkVoiceConfig } from './shared/voiceUtils.js';
+import { cleanImageUrl, checkReplyResult } from './messageUtils.js';
 import { applyResponseMode } from '../../chatHelper.js';
 
 /**
@@ -138,7 +139,11 @@ async function handleSendImage(params, e) {
         const imageMsg = segment.image(url);
         const message = caption ? [imageMsg, caption] : [imageMsg];
 
-        await e.reply(message);
+        const ret = await e.reply(message);
+        const replyError = checkReplyResult(ret);
+        if (replyError) {
+            return { error: true, error_message: `图片发送失败: ${replyError}` };
+        }
         logger.info(`[互动] 发送图片 | URL:${url.substring(0, 50)}...`);
 
         return {
@@ -210,8 +215,14 @@ async function handleSendVoice(params, e) {
         }
 
         if (typeof voiceResult === 'string') {
-            const voiceMsg = segment.record(voiceResult);
-            await e.reply(voiceMsg);
+            // 白名单提取清理语音URL，防止首尾包裹字符（反引号等）导致协议端下载失败
+            const voiceUrl = cleanImageUrl(voiceResult);
+            const voiceMsg = segment.record(voiceUrl);
+            const ret = await e.reply(voiceMsg);
+            const replyError = checkReplyResult(ret);
+            if (replyError) {
+                return { error: true, error_message: `语音发送失败: ${replyError}` };
+            }
             logger.info(`[互动] 发送语音(DUI) | 文本:${trimmedText.substring(0, 30)}...`);
         } else if (Array.isArray(voiceResult) && voiceResult.length > 0) {
             const uploadRecord = (await import('../../../../model/uploadRecord.js')).default;
@@ -219,7 +230,11 @@ async function handleSendVoice(params, e) {
                 const buffer = voiceResult[i];
                 const voiceMsg = await uploadRecord(buffer);
                 if (voiceMsg) {
-                    await e.reply(voiceMsg);
+                    const ret = await e.reply(voiceMsg);
+                    const replyError = checkReplyResult(ret);
+                    if (replyError) {
+                        return { error: true, error_message: `语音发送失败（第${i + 1}段）: ${replyError}` };
+                    }
                 }
             }
             logger.info(`[互动] 发送语音(腾讯云) | 文本:${trimmedText.substring(0, 30)}... | 分段:${voiceResult.length}`);

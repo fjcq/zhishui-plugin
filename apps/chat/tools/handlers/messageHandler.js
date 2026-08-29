@@ -4,7 +4,7 @@
  */
 
 import { SceneAdapter } from './sceneAdapter.js';
-import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType, cleanImageUrl, extractMessageId } from './messageUtils.js';
+import { MessageValidator, MessageSender, MessageResult, MessageBuilder, SceneType, cleanImageUrl, extractMessageId, checkReplyResult } from './messageUtils.js';
 import { downloadImageSmart } from '../../api/utils/requestUtils.js';
 import { getSegment } from './shared/utils.js';
 import VoiceManager from '../../../voice/voiceManager.js';
@@ -130,6 +130,10 @@ async function handleSendMessage(params, adapter) {
             if (text && !segments && !reply_to) {
                 logger.info('[消息工具] 降级为纯文本消息发送');
                 const ret = await adapter.e.reply(text);
+                const replyError = checkReplyResult(ret);
+                if (replyError) {
+                    return { error: true, error_message: `消息发送失败: ${replyError}` };
+                }
                 const messageId = extractMessageId(ret);
                 return {
                     success: true,
@@ -174,6 +178,11 @@ async function handleSendMessage(params, adapter) {
         }
 
         const ret = await adapter.e.reply(messageParts);
+        const replyError = checkReplyResult(ret);
+        if (replyError) {
+            logger.error(`[消息工具] 消息发送失败: ${replyError}`);
+            return { error: true, error_message: `消息发送失败: ${replyError}` };
+        }
         const messageId = extractMessageId(ret);
 
         const features = [];
@@ -515,8 +524,14 @@ async function handleSendVoice(params, adapter) {
         }
 
         if (typeof voiceResult === 'string') {
-            const voiceMsg = segment.record(voiceResult);
-            await e.reply(voiceMsg);
+            // 白名单提取清理语音URL，防止首尾包裹字符（反引号等）导致协议端下载失败
+            const voiceUrl = cleanImageUrl(voiceResult);
+            const voiceMsg = segment.record(voiceUrl);
+            const ret = await e.reply(voiceMsg);
+            const replyError = checkReplyResult(ret);
+            if (replyError) {
+                return { error: true, error_message: `语音发送失败: ${replyError}` };
+            }
             logger.info(`[消息工具] 发送语音(DUI) | 文本:${trimmedText.substring(0, 30)}...`);
         } else if (Array.isArray(voiceResult) && voiceResult.length > 0) {
             const uploadRecord = (await import('../../../../model/uploadRecord.js')).default;
@@ -524,7 +539,11 @@ async function handleSendVoice(params, adapter) {
                 const buffer = voiceResult[i];
                 const voiceMsg = await uploadRecord(buffer);
                 if (voiceMsg) {
-                    await e.reply(voiceMsg);
+                    const ret = await e.reply(voiceMsg);
+                    const replyError = checkReplyResult(ret);
+                    if (replyError) {
+                        return { error: true, error_message: `语音发送失败（第${i + 1}段）: ${replyError}` };
+                    }
                 }
             }
             logger.info(`[消息工具] 发送语音(腾讯云) | 文本:${trimmedText.substring(0, 30)}... | 分段:${voiceResult.length}`);
