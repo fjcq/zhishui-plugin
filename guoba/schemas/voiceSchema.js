@@ -6,6 +6,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import { TENCENT_KEY_URL } from '../handlers/actions.js';
+
 const Path = process.cwd();
 const PluginPath = path.join(Path, 'plugins', 'zhishui-plugin');
 
@@ -61,17 +63,21 @@ export function getVoiceSettingSchemas() {
             label: '🔊 语音TTS'
         },
         {
-            field: 'voice.VoiceIndex',
-            label: 'DUI发音人',
-            helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效，配置腾讯云密钥后优先使用腾讯云TTS）',
-            component: 'Select',
+            field: 'voice.VoiceProvider',
+            label: '语音系统',
+            helpMessage: '选择语音合成系统。自动：腾讯云密钥有效时用腾讯云，否则用DUI平台；也可强制指定其一',
+            component: 'RadioGroup',
             componentProps: {
-                options: VoiceList.map((element, index) => ({
-                    label: element.name,
-                    value: index
-                })),
-                placeholder: '请选择发音人'
+                options: [
+                    { label: '自动（推荐）', value: 'auto' },
+                    { label: '腾讯云TTS', value: 'tencent' },
+                    { label: 'DUI平台语音', value: 'dui' }
+                ]
             }
+        },
+        {
+            component: 'Divider',
+            label: '☁️ 腾讯云TTS'
         },
         {
             field: 'voice.TencentCloudTTS.Region',
@@ -92,7 +98,8 @@ export function getVoiceSettingSchemas() {
         {
             field: 'voice.TencentCloudTTS.SecretId',
             label: 'SecretId',
-            helpMessage: '腾讯云API密钥的SecretId，在腾讯云控制台获取',
+            helpMessage: '腾讯云API密钥，AKID开头',
+            bottomHelpMessage: `获取地址：${TENCENT_KEY_URL}`,
             component: 'Input',
             componentProps: {
                 placeholder: '请输入SecretId'
@@ -101,10 +108,24 @@ export function getVoiceSettingSchemas() {
         {
             field: 'voice.TencentCloudTTS.SecretKey',
             label: 'SecretKey',
-            helpMessage: '腾讯云API密钥的SecretKey，在腾讯云控制台获取',
+            helpMessage: '与SecretId配对的密钥，仅新建密钥时完整显示，遗忘后需新建一对',
+            bottomHelpMessage: '与SecretId配对使用',
             component: 'InputPassword',
             componentProps: {
                 placeholder: '请输入SecretKey'
+            }
+        },
+        {
+            component: 'GButtons',
+            componentProps: {
+                buttons: [
+                    {
+                        label: '打开密钥获取页面',
+                        action: 'openTencentKeyPage',
+                        type: 'primary',
+                        size: 'small'
+                    }
+                ]
             }
         },
         {
@@ -169,6 +190,23 @@ export function getVoiceSettingSchemas() {
                     { label: 'wav', value: 'wav' },
                     { label: 'pcm', value: 'pcm' }
                 ]
+            }
+        },
+        {
+            component: 'Divider',
+            label: '🎙️ DUI平台语音'
+        },
+        {
+            field: 'voice.VoiceIndex',
+            label: 'DUI发音人',
+            helpMessage: '选择DUI平台的语音发音人（仅DUI平台生效）',
+            component: 'Select',
+            componentProps: {
+                options: VoiceList.map((element, index) => ({
+                    label: element.name,
+                    value: index
+                })),
+                placeholder: '请选择发音人'
             }
         }
     ];

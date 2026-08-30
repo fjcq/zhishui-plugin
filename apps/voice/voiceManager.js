@@ -39,17 +39,30 @@ class VoiceManager {
     }
 
     /**
-     * 检测当前可用的语音后端类型
-     * 优先腾讯云（配置了有效密钥时），否则使用DUI平台
+     * 检测当前使用的语音后端类型
+     * 根据 VoiceProvider 配置决定：auto-自动检测（腾讯云密钥有效时优先），
+     * tencent-强制腾讯云，dui-强制DUI平台
      * @returns {number} - 后端类型：1-DUI平台，2-腾讯云，0-未配置
      */
     detectVoiceSystem() {
+        const provider = Config.Voice?.VoiceProvider || 'auto';
+
+        // 腾讯云密钥是否已有效配置
         const tencentConfig = Config.Voice?.TencentCloudTTS;
-        const hasTencentConfig = tencentConfig?.SecretId &&
+        const hasTencentConfig = !!(tencentConfig?.SecretId &&
             tencentConfig?.SecretKey &&
             tencentConfig.SecretId !== '你的腾讯云SecretId' &&
-            tencentConfig.SecretKey !== '你的腾讯云SecretKey';
+            tencentConfig.SecretKey !== '你的腾讯云SecretKey');
 
+        if (provider === 'tencent') {
+            return hasTencentConfig ? 2 : 0;
+        }
+
+        if (provider === 'dui') {
+            return 1;
+        }
+
+        // auto：腾讯云密钥有效时优先，否则回落DUI平台
         if (hasTencentConfig) {
             return 2;
         }
@@ -62,7 +75,7 @@ class VoiceManager {
     }
 
     /**
-     * 自动检测语音后端并合成语音
+     * 根据语音后端配置合成语音
      * @param {Object} e - 事件对象
      * @param {string} text - 要转换的文本内容
      * @param {Object} options - 可选配置

@@ -1,3 +1,6 @@
+# 语音系统选择：auto-自动检测（腾讯云密钥有效时优先）、tencent-腾讯云、dui-DUI平台
+VoiceProvider: auto
+
 # 发音人（仅原来的语音系统有效）
 VoiceIndex: 23
 

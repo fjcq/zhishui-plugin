@@ -24,7 +24,7 @@ import {
     getImageGenSchemas
 } from './guoba/schemas/index.js';
 
-import { getConfigData, setConfigData } from './guoba/handlers/index.js';
+import { getConfigData, setConfigData, guobaActions } from './guoba/handlers/index.js';
 
 const Path = process.cwd();
 const PluginPath = path.join(Path, 'plugins', 'zhishui-plugin');
@@ -76,7 +76,10 @@ export function supportGuoba() {
 
             async setConfigData(data, { Result, action }) {
                 return await setConfigData(data, { Result, action });
-            }
+            },
+
+            // GButtons按钮动作，通过 /plugin/do/zhishui-plugin/action 调用
+            actions: guobaActions
         }
     };
 }

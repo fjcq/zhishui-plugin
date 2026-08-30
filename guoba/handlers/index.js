@@ -4,3 +4,4 @@
 
 export { getConfigData, getLatestConfigData } from './configReader.js';
 export { setConfigData } from './configWriter.js';
+export { guobaActions, TENCENT_KEY_URL } from './actions.js';
