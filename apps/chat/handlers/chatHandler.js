@@ -11,6 +11,7 @@ import { openAi, loadChatMsg, clearSessionContext, getSessionKeyv, generateSessi
 import { resolveModel } from '../configs/manager.js';
 import { createProvider } from '../providers/index.js';
 import { mergeSystemMessage } from '../configs/systemMessage.js';
+import { sanitizeModelOutput, safeParseJsonWithTail, extractPlainTextFromJson } from '../api/utils/requestUtils.js';
 
 /**
  * 转义正则表达式特殊字符
@@ -567,22 +568,35 @@ export async function handleChat(e, chatNickname) {
         const { content, rawResponse } = response;
 
         let replyObj;
-        try {
-            replyObj = JSON.parse(content);
-            if (typeof replyObj !== 'object' || !replyObj.message) {
-                replyObj = {
-                    message: content,
-                    favor_changes: []
-                };
-                logger.warn('[止水对话] JSON对象缺少message字段，使用原始内容');
-            }
-        } catch (error) {
-            logger.warn(`[止水对话] JSON解析失败: ${error.message}，使用原始回复`);
+        // 使用支持尾部垃圾字符的 JSON 解析器：
+        // 先清理模型内部控制 token，再尝试截取最大合法 JSON 子串，
+        // 避免 thinking/tool-calling 模型在 JSON 末尾追加控制符导致全量回退
+        replyObj = safeParseJsonWithTail(content);
+        if (!replyObj) {
+            // 解析失败的最终回退：直接把清理+剥壳后的纯文本作为 message
+            // 剥壳防止模型用 {"message":"..."} 包裹导致用户收到JSON外壳
+            const cleanedFallback = extractPlainTextFromJson(sanitizeModelOutput(content));
             replyObj = {
-                message: content,
+                message: cleanedFallback,
                 favor_changes: []
             };
-            logger.warn('[止水对话] JSON解析失败，使用原始内容:', error.message);
+            // 降噪：仅当模型输出看起来"像JSON"（{ 或 [ 开头）时才打 WARN。
+            // 模型直接输出自然语言（绝大多数正常聊天场景）不应触发 WARN，
+            // 否则日志里满屏"解析失败"会让主人误以为系统有问题。
+            const looksLikeJson = (typeof content === 'string') && /^\s*[{[]/.test(content);
+            if (looksLikeJson) {
+                logger.warn('[止水对话] JSON解析失败，已清理控制token并剥壳后使用纯文本作为回复');
+            }
+        } else if (typeof replyObj !== 'object' || !replyObj.message) {
+            // 解析成功但缺少 message 字段，构造合法结构
+            const candidateMsg = typeof replyObj === 'string'
+                ? extractPlainTextFromJson(replyObj)
+                : extractPlainTextFromJson(sanitizeModelOutput(content));
+            replyObj = {
+                message: candidateMsg,
+                favor_changes: replyObj?.favor_changes || []
+            };
+            logger.warn('[止水对话] JSON对象缺少message字段，使用剥壳后的内容');
         }
         replyObj.favor_changes = replyObj.favor_changes || [];
 
@@ -591,7 +605,8 @@ export async function handleChat(e, chatNickname) {
             logger.info(`[好感度变更] ${favorLogs.join(' | ')}`);
         }
 
-        let finalReply = replyObj.message ?? '';
+        // 在发送前最后再做一次清理 + 剥壳，防止任何路径上的控制符/JSON外壳泄漏到用户端
+        let finalReply = extractPlainTextFromJson(sanitizeModelOutput(replyObj.message ?? ''));
 
         // 去除已通过工具调用阶段发送的内容，避免重复推送
         // handleToolCalls 在工具调用前会立即发送 textContent，AI 在 followUp 中常会重复这部分内容

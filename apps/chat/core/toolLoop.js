@@ -11,6 +11,7 @@ import { logger } from '../../../components/index.js';
 import { addMessage } from '../session.js';
 import { handleToolCall } from '../tools/index.js';
 import { generateToolFeedback, shouldShowFeedback } from '../tools/feedbackGenerator.js';
+import { sanitizeModelOutput, extractPlainTextFromJson } from '../api/utils/requestUtils.js';
 
 /** 工具调用最大递归深度 */
 export const MAX_TOOL_DEPTH = 15;
@@ -58,7 +59,12 @@ function extractUserId(msg) {
  */
 export async function executeToolLoop({ response, chatContext, recursionDepth, chatFn }) {
     const { msg, e, systemMessage, chatMsg, fullUserMsg } = chatContext;
-    const textContent = response.content || '';
+    // 立即发送前再次清理控制 token（双保险：chatClient 已清理过，
+    // 此处防止极端情况下残留或未经过 chatClient 清理的路径调用）
+    // 再剥一层 message/content JSON 外壳：Gemini 等模型常把助手文本
+    // 包成 {"message":"..."} 直接放到 response.content 里，若不剥壳会把
+    // 整段JSON当普通文本发给用户（参见 2026-08-31 03:11:43 泄漏事故）。
+    let textContent = extractPlainTextFromJson(sanitizeModelOutput(response.content || ''));
 
     const assistantMessage = {
         role: 'assistant',
@@ -66,7 +72,7 @@ export async function executeToolLoop({ response, chatContext, recursionDepth, c
         tool_calls: response.toolCalls
     };
     if (response.thinking) {
-        assistantMessage.reasoning_content = response.thinking;
+        assistantMessage.reasoning_content = sanitizeModelOutput(response.thinking);
     }
 
     // 有文本时立即发送给用户（带重复检测）

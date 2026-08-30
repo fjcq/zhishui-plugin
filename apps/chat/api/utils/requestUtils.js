@@ -293,3 +293,350 @@ export async function downloadImageSmart({ url, fileId, e, source = '多模态' 
 
     return null;
 }
+
+/**
+ * 模型内部控制 token 正则列表。
+ * thinking / tool-calling 类模型（DeepSeek-R1、Qwen3、o1/o3、GLM-Z1 等）
+ * 有时会在最终文本末尾残留这些仅供推理框架内部使用的分段标记，
+ * 必须在用户可见之前彻底剥离，避免泄漏 JSON 外壳 / 控制符。
+ * 所有 <|FOO|> 形式的标记统一处理，兼顾未来新增的未知控制符。
+ */
+const MODEL_CONTROL_TOKENS = [
+    /<\|tool_call_start\|>.*?<\|tool_call_end\|>/gs,     // 完整内联工具调用块
+    /<\|tool_call_start\|>[^<]*/g,                        // 残留的工具调用起始
+    /<\|tool_call_end\|>/g,                               // 残留的工具调用结束
+    /<\|tool_calls_section_start\|>[^<]*/g,               // 工具调用段起始
+    /<\|tool_calls_section_end\|>/g,                      // 工具调用段结束
+    /<\|tool_calls_section\|>/g,                          // 简写段标记
+    /<\|reasoning_start\|>.*?<\|reasoning_end\|>/gs,      // 思维链条形块
+    /<\|reasoning_start\|>[^<]*/g,                        // 思维链起始残留
+    /<\|reasoning_end\|>/g,                               // 思维链结束残留
+    /<\|thinking_start\|>.*?<\|thinking_end\|>/gs,        // 思考段变体
+    /<\|thinking_start\|>[^<]*/g,
+    /<\|thinking_end\|>/g,
+    /<\|assistant_start\|>[^<]*/g,                        // 角色起始标记残留
+    /<\|assistant_end\|>/g,
+    /<\|system_end\|>/g,
+    /<\|user_end\|>/g,
+    /<\|im_start\|>[^<]*/g,                               // Qwen 系列分段
+    /<\|im_end\|>/g,
+    /<\|end_of_thought\|>/g,                              // 思维结束符
+    /<\|begin_of_thought\|>[^<]*/g,
+    // Gemini / Google 系函数调用标记：functions.工具名:调用ID
+    // 典型输出: {"message":"..."}functions.generate_image:33{"prompt":"..."}
+    /functions\.[A-Za-z_][\w.-]*:\d+/g,
+    // 兜底：移除未知的 <|...|> 控制符（不包含内容，纯控制标记）
+    /<\|[A-Za-z0-9_:-]{1,40}\|>/g
+];
+
+/**
+ * 清理模型输出中残留的内部控制 token 与多余空白。
+ * 在 chatClient、toolLoop、chatHandler 三个发送出口均需调用，
+ * 确保 thinking / tool-calling 类模型的内部标记不会泄漏到用户端。
+ * @param {string} text - 原始模型输出
+ * @returns {string} 清理后的文本
+ */
+export function sanitizeModelOutput(text) {
+    if (typeof text !== 'string' || !text) return '';
+    let cleaned = text;
+    for (const re of MODEL_CONTROL_TOKENS) {
+        cleaned = cleaned.replace(re, '');
+    }
+    return cleaned.trim();
+}
+
+/**
+ * 当模型返回的"纯文本"实际上是单层 JSON 外壳时，
+ * 提取其中的消息内容字段（message / content / text / output / answer / reply）
+ * 作为真正要发送给用户的自然语言文本。
+ *
+ * 典型场景：
+ *   1) 模型用原生 JSON 包一层：`{"message": "画好啦喵"}`
+ *   2) 多段 functions.name:id 被 sanitize 后，剩下：`{"message": "…"}{"prompt": "…"}`
+ *   3) safeParseJsonWithTail 路径3 fallback 时，外层 JSON 仍可能作为 message 被保存
+ *
+ * 规则（与 extractMessageFromMultiJsonBlock 类似，但仅用于字符串剥壳）：
+ *   - 字符串不是 `{`/`[` 开头：原样返回（避免误操作纯文本）
+ *   - 能 parse 成对象：递归收集 message/content/text 等字段值，
+ *     命中 TOOL_HINT_KEYS 的对象中 message 仍保留；若提取结果为空，返回原串的 sanitize 版
+ *   - 不能 parse：尝试 extractMessageFromMultiJsonBlock 提取多段
+ *   - 提取出的字符串再走 sanitizeModelOutput
+ *   - 最多剥 3 层，避免 `{"message":"{\"message\":\"内层\"}"}` 嵌套剥不干净
+ * @param {string} text - 疑似 JSON 包装的文本
+ * @param {number} [depth=3] - 剥壳深度（默认 3 层）
+ * @returns {string} 剥壳后的纯文本；若文本无 JSON 外壳特征则原样 trim 后返回
+ */
+export function extractPlainTextFromJson(text, depth = 3) {
+    if (typeof text !== 'string') return text == null ? '' : String(text);
+    let result = text;
+    for (let i = 0; i < depth; i++) {
+        const stripped = result.trim();
+        // 没有 JSON 对象/数组特征就直接返回
+        if (!stripped) return '';
+        const fc = stripped[0];
+        if (fc !== '{' && fc !== '[') break;
+
+        let extracted = null;
+        // 先尝试整段解析
+        try {
+            const parsed = parseJsonLenient(stripped);
+            // 优先使用 findAllJsonBlocks 提取逻辑（统一工具参数忽略规则）
+            const viaBlocks = extractMessageFromMultiJsonBlock(stripped);
+            if (viaBlocks && typeof viaBlocks === 'string' && viaBlocks !== stripped) {
+                extracted = viaBlocks;
+            } else if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                // 单独识别：只有 message/content/text 等 1-2 个字段的简单包装
+                const MSG_KEYS = ['message', 'content', 'text', 'output', 'answer', 'reply'];
+                const firstMsgKey = MSG_KEYS.find(k => typeof parsed[k] === 'string' && parsed[k]);
+                if (firstMsgKey) extracted = parsed[firstMsgKey];
+            } else if (typeof parsed === 'string') {
+                extracted = parsed;
+            }
+        } catch {
+            // parse 失败，试试多段提取
+            const viaBlocks = extractMessageFromMultiJsonBlock(stripped);
+            if (viaBlocks && typeof viaBlocks === 'string' && viaBlocks !== stripped) {
+                extracted = viaBlocks;
+            }
+        }
+
+        if (!extracted || extracted === stripped) break;
+        const cleanedEx = sanitizeModelOutput(extracted);
+        // 没变化就不要循环（防止死循环/空跑）
+        if (cleanedEx === result.trim()) break;
+        result = cleanedEx;
+        // 再次 trim 下一轮（避免外层是多段拼接一次没剥干净）
+    }
+    return sanitizeModelOutput(result);
+}
+
+/**
+ * 宽松 JSON.parse：当严格 parse 失败时，将候选字符串中所有 JSON 字符串片段里
+ * 的未转义换行(U+000A)、回车(U+000D)、制表(U+0009)转义为 \\n/\\r/\\t 后重试。
+ * 兼容 thinking/tool-calling 模型把带真实换行的字符串"裸输出"到 JSON 里的情况。
+ * @param {string} raw - 候选 JSON 字符串
+ * @returns {*} 解析结果
+ */
+function parseJsonLenient(raw) {
+    try {
+        return JSON.parse(raw);
+    } catch (e) {
+        // 扫描字符串，将未转义的 U+000A/000D/0009 替换
+        let out = '';
+        let inStr = false;
+        let esc = false;
+        for (let k = 0; k < raw.length; k++) {
+            const c = raw[k];
+            if (inStr) {
+                if (esc) { out += c; esc = false; continue; }
+                if (c === '\\') { out += c; esc = true; continue; }
+                if (c === '"') { out += c; inStr = false; continue; }
+                if (c === '\n') { out += '\\n'; continue; }
+                if (c === '\r') { out += '\\r'; continue; }
+                if (c === '\t') { out += '\\t'; continue; }
+                out += c;
+            } else {
+                if (c === '"') inStr = true;
+                out += c;
+            }
+        }
+        if (out === raw) throw e; // 没有任何修改，没必要再 parse 一次
+        return JSON.parse(out);
+    }
+}
+
+/**
+ * 在字符串中定位所有顶级 JSON 块（对象或数组），返回 {start, end, value} 列表。
+ * 算法：遍历字符并维护括号栈（忽略字符串内与转义的括号），栈回 0 时即一个完整块。
+ * 用于解析 Gemini 等模型输出的"多段 JSON 拼接 + functions.name:id 分隔"格式。
+ * @param {string} text - 待扫描的原始文本
+ * @returns {Array<{start:number, end:number, value:*}>} 每个 JSON 块的起止位置与解析值
+ */
+function findAllJsonBlocks(text) {
+    const blocks = [];
+    if (typeof text !== 'string') return blocks;
+
+    let i = 0;
+    while (i < text.length) {
+        const ch = text[i];
+        if (ch !== '{' && ch !== '[') {
+            i++;
+            continue;
+        }
+        const open = ch;
+        const close = open === '{' ? '}' : ']';
+        let depth = 0;
+        let inStr = false;
+        let esc = false;
+        let j = i;
+        for (; j < text.length; j++) {
+            const c = text[j];
+            if (esc) { esc = false; continue; }
+            if (c === '\\') { esc = true; continue; }
+            if (c === '"') { inStr = !inStr; continue; }
+            if (inStr) continue;
+            if (c === open) depth++;
+            else if (c === close) {
+                depth--;
+                if (depth === 0) break;
+            }
+        }
+        if (j < text.length && text[j] === close) {
+            const raw = text.substring(i, j + 1);
+            try {
+                const value = parseJsonLenient(raw);
+                blocks.push({ start: i, end: j + 1, value });
+            } catch {
+                // 解析失败，跳过起始字符继续向后找
+            }
+        }
+        i = j >= i ? j + 1 : i + 1;
+    }
+    return blocks;
+}
+
+/**
+ * 从包含多段 JSON 块（典型为 Gemini/OpenRouter 函数调用格式：
+ *   `{"message":"文本"}functions.generate_image:33{"prompt":"参数"}`
+ *  或 `{"content":"文本"}{"tool_calls":[...]}`）
+ * 的文本中，提取所有"消息内容字段"并拼接为纯文本回复。
+ * 消息内容字段按优先级：message / content / text / output / answer / reply。
+ * 同时忽略工具参数 JSON（包含 tool_name/tool_calls/name/arguments/prompt 等典型工具字段的对象）。
+ * 若未提取到任何消息字段，返回 null（调用方应回退到常规解析逻辑）。
+ * @param {string} text - 原始模型输出
+ * @returns {string|null} 提取出的消息文本，或 null 表示未命中
+ */
+function extractMessageFromMultiJsonBlock(text) {
+    if (typeof text !== 'string' || !text) return null;
+    const blocks = findAllJsonBlocks(text);
+    if (blocks.length === 0) return null;
+
+    const MSG_KEYS = ['message', 'content', 'text', 'output', 'answer', 'reply'];
+    const THINK_KEYS = ['reasoning', 'thinking'];
+    const TOOL_HINT_KEYS = ['tool_calls', 'tool_call', 'function_call', 'tool_use',
+        'arguments', 'prompt', 'name', 'input', 'function'];
+
+    const collect = (value, depth = 0) => {
+        const msg = [];
+        const think = [];
+        let isToolLike = false;
+        if (depth > 6) return { msg, think, isToolLike };
+
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            const keys = Object.keys(value);
+            if (TOOL_HINT_KEYS.some(k => keys.includes(k))) isToolLike = true;
+            for (const k of keys) {
+                const v = value[k];
+                if (typeof v === 'string' && v) {
+                    if (MSG_KEYS.includes(k)) msg.push(v);
+                    else if (THINK_KEYS.includes(k)) think.push(v);
+                } else if (v && typeof v === 'object') {
+                    const sub = collect(v, depth + 1);
+                    msg.push(...sub.msg);
+                    think.push(...sub.think);
+                    if (sub.isToolLike) isToolLike = true;
+                }
+            }
+        } else if (Array.isArray(value)) {
+            for (const item of value) {
+                const sub = collect(item, depth + 1);
+                msg.push(...sub.msg);
+                think.push(...sub.think);
+                if (sub.isToolLike) isToolLike = true;
+            }
+        } else if (typeof value === 'string' && value) {
+            msg.push(value);
+        }
+        return { msg, think, isToolLike };
+    };
+
+    const messages = [];
+    const thinkings = [];
+    for (const b of blocks) {
+        const { msg, think } = collect(b.value);
+        messages.push(...msg);
+        thinkings.push(...think);
+    }
+
+    if (messages.length === 0 && thinkings.length === 0) {
+        if (blocks.length === 1 && typeof blocks[0].value === 'string') return sanitizeModelOutput(blocks[0].value) || null;
+        return null;
+    }
+
+    const cleanStr = (s) => sanitizeModelOutput(s).trim();
+    const thinkingCombined = thinkings.map(cleanStr).filter(Boolean).join('\n\n');
+    const msgCombined = messages.map(cleanStr).filter(Boolean).join('\n\n');
+    let result = '';
+    if (thinkingCombined) result += thinkingCombined + '\n\n';
+    result += msgCombined;
+    return result.trim() || null;
+}
+
+/**
+ * 尝试解析可能尾部附带垃圾字符的 JSON 字符串。
+ * 思路：先用 sanitizeModelOutput 清理控制 token，
+ * 再优先走原生 JSON.parse；若仍失败，检测到 Gemini 多段 JSON +
+ * functions.name:id 模式时先尝试 extractMessageFromMultiJsonBlock 提取
+ * 消息字段返回 {message,content}；最后再按"最大合法 JSON 子串"
+ * 从第一个 {/[ 开始，逐段缩短直到 parse 成功。
+ * @param {string} raw - 原始 JSON 字符串（可能带尾巴垃圾）
+ * @returns {Object|null} 解析结果，全部失败返回 null
+ */
+export function safeParseJsonWithTail(raw) {
+    if (typeof raw !== 'string' || !raw) return null;
+    const cleaned = sanitizeModelOutput(raw);
+    if (!cleaned) return null;
+
+    // 路径1：清理后直接是合法 JSON
+    try {
+        return JSON.parse(cleaned);
+    } catch {
+        // 继续后续路径
+    }
+
+    // 路径2：命中"多段 JSON + functions.name:id"模式，优先提取消息字段
+    const hasFuncMark = /functions\.[A-Za-z_][\w.-]*:\d+/.test(raw);
+    const jsonCount = (cleaned.match(/[{]/g) || []).length;
+    if (hasFuncMark || jsonCount >= 2) {
+        const extracted = extractMessageFromMultiJsonBlock(raw);
+        if (extracted) {
+            return { message: extracted, content: extracted };
+        }
+        const cleanedAgain = sanitizeModelOutput(raw);
+        try {
+            return JSON.parse(cleanedAgain);
+        } catch { /* 继续 */ }
+    }
+
+    // 路径3：找到首个 { 或 [ 作为起始，逐次缩短右边界尝试解析
+    const firstObj = cleaned.indexOf('{');
+    const firstArr = cleaned.indexOf('[');
+    let start;
+    if (firstObj === -1 && firstArr === -1) return null;
+    if (firstObj === -1) start = firstArr;
+    else if (firstArr === -1) start = firstObj;
+    else start = Math.min(firstObj, firstArr);
+
+    const openChar = cleaned[start];
+    const closeChar = openChar === '{' ? '}' : ']';
+    const candidate = cleaned.substring(start);
+
+    try {
+        return JSON.parse(candidate);
+    } catch {
+        // 继续收缩
+    }
+
+    const maxShrink = Math.min(200, candidate.length - 2);
+    for (let i = 1; i <= maxShrink; i++) {
+        const endIdx = candidate.length - i;
+        if (candidate[endIdx - 1] === closeChar) {
+            try {
+                return JSON.parse(candidate.substring(0, endIdx));
+            } catch {
+                // 继续尝试
+            }
+        }
+    }
+    return null;
+}

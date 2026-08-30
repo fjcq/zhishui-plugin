@@ -6,7 +6,37 @@
  */
 
 import Config from '../../../../components/Config.js';
+import { logger } from '../../../../components/index.js';
 import { isImageProviderConfigured } from './imageSchema.js';
+
+/**
+ * 编辑型模型关键词黑名单（大小写不敏感匹配 model.model）
+ * 当 resolveText2ImageModel 自动扫描文生图默认模型时，
+ * 命中以下关键词的 model 直接跳过，避免把编辑模型当作文生图模型。
+ * 注意：用户在 defaultText2Image 中显式指定时也会被检查并跳过（加警告日志），
+ *       确保无论怎么配置都不会触发服务商 400。
+ */
+const EDIT_MODEL_BLACKLIST_KEYWORDS = [
+    /image[_\- ]?edit/i,
+    /edit[_\- ]?image/i,
+    /-edit-?\d/i,
+    /\/edit$/i,
+    /img[_\- ]?edit/i
+];
+
+/**
+ * 判断 model 是否明显是"图像编辑"专用模型，不能用于纯文生图。
+ * 匹配：model.model 字符串中的关键词（更可靠），其次是 name。
+ * @param {Object} model - model 配置条目
+ * @returns {boolean} 是否是编辑专用模型
+ */
+export function isEditOnlyModel(model) {
+    if (!model) return false;
+    const haystack = [model.model, model.name, model.description]
+        .filter(Boolean)
+        .join(' ');
+    return EDIT_MODEL_BLACKLIST_KEYWORDS.some(re => re.test(haystack));
+}
 
 /**
  * 读取生图模块全部配置
@@ -64,7 +94,8 @@ export function isImageModelUsable(model) {
 
 /**
  * 解析文生图应使用的模型
- * 优先级：defaultText2Image 指定 > 第一个可用的 model
+ * 优先级：defaultText2Image 指定 > 第一个可用的 model（同时跳过编辑专用模型）
+ * 用户显式指定了编辑型模型时会降级为自动扫描并输出 warn，避免 400
  * @returns {{model: Object, provider: Object}|null} 解析结果，无可用配置返回 null
  */
 export function resolveText2ImageModel() {
@@ -74,18 +105,39 @@ export function resolveText2ImageModel() {
     if (specified) {
         const resolved = getImageModelByName(specified);
         if (resolved && isImageModelUsable(resolved.model)) {
-            return resolved;
+            if (isEditOnlyModel(resolved.model)) {
+                logger.warn(
+                    `[生图配置] defaultText2Image="${specified}" 指向编辑型模型 "${resolved.model.model}"，` +
+                    `将降级为自动扫描可用的文生图模型。请改配置：编辑型模型只应用于 edit.model，不应作为文生图默认。`
+                );
+                // 降级：继续走下面的自动扫描分支
+            } else {
+                return resolved;
+            }
+        } else if (resolved) {
+            logger.warn(`[生图配置] defaultText2Image="${specified}" 关联的 provider 未完成配置，降级自动选择`);
         }
     }
 
-    // 自动模式：静默使用第一个可用 model
+    // 自动模式：使用第一个可用且非编辑型 model；如果全部是编辑型才兜底最后一个
+    // （极端情况：用户只配置了编辑模型时不返回 null，让下游报 400 由错误详情暴露原因）
+    let lastUsable = null;
     for (const model of models) {
         const resolved = getImageModelByName(model.name);
         if (resolved && isImageModelUsable(model)) {
-            return resolved;
+            if (!isEditOnlyModel(model)) {
+                return resolved;
+            }
+            lastUsable = resolved;
         }
     }
-    return null;
+    if (lastUsable) {
+        logger.warn(
+            `[生图配置] 扫描到的可用模型全部是编辑型，兜底使用 "${lastUsable.model.name}"。` +
+            `纯文生图请求可能被服务商拒绝，建议在 models 中添加至少一个文生图模型（如 Z-Image-Turbo、ERNIE-Image-Turbo 等）。`
+        );
+    }
+    return lastUsable;
 }
 
 /**

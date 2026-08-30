@@ -85,6 +85,46 @@ function extractImageUrl(resp, responseFormat, logTag) {
 }
 
 /**
+ * 从 HTTPResponseError 中提取服务商返回的错误详情，避免只看到 "HTTP 400"
+ * 底层 request.js 在非 2xx 时抛出 HTTPResponseError，其 response 仍是可读的 fetch Response 对象
+ * @param {Error} error - 原始错误
+ * @param {string} logTag - 日志前缀（用于 logger）
+ * @returns {Promise<string>} 带详情的错误消息
+ */
+async function extractHttpErrorDetail(error, logTag) {
+    const status = error?.response?.status;
+    const statusText = error?.response?.statusText || '';
+    let detail = '';
+    try {
+        if (error?.response?.text) {
+            // 尝试作为文本读取，再解析可能的 JSON 错误体
+            const rawText = await error.response.text();
+            if (rawText) {
+                try {
+                    const json = JSON.parse(rawText);
+                    // 常见格式：{ error: { message: '...' } } 或 { message: '...' }
+                    const msg = json?.error?.message || json?.message || json?.error_description || '';
+                    if (msg) {
+                        detail = ` | 详情: ${String(msg).substring(0, 400)}`;
+                    } else {
+                        detail = ` | 响应体(${rawText.length}字): ${rawText.substring(0, 300)}`;
+                    }
+                } catch {
+                    // 非 JSON，直接截断
+                    detail = ` | 响应体: ${rawText.substring(0, 300)}`;
+                }
+            }
+        }
+    } catch {
+        // 读取失败不影响原始错误抛出
+    }
+    const codeTag = status ? `HTTP ${status}${statusText ? ' ' + statusText : ''}` : '';
+    logger.error(`${logTag} ${codeTag} 请求参数快照: model=${JSON.stringify(String(error?.__model || 'unknown'))}`
+        + ` size=${JSON.stringify(String(error?.__size || ''))}`);
+    return `${codeTag || '请求错误'}${detail}`;
+}
+
+/**
  * OpenAI 兼容文生图
  * @param {Object} options - 调用选项
  * @param {string} options.prompt - 提示词
@@ -112,17 +152,28 @@ export async function generateWithOpenAI({ prompt, size, model, provider }) {
     }
     Object.assign(body, parseExtraParams(model.extraParams, '[生图工具]'));
 
-    const resp = await request.post(baseUrl + apiPath, {
-        headers: {
-            'Authorization': `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        data: body,
-        responseType: 'json',
-        outErrorLog: false
-    });
+    try {
+        const resp = await request.post(baseUrl + apiPath, {
+            headers: {
+                'Authorization': `Bearer ${provider.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            data: body,
+            responseType: 'json',
+            outErrorLog: false
+        });
 
-    return extractImageUrl(resp, responseFormat, '生图接口');
+        return extractImageUrl(resp, responseFormat, '生图接口');
+    } catch (error) {
+        if (error?.response) {
+            // 挂快照参数给日志提取函数
+            error.__model = model.model;
+            error.__size = size;
+            const detail = await extractHttpErrorDetail(error, `[生图工具] 服务商(${provider.name}/${model.name})接口拒绝`);
+            throw new Error(detail);
+        }
+        throw error;
+    }
 }
 
 /**
@@ -153,17 +204,29 @@ export async function editWithOpenAI({ prompt, images, size, model, provider }) 
     }
     Object.assign(body, parseExtraParams(model.extraParams, '[编辑图片]'));
 
-    const resp = await request.post(baseUrl + apiPath, {
-        headers: {
-            'Authorization': `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json'
-        },
-        data: body,
-        responseType: 'json',
-        outErrorLog: false
-    });
+    try {
+        const resp = await request.post(baseUrl + apiPath, {
+            headers: {
+                'Authorization': `Bearer ${provider.apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            data: body,
+            responseType: 'json',
+            outErrorLog: false
+        });
 
-    return extractImageUrl(resp, responseFormat, '编辑接口');
+        return extractImageUrl(resp, responseFormat, '编辑接口');
+    } catch (error) {
+        if (error?.response) {
+            error.__model = model.model;
+            error.__size = size || '';
+            const detail = await extractHttpErrorDetail(
+                error, `[编辑图片] 服务商(${provider.name}/${model.name})接口拒绝`
+            );
+            throw new Error(detail);
+        }
+        throw error;
+    }
 }
 
 export default { generate: generateWithOpenAI, edit: editWithOpenAI };
