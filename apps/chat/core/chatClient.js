@@ -205,6 +205,93 @@ function synthesizeImageToolCallIfNeeded({ userText, assistantText, tools }) {
 }
 
 /**
+ * 当模型返回空 tool_calls 时，检测"模型自己宣布要去翻聊天记录却没调工具"的场景，
+ * 手动合成一条 get_recent_messages 工具调用，帮模型落实它自己宣布的行动。
+ *
+ * 设计理念（2026-08-31 二次修正）：工具是否调用由模型自主判断——
+ * 用户明确要求看记录时，模型认为自己的上下文记忆足够而直接回答，是合法的自主决策，
+ * 不强制合成；仅当模型嘴上表达了行动意图（"我去看看记录""让我翻翻"）却没实际调用
+ * 时才兜底。这与 synthesizeImageToolCallIfNeeded 的"承诺了就要做"语义一致。
+ *
+ * 触发条件（须全部满足）：
+ *   1) get_recent_messages 工具已注册（未注册说明被禁用，合成无意义）
+ *   2) 用户消息命中"查看聊天记录/刚才聊了什么"等明确请求句式（排除纯巧合）
+ *   3) 不是在讨论"聊天记录功能"本身（问用法/导出/保存而非要看内容）
+ *   4) 模型回复中存在行动意图（"我去看看""让我翻翻"等宣布要去看的语气）
+ *   5) 模型没有明确拒绝（拒绝是自主决策，必须尊重）
+ *   6) 模型回复中没有消息罗列特征（说明已基于上下文给出了记录内容）
+ *
+ * @param {Object} opts
+ * @param {string} opts.userText - 用户原始消息（JSON字符串或纯文本）
+ * @param {string} opts.assistantText - 模型返回的纯文本回复
+ * @param {Array}  opts.tools - 当前可用工具 schema
+ * @returns {{prefix:string, cleanAssistantText:string, toolCall:Object}|null}
+ */
+function synthesizeRecentMessagesToolCallIfNeeded({ userText, assistantText, tools }) {
+    const user = typeof userText === 'string' ? userText : '';
+    const asst = typeof assistantText === 'string' ? assistantText : '';
+
+    // (1) 必须存在 get_recent_messages 工具，否则合成了也执行不了
+    const msgTool = Array.isArray(tools) && tools.find(t =>
+        t?.type === 'function' && t.function?.name === 'get_recent_messages');
+    if (!msgTool) return null;
+
+    // (2) 用户消息必须命中明确的"查看聊天记录"请求句式（任一满足即可）
+    const INTENT_RE_1 = /((聊天|发言|消息|对话)(记录|历史)|历史消息|查看历史|翻一?翻?.{0,2}(记录|历史|聊天))/;
+    const INTENT_RE_2 = /(刚才|之前|前面|上面|刚刚|方才|昨晚|昨天|上次).{0,12}(聊|说)了?(一?些|哪些|什么|啥)/;
+    const INTENT_RE_3 = /(看看?|查查?|回顾).{0,8}(大家|群里?|我们|他们|最近|刚才|之前)?.{0,3}(聊|说)了?(什么|啥)/;
+    const INTENT_RE_4 = /(最近的消息|最近聊了|大家(都)?(聊|说)了?什么|都聊了些?什么|聊了些?啥)/;
+    const hasIntent = INTENT_RE_1.test(user) || INTENT_RE_2.test(user) ||
+        INTENT_RE_3.test(user) || INTENT_RE_4.test(user);
+    if (!hasIntent) return null;
+
+    // (3) 排除讨论"聊天记录功能"本身的语境（问用法/导出/保存而非要看内容）
+    const DISCUSS_RE_1 = /((聊天|消息)?记录|历史消息).{0,4}(功能|原理)|记录.{0,6}(能|可以|支持).{0,4}(导出|保存|删除|清空)/;
+    const DISCUSS_RE_2 = /(怎么|如何)(导出|保存|清空|删除)(聊天|消息)?记录?/;
+    if (DISCUSS_RE_1.test(user) || DISCUSS_RE_2.test(user)) return null;
+
+    // (4) 模型必须自己表达了行动意图（宣布要去翻看），这是兜底的核心门槛：
+    //     模型只用上下文记忆直接回答、或简单附和没有行动意愿时，尊重其自主决策不强制
+    const ACTION_RE = /(我去|我来|让我|这就|马上|稍等|等我|这就去).{0,6}(看|查|翻|瞅|瞧|回顾)/;
+    const ACTION_RE_2 = /(看|翻|查|瞅|瞧)一?(看|翻|查|下).{0,4}(记录|历史|聊天|消息|大家)/;
+    const ACTION_RE_3 = /(翻一?翻|看一?看|查一?查).{0,4}(记录|历史|聊天)/;
+    const hasActionIntent = ACTION_RE.test(asst) || ACTION_RE_2.test(asst) || ACTION_RE_3.test(asst);
+    if (!hasActionIntent) return null;
+
+    // (5) 模型明确拒绝时不强行走兜底（拒绝是自主决策，必须尊重，避免反复触发）
+    const REFUSE_RE = /(看不了|看不到|没法|无法|不能看|查不到|查不了|没有权限|不支持|做不到|办不到|帮不了)/;
+    if (REFUSE_RE.test(asst)) return null;
+
+    // (6) 模型回复已呈现消息罗列特征时跳过（多个时间戳、条数统计、"记录如下"等）
+    const LISTED_RE = /(\d{1,2}:\d{2}[\s\S]*?){3,}|\d+\s*条消息|(记录|消息)如下/;
+    if (LISTED_RE.test(asst)) return null;
+
+    // 提取用户指定的条数（如"最近20条"），缺省10条，上限30条与工具定义保持一致
+    const countMatch = user.match(/(\d+)\s*条/);
+    let count = 10;
+    if (countMatch) {
+        const parsed = parseInt(countMatch[1], 10);
+        if (Number.isFinite(parsed) && parsed > 0) {
+            count = Math.min(parsed, 30);
+        }
+    }
+
+    // 保留模型原文本作为过渡语（可为空，toolLoop 支持空 assistant 文本）
+    return {
+        prefix: `条数:${count}`,
+        cleanAssistantText: asst,
+        toolCall: {
+            id: `synthetic_${Date.now()}_msgs`,
+            type: 'function',
+            function: {
+                name: 'get_recent_messages',
+                arguments: JSON.stringify({ count })
+            }
+        }
+    };
+}
+
+/**
  * 根据用户与AI上下文中提到的风格词，匹配已注册的 style 选项。
  * 防止兜底合成调用时 style 参数不合法被工具层拒绝。
  * 未命中时返回 undefined（由工具层自动走 defaultText2Image 默认风格）。
@@ -441,27 +528,36 @@ export async function chat(msg, e, systemMessage, chatMsg, recursionDepth = 0) {
             return { content, rawResponse: JSON.stringify(response.raw || {}) };
         }
 
-        // =============== 空 toolCalls 兜底：主动检测"用户要画图但模型忘了调工具" ===============
-        // thinking/原生工具调用模型有时会"嘴上说要开始画了"，但 tool_calls 数组空的，
-        // 导致用户以为画不出来（如 2026-08-31 03:20:48 事故：模型发开始绘制但实际没调用）。
-        // 此处检测命中画图意图 + AI未宣称已完成 时，手动合成一条 generate_image 工具调用。
-        const forced = synthesizeImageToolCallIfNeeded({
-            userText: fullUserMsg,
-            assistantText: response.content || '',
-            tools
-        });
-        if (forced) {
-            logger.info(`[止水对话] 模型空tool_calls，兜底注入画图工具调用 | 提示词前缀:"${forced.prefix}"`);
-            response.toolCalls = [forced.toolCall];
-            response.content = forced.cleanAssistantText;
-            response.content = extractPlainTextFromJson(sanitizeModelOutput(response.content));
-            const content = await executeToolLoop({
-                response,
-                chatContext: { msg, e, systemMessage, chatMsg, fullUserMsg },
-                recursionDepth,
-                chatFn: chat
+        // =============== 空 toolCalls 兜底：帮模型落实它自己宣布的行动 ===============
+        // 工具是否调用由模型自主判断（可能它认为上下文记忆足够而直接回答），
+        // 兜底只在"模型嘴上宣布要做事（说要画/说要去看记录）却没实际调用工具"
+        // 时介入，避免言行不一（如 2026-08-31 03:20:48 事故：模型发"开始绘制"
+        // 但 tool_calls 为空，用户干等30秒）。
+        // 仅限首轮（recursionDepth===0）：工具跟进轮的上下文已含工具结果，若再按
+        // 原始用户消息合成，会造成同一请求被重复执行（重复出图/重复拉记录）的循环。
+        if (recursionDepth === 0) {
+            const forced = synthesizeImageToolCallIfNeeded({
+                userText: fullUserMsg,
+                assistantText: response.content || '',
+                tools
+            }) || synthesizeRecentMessagesToolCallIfNeeded({
+                userText: fullUserMsg,
+                assistantText: response.content || '',
+                tools
             });
-            return { content, rawResponse: JSON.stringify(response.raw || {}) };
+            if (forced) {
+                logger.info(`[止水对话] 模型空tool_calls，兜底注入 ${forced.toolCall.function.name} 工具调用 | ${forced.prefix}`);
+                response.toolCalls = [forced.toolCall];
+                response.content = forced.cleanAssistantText;
+                response.content = extractPlainTextFromJson(sanitizeModelOutput(response.content));
+                const content = await executeToolLoop({
+                    response,
+                    chatContext: { msg, e, systemMessage, chatMsg, fullUserMsg },
+                    recursionDepth,
+                    chatFn: chat
+                });
+                return { content, rawResponse: JSON.stringify(response.raw || {}) };
+            }
         }
 
         // 思维链模式：拼接思维链前缀（保持旧版展示行为）
