@@ -10,7 +10,8 @@ import {
     getPending,
     delPending,
     setPassed,
-    isPassed
+    isPassed,
+    listPendingUsers
 } from '../store.js';
 import { getVerifyConfig, isVerifyGroup } from '../config.js';
 import { logger } from '../../../components/index.js';
@@ -264,18 +265,24 @@ function scheduleTimeout(e, botId, userId, config) {
 }
 
 /**
- * 从消息中解析目标用户（@提及或纯数字QQ号）
+ * 从消息中解析全部目标用户候选（@提及与纯数字QQ号，排除当前机器人自身）
+ * 多机器人场景下，被艾特的可能是其他机器人，需由调用方进一步过滤待验证成员
  * @param {object} e - 事件对象
- * @returns {string|null} 目标用户QQ，无法解析时返回 null
+ * @returns {string[]} 候选用户QQ列表（去重）
  */
-export function parseTargetUser(e) {
+export function parseTargetUsers(e) {
+    const me = getBotId(e);
+    const candidates = [];
     for (const seg of (e.message || [])) {
-        if (seg.type === 'at' && seg.qq && String(seg.qq) !== getBotId(e)) {
-            return String(seg.qq);
+        if (seg.type === 'at' && seg.qq && String(seg.qq) !== me) {
+            candidates.push(String(seg.qq));
         }
     }
     const match = String(e.msg || '').match(/(\d{5,})/);
-    return match ? match[1] : null;
+    if (match) {
+        candidates.push(match[1]);
+    }
+    return [...new Set(candidates)];
 }
 
 /**
@@ -341,6 +348,106 @@ export async function handleRestartVerify(e, targetId) {
         await e.reply('重新验证时出现异常，请查看日志～', true);
         return true;
     }
+}
+
+/**
+ * 停止单个成员的验证（清理会话与定时器并写入通过记录）
+ * @param {object} e - 事件对象
+ * @param {string} botId - Bot账号
+ * @param {string} userId - 目标成员QQ
+ * @param {object} config - 验证配置
+ */
+async function stopVerifyMember(e, botId, userId, config) {
+    await delPending(botId, e.group_id, userId);
+    clearTimer(botId, e.group_id, userId);
+    await setPassed(botId, e.group_id, userId, config.passCooldown);
+}
+
+/**
+ * 指令级停止验证：指定待验证成员则逐个取消其验证；未指定人员时批量取消当前群全部待验证成员；
+ * 指定对象非待验证成员或非本机器人时忽略消息（避免多机器人场景误把其他机器人当目标）
+ * @param {object} e - 事件对象
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleStopVerifyByCommand(e) {
+    const botId = getBotId(e);
+    const config = getVerifyConfig();
+    const targetIds = parseTargetUsers(e);
+
+    // 仅保留当前群正在验证中的成员（停止验证只对这些人生效）
+    const pendingTargets = [];
+    for (const id of targetIds) {
+        if (await getPending(botId, e.group_id, id)) {
+            pendingTargets.push(id);
+        }
+    }
+
+    // 指定了对象但均非待验证成员（如其他机器人/普通成员）→ 指令不属于本机器人，忽略
+    if (targetIds.length > 0 && pendingTargets.length === 0) {
+        return false;
+    }
+
+    // 未指定人员 → 批量取消当前群全部待验证成员
+    if (pendingTargets.length === 0) {
+        const all = await listPendingUsers(botId, e.group_id);
+        if (all.length === 0) {
+            await e.reply('当前群没有正在验证的成员哦～', true);
+            return true;
+        }
+        for (const uid of all) {
+            await stopVerifyMember(e, botId, uid, config);
+        }
+        await e.reply([
+            ...all.map(uid => segment.at(uid)),
+            `\n已取消本群全部 ${all.length} 位成员的入群验证，欢迎正式加入本群～`
+        ], true);
+        logger.mark(`[入群验证] 群:${e.group_id} 已批量取消 ${all.length} 位成员验证`);
+        return true;
+    }
+
+    // 逐个取消指定成员的验证
+    for (const uid of pendingTargets) {
+        await stopVerifyMember(e, botId, uid, config);
+    }
+    await e.reply([
+        ...pendingTargets.map(uid => segment.at(uid)),
+        `\n已取消 ${pendingTargets.length} 位成员的入群验证，欢迎正式加入本群～`
+    ], true);
+    logger.mark(`[入群验证] 群:${e.group_id} 已取消成员验证: ${pendingTargets.join(',')}`);
+    return true;
+}
+
+/**
+ * 指令级重新验证：仅对待验证成员重新出题；指定对象非待验证成员时忽略消息
+ * @param {object} e - 事件对象
+ * @returns {Promise<boolean>} 是否拦截消息
+ */
+export async function handleRestartVerifyByCommand(e) {
+    const botId = getBotId(e);
+    const targetIds = parseTargetUsers(e);
+
+    // 仅保留当前群正在验证中的成员
+    const pendingTargets = [];
+    for (const id of targetIds) {
+        if (await getPending(botId, e.group_id, id)) {
+            pendingTargets.push(id);
+        }
+    }
+
+    // 指定了对象但均非待验证成员 → 忽略
+    if (targetIds.length > 0 && pendingTargets.length === 0) {
+        return false;
+    }
+
+    if (pendingTargets.length === 0) {
+        await e.reply('请@要重新验证的成员，或在其后跟上对方QQ号～', true);
+        return true;
+    }
+
+    for (const uid of pendingTargets) {
+        await handleRestartVerify(e, uid);
+    }
+    return true;
 }
 
 /**

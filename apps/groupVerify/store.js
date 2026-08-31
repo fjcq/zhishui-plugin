@@ -100,3 +100,19 @@ export async function isPassed(botId, groupId, userId) {
     const count = await redis.exists(buildKey(PASSED_KEY_PREFIX, botId, groupId, userId));
     return Number(count) > 0;
 }
+
+/**
+ * 列出某群全部待验证成员 QQ（用于批量取消验证）
+ * @param {string} botId - Bot账号
+ * @param {string} groupId - 群号
+ * @returns {Promise<string[]>} 待验证成员QQ数组
+ */
+export async function listPendingUsers(botId, groupId) {
+    const pattern = `${PENDING_KEY_PREFIX}:${botId}:${groupId}:*`;
+    const keys = await redis.keys(pattern);
+    if (!Array.isArray(keys) || keys.length === 0) {
+        return [];
+    }
+    const prefix = `${PENDING_KEY_PREFIX}:${botId}:${groupId}:`;
+    return keys.map(key => String(key).slice(prefix.length));
+}

@@ -10,7 +10,11 @@ import {
     removeVerifyGroup,
     setVerifyEnable
 } from '../config.js';
-import { isBotGroupAdmin, handleStopVerify, handleRestartVerify, parseTargetUser } from './verifyHandler.js';
+import {
+    isBotGroupAdmin,
+    handleStopVerifyByCommand,
+    handleRestartVerifyByCommand
+} from './verifyHandler.js';
 
 /**
  * 检查操作权限：主人或群管理员/群主
@@ -123,7 +127,7 @@ export async function handleToggleVerify(e) {
 }
 
 /**
- * 处理停止验证指令（主人干预：放行指定成员，视为通过）
+ * 处理停止验证指令（主人干预：放行指定成员或全群待验证成员，视为通过）
  * @param {object} e - 事件对象
  * @returns {Promise<boolean>} 是否拦截消息
  */
@@ -138,17 +142,11 @@ export async function handleStopVerifyCommand(e) {
         return true;
     }
 
-    const targetId = parseTargetUser(e);
-    if (!targetId) {
-        await e.reply('请@要停止验证的成员，或在其后跟上对方QQ号～', true);
-        return true;
-    }
-
-    return await handleStopVerify(e, targetId);
+    return await handleStopVerifyByCommand(e);
 }
 
 /**
- * 处理重新验证指令（主人干预：重置会话并重新出题）
+ * 处理重新验证指令（主人干预：对指定待验证成员重置会话并重新出题）
  * @param {object} e - 事件对象
  * @returns {Promise<boolean>} 是否拦截消息
  */
@@ -163,13 +161,7 @@ export async function handleRestartVerifyCommand(e) {
         return true;
     }
 
-    const targetId = parseTargetUser(e);
-    if (!targetId) {
-        await e.reply('请@要重新验证的成员，或在其后跟上对方QQ号～', true);
-        return true;
-    }
-
-    return await handleRestartVerify(e, targetId);
+    return await handleRestartVerifyByCommand(e);
 }
 
 /**
