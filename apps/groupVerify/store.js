@@ -6,6 +6,9 @@
 const PENDING_KEY_PREFIX = 'zhishui:groupVerify:pending';
 const PASSED_KEY_PREFIX = 'zhishui:groupVerify:passed';
 
+// Redis TTL 缓冲秒数：需略大于验证时长，避免定时器到期前会话因 TTL 先过期导致超时处置丢失
+const TTL_BUFFER_SECONDS = 120;
+
 /**
  * 构建键名
  * @param {string} prefix - 键前缀
@@ -23,13 +26,15 @@ function buildKey(prefix, botId, groupId, userId) {
  * @param {string} botId - Bot账号
  * @param {string} groupId - 群号
  * @param {string} userId - 用户QQ
- * @param {object} data - 会话数据 { question, answers }
- * @param {number} ttl - 过期时间（秒）
+ * @param {object} data - 会话数据 { question, answers, history }
+ * @param {number} ttl - 验证时长（秒），用于计算真实过期时间 expireAt
  */
 export async function setPending(botId, groupId, userId, data, ttl) {
     const key = buildKey(PENDING_KEY_PREFIX, botId, groupId, userId);
-    await redis.set(key, JSON.stringify(data));
-    await redis.expire(key, ttl);
+    const ttlSec = Math.max(0, Number(ttl) || 0);
+    // 记录真实过期时间戳，Redis TTL 额外加缓冲，确保超时定时器到期前会话仍存在
+    await redis.set(key, JSON.stringify({ ...data, expireAt: Date.now() + ttlSec * 1000 }));
+    await redis.expire(key, ttlSec + TTL_BUFFER_SECONDS);
 }
 
 /**

@@ -174,6 +174,16 @@ function formatRemainText(seconds) {
 }
 
 /**
+ * 依据会话中的过期时间戳计算真实剩余秒数（不依赖 Redis TTL，避免缓冲干扰）
+ * @param {object} pending - 待验证会话数据
+ * @returns {number} 剩余秒数（已过期返回 0）
+ */
+function getRemainSeconds(pending) {
+    const remainMs = (pending?.expireAt || 0) - Date.now();
+    return remainMs > 0 ? Math.ceil(remainMs / 1000) : 0;
+}
+
+/**
  * 注册验证催促与超时定时器
  * 超时时长过半时发送一次催促提醒，到期后公告并移出群聊
  * @param {object} e - 事件对象
@@ -571,7 +581,7 @@ export async function handleVerifyAnswer(e) {
             return true;
         }
 
-        const remainSeconds = pendingWithTtl.ttl;
+        const remainSeconds = getRemainSeconds(pending);
         const remainText = formatRemainText(remainSeconds);
 
         // AI 判定模式：由 AI 判定回答是否正确（语义等价即算对）并生成回应
