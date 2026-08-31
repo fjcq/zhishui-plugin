@@ -17,6 +17,15 @@ export const chatActiveMap = {};
 
 export const lastRequestTime = {};
 
+/** 对话请求队列：busyKey -> {e, chatNickname}[]，AI空闲后自动按序处理 */
+export const chatQueue = {};
+
+/** 对话队列占用标记：busyKey -> boolean */
+export const chatQueueBusy = {};
+
+/** 全局整合（role）模式下的统一队列键，用于将全部对话串行排队 */
+export const GLOBAL_QUEUE_KEY = '__global_chat_queue__';
+
 /**
  * 上下文存储模式
  * isolated: 按场景隔离存储（群聊/私聊分开）- 方案一

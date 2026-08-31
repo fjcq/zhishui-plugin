@@ -4,7 +4,15 @@
  */
 
 import { Config, logger } from '../../../components/index.js';
-import { chatActiveMap, lastRequestTime, API_INTERVALS } from '../config.js';
+import {
+    chatActiveMap,
+    lastRequestTime,
+    API_INTERVALS,
+    getContextMode,
+    GLOBAL_QUEUE_KEY,
+    chatQueue,
+    chatQueueBusy
+} from '../config.js';
 import { convertAtFormat, convertMessageFormat } from '../parsers/index.js';
 import { checkRateLimit, getUserFavor, setUserFavor } from '../user/index.js';
 import { openAi, loadChatMsg, clearSessionContext, getSessionKeyv, generateSessionId } from '../helpers.js';
@@ -20,6 +28,75 @@ import { sanitizeModelOutput, safeParseJsonWithTail, extractPlainTextFromJson } 
  */
 function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** 单个队列允许的最大排队消息数，超出时丢弃最旧的消息作为保护 */
+const MAX_QUEUE_LIMIT = 50;
+
+/**
+ * 计算对话队列键
+ * 角色整合（role）模式下所有对话共用一个全局队列，实现全局串行；
+ * 场景隔离（isolated）模式下按会话（用户+群）隔离队列，不同会话可并行。
+ * @param {string} lockId - 会话锁ID
+ * @param {boolean} isGlobalQueue - 是否为全局队列模式
+ * @returns {string} 队列键
+ */
+function getQueueKey(lockId, isGlobalQueue) {
+    return isGlobalQueue ? GLOBAL_QUEUE_KEY : lockId;
+}
+
+/**
+ * 判断指定队列是否正处于处理中
+ * @param {string} key - 队列键
+ * @returns {boolean} 是否繁忙
+ */
+function isQueueBusy(key) {
+    return chatQueueBusy[key] === true;
+}
+
+/**
+ * 设置队列繁忙标记
+ * @param {string} key - 队列键
+ * @param {boolean} busy - 是否繁忙
+ */
+function setQueueBusy(key, busy) {
+    chatQueueBusy[key] = busy;
+}
+
+/**
+ * 将待处理对话加入队列
+ * @param {Object} item - 待处理项 {e, chatNickname}
+ * @param {string} key - 队列键
+ */
+function enqueueChat(item, key) {
+    const queue = chatQueue[key] || (chatQueue[key] = []);
+    queue.push(item);
+    if (queue.length > MAX_QUEUE_LIMIT) {
+        queue.shift();
+    }
+}
+
+/**
+ * 从队列取出下一条对话并继续处理
+ * 在AI处理完上一条后调用，实现排队消息的自动接续，避免直接丢弃。
+ * @param {string} key - 队列键
+ */
+function processNextInQueue(key) {
+    const queue = chatQueue[key];
+    if (!queue || queue.length === 0) {
+        if (queue) delete chatQueue[key];
+        return;
+    }
+    const next = queue.shift();
+    if (queue.length === 0) {
+        delete chatQueue[key];
+    }
+    // 提前声明占用，避免在 await 间隙被其他消息插入导致并发
+    setQueueBusy(key, true);
+    setTimeout(() => {
+        handleChat(next.e, next.chatNickname, { fromQueue: true, isGlobalQueue: key === GLOBAL_QUEUE_KEY })
+            .catch((err) => logger.error(`处理排队对话失败: ${err.message}`));
+    }, 0);
 }
 
 /**
@@ -88,11 +165,18 @@ function generateLockId(e) {
 /**
  * 检查并发状态和频率限制
  * @param {string} lockId - 并发控制锁ID
+ * @param {string} queueKey - 队列键
  * @param {Object} e - 事件对象
+ * @param {boolean} fromQueue - 是否从队列接续处理（跳过频率限制，队列本身已串行）
  * @returns {Promise<{allowed: boolean, reason?: string, waitTime?: number}>} 检查结果
  */
-async function checkConcurrencyAndRateLimit(lockId, e) {
-    if (chatActiveMap[lockId] === 1) {
+async function checkConcurrencyAndRateLimit(lockId, queueKey, e, fromQueue = false) {
+    // 从队列接续处理的消息，已由 processNextInQueue 占用队列并保证串行，直接放行
+    if (fromQueue) {
+        return { allowed: true };
+    }
+
+    if (isQueueBusy(queueKey)) {
         return { allowed: false, reason: 'processing' };
     }
 
@@ -456,38 +540,48 @@ async function sendErrorReply(e, errorMsg) {
 
 /**
  * 处理对话核心逻辑
+ * 加入队列机制：当同一队列（会话级或全局级）正在处理上一条请求时，
+ * 新消息进入队列排队，待上一条处理完成后自动继续，而非回复“稍等”后丢弃。
  * @param {Object} e - 事件对象
  * @param {string} chatNickname - 对话昵称
+ * @param {Object} [opts] - 附加参数
+ * @param {boolean} [opts.fromQueue] - 是否为队列接续处理
+ * @param {boolean} [opts.isGlobalQueue] - 是否为全局队列模式（角色整合）
  * @returns {Promise<boolean>} 处理结果
  */
-export async function handleChat(e, chatNickname) {
+export async function handleChat(e, chatNickname, opts = {}) {
     const sessionId = await generateSessionId(e);
     const lockId = generateLockId(e);
+    const fromQueue = !!opts.fromQueue;
+    // 队列粒度跟随存储模式：角色整合（role）用全局队列，场景隔离（isolated）用会话队列
+    const isGlobalQueue = opts.isGlobalQueue ?? ((await getContextMode()) === 'role');
+    const queueKey = getQueueKey(lockId, isGlobalQueue);
 
     const triggerValidation = await validateMessageTrigger(e, chatNickname);
     if (!triggerValidation.triggered) {
         chatActiveMap[lockId] = 0;
+        if (fromQueue) {
+            // 队列接续的消息未通过触发校验：释放占用并继续驱动队列，避免后续消息卡住
+            setQueueBusy(queueKey, false);
+            processNextInQueue(queueKey);
+        }
         return false;
     }
 
-    const concurrencyCheck = await checkConcurrencyAndRateLimit(lockId, e);
+    const concurrencyCheck = await checkConcurrencyAndRateLimit(lockId, queueKey, e, fromQueue);
     if (!concurrencyCheck.allowed) {
-        chatActiveMap[lockId] = 0;
-        
         if (concurrencyCheck.reason === 'processing') {
-            if (e.group_id) {
-                await safeReply(e, [segment.at(e.user_id), '稍等哦，正在处理上一个请求~'], 2, 1000, true);
-            } else {
-                await safeReply(e, '稍等哦，正在处理上一个请求~');
-            }
-        } else if (concurrencyCheck.reason === 'rate_limit') {
-            await safeReply(e, `请稍等 ${concurrencyCheck.waitTime} 秒后再试，避免请求过于频繁~`);
+            // 队列繁忙：消息进入队列，AI空闲后自动接续处理，不再回复“稍等”丢弃
+            enqueueChat({ e, chatNickname }, queueKey);
+            return true;
         }
-        
+        // 频率限制：保留友好提示
+        await safeReply(e, `请稍等 ${concurrencyCheck.waitTime} 秒后再试，避免请求过于频繁~`);
         return false;
     }
 
     chatActiveMap[lockId] = 1;
+    setQueueBusy(queueKey, true);
     lastRequestTime[lockId] = Date.now();
 
     try {
@@ -653,6 +747,11 @@ export async function handleChat(e, chatNickname) {
         chatActiveMap[lockId] = 0;
         await sendErrorReply(e, '发生错误，无法进行对话。请稍后再试。');
         return false;
+    } finally {
+        // 当前请求结束：释放队列占用并继续处理排队中的下一条
+        chatActiveMap[lockId] = 0;
+        setQueueBusy(queueKey, false);
+        processNextInQueue(queueKey);
     }
 }
 
@@ -679,6 +778,11 @@ export async function handleResetChat(e) {
 
         Object.keys(chatActiveMap).forEach(key => chatActiveMap[key] = 0);
         Object.keys(lastRequestTime).forEach(key => delete lastRequestTime[key]);
+
+        // 清空全部对话队列与占用标记，避免残留排队消息在重置后继续处理
+        const { chatQueue: allQueue, chatQueueBusy: allQueueBusy } = await import('../config.js');
+        Object.keys(allQueue).forEach(key => delete allQueue[key]);
+        Object.keys(allQueueBusy).forEach(key => delete allQueueBusy[key]);
 
         // SQLite 路径：全局插入分界标记（AI失忆，历史数据保留）
         if (await storeAvailable()) {
