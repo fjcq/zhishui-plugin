@@ -5,11 +5,11 @@
 import { Config } from '../../components/index.js';
 import { getLatestConfigData } from './configReader.js';
 import { clearAllSessions } from '../../apps/chat/session.js';
-import { applyLegacyView } from '../../apps/chat/configs/sync.js';
+import { mergePanelModels, cleanupChatReferences } from '../../apps/chat/configs/sync.js';
 
 /**
  * 保存配置数据
- * 锅巴前端按schema field扁平提交（key形如'chat.ApiList'、'voice.Enable'），
+ * 锅巴前端按schema field扁平提交（key形如'chat.models'、'voice.Enable'），
  * 顶层key几乎不含裸组名，绝大多数走default→handleGenericSave逐键落盘
  * @param {Object} data - 配置数据
  * @param {Object} options - 选项
@@ -49,6 +49,10 @@ export async function setConfigData(data, { Result, action }) {
                 case 'chat':
                     Config.modify('chat', '', data[key], 'config');
                     break;
+                case 'chat.models':
+                    // GSubForm只提交schema定义字段，写前钩子回填params并转换vision三态
+                    await handleChatModelsSave(data[key]);
+                    break;
                 default:
                     handleGenericSave(key, data[key]);
             }
@@ -57,8 +61,7 @@ export async function setConfigData(data, { Result, action }) {
             }
         }
 
-        // chat相关键落盘后统一触发副作用：ContextMode切换清会话 + 旧字段→新providers/models同步。
-        // 旧版挂载在handleChatSave内的同步因前端扁平提交（key带'chat.'前缀）永不触发，属于配置分叉隐患，已移至此处
+        // chat相关键落盘后统一触发副作用：ContextMode切换清会话 + 失效模型引用清理
         if (touchedChat) {
             await handleChatSideEffects(oldContextMode);
         }
@@ -70,6 +73,18 @@ export async function setConfigData(data, { Result, action }) {
         console.error('止水插件-保存配置失败:', err);
         return Result.error('保存失败: ' + err.message);
     }
+}
+
+/**
+ * 处理对话模型列表保存（写前钩子）
+ * 面板提交的models经mergePanelModels转换（params保留+vision三态转布尔）后落盘
+ * @param {Array<Object>} submittedModels - 面板提交的model列表
+ * @returns {Promise<void>}
+ */
+async function handleChatModelsSave(submittedModels) {
+    const currentModels = (await Config.Chat)?.models || [];
+    const merged = mergePanelModels(submittedModels, currentModels);
+    Config.modify('chat', 'models', merged, 'config');
 }
 
 /**
@@ -270,8 +285,7 @@ function handleGenericSave(key, value) {
 /**
  * chat配置落盘后的副作用处理
  * 1. ContextMode变化时清除旧模式的会话数据
- * 2. 旧字段（ApiList/CurrentApiIndex/VisionApiIndex）→新providers/models结构同步，
- *    保证guoba编辑的API配置在运行时（读新结构）生效
+ * 2. 清理失效模型引用（defaultModel/visionModel/groupOverrides指向已删除模型时置空/摘除）
  * @param {string} oldContextMode - 写盘前的ContextMode值
  * @returns {Promise<void>}
  */
@@ -289,10 +303,10 @@ async function handleChatSideEffects(oldContextMode) {
             }
         }
 
-        // 从落盘后的完整旧字段同步新结构（name稳定性合并保证群覆盖引用不失效）
-        const syncResult = await applyLegacyView(chat);
-        if (!syncResult.ok) {
-            console.error(`[锅巴面板] 新配置结构同步失败: ${syncResult.reason}，运行时可能仍使用旧模型配置`);
+        // 面板编辑（改名/删除模型）可能产生失效引用，统一清理防止悬空
+        const cleanupResult = await cleanupChatReferences();
+        if (cleanupResult.cleaned) {
+            console.log('[锅巴面板] 已清理指向已删除模型的失效引用');
         }
     } catch (error) {
         console.error('[锅巴面板] chat配置副作用处理失败:', error);

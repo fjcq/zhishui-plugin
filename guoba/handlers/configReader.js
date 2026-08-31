@@ -3,20 +3,18 @@
  */
 
 import { Config } from '../../components/index.js';
-import { renderLegacyView } from '../../apps/chat/configs/sync.js';
+import { toPanelModels } from '../../apps/chat/configs/sync.js';
 
 /**
- * 从新配置结构渲染guoba编辑视图
- * 新结构（providers/models）是唯一事实源，guoba的ApiList/CurrentApiIndex/VisionApiIndex
- * 由sync.renderLegacyView派生；其余字段（ContextMode等）原样透传
+ * chat配置的面板表单适配（models回显时vision布尔转三态字符串）
  * @param {Object} chat - 宿主chat配置对象
- * @returns {Object} 合成旧视图后的配置副本
+ * @returns {Object} 表单适配后的配置副本
  */
-function renderChatLegacyView(chat) {
+function toPanelChat(chat) {
     if (!chat || typeof chat !== 'object') {
         return chat;
     }
-    return { ...chat, ...renderLegacyView(chat) };
+    return { ...chat, models: toPanelModels(chat.models) };
 }
 
 /**
@@ -92,7 +90,7 @@ export async function getConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: renderChatLegacyView(Config.getDefOrConfig('chat') || {}),
+            chat: toPanelChat(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},
@@ -158,7 +156,7 @@ export function getLatestConfigData() {
 
         return {
             videoSearch: videoSearchConfig,
-            chat: renderChatLegacyView(Config.getDefOrConfig('chat') || {}),
+            chat: toPanelChat(Config.getDefOrConfig('chat') || {}),
             voice: Config.getDefOrConfig('voice') || {},
             proxy: Config.getDefOrConfig('proxy') || {},
             tools: Config.getDefOrConfig('tools') || {},

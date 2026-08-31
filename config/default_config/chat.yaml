@@ -16,77 +16,98 @@ Master: 主人
 #主人QQ
 MasterQQ: 10000
 
-# API配置数组，每个API为一个对象，包含类型、地址、密钥、模型等
-# API标题（ApiTitle）：用于区分不同API配置的名称，显示在锅巴配置列表、API切换下拉框和#查看API指令中
-#   留空时自动按API地址识别服务商名（如DeepSeek、硅基流动、本地模型等）
-# API类型说明：
-#   - openai: OpenAI兼容格式，支持OpenAI、DeepSeek、智谱AI、硅基流动等绝大多数模型服务商
-#   - tencent: 腾讯元器API，需要配置助手ID
-#   - gemini: Google Gemini API，支持多模态和联网搜索
-# 视觉能力（Vision）：该模型能否看懂图片，可选值：
-#   - "auto": 自动判断，按模型名关键词推断（gpt-4o/glm-4v/qwen-vl等视为有视觉能力）
-#   - "true": 强制开启，模型名未被关键词覆盖但实际支持图片时使用
-#   - "false": 强制关闭，模型名含视觉关键词但实际不支持图片时使用（图片将交给视觉模型转文字）
-ApiList:
-  - ApiTitle: "OpenAI"
-    ApiType: "openai"
-    TencentAssistantId: ""
-    ApiUrl: "https://api.openai.com/v1/chat/completions"
-    ApiKey: "你的OpenAI API Key"
-    ApiModel: "gpt-3.5-turbo"
-  - ApiTitle: "DeepSeek"
-    ApiType: "openai"
-    TencentAssistantId: ""
-    ApiUrl: "https://api.deepseek.com/v1/chat/completions"
-    ApiKey: "你的DeepSeek API Key"
-    ApiModel: "deepseek-chat"
-  - ApiTitle: "硅基流动"
-    ApiType: "openai"
-    TencentAssistantId: ""
-    ApiUrl: "https://api.siliconflow.cn/v1/chat/completions"
-    ApiKey: "你的硅基流动 API Key"
-    ApiModel: "Qwen/Qwen2.5-7B-Instruct"
-  - ApiTitle: "智谱AI"
-    ApiType: "openai"
-    TencentAssistantId: ""
-    ApiUrl: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
-    ApiKey: "你的智谱AI API Key"
-    ApiModel: "glm-4"
-  - ApiTitle: "腾讯元器"
-    ApiType: "tencent"
-    TencentAssistantId: "你的腾讯助手ID"
-    ApiUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
-    ApiKey: "你的腾讯元器 API Key"
-    ApiModel: "hunyuan-lite"
-  - ApiTitle: "Gemini"
-    ApiType: "gemini"
-    TencentAssistantId: ""
-    ApiUrl: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-    ApiKey: "你的Gemini API Key"
-    ApiModel: "gemini-2.5-flash"
+# ==================== 服务商列表（providers）====================
+# 每个条目为一个API接入点，模型列表通过"provider: 服务商名称"引用
+# type 类型说明：
+#   - openai: OpenAI兼容格式（DeepSeek/智谱AI/硅基流动/Kimi等绝大多数服务商），baseUrl填基础地址
+#   - anthropic: Anthropic原生格式（Claude /v1/messages）
+#   - gemini: Google Gemini原生格式，baseUrl填 https://generativelanguage.googleapis.com/v1beta
+#   - tencent: 腾讯元器，需额外配置tencentAssistantId，baseUrl填完整接口地址
+# 服务商名称（name）为唯一标识，改名/删除后需同步修改模型列表中的引用
+providers:
+  - name: "OpenAI"
+    type: "openai"
+    baseUrl: "https://api.openai.com/v1"
+    apiKey: "你的OpenAI API Key"
+  - name: "DeepSeek"
+    type: "openai"
+    baseUrl: "https://api.deepseek.com/v1"
+    apiKey: "你的DeepSeek API Key"
+  - name: "硅基流动"
+    type: "openai"
+    baseUrl: "https://api.siliconflow.cn/v1"
+    apiKey: "你的硅基流动 API Key"
+  - name: "智谱AI"
+    type: "openai"
+    baseUrl: "https://open.bigmodel.cn/api/paas/v4"
+    apiKey: "你的智谱AI API Key"
+  - name: "腾讯元器"
+    type: "tencent"
+    baseUrl: "https://yuanqi.tencent.com/openapi/v1/agent/chat/completions"
+    apiKey: "你的腾讯元器 API Key"
+    tencentAssistantId: "你的腾讯助手ID"
+  - name: "Gemini"
+    type: "gemini"
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta"
+    apiKey: "你的Gemini API Key"
 
-# 全局默认API索引（对应ApiList的下标）
-CurrentApiIndex: 0
+# ==================== 模型列表（models）====================
+# 每个条目通过provider引用上方服务商，同一服务商可配多个模型（密钥/地址只填一次）
+# 模型别名（name）为唯一标识，defaultModel/visionModel/groupOverrides引用此名称
+# 视觉能力（vision）：模型能否看懂图片
+#   - 不填写: 自动判断，按模型名关键词推断（gpt-4o/glm-4v/qwen-vl等视为有视觉能力）
+#   - true: 强制开启，模型名未被关键词覆盖但实际支持图片时使用
+#   - false: 强制关闭，模型名含视觉关键词但实际不支持图片时使用（图片将交给视觉模型转文字）
+# 高级参数（params）：temperature/top_p等请求参数，面板不编辑此处手动配置，面板保存时自动保留
+models:
+  - name: "OpenAI"
+    provider: "OpenAI"
+    model: "gpt-3.5-turbo"
+    params: {}
+  - name: "DeepSeek"
+    provider: "DeepSeek"
+    model: "deepseek-chat"
+    params: {}
+  - name: "硅基流动"
+    provider: "硅基流动"
+    model: "Qwen/Qwen2.5-7B-Instruct"
+    params: {}
+  - name: "智谱AI"
+    provider: "智谱AI"
+    model: "glm-4"
+    params: {}
+  - name: "腾讯元器"
+    provider: "腾讯元器"
+    model: "hunyuan-lite"
+    params: {}
+  - name: "Gemini"
+    provider: "Gemini"
+    model: "gemini-2.5-flash"
+    params: {}
 
-# 视觉模型API索引（对应ApiList的下标）
-#   -1: 自动选择第一个已配置且带视觉能力的模型（按 ApiList 顺序扫描）
-#   >=0: 强制指定视觉模型，用于图片识别（主对话模型无视觉能力时，图片交给它识别）
-VisionApiIndex: -1
+# 全局默认对话模型（引用models中的模型别名）
+# 留空 = 自动选择：使用模型列表中第一个条目
+defaultModel: "OpenAI"
+
+# 图片识别视觉模型（引用models中的模型别名）
+# 主对话模型无视觉能力时，图片交给此模型识别
+# 留空 = 自动选择第一个已配置且带视觉能力的模型（按models顺序扫描）
+visionModel: ""
+
+# 指定群聊使用的角色和模型覆盖，格式：[ { group: 群号, roleIndex: 角色索引, model: 模型别名 }, ... ]
+groupOverrides:
+  - group: 123456789
+    roleIndex: 1
+    model: "OpenAI"
+  - group: 987654321
+    roleIndex: 2
+    model: "DeepSeek"
 
 # AI上下文窗口大小（每次对话参考的最近消息条数；SQLite 存储下历史全量保留不受此限制）
 MaxHistory: 50
 
 # 当前使用的角色索引（从0开始）
 CurrentRoleIndex: 0
-
-# 指定群聊使用的角色索引和API索引，格式：[ { group: 群号, index: 角色索引, apiIndex: API索引 }, ... ]
-GroupRoleIndex:
-  - group: 123456789
-    index: 1
-    apiIndex: 0
-  - group: 987654321
-    index: 2
-    apiIndex: 1
 
 # 频率限制配置
 RateLimit:

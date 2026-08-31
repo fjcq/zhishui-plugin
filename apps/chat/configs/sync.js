@@ -1,193 +1,146 @@
 /**
- * guoba面板与新配置结构的双向同步模块
+ * guoba面板与chat新配置结构的表单适配模块
  *
- * 背景：guoba UI（GSubForm平铺卡片）继续编辑旧ApiList形态，运行时只读
- * providers/models新结构。本模块是两侧的唯一转换层：
- * - renderLegacyView：新结构 → 旧ApiList视图（configReader/下拉框数据源）
- * - applyLegacyView：guoba保存的旧视图 → 覆盖新结构（configWriter调用）
+ * 背景：guoba面板已直编providers/models两级结构（对齐运行时与生图面板），
+ * 本模块仅处理面板表单与YAML结构之间的少量形态差异：
+ * - toPanelModels：models回显时 vision 布尔 → 三态字符串（configReader调用）
+ * - mergePanelModels：面板提交的models → 落盘结构（configWriter写前钩子），
+ *   三态字符串 → 布尔，并按name/provider+model匹配保留面板不编辑的params
+ * - cleanupChatReferences：落盘后清理失效引用（planChatReferenceCleanup纯函数
+ *   计划 + IO封装执行：defaultModel/visionModel/groupOverrides指向已删除模型时
+ *   置空/摘除，provider悬空仅告警）
  *
- * name稳定性约定：applyLegacyView按 type+baseUrl+apiKey（provider）与
- * provider+model串（model）匹配既有条目沿用其name，用户改标题/密钥才重命名，
- * 保证groupOverrides/defaultModel引用的别名不因guoba编辑而失效
+ * 旧版renderLegacyView/applyLegacyView全量ApiList双向转换已随面板切换删除。
  */
 
-import { Config } from '../../../components/index.js';
-import { PROVIDER_TYPES, inferProviderName } from './schema.js';
-import { normalizeLegacyType, normalizeBaseUrl } from './migrate.js';
+import { Config, logger } from '../../../components/index.js';
 
 /**
- * 生成不重复名称（与migrate.js同名函数语义一致，独立实现避免跨模块导出私有函数）
- * @param {string} base - 基础名称
- * @param {Set<string>} used - 已占用集合（函数会追加占用）
- * @returns {string} 唯一名称
+ * models回显转换：vision布尔 → 面板三态字符串（纯函数）
+ * @param {Array<Object>} models - 落盘结构的model列表
+ * @returns {Array<Object>} 面板表单形态的model列表
  */
-function uniqueName(base, used) {
-    let name = String(base || '').trim() || '未命名';
-    if (!used.has(name)) {
-        used.add(name);
-        return name;
+export function toPanelModels(models) {
+    if (!Array.isArray(models)) {
+        return [];
     }
-    let suffix = 2;
-    while (used.has(`${name}-${suffix}`)) {
-        suffix += 1;
-    }
-    const result = `${name}-${suffix}`;
-    used.add(result);
-    return result;
+    return models.map(m => ({
+        ...m,
+        vision: m.vision === true ? 'true' : m.vision === false ? 'false' : 'auto'
+    }));
 }
 
 /**
- * 新结构 → 旧ApiList视图（纯函数）
- * @param {Object} chatConfig - 新chat配置 { providers, models, defaultModel, visionModel }
- * @returns {{ApiList: Array, CurrentApiIndex: number, VisionApiIndex: number}} 旧视图
+ * 按name与provider+model串构建既有model索引（params保留匹配用）
+ * @param {Array<Object>} currentModels - 落盘的model列表
+ * @returns {{byName: Map, byKey: Map}} 双索引
  */
-export function renderLegacyView(chatConfig) {
-    const providers = Array.isArray(chatConfig?.providers) ? chatConfig.providers : [];
-    const models = Array.isArray(chatConfig?.models) ? chatConfig.models : [];
-    const providerMap = new Map(providers.map(p => [p.name, p]));
-
-    const apiList = models.map(model => {
-        const provider = providerMap.get(model.provider) || {};
-        // 视觉能力三态：布尔vision → 旧视图字符串标记（auto/true/false）
-        const visionTag = model.vision === true ? 'true' : model.vision === false ? 'false' : 'auto';
-        return {
-            ApiTitle: provider.name || '',
-            ApiType: provider.type || PROVIDER_TYPES.OPENAI,
-            ApiUrl: provider.baseUrl || '',
-            ApiKey: provider.apiKey || '',
-            ApiModel: model.model || '',
-            TencentAssistantId: provider.tencentAssistantId || '',
-            Vision: visionTag
-        };
-    });
-
-    return {
-        ApiList: apiList,
-        CurrentApiIndex: models.findIndex(m => m.name === chatConfig?.defaultModel),
-        VisionApiIndex: models.findIndex(m => m.name === chatConfig?.visionModel)
-    };
+function buildModelIndex(currentModels) {
+    const byName = new Map();
+    const byKey = new Map();
+    for (const m of Array.isArray(currentModels) ? currentModels : []) {
+        if (!m || typeof m !== 'object') {
+            continue;
+        }
+        byName.set(m.name, m);
+        byKey.set(`${m.provider}|${m.model}`, m);
+    }
+    return { byName, byKey };
 }
 
 /**
- * 旧ApiList视图 → 新结构（纯函数，name稳定性合并）
- * @param {Object} legacyView - 旧视图 { ApiList, CurrentApiIndex, VisionApiIndex }
- * @param {Object} currentConfig - 现存新chat配置（用于匹配沿用name与保留groupOverrides）
- * @returns {{providers: Array, models: Array, defaultModel: string, visionModel: string, groupOverrides: Array}} 新结构
+ * 面板提交的models → 落盘结构（纯函数）
+ * vision三态字符串转布尔（auto不写键保持YAML整洁）；
+ * params面板不编辑，按name优先、provider+model串兜底匹配既有条目回填，
+ * 避免GSubForm只提交schema定义字段导致高级参数丢失
+ * @param {Array<Object>} submitted - 面板提交的model列表
+ * @param {Array<Object>} currentModels - 当前落盘的model列表
+ * @returns {Array<Object>} 可直接落盘的model列表
  */
-export function applyLegacyTransform(legacyView, currentConfig) {
-    const apiList = Array.isArray(legacyView?.ApiList) ? legacyView.ApiList : [];
-    const currentProviders = Array.isArray(currentConfig?.providers) ? currentConfig.providers : [];
-    const currentModels = Array.isArray(currentConfig?.models) ? currentConfig.models : [];
+export function mergePanelModels(submitted, currentModels) {
+    const { byName, byKey } = buildModelIndex(currentModels);
 
-    /**
-     * provider签名（type+baseUrl+apiKey），同签名条目在旧ApiList平铺结构中
-     * 可能出现多次（同一服务商配多个模型），转换时必须合并为一个provider
-     */
-    const providerSignature = (type, baseUrl, apiKey) => `${type}|${baseUrl}|${apiKey}`;
-
-    const usedProviderNames = new Set();
-    const usedModelNames = new Set();
-    const providers = [];
-    const models = [];
-    const providerNameBySignature = new Map();
-
-    apiList.forEach(entry => {
-        if (!entry || typeof entry !== 'object') {
-            return;
-        }
-        const type = normalizeLegacyType(entry.ApiType);
-        const baseUrl = normalizeBaseUrl(entry.ApiUrl, type);
-        const apiKey = String(entry.ApiKey || '');
-        const signature = providerSignature(type, baseUrl, apiKey);
-
-        // 同签名复用已创建的provider；首次出现时匹配既有provider（沿用name保持引用稳定）
-        let providerName = providerNameBySignature.get(signature);
-        if (providerName === undefined) {
-            const matched = currentProviders.find(p =>
-                providerSignature(p.type, p.baseUrl, p.apiKey) === signature
-            );
-            providerName = matched
-                ? uniqueName(matched.name, usedProviderNames)
-                : uniqueName(inferProviderName({ title: entry.ApiTitle, baseUrl, model: entry.ApiModel }), usedProviderNames);
-            providerNameBySignature.set(signature, providerName);
-
-            providers.push({
-                name: providerName,
-                type,
-                baseUrl,
-                apiKey,
-                ...(type === PROVIDER_TYPES.TENCENT && entry.TencentAssistantId
-                    ? { tencentAssistantId: String(entry.TencentAssistantId) }
-                    : {})
-            });
-        }
-
-        // 匹配既有model（同provider+model串）沿用name
-        const matchedModel = currentModels.find(m => m.provider === providerName && m.model === String(entry.ApiModel || ''));
-        const modelName = matchedModel
-            ? uniqueName(matchedModel.name, usedModelNames)
-            : uniqueName(providerName, usedModelNames);
-
-        // 视觉能力三态：旧视图字符串标记 → 布尔vision（auto不写键，保持YAML整洁）
-        const vision = entry.Vision === 'true' ? true : entry.Vision === 'false' ? false : undefined;
-
-        models.push({
-            name: modelName,
-            provider: providerName,
-            model: String(entry.ApiModel || ''),
-            params: matchedModel?.params || {},
-            ...(vision !== undefined ? { vision } : {})
+    return (Array.isArray(submitted) ? submitted : [])
+        .filter(m => m && typeof m === 'object')
+        .map(m => {
+            const matched = byName.get(m.name) || byKey.get(`${m.provider}|${m.model}`);
+            const vision = m.vision === 'true' ? true : m.vision === 'false' ? false : undefined;
+            return {
+                name: String(m.name || ''),
+                provider: String(m.provider || ''),
+                model: String(m.model || ''),
+                params: matched?.params || {},
+                ...(vision !== undefined ? { vision } : {})
+            };
         });
-    });
-
-    const currentIndex = Number(legacyView?.CurrentApiIndex);
-    const visionIndex = Number(legacyView?.VisionApiIndex);
-
-    return {
-        providers,
-        models,
-        defaultModel: Number.isInteger(currentIndex) && models[currentIndex] ? models[currentIndex].name : '',
-        visionModel: Number.isInteger(visionIndex) && visionIndex >= 0 && models[visionIndex] ? models[visionIndex].name : '',
-        // 群覆盖guoba不编辑，原样保留；失效model引用一并清理（删除键而非置undefined，避免YAML序列化出null）
-        groupOverrides: (Array.isArray(currentConfig?.groupOverrides) ? currentConfig.groupOverrides : [])
-            .map(o => {
-                if (!o || o.group === undefined) {
-                    return null;
-                }
-                if (o.model && !models.some(m => m.name === o.model)) {
-                    const cleaned = { ...o };
-                    delete cleaned.model;
-                    return cleaned;
-                }
-                return o;
-            })
-            .filter(Boolean)
-    };
 }
 
 /**
- * 将guoba保存的旧视图同步写入新配置结构（IO封装）
- * 同时置migrated=true，防止启动迁移用旧GroupRoleIndex覆盖阶段4后的群人设
- * @param {Object} legacyView - guoba提交的chat数据（含ApiList/CurrentApiIndex/VisionApiIndex）
- * @returns {Promise<{ok: boolean, reason?: string}>} 同步结果
+ * 计划chat配置中的失效引用清理（纯函数）
+ * - defaultModel/visionModel悬空 → 置空（运行时自动回退第一个模型/自动扫描）
+ * - groupOverrides悬空model → 摘除该字段，仅剩group时整条移除
+ * - model.provider悬空（服务商改名/删除）→ 仅告警不自动改，运行时兜底第一个可用模型
+ * @param {Object} chat - 完整chat配置
+ * @returns {{updates: Array<[string, *]>, warnings: Array<string>}} 待写回的键值对与告警信息
  */
-export async function applyLegacyView(legacyView) {
-    const current = await Config.Chat;
-    const result = applyLegacyTransform(legacyView, current);
+export function planChatReferenceCleanup(chat) {
+    const models = Array.isArray(chat?.models) ? chat.models : [];
+    const modelNames = new Set(models.map(m => m?.name).filter(Boolean));
+    const updates = [];
+    const warnings = [];
 
-    const entries = [
-        ['providers', result.providers],
-        ['models', result.models],
-        ['defaultModel', result.defaultModel],
-        ['visionModel', result.visionModel],
-        ['groupOverrides', result.groupOverrides],
-        ['migrated', true]
-    ];
-    for (const [key, value] of entries) {
+    if (chat?.defaultModel && !modelNames.has(chat.defaultModel)) {
+        updates.push(['defaultModel', '']);
+    }
+    if (chat?.visionModel && !modelNames.has(chat.visionModel)) {
+        updates.push(['visionModel', '']);
+    }
+
+    const overrides = Array.isArray(chat?.groupOverrides) ? chat.groupOverrides : [];
+    let overridesChanged = false;
+    const cleanedOverrides = overrides.map(o => {
+        if (o && o.model && !modelNames.has(o.model)) {
+            overridesChanged = true;
+            const entry = { ...o };
+            delete entry.model;
+            return Object.keys(entry).length <= 1 ? null : entry;
+        }
+        return o;
+    }).filter(Boolean);
+    if (overridesChanged) {
+        updates.push(['groupOverrides', cleanedOverrides]);
+    }
+
+    const providerNames = new Set(
+        (Array.isArray(chat?.providers) ? chat.providers : []).map(p => p?.name).filter(Boolean)
+    );
+    for (const m of models) {
+        if (m?.provider && !providerNames.has(m.provider)) {
+            warnings.push(`模型"${m.name}"引用的服务商"${m.provider}"不存在，请检查服务商名称是否一致`);
+        }
+    }
+
+    return { updates, warnings };
+}
+
+/**
+ * 执行chat配置失效引用清理（IO封装，configWriter落盘后调用）
+ * @returns {Promise<{cleaned: boolean}>} 是否发生了清理写回
+ */
+export async function cleanupChatReferences() {
+    const chat = await Config.Chat;
+    const { updates, warnings } = planChatReferenceCleanup(chat);
+
+    for (const message of warnings) {
+        logger.warn(`[面板适配] ${message}`);
+    }
+
+    for (const [key, value] of updates) {
         const ok = await Config.modify('chat', key, value);
         if (!ok) {
-            return { ok: false, reason: `write-failed:${key}` };
+            logger.error(`[面板适配] 清理失效引用失败: ${key}`);
+            return { cleaned: false };
         }
     }
-    return { ok: true };
+    return { cleaned: updates.length > 0 };
 }
